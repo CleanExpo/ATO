@@ -136,6 +136,14 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 - **Fuel Cost**: 50-200 PTS
 - **Trigger**: `/business-transition` workflow
 
+### 15. Accountant Report Generator 📧
+- **Path**: `.agent/agents/accountant_report_generator/AGENT.md`
+- **Description**: Generate professional reports (Google Docs/Sheets) and send directly to accountant via Gmail
+- **Priority**: HIGH
+- **Bound Skills**: `google_workspace_integration`, `australian_tax_law_research`
+- **Fuel Cost**: 30-100 PTS
+- **Trigger**: `/send-to-accountant` workflow
+
 ## Available Skills
 
 | Skill | Path | Purpose |
@@ -143,6 +151,7 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 | `australian_tax_law_research` | `.agent/skills/australian_tax_law_research/SKILL.md` | ATO legislation and ruling research |
 | `xero_api_integration` | `.agent/skills/xero_api_integration/SKILL.md` | Read-only Xero data access |
 | `rnd_eligibility_assessment` | `.agent/skills/rnd_eligibility_assessment/SKILL.md` | Division 355 R&D activity assessment |
+| `google_workspace_integration` | `.agent/skills/google_workspace_integration/SKILL.md` | Docs, Sheets, Gmail for accountant reports |
 | `notebook_lm_research` | `.agent/skills/notebook_lm_research/SKILL.md` | Deep document analysis |
 | `google_slides_storyboard` | `.agent/skills/google_slides_storyboard/SKILL.md` | Presentation automation |
 | `image_generation` | `.agent/skills/image_generation/SKILL.md` | Visual asset creation |
@@ -181,6 +190,7 @@ All agents operate using the three-mode discipline:
 | `/loss-analysis` | Review carry-forward loss position |
 | `/bad-debt-scan` | Identify bad debts for tax deduction and GST recovery |
 | `/business-transition` | Business closure, pivot, loss carry-forward, ATO negotiation |
+| `/send-to-accountant` | Generate reports and email directly to accountant |
 | `/content-orchestrator` | Generate reports and presentations |
 
 ## Key Deliverables
