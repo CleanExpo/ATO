@@ -43,7 +43,11 @@ async function applyMigration() {
     const databaseUrl = env.DATABASE_URL
 
     if (!databaseUrl) {
-        throw new Error('DATABASE_URL not found in .env.local')
+        console.error('ERROR: DATABASE_URL not found in .env.local')
+        console.error('This script requires direct database access for manual migrations.')
+        console.error('For Supabase, run migrations via Dashboard (Settings → Database → Migrations)')
+        console.error('Or add DATABASE_URL to .env.local: postgresql://[user]:[pass]@[host]:[port]/[db]')
+        process.exit(1)
     }
 
     const sql = fs.readFileSync(migrationPath, 'utf8')
