@@ -255,6 +255,28 @@ CREATE INDEX IF NOT EXISTS idx_audit_reports_tenant ON audit_reports(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_audit_reports_type ON audit_reports(report_type);
 
 -- ----------------------------------------------------------------
+-- GOVERNMENT REFERENCE VALUES TABLE
+-- ----------------------------------------------------------------
+-- Stores official ATO/government rates, thresholds, and citations
+
+CREATE TABLE IF NOT EXISTS government_reference_values (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  unit TEXT,
+  effective_from DATE NOT NULL,
+  effective_to DATE,
+  source_title TEXT NOT NULL,
+  source_url TEXT NOT NULL,
+  retrieved_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_gov_ref_key ON government_reference_values(key);
+CREATE INDEX IF NOT EXISTS idx_gov_ref_effective_from ON government_reference_values(effective_from);
+
+-- ----------------------------------------------------------------
 -- ROW LEVEL SECURITY (RLS)
 -- ----------------------------------------------------------------
 -- Enable RLS for all tables (configure policies as needed)
@@ -265,6 +287,7 @@ ALTER TABLE rnd_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE loss_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shareholder_loans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE government_reference_values ENABLE ROW LEVEL SECURITY;
 
 -- Allow service role full access (for API routes)
 CREATE POLICY "Service role access" ON xero_connections FOR ALL USING (true);
@@ -273,6 +296,7 @@ CREATE POLICY "Service role access" ON rnd_activities FOR ALL USING (true);
 CREATE POLICY "Service role access" ON loss_records FOR ALL USING (true);
 CREATE POLICY "Service role access" ON shareholder_loans FOR ALL USING (true);
 CREATE POLICY "Service role access" ON audit_reports FOR ALL USING (true);
+CREATE POLICY "Service role access" ON government_reference_values FOR ALL USING (true);
 
 -- ----------------------------------------------------------------
 -- FUNCTIONS
@@ -306,4 +330,8 @@ CREATE TRIGGER update_loss_records_updated_at
 
 CREATE TRIGGER update_shareholder_loans_updated_at
   BEFORE UPDATE ON shareholder_loans
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_government_reference_values_updated_at
+  BEFORE UPDATE ON government_reference_values
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

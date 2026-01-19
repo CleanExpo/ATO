@@ -58,7 +58,7 @@ export default function Home() {
                 Connect Xero Account
               </Link>
               <Link href="/dashboard" className="btn btn-secondary text-base px-8 py-4">
-                View Demo
+                View Dashboard
               </Link>
             </div>
           </div>
@@ -73,10 +73,9 @@ export default function Home() {
               <p className="text-[var(--text-secondary)] text-sm mb-4">
                 43.5% refundable offset on eligible R&D expenditure under Division 355.
               </p>
-              <div className="text-2xl font-bold text-emerald-400">
-                Up to $43,500
+              <div className="text-sm text-[var(--text-secondary)]">
+                Official rates appear only when sourced from government data.
               </div>
-              <div className="text-xs text-[var(--text-muted)]">per $100,000 R&D spend</div>
             </div>
 
             <div className="stat-card">
@@ -87,10 +86,9 @@ export default function Home() {
               <p className="text-[var(--text-secondary)] text-sm mb-4">
                 Carry-forward losses and Division 7A compliance for shareholder loans.
               </p>
-              <div className="text-2xl font-bold text-sky-400">
-                25% Tax Value
+              <div className="text-sm text-[var(--text-secondary)]">
+                Loss utilization requires verified ATO history and documentation.
               </div>
-              <div className="text-xs text-[var(--text-muted)]">on accumulated losses</div>
             </div>
 
             <div className="stat-card warning">
@@ -101,10 +99,9 @@ export default function Home() {
               <p className="text-[var(--text-secondary)] text-sm mb-4">
                 Identify misclassified expenses and unclaimed deductions.
               </p>
-              <div className="text-2xl font-bold text-amber-400">
-                $20,000
+              <div className="text-sm text-[var(--text-secondary)]">
+                Thresholds are shown only when sourced from official ATO resources.
               </div>
-              <div className="text-xs text-[var(--text-muted)]">instant asset write-off threshold</div>
             </div>
           </div>
         </div>

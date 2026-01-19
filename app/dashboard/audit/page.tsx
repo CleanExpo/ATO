@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
     DollarSign,
@@ -12,110 +12,192 @@ import {
     ArrowLeft,
     Filter,
     Download,
-    Play,
-    Eye
+    Play
 } from 'lucide-react'
 
-interface AuditFinding {
-    id: string
-    type: 'rnd_candidate' | 'misclassification' | 'missing_tax_type' | 'unclaimed_deduction'
-    priority: 'critical' | 'high' | 'medium' | 'low'
-    transactionDate: string
-    description: string
-    amount: number
-    currentClassification: string
-    recommendedAction: string
-    estimatedBenefit: number
-    legislationRef: string
+type Connection = {
+    tenant_id: string
+    tenant_name: string
+    organisation_name: string
+    organisation_type: string
+    country_code: string
+    base_currency: string
+    is_demo_company: boolean
+    connected_at: string
+    updated_at: string
 }
 
-const MOCK_FINDINGS: AuditFinding[] = [
-    {
-        id: '1',
-        type: 'rnd_candidate',
-        priority: 'critical',
-        transactionDate: '2024-11-15',
-        description: 'Software development contractor - TechDev Solutions',
-        amount: 24500,
-        currentClassification: 'Consulting Fees',
-        recommendedAction: 'Review for R&D eligibility - 43.5% refund potential',
-        estimatedBenefit: 10658,
-        legislationRef: 'Division 355 ITAA 1997'
-    },
-    {
-        id: '2',
-        type: 'rnd_candidate',
-        priority: 'high',
-        transactionDate: '2024-10-22',
-        description: 'Engineering prototype materials',
-        amount: 8750,
-        currentClassification: 'Office Supplies',
-        recommendedAction: 'Reclassify to R&D Materials for offset claim',
-        estimatedBenefit: 3806,
-        legislationRef: 'Division 355 ITAA 1997'
-    },
-    {
-        id: '3',
-        type: 'misclassification',
-        priority: 'medium',
-        transactionDate: '2024-09-18',
-        description: 'Professional development course - AWS Certification',
-        amount: 2400,
-        currentClassification: 'Entertainment',
-        recommendedAction: 'Reclassify to Training & Development (deductible)',
-        estimatedBenefit: 600,
-        legislationRef: 'Section 8-1 ITAA 1997'
-    },
-    {
-        id: '4',
-        type: 'missing_tax_type',
-        priority: 'high',
-        transactionDate: '2024-08-30',
-        description: 'Computer equipment purchase',
-        amount: 4200,
-        currentClassification: 'Office Equipment',
-        recommendedAction: 'Apply instant asset write-off (< $20,000 threshold)',
-        estimatedBenefit: 1050,
-        legislationRef: 'Subdivision 328-D ITAA 1997'
-    },
-    {
-        id: '5',
-        type: 'unclaimed_deduction',
-        priority: 'medium',
-        transactionDate: '2024-12-01',
-        description: 'Home office expenses not claimed',
-        amount: 0,
-        currentClassification: 'N/A',
-        recommendedAction: 'Calculate home office deduction (67c/hour)',
-        estimatedBenefit: 804,
-        legislationRef: 'TR 93/30'
+type TransactionLineItem = {
+    description?: string | null
+}
+
+type TransactionAnalysis = {
+    isRndCandidate?: boolean
+    rndKeywordsFound?: string[]
+    hasMissingTaxTypes?: boolean
+    hasMissingAccounts?: boolean
+    needsReview?: boolean
+}
+
+type Transaction = {
+    id: string
+    date?: string
+    reference?: string | null
+    contact?: string | null
+    total?: number | null
+    status?: string | null
+    lineItems?: TransactionLineItem[]
+    analysis?: TransactionAnalysis
+}
+
+type TransactionsSummary = {
+    total: number
+    rndCandidates: number
+    rndValue: number
+    needsReview: number
+    missingTaxTypes: number
+}
+
+type AuditFinding = {
+    id: string
+    date?: string
+    description: string
+    amount?: number | null
+    contact?: string | null
+    status?: string | null
+    signals: {
+        rndCandidate: boolean
+        missingTaxType: boolean
+        missingAccount: boolean
     }
-]
+    keywords: string[]
+}
+
+function buildDescription(tx: Transaction): string {
+    const lineItem = tx.lineItems?.find(item => item.description)?.description
+    return (tx.reference || lineItem || 'Transaction') as string
+}
+
+function formatCurrency(value: number | null | undefined): string {
+    if (value === null || value === undefined || Number.isNaN(value)) return 'Not available'
+    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(value)
+}
 
 export default function TaxAuditPage() {
-    const [findings] = useState<AuditFinding[]>(MOCK_FINDINGS)
-    const [filterType, setFilterType] = useState<string>('all')
-    const [filterPriority, setFilterPriority] = useState<string>('all')
+    const [connections, setConnections] = useState<Connection[]>([])
+    const [activeTenantId, setActiveTenantId] = useState<string>('')
+    const [findings, setFindings] = useState<AuditFinding[]>([])
+    const [summary, setSummary] = useState<TransactionsSummary | null>(null)
+    const [connectionsLoading, setConnectionsLoading] = useState(true)
+    const [findingsLoading, setFindingsLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const [filterSignal, setFilterSignal] = useState<string>('all')
 
-    const filteredFindings = findings.filter(f => {
-        if (filterType !== 'all' && f.type !== filterType) return false
-        if (filterPriority !== 'all' && f.priority !== filterPriority) return false
-        return true
-    })
+    useEffect(() => {
+        let isMounted = true
 
-    const totalBenefit = findings.reduce((sum, f) => sum + f.estimatedBenefit, 0)
-    const criticalCount = findings.filter(f => f.priority === 'critical').length
-    const rndCandidates = findings.filter(f => f.type === 'rnd_candidate').length
-
-    const getTypeLabel = (type: string) => {
-        switch (type) {
-            case 'rnd_candidate': return 'R&D Candidate'
-            case 'misclassification': return 'Misclassification'
-            case 'missing_tax_type': return 'Missing Tax Type'
-            case 'unclaimed_deduction': return 'Unclaimed Deduction'
-            default: return type
+        async function loadConnections() {
+            try {
+                setConnectionsLoading(true)
+                const res = await fetch('/api/xero/organizations')
+                if (!res.ok) {
+                    throw new Error('Failed to load Xero connections')
+                }
+                const data = await res.json()
+                if (!isMounted) return
+                const loaded = (data.connections || []) as Connection[]
+                setConnections(loaded)
+                if (loaded.length > 0) {
+                    setActiveTenantId(loaded[0].tenant_id)
+                }
+            } catch (err) {
+                if (!isMounted) return
+                setError(err instanceof Error ? err.message : 'Failed to load connections')
+            } finally {
+                if (isMounted) setConnectionsLoading(false)
+            }
         }
-    }
+
+        loadConnections()
+
+        return () => {
+            isMounted = false
+        }
+    }, [])
+
+    useEffect(() => {
+        let isMounted = true
+
+        async function loadFindings(tenantId: string) {
+            try {
+                setFindingsLoading(true)
+                setError(null)
+                const res = await fetch(`/api/xero/transactions?tenantId=${encodeURIComponent(tenantId)}`)
+                if (!res.ok) {
+                    throw new Error('Failed to load transactions')
+                }
+                const data = await res.json()
+                if (!isMounted) return
+
+                const transactions: Transaction[] = data.transactions || []
+                const derivedFindings: AuditFinding[] = transactions
+                    .filter(tx => tx.analysis?.needsReview)
+                    .map(tx => ({
+                        id: tx.id,
+                        date: tx.date,
+                        description: buildDescription(tx),
+                        amount: tx.total ?? null,
+                        contact: tx.contact || null,
+                        status: tx.status || null,
+                        signals: {
+                            rndCandidate: Boolean(tx.analysis?.isRndCandidate),
+                            missingTaxType: Boolean(tx.analysis?.hasMissingTaxTypes),
+                            missingAccount: Boolean(tx.analysis?.hasMissingAccounts)
+                        },
+                        keywords: tx.analysis?.rndKeywordsFound || []
+                    }))
+
+                setFindings(derivedFindings)
+                setSummary((data.summary || null) as TransactionsSummary | null)
+            } catch (err) {
+                if (!isMounted) return
+                setError(err instanceof Error ? err.message : 'Failed to load audit findings')
+                setFindings([])
+                setSummary(null)
+            } finally {
+                if (isMounted) setFindingsLoading(false)
+            }
+        }
+
+        if (activeTenantId) {
+            loadFindings(activeTenantId)
+        } else {
+            setFindings([])
+            setSummary(null)
+        }
+
+        return () => {
+            isMounted = false
+        }
+    }, [activeTenantId])
+
+    const filteredFindings = useMemo(() => {
+        return findings.filter(finding => {
+            if (filterSignal === 'rnd_candidate') return finding.signals.rndCandidate
+            if (filterSignal === 'missing_tax_type') return finding.signals.missingTaxType
+            if (filterSignal === 'missing_account') return finding.signals.missingAccount
+            return true
+        })
+    }, [findings, filterSignal])
+
+    const totalReviewItems = findings.length
+    const missingTaxTypes = findings.filter(f => f.signals.missingTaxType).length
+    const missingAccounts = findings.filter(f => f.signals.missingAccount).length
+    const rndCandidateSpend = summary?.rndValue
+        ?? findings.filter(f => f.signals.rndCandidate).reduce((sum, f) => sum + (f.amount || 0), 0)
+
+    const hasConnections = connections.length > 0
+    const loading = connectionsLoading || findingsLoading
 
     return (
         <div className="flex min-h-screen">
@@ -163,168 +245,208 @@ export default function TaxAuditPage() {
             {/* Main Content */}
             <main className="ml-[280px] flex-1 p-8">
                 {/* Header */}
-                <div className="flex items-center gap-4 mb-8">
+                <div className="flex flex-wrap items-center gap-4 mb-8">
                     <Link href="/dashboard" className="btn btn-ghost p-2">
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div className="flex-1">
                         <h2 className="text-2xl font-bold mb-1">Tax Audit Findings</h2>
                         <p className="text-[var(--text-secondary)]">
-                            Transaction analysis and optimization recommendations
+                            Findings are derived from your Xero transactions only.
                         </p>
                     </div>
-                    <button className="btn btn-secondary">
-                        <Download className="w-4 h-4" />
-                        Export Report
-                    </button>
-                    <button className="btn btn-primary">
-                        <Play className="w-4 h-4" />
-                        Run Full Audit
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {hasConnections && (
+                            <select
+                                value={activeTenantId}
+                                onChange={(e) => setActiveTenantId(e.target.value)}
+                                className="input w-64"
+                            >
+                                {connections.map(conn => (
+                                    <option key={conn.tenant_id} value={conn.tenant_id}>
+                                        {conn.organisation_name || conn.tenant_name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                        <button className="btn btn-secondary" disabled>
+                            <Download className="w-4 h-4" />
+                            Export Report
+                        </button>
+                        <button className="btn btn-primary" disabled>
+                            <Play className="w-4 h-4" />
+                            Run Full Audit
+                        </button>
+                    </div>
                 </div>
+
+                {error && (
+                    <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+                        {error}
+                    </div>
+                )}
+
+                {!loading && !hasConnections && (
+                    <div className="glass-card p-8 text-center">
+                        <h3 className="text-lg font-semibold mb-2">No Xero connection</h3>
+                        <p className="text-[var(--text-secondary)] mb-6">
+                            Connect a Xero organization to generate audit findings.
+                        </p>
+                        <Link href="/api/auth/xero" className="btn btn-xero">
+                            Connect Xero
+                        </Link>
+                    </div>
+                )}
 
                 {/* Stats */}
-                <div className="grid md:grid-cols-4 gap-6 mb-8">
-                    <div className="stat-card accent">
-                        <div className="text-sm text-[var(--text-secondary)] mb-2">Total Potential Benefit</div>
-                        <div className="text-3xl font-bold text-emerald-400">
-                            ${totalBenefit.toLocaleString()}
+                {hasConnections && (
+                    <div className="grid md:grid-cols-4 gap-6 mb-8">
+                        <div className="stat-card accent">
+                            <div className="text-sm text-[var(--text-secondary)] mb-2">Review Items</div>
+                            <div className="text-3xl font-bold text-emerald-400">
+                                {loading ? 'Loading...' : totalReviewItems}
+                            </div>
+                            <div className="text-xs text-[var(--text-muted)]">flagged from Xero data</div>
                         </div>
-                        <div className="text-xs text-[var(--text-muted)]">from {findings.length} findings</div>
-                    </div>
 
-                    <div className="stat-card danger">
-                        <div className="text-sm text-[var(--text-secondary)] mb-2">Critical Items</div>
-                        <div className="text-3xl font-bold text-red-400">{criticalCount}</div>
-                        <div className="text-xs text-[var(--text-muted)]">require immediate attention</div>
-                    </div>
-
-                    <div className="stat-card xero">
-                        <div className="text-sm text-[var(--text-secondary)] mb-2">R&D Candidates</div>
-                        <div className="text-3xl font-bold text-sky-400">{rndCandidates}</div>
-                        <div className="text-xs text-[var(--text-muted)]">43.5% refund potential</div>
-                    </div>
-
-                    <div className="stat-card warning">
-                        <div className="text-sm text-[var(--text-secondary)] mb-2">Misclassifications</div>
-                        <div className="text-3xl font-bold text-amber-400">
-                            {findings.filter(f => f.type === 'misclassification').length}
+                        <div className="stat-card xero">
+                            <div className="text-sm text-[var(--text-secondary)] mb-2">R&D Candidate Spend</div>
+                            <div className="text-3xl font-bold text-sky-400">
+                                {loading ? 'Loading...' : formatCurrency(rndCandidateSpend)}
+                            </div>
+                            <div className="text-xs text-[var(--text-muted)]">sum of flagged transactions</div>
                         </div>
-                        <div className="text-xs text-[var(--text-muted)]">need correction</div>
+
+                        <div className="stat-card warning">
+                            <div className="text-sm text-[var(--text-secondary)] mb-2">Missing Tax Types</div>
+                            <div className="text-3xl font-bold text-amber-400">
+                                {loading ? 'Loading...' : missingTaxTypes}
+                            </div>
+                            <div className="text-xs text-[var(--text-muted)]">GST or BAS codes missing</div>
+                        </div>
+
+                        <div className="stat-card danger">
+                            <div className="text-sm text-[var(--text-secondary)] mb-2">Missing Accounts</div>
+                            <div className="text-3xl font-bold text-red-400">
+                                {loading ? 'Loading...' : missingAccounts}
+                            </div>
+                            <div className="text-xs text-[var(--text-muted)]">account codes not set</div>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Filters */}
-                <div className="flex items-center gap-4 mb-6">
-                    <div className="flex items-center gap-2">
-                        <Filter className="w-4 h-4 text-[var(--text-muted)]" />
-                        <span className="text-sm text-[var(--text-secondary)]">Filter:</span>
+                {hasConnections && (
+                    <div className="flex items-center gap-4 mb-6">
+                        <div className="flex items-center gap-2">
+                            <Filter className="w-4 h-4 text-[var(--text-muted)]" />
+                            <span className="text-sm text-[var(--text-secondary)]">Filter:</span>
+                        </div>
+                        <select
+                            value={filterSignal}
+                            onChange={(e) => setFilterSignal(e.target.value)}
+                            className="input w-56"
+                        >
+                            <option value="all">All Signals</option>
+                            <option value="rnd_candidate">R&D Candidates</option>
+                            <option value="missing_tax_type">Missing Tax Types</option>
+                            <option value="missing_account">Missing Accounts</option>
+                        </select>
                     </div>
-                    <select
-                        value={filterType}
-                        onChange={(e) => setFilterType(e.target.value)}
-                        className="input w-48"
-                    >
-                        <option value="all">All Types</option>
-                        <option value="rnd_candidate">R&D Candidates</option>
-                        <option value="misclassification">Misclassifications</option>
-                        <option value="missing_tax_type">Missing Tax Type</option>
-                        <option value="unclaimed_deduction">Unclaimed Deductions</option>
-                    </select>
-                    <select
-                        value={filterPriority}
-                        onChange={(e) => setFilterPriority(e.target.value)}
-                        className="input w-40"
-                    >
-                        <option value="all">All Priorities</option>
-                        <option value="critical">Critical</option>
-                        <option value="high">High</option>
-                        <option value="medium">Medium</option>
-                        <option value="low">Low</option>
-                    </select>
-                </div>
+                )}
+
+                {hasConnections && !loading && filteredFindings.length === 0 && (
+                    <div className="glass-card p-6 text-center text-[var(--text-secondary)]">
+                        No audit findings from Xero data for the current filters.
+                    </div>
+                )}
 
                 {/* Findings Table */}
-                <div className="table-container">
-                    <table className="table">
-                        <thead>
-                            <tr>
-                                <th>Priority</th>
-                                <th>Type</th>
-                                <th>Date</th>
-                                <th>Description</th>
-                                <th>Amount</th>
-                                <th>Est. Benefit</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredFindings.map((finding) => (
-                                <tr key={finding.id}>
-                                    <td>
-                                        <span className={`priority-badge ${finding.priority}`}>
-                                            {finding.priority}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span className="text-sm">{getTypeLabel(finding.type)}</span>
-                                    </td>
-                                    <td>
-                                        <span className="text-sm text-[var(--text-secondary)]">
-                                            {new Date(finding.transactionDate).toLocaleDateString()}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <div>
-                                            <div className="font-medium text-sm">{finding.description}</div>
-                                            <div className="text-xs text-[var(--text-muted)]">
-                                                Current: {finding.currentClassification}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span className="amount">
-                                            ${finding.amount.toLocaleString()}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <span className="amount positive">
-                                            +${finding.estimatedBenefit.toLocaleString()}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button className="btn btn-ghost p-2">
-                                            <Eye className="w-4 h-4" />
-                                        </button>
-                                    </td>
+                {hasConnections && filteredFindings.length > 0 && (
+                    <div className="table-container">
+                        <table className="table">
+                            <thead>
+                                <tr>
+                                    <th>Signals</th>
+                                    <th>Date</th>
+                                    <th>Description</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                {filteredFindings.map((finding) => (
+                                    <tr key={finding.id}>
+                                        <td>
+                                            <div className="flex flex-wrap gap-2">
+                                                {finding.signals.rndCandidate && (
+                                                    <span className="priority-badge low">R&D Candidate</span>
+                                                )}
+                                                {finding.signals.missingTaxType && (
+                                                    <span className="priority-badge medium">Missing Tax Type</span>
+                                                )}
+                                                {finding.signals.missingAccount && (
+                                                    <span className="priority-badge critical">Missing Account</span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className="text-sm text-[var(--text-secondary)]">
+                                                {finding.date ? new Date(finding.date).toLocaleDateString() : 'Not available'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <div className="font-medium text-sm">{finding.description}</div>
+                                                {finding.contact && (
+                                                    <div className="text-xs text-[var(--text-muted)]">
+                                                        Contact: {finding.contact}
+                                                    </div>
+                                                )}
+                                                {finding.keywords.length > 0 && (
+                                                    <div className="text-xs text-[var(--text-muted)]">
+                                                        Keywords: {finding.keywords.join(', ')}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span className="amount">
+                                                {formatCurrency(finding.amount ?? null)}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span className="text-sm text-[var(--text-secondary)]">
+                                                {finding.status || 'Not available'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
 
                 {/* Legend */}
-                <div className="mt-8 p-6 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)]">
-                    <h4 className="font-medium mb-4">Finding Categories</h4>
-                    <div className="grid md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                            <span className="font-medium text-emerald-400">R&D Candidate</span>
-                            <p className="text-[var(--text-secondary)]">Transaction potentially eligible for 43.5% R&D offset</p>
-                        </div>
-                        <div>
-                            <span className="font-medium text-amber-400">Misclassification</span>
-                            <p className="text-[var(--text-secondary)]">Expense in wrong account category</p>
-                        </div>
-                        <div>
-                            <span className="font-medium text-sky-400">Missing Tax Type</span>
-                            <p className="text-[var(--text-secondary)]">Transaction without GST/BAS code</p>
-                        </div>
-                        <div>
-                            <span className="font-medium text-purple-400">Unclaimed Deduction</span>
-                            <p className="text-[var(--text-secondary)]">Valid deduction not being claimed</p>
+                {hasConnections && (
+                    <div className="mt-8 p-6 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-default)]">
+                        <h4 className="font-medium mb-4">Signal Definitions</h4>
+                        <div className="grid md:grid-cols-3 gap-4 text-sm">
+                            <div>
+                                <span className="font-medium text-emerald-400">R&D Candidate</span>
+                                <p className="text-[var(--text-secondary)]">Keyword-based signal from Xero transaction descriptions.</p>
+                            </div>
+                            <div>
+                                <span className="font-medium text-amber-400">Missing Tax Type</span>
+                                <p className="text-[var(--text-secondary)]">Transaction line item without a GST/BAS tax type.</p>
+                            </div>
+                            <div>
+                                <span className="font-medium text-red-400">Missing Account</span>
+                                <p className="text-[var(--text-secondary)]">Transaction line item without an account code.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
+                )}
             </main>
         </div>
     )

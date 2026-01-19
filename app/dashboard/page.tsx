@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useCallback, useEffect, Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -30,6 +30,19 @@ interface Connection {
     updated_at: string
 }
 
+type TransactionsSummary = {
+    total: number
+    rndCandidates: number
+    rndValue: number
+    needsReview: number
+    missingTaxTypes: number
+}
+
+function formatCurrency(value: number | null | undefined): string {
+    if (value === null || value === undefined || Number.isNaN(value)) return 'Not available'
+    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(value)
+}
+
 function DashboardContent() {
     const searchParams = useSearchParams()
     const justConnected = searchParams.get('connected') === 'true'
@@ -37,19 +50,42 @@ function DashboardContent() {
     const [connections, setConnections] = useState<Connection[]>([])
     const [loading, setLoading] = useState(true)
     const [activeConnection, setActiveConnection] = useState<Connection | null>(null)
+    const [summary, setSummary] = useState<TransactionsSummary | null>(null)
+    const [summaryLoading, setSummaryLoading] = useState(false)
+    const [summaryError, setSummaryError] = useState<string | null>(null)
 
-    useEffect(() => {
-        fetchConnections()
+    const fetchSummary = useCallback(async (tenantId: string) => {
+        try {
+            setSummaryLoading(true)
+            setSummaryError(null)
+            const res = await fetch(`/api/xero/transactions?tenantId=${encodeURIComponent(tenantId)}`)
+            if (!res.ok) {
+                throw new Error('Failed to load transaction summary')
+            }
+            const data = await res.json()
+            setSummary((data.summary || null) as TransactionsSummary | null)
+        } catch (error) {
+            console.error('Failed to fetch summary:', error)
+            setSummaryError('Failed to load summary')
+            setSummary(null)
+        } finally {
+            setSummaryLoading(false)
+        }
     }, [])
 
-    async function fetchConnections() {
+    const fetchConnections = useCallback(async () => {
         try {
             const res = await fetch('/api/xero/organizations')
             if (res.ok) {
                 const data = await res.json()
                 setConnections(data.connections || [])
                 if (data.connections?.length > 0) {
-                    setActiveConnection(data.connections[0])
+                    const connection = data.connections[0]
+                    setActiveConnection(connection)
+                    fetchSummary(connection.tenant_id)
+                } else {
+                    setActiveConnection(null)
+                    setSummary(null)
                 }
             }
         } catch (error) {
@@ -57,7 +93,18 @@ function DashboardContent() {
         } finally {
             setLoading(false)
         }
+    }, [fetchSummary])
+
+    useEffect(() => {
+        fetchConnections()
+    }, [fetchConnections])
+
+    function handleSelectConnection(connection: Connection) {
+        setActiveConnection(connection)
+        fetchSummary(connection.tenant_id)
     }
+
+    const hasConnections = connections.length > 0
 
     return (
         <div className="flex min-h-screen">
@@ -140,11 +187,17 @@ function DashboardContent() {
                     </div>
                 </div>
 
+                {summaryError && (
+                    <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+                        {summaryError}
+                    </div>
+                )}
+
                 {loading ? (
                     <div className="flex items-center justify-center h-64">
                         <div className="loading-spinner" />
                     </div>
-                ) : connections.length === 0 ? (
+                ) : !hasConnections ? (
                     /* No Connections State */
                     <div className="text-center py-20">
                         <div className="w-20 h-20 rounded-full bg-sky-500/10 flex items-center justify-center mx-auto mb-6">
@@ -175,29 +228,35 @@ function DashboardContent() {
 
                             <div className="stat-card accent">
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="text-sm text-[var(--text-secondary)]">R&D Potential</span>
+                                    <span className="text-sm text-[var(--text-secondary)]">R&D Candidate Spend</span>
                                     <Beaker className="w-5 h-5 text-emerald-400" />
                                 </div>
-                                <div className="text-3xl font-bold text-emerald-400">$--</div>
-                                <div className="text-xs text-[var(--text-muted)]">Run analysis to calculate</div>
+                                <div className="text-3xl font-bold text-emerald-400">
+                                    {summaryLoading ? 'Loading...' : formatCurrency(summary?.rndValue ?? null)}
+                                </div>
+                                <div className="text-xs text-[var(--text-muted)]">flagged by transaction analysis</div>
                             </div>
 
                             <div className="stat-card">
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="text-sm text-[var(--text-secondary)]">Open Findings</span>
+                                    <span className="text-sm text-[var(--text-secondary)]">Review Items</span>
                                     <AlertTriangle className="w-5 h-5 text-amber-400" />
                                 </div>
-                                <div className="text-3xl font-bold">--</div>
-                                <div className="text-xs text-[var(--text-muted)]">Pending review</div>
+                                <div className="text-3xl font-bold">
+                                    {summaryLoading ? 'Loading...' : (summary ? summary.needsReview : 'Not available')}
+                                </div>
+                                <div className="text-xs text-[var(--text-muted)]">requiring manual review</div>
                             </div>
 
                             <div className="stat-card warning">
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="text-sm text-[var(--text-secondary)]">Losses</span>
+                                    <span className="text-sm text-[var(--text-secondary)]">Transactions Scanned</span>
                                     <TrendingDown className="w-5 h-5 text-amber-400" />
                                 </div>
-                                <div className="text-3xl font-bold">$--</div>
-                                <div className="text-xs text-[var(--text-muted)]">Carry-forward available</div>
+                                <div className="text-3xl font-bold">
+                                    {summaryLoading ? 'Loading...' : (summary ? summary.total : 'Not available')}
+                                </div>
+                                <div className="text-xs text-[var(--text-muted)]">current sync window</div>
                             </div>
                         </div>
 
@@ -209,7 +268,7 @@ function DashboardContent() {
                                 </div>
                                 <h3 className="font-semibold mb-2">R&D Tax Assessment</h3>
                                 <p className="text-sm text-[var(--text-secondary)] mb-4">
-                                    Evaluate R&D activities for 43.5% refundable offset under Division 355.
+                                    Review candidate transactions sourced from Xero data.
                                 </p>
                                 <div className="flex items-center text-emerald-400 text-sm font-medium">
                                     Start Assessment <ArrowRight className="w-4 h-4 ml-2" />
@@ -222,7 +281,7 @@ function DashboardContent() {
                                 </div>
                                 <h3 className="font-semibold mb-2">Transaction Audit</h3>
                                 <p className="text-sm text-[var(--text-secondary)] mb-4">
-                                    Scan for misclassifications, missing tax codes, and deduction opportunities.
+                                    Review signals for missing tax types and account codes.
                                 </p>
                                 <div className="flex items-center text-sky-400 text-sm font-medium">
                                     Run Audit <ArrowRight className="w-4 h-4 ml-2" />
@@ -235,7 +294,7 @@ function DashboardContent() {
                                 </div>
                                 <h3 className="font-semibold mb-2">Loss Analysis</h3>
                                 <p className="text-sm text-[var(--text-secondary)] mb-4">
-                                    Review carry-forward losses and shareholder loan compliance.
+                                    View Profit & Loss data from your Xero reports.
                                 </p>
                                 <div className="flex items-center text-amber-400 text-sm font-medium">
                                     Analyze Losses <ArrowRight className="w-4 h-4 ml-2" />
@@ -258,7 +317,7 @@ function DashboardContent() {
                                             <div>
                                                 <div className="font-medium">{conn.organisation_name || conn.tenant_name}</div>
                                                 <div className="text-sm text-[var(--text-secondary)]">
-                                                    {conn.organisation_type} • {conn.country_code} • {conn.base_currency}
+                                                    {conn.organisation_type} - {conn.country_code} - {conn.base_currency}
                                                 </div>
                                             </div>
                                             {conn.is_demo_company && (
@@ -270,7 +329,7 @@ function DashboardContent() {
                                                 Connected {new Date(conn.connected_at).toLocaleDateString()}
                                             </span>
                                             <button
-                                                onClick={() => setActiveConnection(conn)}
+                                                onClick={() => handleSelectConnection(conn)}
                                                 className={`btn ${activeConnection?.tenant_id === conn.tenant_id ? 'btn-primary' : 'btn-secondary'}`}
                                             >
                                                 {activeConnection?.tenant_id === conn.tenant_id ? 'Active' : 'Select'}
