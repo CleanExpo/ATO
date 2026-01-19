@@ -120,6 +120,14 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 - **Fuel Cost**: 20-60 PTS
 - **Trigger**: `/scout` workflow
 
+### 13. Bad Debt Recovery Agent 💸
+- **Path**: `.agent/agents/bad_debt_recovery_agent/AGENT.md`
+- **Description**: Bad debt tax deductions (Section 25-35) and GST recovery (Division 21) for bankrupt/insolvent debtors
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 30-100 PTS
+- **Trigger**: `/bad-debt-scan` workflow
+
 ## Available Skills
 
 | Skill | Path | Purpose |
@@ -163,6 +171,7 @@ All agents operate using the three-mode discipline:
 | `/rnd-assessment` | R&D Tax Incentive eligibility evaluation |
 | `/deduction-scan` | Identify unclaimed deductions |
 | `/loss-analysis` | Review carry-forward loss position |
+| `/bad-debt-scan` | Identify bad debts for tax deduction and GST recovery |
 | `/content-orchestrator` | Generate reports and presentations |
 
 ## Key Deliverables
