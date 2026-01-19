@@ -128,6 +128,14 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 - **Fuel Cost**: 30-100 PTS
 - **Trigger**: `/bad-debt-scan` workflow
 
+### 14. Business Transition Agent 🔄
+- **Path**: `.agent/agents/business_transition_agent/AGENT.md`
+- **Description**: Business cessation, pivot to new business, loss carry-forward (Similar Business Test), ATO payment negotiation
+- **Priority**: CRITICAL
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 50-200 PTS
+- **Trigger**: `/business-transition` workflow
+
 ## Available Skills
 
 | Skill | Path | Purpose |
@@ -172,6 +180,7 @@ All agents operate using the three-mode discipline:
 | `/deduction-scan` | Identify unclaimed deductions |
 | `/loss-analysis` | Review carry-forward loss position |
 | `/bad-debt-scan` | Identify bad debts for tax deduction and GST recovery |
+| `/business-transition` | Business closure, pivot, loss carry-forward, ATO negotiation |
 | `/content-orchestrator` | Generate reports and presentations |
 
 ## Key Deliverables
