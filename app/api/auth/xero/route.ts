@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createXeroClient } from '@/lib/xero/client'
-import { requireUser } from '@/lib/supabase/auth'
 import crypto from 'crypto'
 
+// GET /api/auth/xero - Initiate Xero OAuth flow
+// Single-user mode: No authentication required
 export async function GET(request: NextRequest) {
     const baseUrl = request.nextUrl.origin
-    const user = await requireUser()
-
-    if (!user) {
-        const loginUrl = new URL('/auth/login', baseUrl)
-        loginUrl.searchParams.set('returnTo', request.nextUrl.pathname)
-        return NextResponse.redirect(loginUrl.toString())
-    }
 
     try {
-        // Generate state for CSRF protection (keep it simple)
+        // Generate state for CSRF protection
         const state = crypto.randomUUID()
 
         // Build the consent URL
@@ -36,6 +30,6 @@ export async function GET(request: NextRequest) {
         return response
     } catch (error) {
         console.error('Failed to initiate Xero OAuth:', error)
-        return NextResponse.redirect(`${baseUrl}/auth/error?message=Failed to connect to Xero`)
+        return NextResponse.redirect(`${baseUrl}/dashboard?error=Failed to connect to Xero`)
     }
 }

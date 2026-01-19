@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createXeroClient, type XeroOrganization, type XeroTenant } from '@/lib/xero/client'
-import { requireUser } from '@/lib/supabase/auth'
 import { createServiceClient } from '@/lib/supabase/server'
 
 type TenantWithOrg = XeroTenant & { orgData?: XeroOrganization }
@@ -10,22 +9,19 @@ function buildErrorResponse(request: NextRequest, message: string, status: numbe
         return NextResponse.json({ error: message, ...details }, { status })
     }
 
-    const redirectUrl = new URL('/auth/error', request.nextUrl.origin)
-    redirectUrl.searchParams.set('message', message)
+    const redirectUrl = new URL('/dashboard', request.nextUrl.origin)
+    redirectUrl.searchParams.set('error', message)
     return NextResponse.redirect(redirectUrl.toString())
 }
 
+// GET /api/auth/xero/callback - Handle Xero OAuth callback
+// Single-user mode: No authentication required
 export async function GET(request: NextRequest) {
     console.log('=== Xero OAuth Callback Started ===')
     const baseUrl = request.nextUrl.origin
-    const user = await requireUser()
 
     // Wrap EVERYTHING in a try-catch that returns JSON for debugging
     try {
-        if (!user) {
-            return buildErrorResponse(request, 'Authentication required. Please sign in and reconnect Xero.', 401)
-        }
-
         const searchParams = request.nextUrl.searchParams
         const code = searchParams.get('code')
         const state = searchParams.get('state')
@@ -93,31 +89,11 @@ export async function GET(request: NextRequest) {
 
             try {
                 const org = (tenant as TenantWithOrg).orgData
-                const { data: existingConnection, error: existingError } = await supabase
-                    .from('xero_connections')
-                    .select('user_id')
-                    .eq('tenant_id', tenant.tenantId)
-                    .maybeSingle()
 
-                if (existingError) {
-                    return buildErrorResponse(request, 'Failed to validate existing Xero connection', 500, {
-                        step: 'check_existing',
-                        details: existingError.message
-                    })
-                }
-
-                if (existingConnection?.user_id && existingConnection.user_id !== user.id) {
-                    return buildErrorResponse(
-                        request,
-                        'This Xero organization is already connected to another account.',
-                        403
-                    )
-                }
-
+                // Single-user mode: Just upsert the connection
                 await supabase
                     .from('xero_connections')
                     .upsert({
-                        user_id: user.id,
                         tenant_id: tenant.tenantId,
                         tenant_name: tenant.tenantName,
                         tenant_type: tenant.tenantType,

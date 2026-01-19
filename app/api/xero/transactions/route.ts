@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
-import { requireUser } from '@/lib/supabase/auth'
 import type { TokenSet } from 'xero-node'
 
-// Helper to get valid token set for a tenant
-async function getValidTokenSet(tenantId: string, userId: string, baseUrl?: string): Promise<TokenSet | null> {
+// Helper to get valid token set for a tenant (single-user mode)
+async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<TokenSet | null> {
     const supabase = await createServiceClient()
 
     const { data: connection, error } = await supabase
         .from('xero_connections')
         .select('*')
         .eq('tenant_id', tenantId)
-        .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
     if (error || !connection) {
         return null
@@ -46,7 +44,6 @@ async function getValidTokenSet(tenantId: string, userId: string, baseUrl?: stri
                     updated_at: new Date().toISOString()
                 })
                 .eq('refresh_token', previousRefreshToken)
-                .eq('user_id', userId)
 
             return newTokens
         } catch (error) {
@@ -78,14 +75,10 @@ function toXeroDateTime(dateValue: string): string | null {
 }
 
 // GET /api/xero/transactions - Get transactions with R&D flagging
+// Single-user mode: No authentication required
 export async function GET(request: NextRequest) {
     try {
         const baseUrl = request.nextUrl.origin
-        const user = await requireUser()
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-        }
-
         const tenantId = request.nextUrl.searchParams.get('tenantId')
         const fromDate = request.nextUrl.searchParams.get('fromDate')
         const toDate = request.nextUrl.searchParams.get('toDate')
@@ -96,7 +89,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 })
         }
 
-        const tokenSet = await getValidTokenSet(tenantId, user.id, baseUrl)
+        const tokenSet = await getValidTokenSet(tenantId, baseUrl)
         if (!tokenSet) {
             return NextResponse.json({ error: 'No valid connection found' }, { status: 401 })
         }

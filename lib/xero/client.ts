@@ -1,4 +1,6 @@
 import { XeroClient, TokenSet } from 'xero-node'
+import { serverConfig, sharedConfig } from '@/lib/config/env'
+import { withRetry } from '@/lib/xero/retry'
 
 // Xero OAuth 2.0 Scopes - READ ONLY
 export const XERO_SCOPES = [
@@ -20,48 +22,31 @@ type CreateXeroClientOptions = {
 }
 
 function resolveBaseUrl(override?: string): string {
-    let baseUrl =
-        override ||
-        process.env.NEXT_PUBLIC_BASE_URL ||
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        process.env.SITE_URL
-
-    if (!baseUrl) {
-        const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-        if (vercelProductionUrl) {
-            baseUrl = `https://${vercelProductionUrl}`
-        } else if (process.env.VERCEL_URL) {
-            baseUrl = `https://${process.env.VERCEL_URL}`
-        }
-    }
-
-    if (!baseUrl) {
-        if (process.env.NODE_ENV === 'production') {
-            throw new Error('Missing base URL for Xero redirect. Set NEXT_PUBLIC_BASE_URL or pass baseUrl.')
-        }
-        baseUrl = 'http://localhost:3000'
-    }
-
+    // Use override if provided, otherwise use validated config
+    const baseUrl = override || sharedConfig.baseUrl
     return baseUrl.replace(/\/+$/, '')
 }
 
 export function createXeroClient(options: CreateXeroClientOptions = {}): XeroClient {
-    // 1. Check for explicit base URL (request origin)
-    // 2. Check for configured env base URL(s)
-    // 3. Check for Vercel URLs
-    // 4. Fallback to localhost for dev
     const baseUrl = resolveBaseUrl(options.baseUrl)
 
     console.log('Xero Client initialized with Base URL:', baseUrl)
 
-    return new XeroClient({
-        clientId: process.env.XERO_CLIENT_ID!,
-        clientSecret: process.env.XERO_CLIENT_SECRET!,
-        redirectUris: [`${baseUrl}/api/auth/xero/callback`],
-        scopes: XERO_SCOPES.split(' '),
-        httpTimeout: 30000,
-        state: options.state, // Pass state for callback validation
-    })
+    try {
+        return new XeroClient({
+            clientId: serverConfig.xero.clientId,
+            clientSecret: serverConfig.xero.clientSecret,
+            redirectUris: [`${baseUrl}/api/auth/xero/callback`],
+            scopes: XERO_SCOPES.split(' '),
+            httpTimeout: 30000,
+            state: options.state,
+        })
+    } catch (error) {
+        console.error('Failed to create Xero client:', error)
+        throw new Error(
+            'Xero client initialization failed. Please check your XERO_CLIENT_ID and XERO_CLIENT_SECRET environment variables.'
+        )
+    }
 }
 
 // Validate token set structure
@@ -83,13 +68,25 @@ export function isTokenExpired(tokens: TokenSet): boolean {
     return expiresAt - buffer <= now
 }
 
-// Refresh Xero tokens
+// Refresh Xero tokens with retry logic
 export async function refreshXeroTokens(tokens: TokenSet, baseUrl?: string): Promise<TokenSet> {
-    const client = createXeroClient({ baseUrl })
-    await client.initialize()
-    client.setTokenSet(tokens)
-    const newTokens = await client.refreshToken()
-    return newTokens
+    return withRetry(
+        async () => {
+            const client = createXeroClient({ baseUrl })
+            await client.initialize()
+            client.setTokenSet(tokens)
+            const newTokens = await client.refreshToken()
+            return newTokens
+        },
+        {
+            maxAttempts: 3,
+            timeoutMs: 30000, // 30 second timeout
+            initialBackoffMs: 1000,
+            onRetry: (attempt, error) => {
+                console.warn(`Retrying Xero token refresh (attempt ${attempt}):`, error)
+            },
+        }
+    )
 }
 
 // Types for Xero API responses
