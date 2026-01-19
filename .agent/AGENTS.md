@@ -151,7 +151,8 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 | `australian_tax_law_research` | `.agent/skills/australian_tax_law_research/SKILL.md` | ATO legislation and ruling research |
 | `xero_api_integration` | `.agent/skills/xero_api_integration/SKILL.md` | Read-only Xero data access |
 | `rnd_eligibility_assessment` | `.agent/skills/rnd_eligibility_assessment/SKILL.md` | Division 355 R&D activity assessment |
-| `google_workspace_integration` | `.agent/skills/google_workspace_integration/SKILL.md` | Docs, Sheets, Gmail for accountant reports |
+| `simple_report_export` | `.agent/skills/simple_report_export/SKILL.md` | PDF/Excel export + Gmail (no Cloud needed) |
+| `google_workspace_integration` | `.agent/skills/google_workspace_integration/SKILL.md` | Full Google Workspace (requires Cloud setup) |
 | `notebook_lm_research` | `.agent/skills/notebook_lm_research/SKILL.md` | Deep document analysis |
 | `google_slides_storyboard` | `.agent/skills/google_slides_storyboard/SKILL.md` | Presentation automation |
 | `image_generation` | `.agent/skills/image_generation/SKILL.md` | Visual asset creation |
