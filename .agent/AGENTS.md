@@ -77,6 +77,41 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 - **Bound Skills**: `notebook_lm_research`, `google_slides_storyboard`, `image_generation`, `video_generation`
 - **Fuel Cost**: 50-300 PTS
 
+### 7. SBITO Optimizer
+- **Path**: `.agent/agents/sbito_optimizer/AGENT.md`
+- **Description**: Small Business Income Tax Offset assessment (up to $1,000 reduction)
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 25-75 PTS
+
+### 8. CGT Concession Planner
+- **Path**: `.agent/agents/cgt_concession_planner/AGENT.md`
+- **Description**: Division 152 Small Business CGT Concession planning
+- **Priority**: MEDIUM
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 50-150 PTS
+
+### 9. FBT Optimizer
+- **Path**: `.agent/agents/fbt_optimizer/AGENT.md`
+- **Description**: Fringe Benefits Tax exemptions and compliance optimization
+- **Priority**: MEDIUM
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 30-100 PTS
+
+### 10. Trust Distribution Analyzer
+- **Path**: `.agent/agents/trust_distribution_analyzer/AGENT.md`
+- **Description**: Section 100A risk assessment and Division 7A UPE compliance
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 50-150 PTS
+
+### 11. Government Grants Finder
+- **Path**: `.agent/agents/government_grants_finder/AGENT.md`
+- **Description**: Federal, state, and local government grant discovery
+- **Priority**: MEDIUM
+- **Bound Skills**: `australian_tax_law_research`
+- **Fuel Cost**: 25-75 PTS
+
 ## Available Skills
 
 | Skill | Path | Purpose |
