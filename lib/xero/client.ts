@@ -6,6 +6,7 @@ export const XERO_SCOPES = [
     'openid',
     'profile',
     'email',
+    'accounting.settings.read',
     'accounting.transactions.read',
     'accounting.reports.read',
     'accounting.contacts.read',
@@ -13,17 +14,43 @@ export const XERO_SCOPES = [
 
 // Create Xero client instance
 // Pass state when handling callback to allow SDK validation
-export function createXeroClient(state?: string): XeroClient {
-    // 1. Check for NEXT_PUBLIC_BASE_URL (standard for Vercel/Prod)
-    // 2. Check for VERCEL_URL (fallback for Vercel preview branch)
-    // 3. Fallback to localhost for dev
-    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+type CreateXeroClientOptions = {
+    state?: string
+    baseUrl?: string
+}
+
+function resolveBaseUrl(override?: string): string {
+    let baseUrl =
+        override ||
+        process.env.NEXT_PUBLIC_BASE_URL ||
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        process.env.SITE_URL
 
     if (!baseUrl) {
-        baseUrl = process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : 'http://localhost:3000'
+        const vercelProductionUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+        if (vercelProductionUrl) {
+            baseUrl = `https://${vercelProductionUrl}`
+        } else if (process.env.VERCEL_URL) {
+            baseUrl = `https://${process.env.VERCEL_URL}`
+        }
     }
+
+    if (!baseUrl) {
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('Missing base URL for Xero redirect. Set NEXT_PUBLIC_BASE_URL or pass baseUrl.')
+        }
+        baseUrl = 'http://localhost:3000'
+    }
+
+    return baseUrl.replace(/\/+$/, '')
+}
+
+export function createXeroClient(options: CreateXeroClientOptions = {}): XeroClient {
+    // 1. Check for explicit base URL (request origin)
+    // 2. Check for configured env base URL(s)
+    // 3. Check for Vercel URLs
+    // 4. Fallback to localhost for dev
+    const baseUrl = resolveBaseUrl(options.baseUrl)
 
     console.log('Xero Client initialized with Base URL:', baseUrl)
 
@@ -33,7 +60,7 @@ export function createXeroClient(state?: string): XeroClient {
         redirectUris: [`${baseUrl}/api/auth/xero/callback`],
         scopes: XERO_SCOPES.split(' '),
         httpTimeout: 30000,
-        state: state, // Pass state for callback validation
+        state: options.state, // Pass state for callback validation
     })
 }
 
@@ -57,8 +84,9 @@ export function isTokenExpired(tokens: TokenSet): boolean {
 }
 
 // Refresh Xero tokens
-export async function refreshXeroTokens(tokens: TokenSet): Promise<TokenSet> {
-    const client = createXeroClient()
+export async function refreshXeroTokens(tokens: TokenSet, baseUrl?: string): Promise<TokenSet> {
+    const client = createXeroClient({ baseUrl })
+    await client.initialize()
     client.setTokenSet(tokens)
     const newTokens = await client.refreshToken()
     return newTokens

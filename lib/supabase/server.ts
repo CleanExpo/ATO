@@ -15,14 +15,14 @@ export async function createClient() {
                 async set(name: string, value: string, options: CookieOptions) {
                     try {
                         cookieStore.set({ name, value, ...options })
-                    } catch (error) {
+                    } catch {
                         // Handle error in Server Component
                     }
                 },
                 async remove(name: string, options: CookieOptions) {
                     try {
                         cookieStore.set({ name, value: '', ...options })
-                    } catch (error) {
+                    } catch {
                         // Handle error in Server Component
                     }
                 },
@@ -45,14 +45,14 @@ export async function createServiceClient() {
                 async set(name: string, value: string, options: CookieOptions) {
                     try {
                         cookieStore.set({ name, value, ...options })
-                    } catch (error) {
+                    } catch {
                         // Handle error
                     }
                 },
                 async remove(name: string, options: CookieOptions) {
                     try {
                         cookieStore.set({ name, value: '', ...options })
-                    } catch (error) {
+                    } catch {
                         // Handle error
                     }
                 },

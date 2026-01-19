@@ -1,10 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 // Comprehensive Xero diagnostic endpoint
-export async function GET() {
+export async function GET(request: NextRequest) {
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     const clientId = process.env.XERO_CLIENT_ID
     const clientSecretLength = process.env.XERO_CLIENT_SECRET?.length || 0
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    const baseUrl = request.nextUrl.origin
 
     // Build the exact redirect URI the app is using
     const redirectUri = `${baseUrl}/api/auth/xero/callback`
@@ -15,6 +19,7 @@ export async function GET() {
         'openid',
         'profile',
         'email',
+        'accounting.settings.read',
         'accounting.transactions.read',
         'accounting.reports.read',
         'accounting.contacts.read',

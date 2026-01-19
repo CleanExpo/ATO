@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
+import { requireUser } from '@/lib/supabase/auth'
 import type { TokenSet } from 'xero-node'
 import { Account } from 'xero-node'
 
 // Helper to get valid token set for a tenant
-async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
+async function getValidTokenSet(tenantId: string, userId: string, baseUrl?: string): Promise<TokenSet | null> {
     const supabase = await createServiceClient()
 
     const { data: connection, error } = await supabase
         .from('xero_connections')
         .select('*')
         .eq('tenant_id', tenantId)
+        .eq('user_id', userId)
         .single()
 
     if (error || !connection) {
@@ -30,7 +32,8 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
     // Refresh if expired
     if (isTokenExpired(tokenSet)) {
         try {
-            const newTokens = await refreshXeroTokens(tokenSet)
+            const previousRefreshToken = tokenSet.refresh_token
+            const newTokens = await refreshXeroTokens(tokenSet, baseUrl)
 
             // Update stored tokens
             await supabase
@@ -39,9 +42,12 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
                     access_token: newTokens.access_token,
                     refresh_token: newTokens.refresh_token,
                     expires_at: newTokens.expires_at,
+                    id_token: newTokens.id_token,
+                    scope: newTokens.scope,
                     updated_at: new Date().toISOString()
                 })
-                .eq('tenant_id', tenantId)
+                .eq('refresh_token', previousRefreshToken)
+                .eq('user_id', userId)
 
             return newTokens
         } catch (error) {
@@ -56,18 +62,24 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
 // GET /api/xero/accounts - Get chart of accounts
 export async function GET(request: NextRequest) {
     try {
+        const baseUrl = request.nextUrl.origin
+        const user = await requireUser()
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
         const tenantId = request.nextUrl.searchParams.get('tenantId')
 
         if (!tenantId) {
             return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 })
         }
 
-        const tokenSet = await getValidTokenSet(tenantId)
+        const tokenSet = await getValidTokenSet(tenantId, user.id, baseUrl)
         if (!tokenSet) {
             return NextResponse.json({ error: 'No valid connection found' }, { status: 401 })
         }
 
-        const client = createXeroClient()
+        const client = createXeroClient({ baseUrl })
         client.setTokenSet(tokenSet)
 
         const response = await client.accountingApi.getAccounts(tenantId)

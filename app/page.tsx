@@ -1,7 +1,6 @@
 import Link from "next/link"
 import {
   DollarSign,
-  BarChart3,
   Beaker,
   FileCheck,
   TrendingDown,

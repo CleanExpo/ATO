@@ -1,16 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
+import { requireUser } from '@/lib/supabase/auth'
 import type { TokenSet } from 'xero-node'
 
+type XeroReportCell = {
+    value?: string
+    attributes?: Record<string, unknown>
+}
+
+type XeroReportRow = {
+    rowType?: string
+    title?: string
+    rows?: XeroReportRow[]
+    cells?: XeroReportCell[]
+}
+
+type XeroReport = {
+    reportTitle?: string
+    reportDate?: string
+    rows?: XeroReportRow[]
+}
+
+type ParsedReportSectionRow = {
+    account?: string
+    values: XeroReportCell[]
+}
+
+type ParsedReportSection = {
+    title?: string
+    rows: ParsedReportSectionRow[]
+    summary?: {
+        label?: string
+        values: XeroReportCell[]
+    }
+}
+
+type ParsedReport = {
+    title?: string
+    date?: string
+    sections: ParsedReportSection[]
+} | null
+
 // Helper to get valid token set for a tenant
-async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
+async function getValidTokenSet(tenantId: string, userId: string, baseUrl?: string): Promise<TokenSet | null> {
     const supabase = await createServiceClient()
 
     const { data: connection, error } = await supabase
         .from('xero_connections')
         .select('*')
         .eq('tenant_id', tenantId)
+        .eq('user_id', userId)
         .single()
 
     if (error || !connection) {
@@ -29,7 +69,8 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
     // Refresh if expired
     if (isTokenExpired(tokenSet)) {
         try {
-            const newTokens = await refreshXeroTokens(tokenSet)
+            const previousRefreshToken = tokenSet.refresh_token
+            const newTokens = await refreshXeroTokens(tokenSet, baseUrl)
 
             // Update stored tokens
             await supabase
@@ -38,9 +79,12 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
                     access_token: newTokens.access_token,
                     refresh_token: newTokens.refresh_token,
                     expires_at: newTokens.expires_at,
+                    id_token: newTokens.id_token,
+                    scope: newTokens.scope,
                     updated_at: new Date().toISOString()
                 })
-                .eq('tenant_id', tenantId)
+                .eq('refresh_token', previousRefreshToken)
+                .eq('user_id', userId)
 
             return newTokens
         } catch (error) {
@@ -55,6 +99,12 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
 // GET /api/xero/reports - Get financial reports
 export async function GET(request: NextRequest) {
     try {
+        const baseUrl = request.nextUrl.origin
+        const user = await requireUser()
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
         const tenantId = request.nextUrl.searchParams.get('tenantId')
         const reportType = request.nextUrl.searchParams.get('type') || 'TrialBalance'
         const fromDate = request.nextUrl.searchParams.get('fromDate')
@@ -64,15 +114,15 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 })
         }
 
-        const tokenSet = await getValidTokenSet(tenantId)
+        const tokenSet = await getValidTokenSet(tenantId, user.id, baseUrl)
         if (!tokenSet) {
             return NextResponse.json({ error: 'No valid connection found' }, { status: 401 })
         }
 
-        const client = createXeroClient()
+        const client = createXeroClient({ baseUrl })
         client.setTokenSet(tokenSet)
 
-        let reportData: any = null
+        let reportData: XeroReport | undefined
 
         switch (reportType) {
             case 'TrialBalance':
@@ -80,7 +130,7 @@ export async function GET(request: NextRequest) {
                     tenantId,
                     toDate || undefined
                 )
-                reportData = trialBalance.body.reports?.[0]
+                reportData = trialBalance.body.reports?.[0] as XeroReport | undefined
                 break
 
             case 'ProfitAndLoss':
@@ -89,7 +139,7 @@ export async function GET(request: NextRequest) {
                     fromDate || undefined,
                     toDate || undefined
                 )
-                reportData = profitLoss.body.reports?.[0]
+                reportData = profitLoss.body.reports?.[0] as XeroReport | undefined
                 break
 
             case 'BalanceSheet':
@@ -97,7 +147,7 @@ export async function GET(request: NextRequest) {
                     tenantId,
                     toDate || undefined
                 )
-                reportData = balanceSheet.body.reports?.[0]
+                reportData = balanceSheet.body.reports?.[0] as XeroReport | undefined
                 break
 
             default:
@@ -105,7 +155,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Parse report into structured data
-        const parsedReport = parseXeroReport(reportData)
+        const parsedReport = parseXeroReport(reportData || null)
 
         return NextResponse.json({
             report: parsedReport,
@@ -119,13 +169,13 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper to parse Xero report format
-function parseXeroReport(report: any) {
+function parseXeroReport(report: XeroReport | null): ParsedReport {
     if (!report || !report.rows) {
         return null
     }
 
-    const sections: any[] = []
-    let currentSection: any = null
+    const sections: ParsedReportSection[] = []
+    let currentSection: ParsedReportSection | null = null
 
     for (const row of report.rows) {
         if (row.rowType === 'Header') {
@@ -148,18 +198,12 @@ function parseXeroReport(report: any) {
                     if (subRow.rowType === 'Row') {
                         currentSection.rows.push({
                             account: subRow.cells?.[0]?.value,
-                            values: subRow.cells?.slice(1).map((c: any) => ({
-                                value: c.value,
-                                attributes: c.attributes
-                            }))
+                            values: subRow.cells?.slice(1) || []
                         })
                     } else if (subRow.rowType === 'SummaryRow') {
                         currentSection.summary = {
                             label: subRow.cells?.[0]?.value,
-                            values: subRow.cells?.slice(1).map((c: any) => ({
-                                value: c.value,
-                                attributes: c.attributes
-                            }))
+                            values: subRow.cells?.slice(1) || []
                         }
                     }
                 }

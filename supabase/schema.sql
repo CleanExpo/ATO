@@ -14,6 +14,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS xero_connections (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   tenant_id TEXT UNIQUE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_name TEXT,
   tenant_type TEXT,
   
@@ -42,6 +43,7 @@ CREATE TABLE IF NOT EXISTS xero_connections (
 
 -- Index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_xero_connections_tenant_id ON xero_connections(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_xero_connections_user_id ON xero_connections(user_id);
 
 -- ----------------------------------------------------------------
 -- TAX AUDIT FINDINGS TABLE

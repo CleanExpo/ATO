@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Simplified Xero callback that uses direct API calls instead of SDK
 export async function GET(request: NextRequest) {
+    if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     const searchParams = request.nextUrl.searchParams
     const code = searchParams.get('code')
     const error = searchParams.get('error')
@@ -55,10 +59,10 @@ export async function GET(request: NextRequest) {
                 token_type: tokenData.token_type
             }
         })
-    } catch (err: any) {
+    } catch (err: unknown) {
         return NextResponse.json({
             error: 'Fetch failed',
-            message: err.message
+            message: err instanceof Error ? err.message : String(err)
         })
     }
 }

@@ -1,5 +1,6 @@
 export interface XeroConnection {
     id: string
+    user_id: string | null
     tenant_id: string
     tenant_name: string | null
     tenant_type: string | null

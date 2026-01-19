@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
+import { requireUser } from '@/lib/supabase/auth'
 import type { TokenSet } from 'xero-node'
 
 // Helper to get valid token set for a tenant
-async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
+async function getValidTokenSet(tenantId: string, userId: string, baseUrl?: string): Promise<TokenSet | null> {
     const supabase = await createServiceClient()
 
     const { data: connection, error } = await supabase
         .from('xero_connections')
         .select('*')
         .eq('tenant_id', tenantId)
+        .eq('user_id', userId)
         .single()
 
     if (error || !connection) {
@@ -29,7 +31,8 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
     // Refresh if expired
     if (isTokenExpired(tokenSet)) {
         try {
-            const newTokens = await refreshXeroTokens(tokenSet)
+            const previousRefreshToken = tokenSet.refresh_token
+            const newTokens = await refreshXeroTokens(tokenSet, baseUrl)
 
             // Update stored tokens
             await supabase
@@ -38,9 +41,12 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
                     access_token: newTokens.access_token,
                     refresh_token: newTokens.refresh_token,
                     expires_at: newTokens.expires_at,
+                    id_token: newTokens.id_token,
+                    scope: newTokens.scope,
                     updated_at: new Date().toISOString()
                 })
-                .eq('tenant_id', tenantId)
+                .eq('refresh_token', previousRefreshToken)
+                .eq('user_id', userId)
 
             return newTokens
         } catch (error) {
@@ -60,45 +66,67 @@ const RND_KEYWORDS = [
     'developer', 'programmer', 'consultant', 'contractor'
 ]
 
+function toXeroDateTime(dateValue: string): string | null {
+    const datePart = dateValue.slice(0, 10)
+    const [year, month, day] = datePart.split('-').map(Number)
+
+    if (!year || !month || !day) {
+        return null
+    }
+
+    return `DateTime(${year},${month},${day})`
+}
+
 // GET /api/xero/transactions - Get transactions with R&D flagging
 export async function GET(request: NextRequest) {
     try {
+        const baseUrl = request.nextUrl.origin
+        const user = await requireUser()
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
         const tenantId = request.nextUrl.searchParams.get('tenantId')
         const fromDate = request.nextUrl.searchParams.get('fromDate')
         const toDate = request.nextUrl.searchParams.get('toDate')
-        const page = parseInt(request.nextUrl.searchParams.get('page') || '1')
+        const page = parseInt(request.nextUrl.searchParams.get('page') || '1', 10)
         const pageSize = 100
 
         if (!tenantId) {
             return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 })
         }
 
-        const tokenSet = await getValidTokenSet(tenantId)
+        const tokenSet = await getValidTokenSet(tenantId, user.id, baseUrl)
         if (!tokenSet) {
             return NextResponse.json({ error: 'No valid connection found' }, { status: 401 })
         }
 
-        const client = createXeroClient()
+        const client = createXeroClient({ baseUrl })
         client.setTokenSet(tokenSet)
 
         // Build where clause for date filtering
-        let where = ''
+        const whereParts: string[] = []
         if (fromDate) {
-            where = `Date >= DateTime(${new Date(fromDate).toISOString().split('T')[0]})`
+            const fromFilter = toXeroDateTime(fromDate)
+            if (fromFilter) {
+                whereParts.push(`Date >= ${fromFilter}`)
+            }
         }
         if (toDate) {
-            if (where) where += ' AND '
-            where += `Date <= DateTime(${new Date(toDate).toISOString().split('T')[0]})`
+            const toFilter = toXeroDateTime(toDate)
+            if (toFilter) {
+                whereParts.push(`Date <= ${toFilter}`)
+            }
         }
+        const where = whereParts.length ? whereParts.join(' AND ') : undefined
 
         // Fetch bank transactions
         const response = await client.accountingApi.getBankTransactions(
             tenantId,
             undefined, // modifiedAfter
-            where || undefined,
+            where,
             undefined, // order
-            page,
-            pageSize
+            page
         )
 
         const transactions = response.body.bankTransactions || []

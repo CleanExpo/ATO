@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import {
     DollarSign,
@@ -10,12 +10,10 @@ import {
     TrendingDown,
     Settings,
     ArrowLeft,
-    AlertTriangle,
     Filter,
     Download,
     Play,
-    Eye,
-    ChevronDown
+    Eye
 } from 'lucide-react'
 
 interface AuditFinding {
@@ -95,7 +93,7 @@ const MOCK_FINDINGS: AuditFinding[] = [
 ]
 
 export default function TaxAuditPage() {
-    const [findings, setFindings] = useState<AuditFinding[]>(MOCK_FINDINGS)
+    const [findings] = useState<AuditFinding[]>(MOCK_FINDINGS)
     const [filterType, setFilterType] = useState<string>('all')
     const [filterPriority, setFilterPriority] = useState<string>('all')
 

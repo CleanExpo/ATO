@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import {
     DollarSign,
@@ -14,8 +14,6 @@ import {
     XCircle,
     HelpCircle,
     AlertTriangle,
-    Calendar,
-    Download,
     Play
 } from 'lucide-react'
 
@@ -88,7 +86,7 @@ const MOCK_ACTIVITIES: RnDActivity[] = [
 ]
 
 export default function RnDAssessmentPage() {
-    const [activities, setActivities] = useState<RnDActivity[]>(MOCK_ACTIVITIES)
+    const [activities] = useState<RnDActivity[]>(MOCK_ACTIVITIES)
     const [selectedFY, setSelectedFY] = useState('FY2024-25')
 
     const totalExpenditure = activities.reduce((sum, a) => sum + a.expenditure, 0)

@@ -1,12 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createXeroClient } from '@/lib/xero/client'
+import { createXeroClient, type XeroOrganization, type XeroTenant } from '@/lib/xero/client'
+import { requireUser } from '@/lib/supabase/auth'
 import { createServiceClient } from '@/lib/supabase/server'
+
+type TenantWithOrg = XeroTenant & { orgData?: XeroOrganization }
+
+function buildErrorResponse(request: NextRequest, message: string, status: number, details?: Record<string, unknown>) {
+    if (process.env.NODE_ENV !== 'production') {
+        return NextResponse.json({ error: message, ...details }, { status })
+    }
+
+    const redirectUrl = new URL('/auth/error', request.nextUrl.origin)
+    redirectUrl.searchParams.set('message', message)
+    return NextResponse.redirect(redirectUrl.toString())
+}
 
 export async function GET(request: NextRequest) {
     console.log('=== Xero OAuth Callback Started ===')
+    const baseUrl = request.nextUrl.origin
+    const user = await requireUser()
 
     // Wrap EVERYTHING in a try-catch that returns JSON for debugging
     try {
+        if (!user) {
+            return buildErrorResponse(request, 'Authentication required. Please sign in and reconnect Xero.', 401)
+        }
+
         const searchParams = request.nextUrl.searchParams
         const code = searchParams.get('code')
         const state = searchParams.get('state')
@@ -16,29 +35,32 @@ export async function GET(request: NextRequest) {
 
         // Handle OAuth errors from Xero
         if (error) {
-            return NextResponse.json({
+            return buildErrorResponse(request, 'OAuth error from Xero', 400, {
                 step: 'oauth_error',
-                error: error,
-                description: searchParams.get('error_description')
-            }, { status: 400 })
+                description: searchParams.get('error_description'),
+                rawError: error
+            })
         }
 
-        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-
         if (!code) {
-            return NextResponse.json({
-                step: 'no_code',
-                error: 'No authorization code received'
-            }, { status: 400 })
+            return buildErrorResponse(request, 'No authorization code received', 400, {
+                step: 'no_code'
+            })
         }
 
         // Get stored state from cookie
         const storedState = request.cookies.get('xero_oauth_state')?.value
         console.log('State:', { stored: storedState, received: state, match: storedState === state })
 
+        if (!storedState || storedState !== state) {
+            return buildErrorResponse(request, 'OAuth state mismatch or missing cookie', 400, {
+                step: 'state_mismatch'
+            })
+        }
+
         // Create client with state for validation
         console.log('Creating Xero client...')
-        const client = createXeroClient(storedState)
+        const client = createXeroClient({ state: storedState, baseUrl })
 
         // Initialize client (discovers Xero identity endpoints)
         console.log('Initializing client...')
@@ -58,10 +80,9 @@ export async function GET(request: NextRequest) {
         const tenants = client.tenants
 
         if (!tenants || tenants.length === 0) {
-            return NextResponse.json({
-                step: 'no_tenants',
-                error: 'No Xero organizations found'
-            }, { status: 400 })
+            return buildErrorResponse(request, 'No Xero organizations found', 400, {
+                step: 'no_tenants'
+            })
         }
 
         // Store connections in Supabase
@@ -71,13 +92,32 @@ export async function GET(request: NextRequest) {
             console.log('Processing tenant:', tenant.tenantName)
 
             try {
-                client.setTokenSet(tokenSet)
-                const orgResponse = await client.accountingApi.getOrganisations(tenant.tenantId)
-                const org = orgResponse.body.organisations?.[0]
+                const org = (tenant as TenantWithOrg).orgData
+                const { data: existingConnection, error: existingError } = await supabase
+                    .from('xero_connections')
+                    .select('user_id')
+                    .eq('tenant_id', tenant.tenantId)
+                    .maybeSingle()
+
+                if (existingError) {
+                    return buildErrorResponse(request, 'Failed to validate existing Xero connection', 500, {
+                        step: 'check_existing',
+                        details: existingError.message
+                    })
+                }
+
+                if (existingConnection?.user_id && existingConnection.user_id !== user.id) {
+                    return buildErrorResponse(
+                        request,
+                        'This Xero organization is already connected to another account.',
+                        403
+                    )
+                }
 
                 await supabase
                     .from('xero_connections')
                     .upsert({
+                        user_id: user.id,
                         tenant_id: tenant.tenantId,
                         tenant_name: tenant.tenantName,
                         tenant_type: tenant.tenantType,
@@ -96,8 +136,9 @@ export async function GET(request: NextRequest) {
                         connected_at: new Date().toISOString(),
                         updated_at: new Date().toISOString(),
                     }, { onConflict: 'tenant_id' })
-            } catch (tenantError: any) {
-                console.error('Tenant error:', tenantError.message)
+            } catch (tenantError: unknown) {
+                const tenantMessage = tenantError instanceof Error ? tenantError.message : String(tenantError)
+                console.error('Tenant error:', tenantMessage)
             }
         }
 
@@ -106,29 +147,32 @@ export async function GET(request: NextRequest) {
         response.cookies.delete('xero_oauth_state')
         return response
 
-    } catch (err: any) {
+    } catch (err: unknown) {
         // CATCH ALL ERRORS AND RETURN JSON FOR DEBUGGING
         console.error('=== XERO CALLBACK ERROR ===')
-        console.error('Error type:', err.constructor?.name)
-        console.error('Error message:', err.message)
-        console.error('Error stack:', err.stack)
+        console.error('Error:', err)
+        console.error('Error type:', typeof err)
+
+        // Handle both Error objects and plain strings
+        const errorMessage = err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Unknown error')
+        const errorType = err instanceof Error ? err.constructor.name : (typeof err === 'string' ? 'String' : 'Unknown')
 
         // Try to extract Xero-specific error details
-        let xeroDetails = null
-        try {
-            if (err.response?.body) {
-                xeroDetails = err.response.body
-            } else if (err.response?.data) {
-                xeroDetails = err.response.data
+        let xeroDetails: unknown = null
+        if (err && typeof err === 'object') {
+            const errResponse = err as { response?: { body?: unknown; data?: unknown } }
+            if (errResponse.response?.body) {
+                xeroDetails = errResponse.response.body
+            } else if (errResponse.response?.data) {
+                xeroDetails = errResponse.response.data
             }
-        } catch (e) { }
+        }
 
-        return NextResponse.json({
-            error: 'Xero callback failed',
-            type: err.constructor?.name || 'Unknown',
-            message: err.message,
+        return buildErrorResponse(request, 'Xero callback failed', 500, {
+            type: errorType,
+            message: errorMessage,
+            rawError: err instanceof Error ? err.stack || err.message : (typeof err === 'string' ? err : JSON.stringify(err)),
             xeroDetails: xeroDetails,
-            stack: err.stack?.split('\n').slice(0, 5),
-        }, { status: 500 })
+        })
     }
 }

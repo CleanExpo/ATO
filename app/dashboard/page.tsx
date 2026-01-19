@@ -15,8 +15,7 @@ import {
     Plus,
     CheckCircle,
     AlertTriangle,
-    ArrowRight,
-    ExternalLink
+    ArrowRight
 } from 'lucide-react'
 
 interface Connection {

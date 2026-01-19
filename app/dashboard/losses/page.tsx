@@ -14,8 +14,7 @@ import {
     CheckCircle,
     XCircle,
     FileText,
-    Users,
-    Calendar
+    Users
 } from 'lucide-react'
 
 interface LossYear {

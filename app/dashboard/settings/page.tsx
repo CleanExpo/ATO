@@ -13,7 +13,8 @@ import {
     Building2,
     Mail,
     Save,
-    AlertCircle
+    AlertCircle,
+    LogOut
 } from 'lucide-react'
 
 export default function SettingsPage() {
@@ -75,11 +76,17 @@ export default function SettingsPage() {
 
             {/* Main Content */}
             <main className="ml-[280px] flex-1 p-8">
-                <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-1">Settings</h2>
-                    <p className="text-[var(--text-secondary)]">
-                        Configure your business and accountant details
-                    </p>
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h2 className="text-2xl font-bold mb-1">Settings</h2>
+                        <p className="text-[var(--text-secondary)]">
+                            Configure your business and accountant details
+                        </p>
+                    </div>
+                    <Link href="/auth/logout" className="btn btn-secondary">
+                        <LogOut className="w-4 h-4" />
+                        Sign out
+                    </Link>
                 </div>
 
                 {saved && (
