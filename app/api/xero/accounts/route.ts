@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import type { TokenSet } from 'xero-node'
+import { Account } from 'xero-node'
 
 // Helper to get valid token set for a tenant
 async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
@@ -17,14 +18,14 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
         return null
     }
 
-    const tokenSet: TokenSet = {
+    const tokenSet = {
         access_token: connection.access_token,
         refresh_token: connection.refresh_token,
         expires_at: connection.expires_at,
         id_token: connection.id_token,
         scope: connection.scope,
         token_type: 'Bearer'
-    }
+    } as TokenSet
 
     // Refresh if expired
     if (isTokenExpired(tokenSet)) {
@@ -77,18 +78,18 @@ export async function GET(request: NextRequest) {
             code: account.code,
             name: account.name,
             type: account.type,
-            class: account.class,
+            class: account._class,
             status: account.status,
             taxType: account.taxType,
             enablePaymentsToAccount: account.enablePaymentsToAccount,
             // Flag potential issues
             flags: {
                 needsReview: !account.taxType || account.taxType === 'NONE',
-                isExpense: account.class === 'EXPENSE',
-                isAsset: account.class === 'ASSET',
-                isLiability: account.class === 'LIABILITY',
-                isEquity: account.class === 'EQUITY',
-                isRevenue: account.class === 'REVENUE'
+                isExpense: account._class === Account.ClassEnum.EXPENSE,
+                isAsset: account._class === Account.ClassEnum.ASSET,
+                isLiability: account._class === Account.ClassEnum.LIABILITY,
+                isEquity: account._class === Account.ClassEnum.EQUITY,
+                isRevenue: account._class === Account.ClassEnum.REVENUE
             }
         }))
 

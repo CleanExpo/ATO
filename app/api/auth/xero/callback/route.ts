@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         for (const tenant of tenants) {
             // Get organization details
             client.setTokenSet(tokenSet)
-            const orgResponse = await client.accountingApi.getOrganisation(tenant.tenantId)
+            const orgResponse = await client.accountingApi.getOrganisations(tenant.tenantId)
             const org = orgResponse.body.organisations?.[0]
 
             // Upsert connection

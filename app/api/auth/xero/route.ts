@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createXeroClient, XERO_SCOPES } from '@/lib/xero/client'
-import { v4 as uuidv4 } from 'crypto'
+import crypto from 'crypto'
 
 export async function GET() {
     try {
@@ -8,7 +8,7 @@ export async function GET() {
 
         // Generate state for CSRF protection
         const state = Buffer.from(JSON.stringify({
-            csrf: uuidv4(),
+            csrf: crypto.randomUUID(),
             timestamp: Date.now()
         })).toString('base64')
 

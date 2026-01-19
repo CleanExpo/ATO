@@ -3,8 +3,9 @@
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react'
+import { Suspense } from 'react'
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
     const searchParams = useSearchParams()
     const message = searchParams.get('message') || 'An error occurred during authentication'
 
@@ -43,5 +44,26 @@ export default function AuthErrorPage() {
                 </div>
             </div>
         </div>
+    )
+}
+
+function AuthErrorFallback() {
+    return (
+        <div className="min-h-screen flex items-center justify-center px-6">
+            <div className="max-w-md w-full text-center">
+                <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-6">
+                    <AlertTriangle className="w-10 h-10 text-red-400" />
+                </div>
+                <h1 className="text-2xl font-bold mb-4">Loading...</h1>
+            </div>
+        </div>
+    )
+}
+
+export default function AuthErrorPage() {
+    return (
+        <Suspense fallback={<AuthErrorFallback />}>
+            <AuthErrorContent />
+        </Suspense>
     )
 }

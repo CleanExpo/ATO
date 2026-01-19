@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -31,7 +31,7 @@ interface Connection {
     updated_at: string
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
     const searchParams = useSearchParams()
     const justConnected = searchParams.get('connected') === 'true'
 
@@ -285,5 +285,21 @@ export default function DashboardPage() {
                 )}
             </main>
         </div>
+    )
+}
+
+function DashboardLoading() {
+    return (
+        <div className="flex min-h-screen items-center justify-center">
+            <div className="loading-spinner" />
+        </div>
+    )
+}
+
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={<DashboardLoading />}>
+            <DashboardContent />
+        </Suspense>
     )
 }
