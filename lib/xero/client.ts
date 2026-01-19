@@ -9,17 +9,31 @@ export const XERO_SCOPES = [
     'accounting.transactions.read',
     'accounting.reports.read',
     'accounting.contacts.read',
-    'accounting.settings',
 ].join(' ')
 
 // Create Xero client instance
-export function createXeroClient(): XeroClient {
+// Pass state when handling callback to allow SDK validation
+export function createXeroClient(state?: string): XeroClient {
+    // 1. Check for NEXT_PUBLIC_BASE_URL (standard for Vercel/Prod)
+    // 2. Check for VERCEL_URL (fallback for Vercel preview branch)
+    // 3. Fallback to localhost for dev
+    let baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+
+    if (!baseUrl) {
+        baseUrl = process.env.VERCEL_URL
+            ? `https://${process.env.VERCEL_URL}`
+            : 'http://localhost:3000'
+    }
+
+    console.log('Xero Client initialized with Base URL:', baseUrl)
+
     return new XeroClient({
         clientId: process.env.XERO_CLIENT_ID!,
         clientSecret: process.env.XERO_CLIENT_SECRET!,
-        redirectUris: [`${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/xero/callback`],
+        redirectUris: [`${baseUrl}/api/auth/xero/callback`],
         scopes: XERO_SCOPES.split(' '),
         httpTimeout: 30000,
+        state: state, // Pass state for callback validation
     })
 }
 

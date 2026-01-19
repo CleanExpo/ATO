@@ -6,11 +6,8 @@ export async function GET() {
     try {
         const client = createXeroClient()
 
-        // Generate state for CSRF protection
-        const state = Buffer.from(JSON.stringify({
-            csrf: crypto.randomUUID(),
-            timestamp: Date.now()
-        })).toString('base64')
+        // Generate state for CSRF protection (keep it simple)
+        const state = crypto.randomUUID()
 
         // Build the consent URL
         const consentUrl = await client.buildConsentUrl()

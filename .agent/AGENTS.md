@@ -144,13 +144,21 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 - **Fuel Cost**: 30-100 PTS
 - **Trigger**: `/send-to-accountant` workflow
 
+### 16. Xero Connector 🔗
+- **Path**: `.agent/agents/xero_connector/AGENT.md`
+- **Description**: End-to-end Xero OAuth 2.0 connection setup and troubleshooting
+- **Priority**: CRITICAL
+- **Bound Skills**: `xero_connection_management`, `xero_api_integration`
+- **Fuel Cost**: 50-200 PTS
+- **Trigger**: `/xero-setup` workflow
+
 ## Available Skills
 
 | Skill | Path | Purpose |
 |-------|------|---------|
 | `australian_tax_law_research` | `.agent/skills/australian_tax_law_research/SKILL.md` | ATO legislation and ruling research |
 | `xero_api_integration` | `.agent/skills/xero_api_integration/SKILL.md` | Read-only Xero data access |
-| `rnd_eligibility_assessment` | `.agent/skills/rnd_eligibility_assessment/SKILL.md` | Division 355 R&D activity assessment |
+| `xero_connection_management` | `.agent/skills/xero_connection_management/SKILL.md` | Xero OAuth setup and maintenance |
 | `simple_report_export` | `.agent/skills/simple_report_export/SKILL.md` | PDF/Excel export + Gmail (no Cloud needed) |
 | `google_workspace_integration` | `.agent/skills/google_workspace_integration/SKILL.md` | Full Google Workspace (requires Cloud setup) |
 | `notebook_lm_research` | `.agent/skills/notebook_lm_research/SKILL.md` | Deep document analysis |
