@@ -112,6 +112,14 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 - **Bound Skills**: `australian_tax_law_research`
 - **Fuel Cost**: 25-75 PTS
 
+### 12. Agent Scout 🔍
+- **Path**: `.agent/agents/agent_scout/AGENT.md`
+- **Description**: Proactive opportunity discovery, legislative monitoring, and deadline alerting
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 20-60 PTS
+- **Trigger**: `/scout` workflow
+
 ## Available Skills
 
 | Skill | Path | Purpose |
@@ -150,6 +158,7 @@ All agents operate using the three-mode discipline:
 
 | Workflow | Description |
 |----------|-------------|
+| `/scout` | Proactive opportunity discovery and deadline alerting |
 | `/tax-audit` | Comprehensive Xero data analysis |
 | `/rnd-assessment` | R&D Tax Incentive eligibility evaluation |
 | `/deduction-scan` | Identify unclaimed deductions |
