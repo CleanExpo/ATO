@@ -26,8 +26,8 @@ export default function Home() {
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <Link href="/auth/error" className="btn btn-ghost text-sm">
-              Documentation
+            <Link href="/dashboard" className="btn btn-ghost text-sm">
+              View Dashboard
             </Link>
             <Link href="/api/auth/xero" className="btn btn-xero text-sm">
               Connect Xero
