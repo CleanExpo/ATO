@@ -41,94 +41,139 @@ export default function RndDetailPage() {
   const [data, setData] = useState<RndSummary | null>(null)
   const [selectedProject, setSelectedProject] = useState<RndProject | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [tenantId, setTenantId] = useState<string | null>(null)
 
-  const tenantId = 'demo-tenant'
-
+  // Get real tenant ID from Xero connection
   useEffect(() => {
-    loadRndData()
+    async function getTenant() {
+      try {
+        const res = await fetch('/api/xero/organizations')
+        const orgs = await res.json()
+        if (orgs.organisations?.[0]?.tenantId) {
+          setTenantId(orgs.organisations[0].tenantId)
+        } else {
+          setError('No Xero connection found. Please connect to Xero first.')
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error('Failed to get tenant ID:', error)
+        setError('Failed to load Xero connection')
+        setLoading(false)
+      }
+    }
+    getTenant()
   }, [])
 
+  // Load data when tenantId is available
+  useEffect(() => {
+    if (tenantId) {
+      loadRndData()
+    }
+  }, [tenantId])
+
   async function loadRndData() {
+    if (!tenantId) return
+
     try {
       setLoading(true)
       setError(null)
 
-      // In production, this would call the R&D analysis endpoint
-      // For now, mock the data structure
-      const mockData: RndSummary = {
-        totalProjects: 3,
-        totalEligibleExpenditure: 425000,
-        totalEstimatedOffset: 184875,
-        averageConfidence: 82,
-        coreRndTransactions: 45,
-        supportingRndTransactions: 12,
-        projects: [
-          {
-            projectName: 'Software Development - AI Platform',
-            projectDescription:
-              'Development of machine learning algorithms for predictive analytics with uncertain outcome',
-            financialYears: ['FY2024-25', 'FY2023-24'],
-            totalExpenditure: 250000,
-            eligibleExpenditure: 250000,
-            estimatedOffset: 108750,
-            meetsEligibility: true,
-            overallConfidence: 85,
-            transactionCount: 28,
-            registrationDeadline: new Date('2026-04-30'),
-            registrationStatus: 'not_registered',
-            recommendations: [
-              'Register R&D activities with AusIndustry before deadline',
-              'Lodge Schedule 16N with Company Tax Return',
-              'Maintain technical documentation of development process',
-              'Document four-element test compliance for each activity',
-            ],
-          },
-          {
-            projectName: 'Cloud Infrastructure Optimization',
-            projectDescription: 'Research into scalable cloud architecture with new distributed computing approach',
-            financialYears: ['FY2023-24', 'FY2022-23'],
-            totalExpenditure: 125000,
-            eligibleExpenditure: 125000,
-            estimatedOffset: 54375,
-            meetsEligibility: true,
-            overallConfidence: 78,
-            transactionCount: 18,
-            registrationDeadline: new Date('2025-04-30'),
-            registrationStatus: 'deadline_approaching',
-            recommendations: [
-              '🔴 URGENT: Registration deadline approaching (90 days)',
-              'Document systematic approach to experimentation',
-              'Maintain records of hypothesis testing and outcomes',
-            ],
-          },
-          {
-            projectName: 'Data Analytics Enhancement',
-            projectDescription: 'Development of novel data processing algorithms',
-            financialYears: ['FY2022-23'],
-            totalExpenditure: 50000,
-            eligibleExpenditure: 50000,
-            estimatedOffset: 21750,
-            meetsEligibility: true,
-            overallConfidence: 80,
-            transactionCount: 11,
-            registrationDeadline: new Date('2024-04-30'),
-            registrationStatus: 'deadline_passed',
-            recommendations: [
-              '⚠️ Registration deadline has passed',
-              'Check if late registration is possible',
-              'Consider amendment for previous year if applicable',
-            ],
-          },
-        ],
+      // Call the real R&D summary API endpoint
+      const res = await fetch(`/api/audit/rnd-summary?tenantId=${tenantId}`)
+      if (!res.ok) {
+        throw new Error('Failed to load R&D data')
       }
 
-      setData(mockData)
+      const apiData = await res.json()
+
+      // Transform API data to match the expected interface
+      const transformedData: RndSummary = {
+        totalProjects: apiData.totalProjects || 0,
+        totalEligibleExpenditure: apiData.totalEligibleExpenditure || 0,
+        totalEstimatedOffset: apiData.totalEstimatedOffset || 0,
+        averageConfidence: apiData.projects?.length > 0
+          ? apiData.projects.reduce((sum: number, p: any) => sum + (p.avgConfidence || 0), 0) / apiData.projects.length
+          : 0,
+        coreRndTransactions: apiData.projects?.reduce((sum: number, p: any) => sum + (p.transactionCount || 0), 0) || 0,
+        supportingRndTransactions: 0, // Not currently tracked, could be added later
+        projects: (apiData.projects || []).map((p: any) => ({
+          projectName: p.name || 'Unnamed Project',
+          projectDescription: `R&D activities in ${p.category}`,
+          financialYears: p.financialYears || [],
+          totalExpenditure: p.totalSpend || 0,
+          eligibleExpenditure: p.totalSpend || 0, // Assuming all spend is eligible for R&D candidates
+          estimatedOffset: (p.totalSpend || 0) * (apiData.offsetRate || 0.435),
+          meetsEligibility: p.avgConfidence >= 70,
+          overallConfidence: Math.round(p.avgConfidence || 0),
+          transactionCount: p.transactionCount || 0,
+          registrationDeadline: calculateRegistrationDeadline(p.financialYears),
+          registrationStatus: calculateRegistrationStatus(p.financialYears),
+          recommendations: generateRecommendations(p, apiData.offsetRate)
+        }))
+      }
+
+      setData(transformedData)
     } catch (err) {
       console.error('Failed to load R&D data:', err)
       setError('Failed to load R&D analysis data')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Helper function to calculate registration deadline
+  function calculateRegistrationDeadline(years: string[]): Date {
+    if (!years || years.length === 0) return new Date()
+
+    // Get the most recent year
+    const latestYear = years.sort().reverse()[0]
+
+    // Extract year from format like "FY2024-25" or "2024"
+    const yearMatch = latestYear.match(/\d{4}/)
+    if (!yearMatch) return new Date()
+
+    const year = parseInt(yearMatch[0])
+    // Registration deadline is 10 months after end of financial year (April 30)
+    // Financial year ends June 30, so deadline is April 30 of following year
+    return new Date(year + 1, 3, 30) // April = month 3 (0-indexed)
+  }
+
+  // Helper function to calculate registration status
+  function calculateRegistrationStatus(years: string[]): 'not_registered' | 'deadline_approaching' | 'deadline_passed' {
+    const deadline = calculateRegistrationDeadline(years)
+    const now = new Date()
+    const daysUntilDeadline = Math.floor((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+    if (daysUntilDeadline < 0) return 'deadline_passed'
+    if (daysUntilDeadline < 90) return 'deadline_approaching'
+    return 'not_registered'
+  }
+
+  // Helper function to generate recommendations
+  function generateRecommendations(project: any, offsetRate: number): string[] {
+    const recommendations: string[] = []
+    const status = calculateRegistrationStatus(project.financialYears)
+
+    if (status === 'deadline_passed') {
+      recommendations.push('⚠️ Registration deadline has passed')
+      recommendations.push('Check if late registration is possible')
+      recommendations.push('Consider amendment for previous year if applicable')
+    } else if (status === 'deadline_approaching') {
+      recommendations.push('🔴 URGENT: Registration deadline approaching')
+      recommendations.push('Register R&D activities with AusIndustry immediately')
+    } else {
+      recommendations.push('Register R&D activities with AusIndustry before deadline')
+    }
+
+    recommendations.push('Lodge Schedule 16N with Company Tax Return')
+    recommendations.push('Maintain technical documentation of development process')
+    recommendations.push('Document four-element test compliance for each activity')
+
+    if (project.avgConfidence < 75) {
+      recommendations.push('Consider additional documentation to strengthen R&D claim')
+    }
+
+    return recommendations
   }
 
   if (loading) {

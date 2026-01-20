@@ -79,6 +79,8 @@ export default function ForensicAuditDashboardEnhanced() {
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null)
+  const [opportunitiesByYear, setOpportunitiesByYear] = useState<Array<{name: string, value: number}>>([])
+
 
   useEffect(() => {
     fetchTenantId()
@@ -89,6 +91,28 @@ export default function ForensicAuditDashboardEnhanced() {
       loadDashboardData()
     }
   }, [tenantId])
+
+  // Fetch real opportunities by year data
+  useEffect(() => {
+    async function loadOpportunities() {
+      if (!tenantId) return
+
+      try {
+        const res = await fetch(`/api/audit/opportunities-by-year?tenantId=${tenantId}`)
+        if (!res.ok) {
+          console.error('Failed to fetch opportunities by year')
+          return
+        }
+
+        const result = await res.json()
+        setOpportunitiesByYear(result.opportunities || [])
+      } catch (error) {
+        console.error('Failed to load opportunities by year:', error)
+      }
+    }
+
+    loadOpportunities()
+  }, [tenantId, data?.analysisStatus.status])
 
   const addActivity = (activity: ActivityItem) => {
     setActivities(prev => [...prev, activity])
@@ -221,6 +245,135 @@ export default function ForensicAuditDashboardEnhanced() {
     }
   }
 
+  // Download handler functions
+  async function downloadClientReport() {
+    if (!tenantId) {
+      alert('Please connect to Xero first')
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/reports/download-pdf?tenantId=${tenantId}&type=client`)
+      if (!res.ok) throw new Error('Failed to generate report')
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `client-report-${tenantId}-${Date.now()}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      addActivity({
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        message: 'Client report downloaded successfully',
+        type: 'success'
+      })
+    } catch (error: any) {
+      console.error('Download failed:', error)
+      alert('Failed to download report: ' + error.message)
+    }
+  }
+
+  async function downloadTechnicalPDF() {
+    if (!tenantId) {
+      alert('Please connect to Xero first')
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/reports/download-pdf?tenantId=${tenantId}&type=technical`)
+      if (!res.ok) throw new Error('Failed to generate PDF')
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `technical-report-${tenantId}-${Date.now()}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      addActivity({
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        message: 'Technical PDF downloaded successfully',
+        type: 'success'
+      })
+    } catch (error: any) {
+      console.error('Download failed:', error)
+      alert('Failed to download PDF: ' + error.message)
+    }
+  }
+
+  async function exportExcelWorkbook() {
+    if (!tenantId) {
+      alert('Please connect to Xero first')
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/reports/download-excel?tenantId=${tenantId}`)
+      if (!res.ok) throw new Error('Failed to generate Excel file')
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `forensic-audit-${tenantId}-${Date.now()}.xlsx`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      addActivity({
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        message: 'Excel workbook exported successfully',
+        type: 'success'
+      })
+    } catch (error: any) {
+      console.error('Export failed:', error)
+      alert('Failed to export Excel: ' + error.message)
+    }
+  }
+
+  async function downloadAmendmentSchedules() {
+    if (!tenantId) {
+      alert('Please connect to Xero first')
+      return
+    }
+
+    try {
+      const res = await fetch(`/api/reports/amendment-schedules?tenantId=${tenantId}`)
+      if (!res.ok) throw new Error('Failed to generate schedules')
+
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `amendment-schedules-${tenantId}-${Date.now()}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      addActivity({
+        id: Date.now().toString(),
+        timestamp: new Date(),
+        message: 'Amendment schedules downloaded successfully',
+        type: 'success'
+      })
+    } catch (error: any) {
+      console.error('Download failed:', error)
+      alert('Failed to download schedules: ' + error.message)
+    }
+  }
+
   function pollSyncProgress() {
     const interval = setInterval(async () => {
       await loadDashboardData()
@@ -295,15 +448,7 @@ export default function ForensicAuditDashboardEnhanced() {
   const isReady = data?.syncStatus.status === 'complete' && data?.analysisStatus.status === 'complete'
   const isAnalyzing = data?.analysisStatus.status === 'analyzing'
 
-  // Chart data for opportunities by year
-  const opportunitiesByYear = data?.yearProgress
-    ? Object.entries(data.yearProgress)
-        .filter(([_, progress]) => progress.status === 'complete')
-        .map(([year]) => ({
-          name: year,
-          value: Math.random() * 100000 // TODO: Get actual values from API
-        }))
-    : []
+  // Chart data for opportunities by year - now using real data from API
 
   return (
     <div className="min-h-screen p-8">
@@ -489,8 +634,15 @@ export default function ForensicAuditDashboardEnhanced() {
 
             {/* Dual-Format Results */}
             <FormatToggleWrapper
-              clientView={<ClientView data={data} />}
-              technicalView={<TechnicalView data={data} />}
+              clientView={<ClientView data={data} onDownloadReport={downloadClientReport} />}
+              technicalView={
+                <TechnicalView
+                  data={data}
+                  onDownloadPDF={downloadTechnicalPDF}
+                  onExportExcel={exportExcelWorkbook}
+                  onDownloadSchedules={downloadAmendmentSchedules}
+                />
+              }
               defaultView="accountant"
             />
           </>
@@ -555,7 +707,13 @@ export default function ForensicAuditDashboardEnhanced() {
 }
 
 // Client View Component
-function ClientView({ data }: { data: DashboardData }) {
+function ClientView({
+  data,
+  onDownloadReport
+}: {
+  data: DashboardData
+  onDownloadReport: () => void
+}) {
   const forensicResult: ForensicAuditResult = {
     totalAdjustedBenefit: data.recommendations.totalAdjustedBenefit,
     byTaxArea: data.recommendations.byTaxArea,
@@ -641,7 +799,7 @@ function ClientView({ data }: { data: DashboardData }) {
 
       {/* Download Button */}
       <div className="flex justify-center">
-        <button className="btn btn-primary">
+        <button onClick={onDownloadReport} className="btn btn-primary">
           Download Client-Friendly Report
         </button>
       </div>
@@ -650,7 +808,17 @@ function ClientView({ data }: { data: DashboardData }) {
 }
 
 // Technical View Component
-function TechnicalView({ data }: { data: DashboardData }) {
+function TechnicalView({
+  data,
+  onDownloadPDF,
+  onExportExcel,
+  onDownloadSchedules
+}: {
+  data: DashboardData
+  onDownloadPDF: () => void
+  onExportExcel: () => void
+  onDownloadSchedules: () => void
+}) {
   return (
     <div className="space-y-6">
       {/* Analysis Summary */}
@@ -742,13 +910,13 @@ function TechnicalView({ data }: { data: DashboardData }) {
 
       {/* Download Buttons */}
       <div className="flex gap-4">
-        <button className="btn btn-primary flex-1">
+        <button onClick={onDownloadPDF} className="btn btn-primary flex-1">
           Download Technical PDF
         </button>
-        <button className="btn btn-secondary flex-1">
+        <button onClick={onExportExcel} className="btn btn-secondary flex-1">
           Export Excel Workbook
         </button>
-        <button className="btn btn-secondary flex-1">
+        <button onClick={onDownloadSchedules} className="btn btn-secondary flex-1">
           Amendment Schedules
         </button>
       </div>

@@ -24,7 +24,7 @@ import { analyzeRndOpportunities } from '@/lib/analysis/rnd-engine'
 import { analyzeDeductionOpportunities } from '@/lib/analysis/deduction-engine'
 import { analyzeLossPosition } from '@/lib/analysis/loss-engine'
 import { analyzeDiv7aCompliance } from '@/lib/analysis/div7a-engine'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 
 export interface ExcelWorkbookData {
   metadata: {
@@ -537,7 +537,10 @@ function createAmendmentsSheet(amendmentSummary: any): AmendmentsSheet {
  * Fetch transaction data from database
  */
 async function fetchTransactionData(tenantId: string): Promise<any[]> {
-  const supabase = await createServiceClient()
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
   const { data, error } = await supabase
     .from('forensic_analysis_results')
@@ -621,4 +624,307 @@ export function generateWorkbookMetadata(workbookData: ExcelWorkbookData) {
     organizationName: workbookData.metadata.organizationName,
     abn: workbookData.metadata.abn,
   }
+}
+
+/**
+ * Generate actual Excel workbook using ExcelJS
+ * Returns Buffer for download - NO 10K LIMIT, fetches ALL data
+ */
+export async function generateExcelWorkbook(tenantId: string): Promise<Buffer> {
+  // Import ExcelJS dynamically
+  const ExcelJS = await import('exceljs')
+
+  const workbook = new ExcelJS.default.Workbook()
+  workbook.creator = 'ATO Tax Optimizer'
+  workbook.created = new Date()
+  workbook.company = 'ATO Agent Suite'
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  // Fetch organization details
+  const { data: xeroOrg } = await supabase
+    .from('xero_connections')
+    .select('organisation_name, tax_number')
+    .eq('tenant_id', tenantId)
+    .single()
+
+  const orgName = xeroOrg?.organisation_name || 'Organization'
+  const abn = xeroOrg?.tax_number || 'N/A'
+
+  console.log(`Generating Excel workbook for ${orgName}`)
+
+  // ===== Sheet 1: Summary =====
+  const summarySheet = workbook.addWorksheet('Summary', {
+    properties: { tabColor: { argb: 'FF4F46E5' } }
+  })
+
+  summarySheet.columns = [
+    { header: 'Metric', key: 'metric', width: 40 },
+    { header: 'Value', key: 'value', width: 30 }
+  ]
+
+  // Fetch summary statistics
+  const { data: allResults, count: totalCount } = await supabase
+    .from('forensic_analysis_results')
+    .select('*', { count: 'exact' })
+    .eq('tenant_id', tenantId)
+
+  const rndCandidates = allResults?.filter(r => r.is_rnd_candidate) || []
+  const totalBenefit = rndCandidates.reduce((sum, r) => sum + (r.adjusted_benefit || 0), 0)
+
+  summarySheet.addRows([
+    { metric: 'Organization', value: orgName },
+    { metric: 'ABN', value: abn },
+    { metric: 'Report Generated', value: new Date().toLocaleString() },
+    { metric: '', value: '' },
+    { metric: 'Total Transactions Analyzed', value: totalCount || 0 },
+    { metric: 'R&D Candidates Found', value: rndCandidates.length },
+    { metric: 'Total Tax Opportunity', value: totalBenefit },
+    { metric: 'R&D Tax Incentive (43.5%)', value: totalBenefit * 0.435 }
+  ])
+
+  // Format summary sheet
+  summarySheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  summarySheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF4F46E5' }
+  }
+
+  // Format currency cells
+  summarySheet.getCell('B7').numFmt = '$#,##0.00'
+  summarySheet.getCell('B8').numFmt = '$#,##0.00'
+
+  // ===== Sheet 2: R&D Candidates (ALL - no pagination limit!) =====
+  const rndSheet = workbook.addWorksheet('R&D Candidates', {
+    properties: { tabColor: { argb: 'FF10B981' } }
+  })
+
+  rndSheet.columns = [
+    { header: 'Date', key: 'date', width: 12 },
+    { header: 'Description', key: 'description', width: 50 },
+    { header: 'Supplier', key: 'supplier', width: 30 },
+    { header: 'Amount', key: 'amount', width: 15 },
+    { header: 'Category', key: 'category', width: 25 },
+    { header: 'Confidence %', key: 'confidence', width: 12 },
+    { header: 'Financial Year', key: 'year', width: 15 },
+    { header: 'Reasoning', key: 'reasoning', width: 60 }
+  ]
+
+  // Fetch ALL R&D candidates with pagination (no 10K limit!)
+  let offset = 0
+  const pageSize = 1000
+  let hasMore = true
+
+  console.log('Fetching R&D candidates...')
+  while (hasMore) {
+    const { data: batch } = await supabase
+      .from('forensic_analysis_results')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('is_rnd_candidate', true)
+      .order('date', { ascending: false })
+      .range(offset, offset + pageSize - 1)
+
+    if (!batch || batch.length === 0) break
+
+    rndSheet.addRows(batch.map(c => ({
+      date: new Date(c.date).toLocaleDateString(),
+      description: c.description || '',
+      supplier: c.supplier || '',
+      amount: c.amount,
+      category: c.primary_category,
+      confidence: c.rnd_confidence,
+      year: c.financial_year,
+      reasoning: c.rnd_reasoning || ''
+    })))
+
+    hasMore = batch.length === pageSize
+    offset += pageSize
+    console.log(`Fetched ${offset} R&D candidates...`)
+  }
+
+  // Format R&D sheet
+  rndSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  rndSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF10B981' }
+  }
+  rndSheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' }
+
+  // Add auto-filter
+  rndSheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: 8 }
+  }
+
+  // Format amount column
+  rndSheet.getColumn('amount').numFmt = '$#,##0.00'
+
+  // ===== Sheet 3: All Transactions (no limits!) =====
+  const allSheet = workbook.addWorksheet('All Transactions', {
+    properties: { tabColor: { argb: 'FF6366F1' } }
+  })
+
+  allSheet.columns = [
+    { header: 'Date', key: 'date', width: 12 },
+    { header: 'Description', key: 'description', width: 50 },
+    { header: 'Supplier', key: 'supplier', width: 30 },
+    { header: 'Amount', key: 'amount', width: 15 },
+    { header: 'Category', key: 'category', width: 25 },
+    { header: 'Is R&D', key: 'isRnd', width: 10 },
+    { header: 'Confidence', key: 'confidence', width: 12 },
+    { header: 'Financial Year', key: 'year', width: 15 }
+  ]
+
+  // Paginate all transactions (no limit!)
+  offset = 0
+  hasMore = true
+
+  console.log('Fetching all transactions...')
+  while (hasMore) {
+    const { data: batch } = await supabase
+      .from('forensic_analysis_results')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('date', { ascending: false })
+      .range(offset, offset + pageSize - 1)
+
+    if (!batch || batch.length === 0) break
+
+    allSheet.addRows(batch.map(c => ({
+      date: new Date(c.date).toLocaleDateString(),
+      description: c.description || '',
+      supplier: c.supplier || '',
+      amount: c.amount,
+      category: c.primary_category,
+      isRnd: c.is_rnd_candidate ? 'Yes' : 'No',
+      confidence: c.rnd_confidence || 0,
+      year: c.financial_year
+    })))
+
+    hasMore = batch.length === pageSize
+    offset += pageSize
+    console.log(`Fetched ${offset} total transactions...`)
+  }
+
+  // Format all transactions sheet
+  allSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  allSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF6366F1' }
+  }
+  allSheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' }
+
+  allSheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: 1, column: 8 }
+  }
+
+  allSheet.getColumn('amount').numFmt = '$#,##0.00'
+
+  // ===== Sheet 4: Recommendations =====
+  const recSheet = workbook.addWorksheet('Recommendations', {
+    properties: { tabColor: { argb: 'FFF59E0B' } }
+  })
+
+  recSheet.columns = [
+    { header: 'Priority', key: 'priority', width: 12 },
+    { header: 'Recommendation', key: 'recommendation', width: 60 },
+    { header: 'Tax Benefit', key: 'benefit', width: 15 },
+    { header: 'Deadline', key: 'deadline', width: 15 },
+    { header: 'Status', key: 'status', width: 15 }
+  ]
+
+  // Fetch recommendations
+  const { data: recommendations } = await supabase
+    .from('tax_recommendations')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .order('priority_score', { ascending: false })
+    .limit(100)
+
+  if (recommendations) {
+    recSheet.addRows(recommendations.map(r => ({
+      priority: r.priority || 'Medium',
+      recommendation: r.recommendation_text || '',
+      benefit: r.adjusted_benefit || 0,
+      deadline: r.deadline ? new Date(r.deadline).toLocaleDateString() : '',
+      status: r.status || 'Pending'
+    })))
+  }
+
+  // Format recommendations sheet
+  recSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  recSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFF59E0B' }
+  }
+
+  recSheet.getColumn('benefit').numFmt = '$#,##0.00'
+
+  // Note: Conditional formatting removed due to ExcelJS type compatibility issues
+  // Formatting can be added manually in Excel after export if needed
+
+  // ===== Sheet 5: Analysis by Year =====
+  const yearSheet = workbook.addWorksheet('By Financial Year', {
+    properties: { tabColor: { argb: 'FF8B5CF6' } }
+  })
+
+  yearSheet.columns = [
+    { header: 'Financial Year', key: 'year', width: 15 },
+    { header: 'Total Transactions', key: 'total', width: 18 },
+    { header: 'R&D Candidates', key: 'rndCount', width: 18 },
+    { header: 'R&D Spend', key: 'rndSpend', width: 15 },
+    { header: 'Tax Benefit', key: 'benefit', width: 15 }
+  ]
+
+  // Group by financial year
+  const yearGroups = allResults?.reduce((acc: any, r: any) => {
+    const year = r.financial_year || 'Unknown'
+    if (!acc[year]) {
+      acc[year] = { total: 0, rndCount: 0, rndSpend: 0 }
+    }
+    acc[year].total++
+    if (r.is_rnd_candidate) {
+      acc[year].rndCount++
+      acc[year].rndSpend += Math.abs(r.amount || 0)
+    }
+    return acc
+  }, {})
+
+  if (yearGroups) {
+    Object.entries(yearGroups).forEach(([year, stats]: [string, any]) => {
+      yearSheet.addRow({
+        year,
+        total: stats.total,
+        rndCount: stats.rndCount,
+        rndSpend: stats.rndSpend,
+        benefit: stats.rndSpend * 0.435
+      })
+    })
+  }
+
+  // Format year sheet
+  yearSheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  yearSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF8B5CF6' }
+  }
+
+  yearSheet.getColumn('rndSpend').numFmt = '$#,##0.00'
+  yearSheet.getColumn('benefit').numFmt = '$#,##0.00'
+
+  console.log('Generating Excel buffer...')
+  const buffer = await workbook.xlsx.writeBuffer()
+  console.log(`Excel generated: ${buffer.byteLength} bytes`)
+
+  return Buffer.from(buffer)
 }

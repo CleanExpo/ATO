@@ -678,3 +678,226 @@ function createLegislativeReferences(): string[] {
 export function exportReportJSON(report: PDFReport): string {
   return JSON.stringify(report, null, 2)
 }
+
+/**
+ * Generate actual PDF file from report data using Puppeteer
+ * Returns PDF as Buffer for download or storage
+ */
+export async function generatePDF(
+  tenantId: string,
+  organizationName: string,
+  abn: string
+): Promise<Buffer> {
+  // Import puppeteer dynamically to avoid build issues
+  const puppeteer = await import('puppeteer')
+
+  console.log(`Generating PDF for tenant ${tenantId}`)
+
+  // Generate report data and HTML
+  const reportData = await generatePDFReportData(tenantId, organizationName, abn)
+  const htmlContent = await generatePDFReportHTML(reportData)
+
+  // Launch headless Chrome
+  const browser = await puppeteer.default.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage', // Overcome limited resource problems
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu'
+    ]
+  })
+
+  try {
+    const page = await browser.newPage()
+
+    // Load HTML content
+    await page.setContent(htmlContent, {
+      waitUntil: 'networkidle0',
+      timeout: 30000
+    })
+
+    // Generate PDF with professional formatting
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      margin: {
+        top: '20mm',
+        right: '15mm',
+        bottom: '20mm',
+        left: '15mm'
+      },
+      printBackground: true,
+      displayHeaderFooter: true,
+      headerTemplate: `
+        <div style="font-size: 9px; text-align: center; width: 100%; padding: 5px 15mm; color: #6366f1;">
+          <span style="font-weight: 600;">ATO Tax Forensic Audit Report</span>
+          <span style="margin-left: 20px; color: #64748b;">${organizationName} | ABN: ${abn}</span>
+        </div>
+      `,
+      footerTemplate: `
+        <div style="font-size: 8px; text-align: center; width: 100%; padding: 5px 15mm; color: #64748b;">
+          <span style="float: left;">Generated: ${new Date().toLocaleDateString()}</span>
+          <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+          <span style="float: right;">Confidential</span>
+        </div>
+      `,
+      preferCSSPageSize: false
+    })
+
+    console.log(`PDF generated successfully: ${pdfBuffer.length} bytes`)
+    return Buffer.from(pdfBuffer)
+
+  } finally {
+    await browser.close()
+  }
+}
+
+/**
+ * Generate client-friendly PDF (simplified version)
+ * Omits technical details and focuses on actionable recommendations
+ */
+export async function generateClientPDF(
+  tenantId: string,
+  organizationName: string,
+  abn: string
+): Promise<Buffer> {
+  const puppeteer = await import('puppeteer')
+
+  console.log(`Generating client-friendly PDF for tenant ${tenantId}`)
+
+  // Generate full report data
+  const reportData = await generatePDFReportData(tenantId, organizationName, abn)
+
+  // Create simplified HTML for clients
+  const clientHTML = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tax Optimization Report - ${organizationName}</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      line-height: 1.6;
+      color: #1e293b;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 { color: #4f46e5; font-size: 28px; margin-bottom: 10px; }
+    h2 { color: #6366f1; font-size: 20px; margin-top: 30px; margin-bottom: 15px; }
+    h3 { color: #64748b; font-size: 16px; margin-top: 20px; margin-bottom: 10px; }
+    .summary-box {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 25px;
+      border-radius: 12px;
+      margin: 20px 0;
+    }
+    .summary-box h2 { color: white; margin-top: 0; }
+    .opportunity { font-size: 36px; font-weight: bold; margin: 10px 0; }
+    .breakdown { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px; }
+    .breakdown-item { background: rgba(255,255,255,0.2); padding: 15px; border-radius: 8px; }
+    .breakdown-label { font-size: 12px; opacity: 0.9; }
+    .breakdown-value { font-size: 20px; font-weight: bold; margin-top: 5px; }
+    .recommendation { background: #f1f5f9; padding: 15px; margin: 10px 0; border-left: 4px solid #4f46e5; border-radius: 4px; }
+    .deadline { background: #fef3c7; border-left-color: #f59e0b; }
+    .priority-high { background: #fee2e2; border-left-color: #ef4444; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    th { background: #f8fafc; font-weight: 600; color: #475569; }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #e2e8f0; font-size: 12px; color: #64748b; }
+  </style>
+</head>
+<body>
+  <h1>Tax Optimization Report</h1>
+  <p style="color: #64748b; font-size: 14px;">
+    ${organizationName} | ABN: ${abn}<br>
+    Report Generated: ${new Date().toLocaleDateString()}
+  </p>
+
+  <div class="summary-box">
+    <h2>Total Tax Opportunity Identified</h2>
+    <div class="opportunity">$${reportData.executiveSummary.totalOpportunity.toLocaleString()}</div>
+    <p style="font-size: 14px; opacity: 0.95;">
+      After conservative adjustments: $${reportData.executiveSummary.adjustedOpportunity.toLocaleString()}
+    </p>
+
+    <div class="breakdown">
+      <div class="breakdown-item">
+        <div class="breakdown-label">R&D Tax Incentive</div>
+        <div class="breakdown-value">$${reportData.executiveSummary.breakdown.rnd.toLocaleString()}</div>
+      </div>
+      <div class="breakdown-item">
+        <div class="breakdown-label">General Deductions</div>
+        <div class="breakdown-value">$${reportData.executiveSummary.breakdown.deductions.toLocaleString()}</div>
+      </div>
+      <div class="breakdown-item">
+        <div class="breakdown-label">Loss Carry-Forward</div>
+        <div class="breakdown-value">$${reportData.executiveSummary.breakdown.losses.toLocaleString()}</div>
+      </div>
+      <div class="breakdown-item">
+        <div class="breakdown-label">Division 7A Savings</div>
+        <div class="breakdown-value">$${reportData.executiveSummary.breakdown.div7a.toLocaleString()}</div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Top Recommendations</h2>
+  ${reportData.executiveSummary.topRecommendations.map((rec, i) => `
+    <div class="recommendation ${i === 0 ? 'priority-high' : ''}">
+      <strong>${i + 1}.</strong> ${rec}
+    </div>
+  `).join('')}
+
+  <h2>Critical Deadlines</h2>
+  ${reportData.executiveSummary.criticalDeadlines.map(deadline => `
+    <div class="recommendation deadline">
+      <strong>${deadline.action}</strong><br>
+      <span style="font-size: 14px;">Deadline: ${new Date(deadline.deadline).toLocaleDateString()}</span>
+    </div>
+  `).join('')}
+
+  <h2>Next Steps</h2>
+  <ol>
+    <li>Review this report with your accountant</li>
+    <li>Prioritize recommendations by deadline and benefit</li>
+    <li>Gather supporting documentation for R&D claims</li>
+    <li>Schedule lodgement of amended returns if applicable</li>
+    <li>Register R&D activities with AusIndustry</li>
+  </ol>
+
+  <div class="footer">
+    <p><strong>Important Notice:</strong> This report is based on automated analysis of your financial data.
+    Always consult with a qualified tax professional before making any tax decisions or lodging amendments.</p>
+    <p>Generated by ATO Optimizer | Confidence Level: ${reportData.executiveSummary.overallConfidence}%</p>
+  </div>
+</body>
+</html>
+  `
+
+  const browser = await puppeteer.default.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+  })
+
+  try {
+    const page = await browser.newPage()
+    await page.setContent(clientHTML, { waitUntil: 'networkidle0', timeout: 30000 })
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      margin: { top: '15mm', right: '15mm', bottom: '15mm', left: '15mm' },
+      printBackground: true,
+      preferCSSPageSize: false
+    })
+
+    return Buffer.from(pdfBuffer)
+  } finally {
+    await browser.close()
+  }
+}

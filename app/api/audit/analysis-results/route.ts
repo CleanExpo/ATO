@@ -10,7 +10,7 @@
  * - primaryCategory?: string (optional - filter by category)
  * - minConfidence?: number (optional - minimum confidence score 0-100)
  * - page?: number (optional, default: 1)
- * - pageSize?: number (optional, default: 100, max: 1000)
+ * - pageSize?: number (optional, default: 100, max: 10000)
  *
  * Response:
  * - results: Array of analysis results
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         const page = parseInt(request.nextUrl.searchParams.get('page') || '1', 10)
         const pageSize = Math.min(
             parseInt(request.nextUrl.searchParams.get('pageSize') || '100', 10),
-            1000
+            10000  // Increased from 1000 to support large exports
         )
 
         // Validate required fields

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
     DollarSign,
@@ -14,8 +14,18 @@ import {
     Mail,
     Save,
     AlertCircle,
-    LogOut
+    LogOut,
+    CheckCircle,
+    Loader2
 } from 'lucide-react'
+
+interface XeroConnection {
+    tenant_id: string
+    tenant_name: string
+    organisation_name: string
+    country_code: string
+    connected_at: string
+}
 
 export default function SettingsPage() {
     const [accountantName, setAccountantName] = useState('')
@@ -24,6 +34,33 @@ export default function SettingsPage() {
     const [businessName, setBusinessName] = useState('')
     const [businessABN, setBusinessABN] = useState('')
     const [saved, setSaved] = useState(false)
+
+    // Xero connection state
+    const [xeroConnections, setXeroConnections] = useState<XeroConnection[]>([])
+    const [xeroLoading, setXeroLoading] = useState(true)
+    const [xeroError, setXeroError] = useState<string | null>(null)
+
+    // Fetch Xero connection status on mount
+    useEffect(() => {
+        async function fetchXeroConnections() {
+            try {
+                const res = await fetch('/api/xero/organizations')
+                if (!res.ok) {
+                    throw new Error(`Failed to fetch connections: ${res.status}`)
+                }
+
+                const data = await res.json()
+                setXeroConnections(data.organisations || [])
+            } catch (err: any) {
+                console.error('Error fetching Xero connections:', err)
+                setXeroError(err.message || 'Failed to load Xero connections')
+            } finally {
+                setXeroLoading(false)
+            }
+        }
+
+        fetchXeroConnections()
+    }, [])
 
     const handleSave = () => {
         // In a real implementation, this would save to database
@@ -193,17 +230,105 @@ export default function SettingsPage() {
                         <h3 className="font-semibold">Xero Connection</h3>
                     </div>
 
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-tertiary)]">
-                        <div className="flex items-center gap-3">
-                            <AlertCircle className="w-5 h-5 text-amber-400" />
-                            <span className="text-[var(--text-secondary)]">
-                                No Xero account connected
+                    {xeroLoading && (
+                        <div className="flex items-center justify-center p-8">
+                            <Loader2 className="w-6 h-6 animate-spin text-[#13B5EA]" />
+                            <span className="ml-3 text-[var(--text-secondary)]">
+                                Loading connection status...
                             </span>
                         </div>
-                        <Link href="/api/auth/xero" className="btn btn-xero">
-                            Connect Xero
-                        </Link>
-                    </div>
+                    )}
+
+                    {xeroError && (
+                        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                            <div className="flex items-center gap-3">
+                                <AlertCircle className="w-5 h-5 text-red-400" />
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium text-red-400">Error loading connections</p>
+                                    <p className="text-xs text-red-400/70 mt-1">{xeroError}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {!xeroLoading && !xeroError && xeroConnections.length === 0 && (
+                        <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-tertiary)]">
+                            <div className="flex items-center gap-3">
+                                <AlertCircle className="w-5 h-5 text-amber-400" />
+                                <span className="text-[var(--text-secondary)]">
+                                    No Xero account connected
+                                </span>
+                            </div>
+                            <Link href="/api/auth/xero" className="btn btn-xero">
+                                Connect Xero
+                            </Link>
+                        </div>
+                    )}
+
+                    {!xeroLoading && !xeroError && xeroConnections.length > 0 && (
+                        <div className="space-y-4">
+                            {xeroConnections.map((conn) => (
+                                <div key={conn.tenant_id} className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                                    <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <CheckCircle className="w-5 h-5 text-emerald-400" />
+                                                <span className="font-semibold text-emerald-400">
+                                                    Connected to Xero
+                                                </span>
+                                            </div>
+
+                                            <div className="space-y-2 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[var(--text-muted)]">Organization:</span>
+                                                    <span className="text-[var(--text-primary)] font-medium">
+                                                        {conn.organisation_name}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[var(--text-muted)]">Country:</span>
+                                                    <span className="text-[var(--text-secondary)]">
+                                                        {conn.country_code}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[var(--text-muted)]">Connected:</span>
+                                                    <span className="text-[var(--text-secondary)]">
+                                                        {new Date(conn.connected_at).toLocaleString()}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[var(--text-muted)]">Tenant ID:</span>
+                                                    <span className="text-xs text-[var(--text-muted)] font-mono">
+                                                        {conn.tenant_id}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={() => {
+                                                if (confirm(`Disconnect from ${conn.organisation_name}?`)) {
+                                                    // TODO: Implement disconnect API
+                                                    alert('Disconnect functionality coming soon')
+                                                }
+                                            }}
+                                            className="btn btn-secondary text-sm"
+                                        >
+                                            Disconnect
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+
+                            <Link href="/api/auth/xero" className="btn btn-secondary w-full">
+                                Connect Another Organization
+                            </Link>
+                        </div>
+                    )}
                 </div>
 
                 {/* Email Settings */}
