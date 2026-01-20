@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requiredConfig } from '@/lib/config/env'
+import { serverConfig, sharedConfig } from '@/lib/config/env'
 
 export async function GET(request: NextRequest) {
     try {
@@ -15,8 +15,8 @@ export async function GET(request: NextRequest) {
         // Build Xero OAuth URL
         const xeroAuthUrl = new URL('https://login.xero.com/identity/connect/authorize')
         xeroAuthUrl.searchParams.set('response_type', 'code')
-        xeroAuthUrl.searchParams.set('client_id', requiredConfig.xero.clientId)
-        xeroAuthUrl.searchParams.set('redirect_uri', requiredConfig.xero.redirectUri)
+        xeroAuthUrl.searchParams.set('client_id', serverConfig.xero.clientId)
+        xeroAuthUrl.searchParams.set('redirect_uri', `${sharedConfig.baseUrl}/api/auth/xero/callback`)
         xeroAuthUrl.searchParams.set('scope', 'openid profile email accounting.transactions.read accounting.reports.read accounting.contacts.read accounting.settings.read')
         xeroAuthUrl.searchParams.set('state', state)
 
