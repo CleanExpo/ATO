@@ -1,0 +1,351 @@
+/**
+ * AI Forensic Analyzer
+ *
+ * Deep analysis of transactions using Google AI (Gemini) for tax optimization.
+ *
+ * Features:
+ * - Division 355 (R&D) assessment with four-element test
+ * - Division 8 (General deductions) eligibility
+ * - Compliance flags (FBT, Division 7A)
+ * - Confidence scoring (0-100%)
+ * - Batch processing for efficiency
+ */
+
+import { GoogleGenerativeAI } from '@google/generative-ai'
+import { optionalConfig } from '@/lib/config/env'
+
+// Initialize Google AI
+const genAI = new GoogleGenerativeAI(optionalConfig.googleAiApiKey)
+
+// Types
+export interface TransactionContext {
+    transactionID: string
+    date: string
+    description: string
+    amount: number
+    supplier?: string
+    accountCode?: string
+    lineItems?: Array<{
+        description?: string
+        quantity?: number
+        unitAmount?: number
+        accountCode?: string
+    }>
+}
+
+export interface BusinessContext {
+    name: string
+    abn?: string
+    industry?: string
+    financialYear: string
+}
+
+export interface ForensicAnalysis {
+    transactionId: string
+
+    // Category Analysis
+    categories: {
+        primary: string
+        secondary: string[]
+        confidence: number // 0-100
+    }
+
+    // R&D Assessment (Division 355)
+    rndAssessment: {
+        isRndCandidate: boolean
+        meetsDiv355Criteria: boolean
+        activityType: 'core_rnd' | 'supporting_rnd' | 'not_eligible'
+        confidence: number
+        reasoning: string
+
+        // Four-element test
+        fourElementTest: {
+            outcomeUnknown: { met: boolean; confidence: number; evidence: string[] }
+            systematicApproach: { met: boolean; confidence: number; evidence: string[] }
+            newKnowledge: { met: boolean; confidence: number; evidence: string[] }
+            scientificMethod: { met: boolean; confidence: number; evidence: string[] }
+        }
+    }
+
+    // Deduction Eligibility (Division 8)
+    deductionEligibility: {
+        isFullyDeductible: boolean
+        deductionType: string
+        claimableAmount: number
+        restrictions: string[]
+        confidence: number
+    }
+
+    // Compliance Flags
+    complianceFlags: {
+        requiresDocumentation: boolean
+        fbtImplications: boolean
+        division7aRisk: boolean
+        notes: string[]
+    }
+}
+
+// Prompts
+const FORENSIC_ANALYSIS_PROMPT = `You are a forensic tax accountant from a Big 4 accounting firm analyzing Australian business transactions for tax optimization.
+
+Analyze this transaction and provide a structured JSON response with:
+
+1. **Category Classification**
+   - Primary category (e.g., R&D, Marketing, Professional Services, Software, Hardware, Consulting, Travel, etc.)
+   - Secondary categories (additional applicable categories)
+   - Confidence level (0-100%)
+
+2. **R&D Tax Incentive Assessment (Division 355 ITAA 1997)**
+   Assess against the four-element test:
+   a) **Outcome Unknown**: Could the outcome be known in advance by a competent professional?
+   b) **Systematic Approach**: Is it planned and executed in a systematic manner?
+   c) **New Knowledge**: Does it generate new knowledge (not routine application)?
+   d) **Scientific Method**: Is it based on principles of established sciences?
+
+   For each element, provide:
+   - met: boolean
+   - confidence: 0-100
+   - evidence: array of specific text from transaction supporting the assessment
+
+   Determine:
+   - isRndCandidate: boolean (does it look like R&D?)
+   - meetsDiv355Criteria: boolean (all four elements TRUE?)
+   - activityType: 'core_rnd' | 'supporting_rnd' | 'not_eligible'
+   - reasoning: specific explanation
+
+3. **General Deduction Eligibility (Division 8 ITAA 1997)**
+   - Is it fully deductible for tax purposes?
+   - Deduction type (e.g., 'Section 8-1', 'Division 40 depreciation', 'Instant write-off')
+   - Claimable amount (may differ from total if private use)
+   - Restrictions (e.g., 'Private use component', 'Entertainment limitation', 'Capital nature')
+   - Confidence level (0-100%)
+
+4. **Compliance Considerations**
+   - Requires additional documentation? (receipts, contracts, timesheets)
+   - FBT implications? (fringe benefits tax)
+   - Division 7A risk? (shareholder loan/payment)
+   - Compliance notes
+
+**Transaction Details:**
+- Description: {description}
+- Amount: ${amount}
+- Supplier: {supplier}
+- Date: {date}
+- Account Code: {accountCode}
+- Line Items: {lineItems}
+
+**Business Context:**
+- Business: {businessName} (ABN: {abn})
+- Industry: {industry}
+- Financial Year: {financialYear}
+
+**Important Rules:**
+- Be conservative: Only mark R&D criteria as "met" if clearly evident
+- Confidence scores should reflect certainty (60-70% = uncertain, 80-90% = confident, 90-100% = very confident)
+- Evidence must be specific quotes or references from the transaction description
+- For deductions, assume Section 8-1 unless specific legislation applies
+- Flag entertainment expenses (meals, events) as requiring scrutiny
+
+**Output Format:**
+Return ONLY valid JSON matching this structure (no markdown, no explanations outside JSON):
+
+{
+  "categories": {
+    "primary": "string",
+    "secondary": ["string"],
+    "confidence": number
+  },
+  "rndAssessment": {
+    "isRndCandidate": boolean,
+    "meetsDiv355Criteria": boolean,
+    "activityType": "core_rnd" | "supporting_rnd" | "not_eligible",
+    "confidence": number,
+    "reasoning": "string",
+    "fourElementTest": {
+      "outcomeUnknown": { "met": boolean, "confidence": number, "evidence": ["string"] },
+      "systematicApproach": { "met": boolean, "confidence": number, "evidence": ["string"] },
+      "newKnowledge": { "met": boolean, "confidence": number, "evidence": ["string"] },
+      "scientificMethod": { "met": boolean, "confidence": number, "evidence": ["string"] }
+    }
+  },
+  "deductionEligibility": {
+    "isFullyDeductible": boolean,
+    "deductionType": "string",
+    "claimableAmount": number,
+    "restrictions": ["string"],
+    "confidence": number
+  },
+  "complianceFlags": {
+    "requiresDocumentation": boolean,
+    "fbtImplications": boolean,
+    "division7aRisk": boolean,
+    "notes": ["string"]
+  }
+}
+`
+
+/**
+ * Analyze a single transaction with Google AI
+ */
+export async function analyzeTransaction(
+    transaction: TransactionContext,
+    business: BusinessContext
+): Promise<ForensicAnalysis> {
+    try {
+        // Prepare prompt with transaction details
+        const prompt = FORENSIC_ANALYSIS_PROMPT
+            .replace('{description}', transaction.description || 'No description')
+            .replace('{amount}', transaction.amount.toString())
+            .replace('{supplier}', transaction.supplier || 'Unknown')
+            .replace('{date}', transaction.date)
+            .replace('{accountCode}', transaction.accountCode || 'N/A')
+            .replace('{lineItems}', JSON.stringify(transaction.lineItems || [], null, 2))
+            .replace('{businessName}', business.name)
+            .replace('{abn}', business.abn || 'N/A')
+            .replace('{industry}', business.industry || 'N/A')
+            .replace('{financialYear}', business.financialYear)
+
+        // Call Google AI (Latest & Most Intelligent Model - Gemini 3 Pro - January 2026)
+        const model = genAI.getGenerativeModel({
+            model: 'gemini-3-pro-preview', // Most Intelligent: Maximum accuracy for tax analysis
+            generationConfig: {
+                temperature: 0.1, // Very low temperature for maximum consistency and accuracy
+                maxOutputTokens: 8000, // Gemini 3 Pro supports large detailed outputs
+            }
+        })
+
+        const result = await model.generateContent(prompt)
+        const response = result.response
+        const text = response.text()
+
+        // Parse JSON response
+        const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+        const analysis = JSON.parse(cleanedText)
+
+        // Map to our format
+        return {
+            transactionId: transaction.transactionID,
+            categories: analysis.categories,
+            rndAssessment: analysis.rndAssessment,
+            deductionEligibility: analysis.deductionEligibility,
+            complianceFlags: analysis.complianceFlags,
+        }
+
+    } catch (error) {
+        console.error(`Failed to analyze transaction ${transaction.transactionID}:`, error)
+
+        // Return fallback analysis on error
+        return {
+            transactionId: transaction.transactionID,
+            categories: {
+                primary: 'Unknown',
+                secondary: [],
+                confidence: 0
+            },
+            rndAssessment: {
+                isRndCandidate: false,
+                meetsDiv355Criteria: false,
+                activityType: 'not_eligible',
+                confidence: 0,
+                reasoning: `Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                fourElementTest: {
+                    outcomeUnknown: { met: false, confidence: 0, evidence: [] },
+                    systematicApproach: { met: false, confidence: 0, evidence: [] },
+                    newKnowledge: { met: false, confidence: 0, evidence: [] },
+                    scientificMethod: { met: false, confidence: 0, evidence: [] }
+                }
+            },
+            deductionEligibility: {
+                isFullyDeductible: false,
+                deductionType: 'Unknown',
+                claimableAmount: transaction.amount,
+                restrictions: ['Analysis failed - manual review required'],
+                confidence: 0
+            },
+            complianceFlags: {
+                requiresDocumentation: true,
+                fbtImplications: false,
+                division7aRisk: false,
+                notes: ['Analysis error - requires manual review']
+            }
+        }
+    }
+}
+
+/**
+ * Analyze multiple transactions in batch
+ * Processes transactions sequentially to avoid rate limits
+ */
+export async function analyzeTransactionBatch(
+    transactions: TransactionContext[],
+    business: BusinessContext,
+    onProgress?: (completed: number, total: number) => void
+): Promise<ForensicAnalysis[]> {
+    const results: ForensicAnalysis[] = []
+
+    for (let i = 0; i < transactions.length; i++) {
+        const analysis = await analyzeTransaction(transactions[i], business)
+        results.push(analysis)
+
+        if (onProgress) {
+            onProgress(i + 1, transactions.length)
+        }
+
+        // Small delay to avoid rate limits (Google AI allows 60 requests/minute)
+        if (i < transactions.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1000)) // 1 second delay
+        }
+    }
+
+    return results
+}
+
+/**
+ * Calculate cost estimate for analyzing transactions
+ */
+export function estimateAnalysisCost(transactionCount: number): {
+    inputTokens: number
+    outputTokens: number
+    estimatedCostUSD: number
+} {
+    // Gemini 1.5 Flash pricing (as of 2024):
+    // Input: $0.075 per 1M tokens
+    // Output: $0.30 per 1M tokens
+
+    const avgInputTokensPerTransaction = 800 // Prompt + transaction details
+    const avgOutputTokensPerTransaction = 1000 // JSON response
+
+    const totalInputTokens = transactionCount * avgInputTokensPerTransaction
+    const totalOutputTokens = transactionCount * avgOutputTokensPerTransaction
+
+    const inputCost = (totalInputTokens / 1_000_000) * 0.075
+    const outputCost = (totalOutputTokens / 1_000_000) * 0.30
+
+    return {
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+        estimatedCostUSD: inputCost + outputCost
+    }
+}
+
+/**
+ * Get model information (Latest & Most Intelligent - Gemini 3 Pro - January 2026)
+ */
+export function getModelInfo() {
+    return {
+        model: 'gemini-3-pro-preview',
+        provider: 'Google AI (Gemini 3 Pro)',
+        description: 'Most Intelligent Model: Maximum accuracy for complex reasoning, code, math, STEM, and large datasets',
+        version: 'Gemini 3 Pro (November 2025 Preview)',
+        tier: 'Premium - Highest Accuracy',
+        temperature: 0.1, // Ultra-low for maximum accuracy
+        maxInputTokens: 1048576, // 1M tokens
+        maxOutputTokens: 65536, // 65K tokens (using 8K for forensic analysis)
+        capabilities: ['Text', 'Image', 'Video', 'Audio', 'PDF', 'Function Calling', 'Search Grounding', 'Code Execution', 'Advanced Reasoning'],
+        rateLimit: '60 requests/minute',
+        // Gemini 3 Pro pricing (Preview - premium tier, subject to change at GA)
+        // Note: Higher cost but maximum accuracy (cost not the priority)
+        costPer1MInputTokens: 0.15, // Estimated (premium tier)
+        costPer1MOutputTokens: 0.60,  // Estimated (premium tier)
+    }
+}
