@@ -115,7 +115,7 @@ export default function ActivityFeed({
         ) : (
           displayItems.map((item, index) => {
             const config = typeConfig[item.type]
-            const Icon = item.icon || config.icon
+            const Icon = (item.icon || config.icon) as React.ComponentType<{ className?: string }>
 
             return (
               <div

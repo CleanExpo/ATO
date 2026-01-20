@@ -92,9 +92,9 @@ export async function fetchHistoricalTransactions(
 
         // Check if token needs refresh
         let currentAccessToken = accessToken
-        if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 })) {
-            const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 })
-            currentAccessToken = newTokens.access_token
+        if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)) {
+            const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)
+            currentAccessToken = newTokens.access_token || accessToken
         }
 
         xero.setTokenSet({
@@ -189,10 +189,10 @@ async function fetchTransactionsByType(
                 switch (type) {
                     case 'ACCPAY':
                     case 'ACCREC':
-                        response = await xero.accountingApi.getInvoices(tenantId, undefined, where, undefined, undefined, undefined, undefined, page, pageSize)
+                        response = await xero.accountingApi.getInvoices(tenantId, undefined, where, undefined, undefined, undefined, undefined, undefined, page)
                         return response.body.invoices || []
                     case 'BANK':
-                        response = await xero.accountingApi.getBankTransactions(tenantId, undefined, where, undefined, page, pageSize)
+                        response = await xero.accountingApi.getBankTransactions(tenantId, undefined, where, undefined, page)
                         return response.body.bankTransactions || []
                     default:
                         return []

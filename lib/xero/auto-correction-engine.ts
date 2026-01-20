@@ -259,9 +259,9 @@ async function createReclassificationJournal(
 
         // Check if token needs refresh
         let currentAccessToken = accessToken
-        if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 })) {
-            const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 })
-            currentAccessToken = newTokens.access_token
+        if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)) {
+            const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)
+            currentAccessToken = newTokens.access_token || accessToken
         }
 
         xero.setTokenSet({
@@ -305,7 +305,7 @@ async function createReclassificationJournal(
 
             return {
                 journalId: createdJournal.manualJournalID || '',
-                journalNumber: createdJournal.reference || ''
+                journalNumber: (createdJournal as any).reference || ''
             }
         }
 
@@ -459,9 +459,9 @@ export async function revertCorrection(
             await xero.initialize()
 
             let currentAccessToken = accessToken
-            if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 })) {
-                const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 })
-                currentAccessToken = newTokens.access_token
+            if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)) {
+                const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)
+                currentAccessToken = newTokens.access_token || accessToken
             }
 
             xero.setTokenSet({

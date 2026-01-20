@@ -40,8 +40,8 @@ export default function AnimatedCounter({
 }: AnimatedCounterProps) {
   const [displayValue, setDisplayValue] = useState(0)
   const [isInitialized, setIsInitialized] = useState(false)
-  const frameRef = useRef<number>()
-  const startTimeRef = useRef<number>()
+  const frameRef = useRef<number | undefined>(undefined)
+  const startTimeRef = useRef<number | undefined>(undefined)
   const startValueRef = useRef(0)
 
   useEffect(() => {

@@ -81,7 +81,7 @@ export async function generateChart(
             (part) => 'inlineData' in part
         )
 
-        if (!imagePart || !('inlineData' in imagePart)) {
+        if (!imagePart || !('inlineData' in imagePart) || !imagePart.inlineData) {
             throw new Error('No image generated in response')
         }
 

@@ -118,7 +118,7 @@ export async function analyzeAllTransactions(
 
             // Convert to analysis format
             const transactionContexts: TransactionContext[] = batchTransactions.map(txn => ({
-                transactionID: txn.transactionID || txn.bankTransactionID || 'unknown',
+                transactionID: txn.transactionID || 'unknown',
                 date: txn.date || '',
                 description: buildDescription(txn),
                 amount: txn.total || 0,

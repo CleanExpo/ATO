@@ -231,7 +231,7 @@ async function analyzeSingleLoan(
   }
 
   // Calculate financial position
-  const financialYears = Array.from(new Set(transactions.map((tx: any) => tx.financial_year))).sort()
+  const financialYears = Array.from(new Set(transactions.map((tx: any) => tx.financial_year))).sort() as string[]
   const latestYear = financialYears[financialYears.length - 1]
 
   let openingBalance = 0
@@ -259,7 +259,7 @@ async function analyzeSingleLoan(
   const closingBalance = openingBalance + advancesThisYear - repaymentsThisYear
 
   // Calculate benchmark interest
-  const benchmarkInterestRate = DIV7A_BENCHMARK_RATES[latestYear] || 0.0877
+  const benchmarkInterestRate = DIV7A_BENCHMARK_RATES[latestYear as string] || 0.0877
   const benchmarkInterestRequired = closingBalance * benchmarkInterestRate
   const interestShortfall = Math.max(0, benchmarkInterestRequired - interestCharged)
 
