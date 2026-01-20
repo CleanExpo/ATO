@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
+import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import type { TokenSet } from 'xero-node'
 
 type XeroReportCell = {
@@ -104,12 +105,12 @@ export async function GET(request: NextRequest) {
         const toDate = request.nextUrl.searchParams.get('toDate')
 
         if (!tenantId) {
-            return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 })
+            return createValidationError('Tenant ID is required')
         }
 
         const tokenSet = await getValidTokenSet(tenantId, baseUrl)
         if (!tokenSet) {
-            return NextResponse.json({ error: 'No valid connection found' }, { status: 401 })
+            return createNotFoundError('Xero connection')
         }
 
         const client = createXeroClient({ baseUrl })
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest) {
                 break
 
             default:
-                return NextResponse.json({ error: 'Invalid report type' }, { status: 400 })
+                return createValidationError('Invalid report type. Must be TrialBalance, ProfitAndLoss, or BalanceSheet')
         }
 
         // Parse report into structured data
@@ -157,7 +158,7 @@ export async function GET(request: NextRequest) {
         })
     } catch (error) {
         console.error('Failed to fetch report:', error)
-        return NextResponse.json({ error: 'Failed to fetch report' }, { status: 500 })
+        return createErrorResponse(error, { operation: 'fetchXeroReport' }, 500)
     }
 }
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { apiRequest, ApiRequestError } from '@/lib/api/client'
 import {
     DollarSign,
     LayoutDashboard,
@@ -58,15 +59,16 @@ function DashboardContent() {
         try {
             setSummaryLoading(true)
             setSummaryError(null)
-            const res = await fetch(`/api/xero/transactions?tenantId=${encodeURIComponent(tenantId)}`)
-            if (!res.ok) {
-                throw new Error('Failed to load transaction summary')
-            }
-            const data = await res.json()
-            setSummary((data.summary || null) as TransactionsSummary | null)
+            const data = await apiRequest<{ summary: TransactionsSummary }>(
+                `/api/xero/transactions?tenantId=${encodeURIComponent(tenantId)}`
+            )
+            setSummary(data.summary || null)
         } catch (error) {
             console.error('Failed to fetch summary:', error)
-            setSummaryError('Failed to load summary')
+            const errorMessage = error instanceof ApiRequestError
+                ? error.message
+                : 'Failed to load summary'
+            setSummaryError(errorMessage)
             setSummary(null)
         } finally {
             setSummaryLoading(false)
@@ -75,18 +77,15 @@ function DashboardContent() {
 
     const fetchConnections = useCallback(async () => {
         try {
-            const res = await fetch('/api/xero/organizations')
-            if (res.ok) {
-                const data = await res.json()
-                setConnections(data.connections || [])
-                if (data.connections?.length > 0) {
-                    const connection = data.connections[0]
-                    setActiveConnection(connection)
-                    fetchSummary(connection.tenant_id)
-                } else {
-                    setActiveConnection(null)
-                    setSummary(null)
-                }
+            const data = await apiRequest<{ connections: Connection[] }>('/api/xero/organizations')
+            setConnections(data.connections || [])
+            if (data.connections?.length > 0) {
+                const connection = data.connections[0]
+                setActiveConnection(connection)
+                fetchSummary(connection.tenant_id)
+            } else {
+                setActiveConnection(null)
+                setSummary(null)
             }
         } catch (error) {
             console.error('Failed to fetch connections:', error)

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { createErrorResponse } from '@/lib/api/errors'
 
 // GET /api/xero/organizations - List connected organizations
 // Single-user mode: Returns all connections without user filtering
@@ -24,12 +25,12 @@ export async function GET() {
 
         if (error) {
             console.error('Database error fetching connections:', error)
-            return NextResponse.json({ error: 'Failed to fetch connections' }, { status: 500 })
+            return createErrorResponse(error, { operation: 'fetchXeroConnections' }, 500)
         }
 
         return NextResponse.json({ connections })
     } catch (error) {
         console.error('Failed to fetch Xero organizations:', error)
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+        return createErrorResponse(error, { operation: 'fetchXeroOrganizations' }, 500)
     }
 }
