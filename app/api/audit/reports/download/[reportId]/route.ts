@@ -15,10 +15,10 @@ import { createErrorResponse, createValidationError, createNotFoundError } from 
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { reportId: string } }
+  { params }: { params: Promise<{ reportId: string }> }
 ) {
   try {
-    const reportId = params.reportId
+    const { reportId } = await params
     const format = request.nextUrl.searchParams.get('format') || 'pdf'
 
     if (!reportId) {
