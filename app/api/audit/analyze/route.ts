@@ -23,7 +23,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
-import { analyzeAllTransactions, getAnalysisStatus, estimateAnalysisCost } from '@/lib/ai/batch-processor'
+import { analyzeAllTransactions, getAnalysisStatus } from '@/lib/ai/batch-processor'
+import { estimateAnalysisCost } from '@/lib/ai/forensic-analyzer'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 
 export async function POST(request: NextRequest) {
