@@ -13,10 +13,11 @@ import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const recommendationId = params.id
+    const { id } = await params
+    const recommendationId = id
     const tenantId = request.nextUrl.searchParams.get('tenantId')
 
     if (!tenantId) {
@@ -61,10 +62,11 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const recommendationId = params.id
+    const { id } = await params
+    const recommendationId = id
     const tenantId = request.nextUrl.searchParams.get('tenantId')
 
     if (!tenantId) {
