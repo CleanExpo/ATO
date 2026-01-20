@@ -65,10 +65,10 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { reportId: string } }
+  { params }: { params: Promise<{ reportId: string }> }
 ) {
   try {
-    const reportId = params.reportId
+    const { reportId } = await params
 
     if (!reportId) {
       return createValidationError('Report ID is required')
