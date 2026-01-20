@@ -469,6 +469,43 @@ function DashboardContent() {
               </div>
             </div>
 
+            {/* Hero CTA - Tax Overview */}
+            <Link
+              href="/dashboard/overview"
+              className="glass-card p-8 mb-8 bg-gradient-to-br from-emerald-500/10 to-sky-500/10 border-emerald-500/30 hover:border-emerald-500/50 transition-all hover:scale-[1.02]"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                      <FileSearch className="w-6 h-6 text-emerald-400" />
+                    </div>
+                    <h3 className="text-2xl font-bold">View Complete Tax Overview</h3>
+                  </div>
+                  <p className="text-[var(--text-secondary)] mb-4">
+                    See your estimated refund, all opportunities, issues, and actionable recommendations in one comprehensive view.
+                  </p>
+                  <div className="flex items-center text-emerald-400 font-semibold">
+                    View Full Analysis <ArrowRight className="w-5 h-5 ml-2" />
+                  </div>
+                </div>
+                <div className="hidden lg:flex items-center gap-6">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-emerald-400 mb-1">
+                      {summary?.rndValue ? `$${(summary.rndValue * 0.435 / 1000).toFixed(0)}k` : '—'}
+                    </div>
+                    <div className="text-xs text-[var(--text-muted)]">Potential Refund</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-amber-400 mb-1">
+                      {summary?.needsReview || '—'}
+                    </div>
+                    <div className="text-xs text-[var(--text-muted)]">Issues Found</div>
+                  </div>
+                </div>
+              </div>
+            </Link>
+
             {/* Quick Actions */}
             <div className="grid md:grid-cols-3 gap-6 mb-8">
               <Link href="/dashboard/data-quality" className="glass-card p-6 hover:border-sky-500/50 transition-colors">
