@@ -1,0 +1,7 @@
+{
+  "tenantId": "8a8caf6c-614b-45a5-9e15-46375122407c",
+  "financialYears": ["FY2024-25", "FY2025-26"],
+  "issueTypes": ["wrong_account", "tax_classification", "duplicate", "unreconciled"],
+  "autoFixThreshold": 90,
+  "applyCorrections": false
+}

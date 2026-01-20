@@ -164,6 +164,7 @@ export async function fetchHistoricalTransactions(
 
 /**
  * Fetch transactions by type with pagination
+ * Includes rate limit prevention with inter-request delays
  */
 async function fetchTransactionsByType(
     xero: XeroClient,
@@ -175,6 +176,7 @@ async function fetchTransactionsByType(
     const allTransactions: HistoricalTransaction[] = []
     let page = 1
     const pageSize = 100 // Xero API max page size
+    const INTER_REQUEST_DELAY_MS = 1000 // 1 second delay between requests to prevent rate limiting
 
     while (true) {
         const transactions = await withRetry(
@@ -220,6 +222,12 @@ async function fetchTransactionsByType(
         }
 
         page++
+
+        // Rate limit prevention: Add delay before next request
+        if (page > 1) {  // Don't delay on first request
+            console.log(`⏱️  Rate limit prevention: waiting ${INTER_REQUEST_DELAY_MS}ms before page ${page}`)
+            await new Promise(resolve => setTimeout(resolve, INTER_REQUEST_DELAY_MS))
+        }
     }
 
     return allTransactions
@@ -238,18 +246,48 @@ async function cacheTransactions(
     const supabase = await createClient()
 
     // Batch insert transactions
-    const cacheRecords = transactions.map(txn => ({
-        tenant_id: tenantId,
-        transaction_id: txn.transactionID,
-        transaction_type: txn.type,
-        transaction_date: txn.date,
-        financial_year: financialYear,
-        raw_data: txn,
-        contact_name: txn.contact?.name,
-        total_amount: txn.total,
-        status: txn.status,
-        reference: txn.reference,
-    }))
+    // Filter out transactions without IDs and map to cache records
+    const cacheRecords = transactions
+        .map(txn => {
+            // Extract transaction ID based on type
+            // Xero uses different ID fields for different transaction types
+            const transactionId = (txn as any).bankTransactionID ||
+                                  (txn as any).invoiceID ||
+                                  (txn as any).transactionID ||
+                                  txn.transactionID
+
+            // Debug logging for transactions without IDs
+            if (!transactionId) {
+                console.warn(`⚠️  Transaction without ID found:`, {
+                    type: txn.type,
+                    date: txn.date,
+                    total: txn.total,
+                    availableKeys: Object.keys(txn).filter(k => k.toLowerCase().includes('id'))
+                })
+            }
+
+            return {
+                tenant_id: tenantId,
+                transaction_id: transactionId,
+                transaction_type: txn.type,
+                transaction_date: txn.date,
+                financial_year: financialYear,
+                raw_data: txn,
+                // Re-enabled after schema cache reload (migration 013)
+                contact_name: txn.contact?.name || null,
+                total_amount: txn.total || null,
+                status: txn.status || null,
+                reference: txn.reference || null,
+            }
+        })
+        .filter(record => {
+            // Skip transactions without valid IDs
+            if (!record.transaction_id || record.transaction_id === 'null' || record.transaction_id === null) {
+                console.warn(`🚫 Skipping transaction without valid ID (type: ${record.transaction_type}, date: ${record.transaction_date})`)
+                return false
+            }
+            return true
+        })
 
     // Insert with ON CONFLICT DO UPDATE (upsert)
     const { error } = await supabase
@@ -264,7 +302,12 @@ async function cacheTransactions(
         throw error
     }
 
-    console.log(`Cached ${transactions.length} transactions for ${financialYear}`)
+    const skippedCount = transactions.length - cacheRecords.length
+    if (skippedCount > 0) {
+        console.log(`⚠️  Cached ${cacheRecords.length}/${transactions.length} transactions for ${financialYear} (${skippedCount} skipped due to missing IDs)`)
+    } else {
+        console.log(`✅ Cached ${cacheRecords.length} transactions for ${financialYear}`)
+    }
 }
 
 /**
@@ -281,7 +324,7 @@ async function updateSyncStatus(tenantId: string, status: SyncProgress): Promise
             sync_status: status.status,
             sync_progress: status.progress,
             transactions_synced: status.transactionsSynced,
-            total_transactions_estimated: status.totalEstimated,
+            total_transactions_estimated: status.totalEstimated, // Re-enabled after schema cache reload (migration 013)
             years_synced: status.yearsSynced,
             current_year_syncing: status.currentYear,
             error_message: status.errorMessage,
@@ -323,7 +366,7 @@ export async function getSyncStatus(tenantId: string): Promise<SyncProgress | nu
         status: data.sync_status as 'idle' | 'syncing' | 'complete' | 'error',
         progress: parseFloat(data.sync_progress),
         transactionsSynced: data.transactions_synced,
-        totalEstimated: data.total_transactions_estimated,
+        totalEstimated: data.total_transactions_estimated || (data.transactions_synced > 0 ? data.transactions_synced : 5000), // Fallback estimate
         currentYear: data.current_year_syncing,
         yearsSynced: data.years_synced || [],
         errorMessage: data.error_message,
