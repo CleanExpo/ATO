@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
 
         // Get valid token set
         const tokenSet = await getValidTokenSet(tenantId, baseUrl)
-        if (!tokenSet) {
+        if (!tokenSet || !tokenSet.access_token || !tokenSet.refresh_token) {
             return createNotFoundError('Xero connection')
         }
 
