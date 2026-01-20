@@ -47,7 +47,7 @@ function validateUrl(url: string, varName: string): string {
   try {
     new URL(url);
     return url;
-  } catch (error) {
+  } catch {
     throw new ConfigurationError(
       `Invalid URL for ${varName}: "${url}"\n` +
       `Please ensure this is a valid URL (e.g., https://example.com)`
@@ -146,11 +146,9 @@ export function validateConfiguration(): {
 
   try {
     // Try to access all configs to trigger validation
-    const _ = {
-      ...serverConfig,
-      ...clientConfig,
-      ...sharedConfig,
-    };
+    void serverConfig;
+    void clientConfig;
+    void sharedConfig;
 
     // Check for optional but recommended variables
     if (!optionalConfig.googleAiApiKey) {
