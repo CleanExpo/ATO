@@ -205,12 +205,12 @@ export async function analyzeTransaction(
             .replace('{industry}', business.industry || 'N/A')
             .replace('{financialYear}', business.financialYear)
 
-        // Call Google AI (Latest & Most Intelligent Model - Gemini 3 Pro - January 2026)
+        // Call Google AI (Latest Model - Gemini 2.0 Flash Exp - January 2025 - FREE during preview)
         const model = genAI.getGenerativeModel({
-            model: 'gemini-3-pro-preview', // Most Intelligent: Maximum accuracy for tax analysis
+            model: 'gemini-2.0-flash-exp', // LATEST: Gemini 2.0 - FREE and fastest during experimental period
             generationConfig: {
                 temperature: 0.1, // Very low temperature for maximum consistency and accuracy
-                maxOutputTokens: 8000, // Gemini 3 Pro supports large detailed outputs
+                maxOutputTokens: 8192, // Gemini 2.0 Flash supports up to 8192 tokens
             }
         })
 
@@ -232,43 +232,25 @@ export async function analyzeTransaction(
         }
 
     } catch (error) {
-        console.error(`Failed to analyze transaction ${transaction.transactionID}:`, error)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        console.error(`❌ CRITICAL: AI analysis failed for transaction ${transaction.transactionID}:`, error)
 
-        // Return fallback analysis on error
-        return {
-            transactionId: transaction.transactionID,
-            categories: {
-                primary: 'Unknown',
-                secondary: [],
-                confidence: 0
-            },
-            rndAssessment: {
-                isRndCandidate: false,
-                meetsDiv355Criteria: false,
-                activityType: 'not_eligible',
-                confidence: 0,
-                reasoning: `Analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                fourElementTest: {
-                    outcomeUnknown: { met: false, confidence: 0, evidence: [] },
-                    systematicApproach: { met: false, confidence: 0, evidence: [] },
-                    newKnowledge: { met: false, confidence: 0, evidence: [] },
-                    scientificMethod: { met: false, confidence: 0, evidence: [] }
-                }
-            },
-            deductionEligibility: {
-                isFullyDeductible: false,
-                deductionType: 'Unknown',
-                claimableAmount: transaction.amount,
-                restrictions: ['Analysis failed - manual review required'],
-                confidence: 0
-            },
-            complianceFlags: {
-                requiresDocumentation: true,
-                fbtImplications: false,
-                division7aRisk: false,
-                notes: ['Analysis error - requires manual review']
-            }
+        // Check if it's a model configuration error
+        if (errorMessage.includes('model') || errorMessage.includes('not found') || errorMessage.includes('404')) {
+            console.error('🚨 AI MODEL ERROR: The configured model does not exist or is not accessible!')
+            console.error('Current model: gemini-2.0-flash-exp')
+            console.error('Available models: gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash')
+            console.error('Please verify GOOGLE_AI_API_KEY is valid and model name is correct')
         }
+
+        // Check if it's an API key error
+        if (errorMessage.includes('API key') || errorMessage.includes('authentication') || errorMessage.includes('401')) {
+            console.error('🔑 API KEY ERROR: Google AI API key is invalid or missing!')
+            console.error('Please check GOOGLE_AI_API_KEY environment variable')
+        }
+
+        // Don't hide the error - throw it so batch processor can handle it properly
+        throw new Error(`AI analysis failed for transaction ${transaction.transactionID}: ${errorMessage}`)
     }
 }
 
@@ -329,23 +311,22 @@ export function estimateAnalysisCost(transactionCount: number): {
 }
 
 /**
- * Get model information (Latest & Most Intelligent - Gemini 3 Pro - January 2026)
+ * Get model information (Latest Model - Gemini 2.0 Flash Exp - January 2025)
  */
 export function getModelInfo() {
     return {
-        model: 'gemini-3-pro-preview',
-        provider: 'Google AI (Gemini 3 Pro)',
-        description: 'Most Intelligent Model: Maximum accuracy for complex reasoning, code, math, STEM, and large datasets',
-        version: 'Gemini 3 Pro (November 2025 Preview)',
-        tier: 'Premium - Highest Accuracy',
+        model: 'gemini-2.0-flash-exp',
+        provider: 'Google AI (Gemini 2.0)',
+        description: 'Latest Gemini 2.0 model: Fast, accurate, FREE during experimental period',
+        version: 'Gemini 2.0 Flash Experimental (January 2025)',
+        tier: 'Experimental - FREE',
         temperature: 0.1, // Ultra-low for maximum accuracy
         maxInputTokens: 1048576, // 1M tokens
-        maxOutputTokens: 65536, // 65K tokens (using 8K for forensic analysis)
-        capabilities: ['Text', 'Image', 'Video', 'Audio', 'PDF', 'Function Calling', 'Search Grounding', 'Code Execution', 'Advanced Reasoning'],
+        maxOutputTokens: 8192, // 8K tokens
+        capabilities: ['Text', 'Image', 'Video', 'Audio', 'PDF', 'Function Calling', 'Search Grounding', 'Code Execution', 'Advanced Reasoning', 'Native Multimodal'],
         rateLimit: '60 requests/minute',
-        // Gemini 3 Pro pricing (Preview - premium tier, subject to change at GA)
-        // Note: Higher cost but maximum accuracy (cost not the priority)
-        costPer1MInputTokens: 0.15, // Estimated (premium tier)
-        costPer1MOutputTokens: 0.60,  // Estimated (premium tier)
+        // Gemini 2.0 Flash Exp pricing (FREE during experimental period)
+        costPer1MInputTokens: 0.0, // FREE during experimental period
+        costPer1MOutputTokens: 0.0, // FREE during experimental period
     }
 }

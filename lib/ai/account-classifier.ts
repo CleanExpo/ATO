@@ -170,9 +170,9 @@ export async function classifyTransaction(
             .replace('{similarTransactions}', similarText)
             .replace('{industryContext}', context.industryContext || 'General business');
 
-        // Call Gemini API (using LATEST Gemini 3 Flash Preview)
+        // Call Gemini API (using LATEST Gemini 2.0 Flash Exp - FREE)
         const model = genAI.getGenerativeModel({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-2.0-flash-exp',
             generationConfig: {
                 temperature: 0.1,  // Low temperature for consistent, deterministic results
                 topP: 0.95,

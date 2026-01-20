@@ -509,18 +509,41 @@ export default function ForensicAuditDashboardEnhanced() {
             <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">
               Ready to Start?
             </h3>
-            <p className="text-[var(--text-secondary)] mb-6 max-w-xl mx-auto">
+            <p className="text-[var(--text-secondary)] mb-4 max-w-xl mx-auto">
               Run a comprehensive 5-year forensic analysis to discover tax opportunities
             </p>
+
+            {/* Cost Estimate - FREE during experimental period */}
+            <div className="glass-card p-4 mb-6 max-w-2xl mx-auto border-emerald-500/30 bg-emerald-500/10">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h4 className="font-semibold text-emerald-400">Cost Estimate</h4>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-emerald-400 mb-1">$0.00 USD</div>
+                <p className="text-sm text-[var(--text-secondary)] mb-2">
+                  <strong className="text-emerald-400">FREE</strong> - Using Gemini 2.0 Flash (Experimental)
+                </p>
+                <ul className="text-xs text-[var(--text-muted)] space-y-1 text-left max-w-md mx-auto">
+                  <li>• AI analysis: FREE during experimental period</li>
+                  <li>• Data quality scan: FREE</li>
+                  <li>• Historical sync: FREE (Xero API)</li>
+                  <li>• Estimated transactions: ~{data?.syncStatus.totalTransactions || 5000}</li>
+                </ul>
+              </div>
+            </div>
+
             <div className="flex gap-4 justify-center">
               {data?.syncStatus.status !== 'complete' && (
                 <button onClick={startHistoricalSync} className="btn btn-primary">
-                  Start Historical Sync
+                  Start Historical Sync (FREE)
                 </button>
               )}
               {data?.syncStatus.status === 'complete' && data?.analysisStatus.status !== 'complete' && (
                 <button onClick={startAnalysis} className="btn btn-primary">
-                  Start AI Analysis
+                  Start AI Analysis (FREE)
                 </button>
               )}
             </div>
