@@ -126,7 +126,7 @@ function calculateSummary(results: any[]) {
     // Compliance flags
     const requiresDoc = results.filter(r => r.requires_documentation).length
     const fbtImplications = results.filter(r => r.fbt_implications).length
-    const div7aRisk = results.filter(r => r.division7a_risk).length
+    const division7aRisk = results.filter(r => r.division7a_risk).length
 
     // Financial year breakdown
     const byYear: Record<string, number> = {}
