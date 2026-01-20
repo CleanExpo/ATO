@@ -128,7 +128,7 @@ Analyze this transaction and provide a structured JSON response with:
 
 **Transaction Details:**
 - Description: {description}
-- Amount: ${amount}
+- Amount: {amount}
 - Supplier: {supplier}
 - Date: {date}
 - Account Code: {accountCode}

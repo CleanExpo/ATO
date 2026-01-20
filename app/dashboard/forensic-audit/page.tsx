@@ -53,13 +53,34 @@ export default function ForensicAuditDashboard() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  // Mock tenant ID - in production, get from auth context
-  const tenantId = 'demo-tenant'
+  const [tenantId, setTenantId] = useState<string | null>(null)
 
   useEffect(() => {
-    loadDashboardData()
+    fetchTenantId()
   }, [])
+
+  useEffect(() => {
+    if (tenantId) {
+      loadDashboardData()
+    }
+  }, [tenantId])
+
+  async function fetchTenantId() {
+    try {
+      // Get the first connected Xero organization
+      const response = await fetch('/api/xero/organizations')
+      const data = await response.json()
+
+      if (data.connections && data.connections.length > 0) {
+        setTenantId(data.connections[0].tenant_id)
+      } else {
+        setError('No Xero connections found. Please connect your Xero account first.')
+      }
+    } catch (err) {
+      console.error('Failed to fetch tenant ID:', err)
+      setError('Failed to load Xero connection')
+    }
+  }
 
   async function loadDashboardData() {
     try {
