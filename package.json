@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:migrate": "node scripts/apply-migration.mjs"
+    "db:migrate": "node scripts/apply-migration.mjs",
+    "agents:start": "tsx agents/cli.ts start",
+    "agents:run": "tsx agents/cli.ts run",
+    "agents:report": "tsx agents/cli.ts report",
+    "agents:stop": "tsx agents/cli.ts stop",
+    "agents:help": "tsx agents/cli.ts help"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -37,6 +42,7 @@
     "eslint-config-next": "16.1.3",
     "pg": "^8.17.1",
     "tailwindcss": "^4",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }
