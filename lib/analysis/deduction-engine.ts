@@ -12,11 +12,50 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 
 // Deduction thresholds and rates
-const INSTANT_WRITEOFF_THRESHOLD = 20000 // $20,000 instant asset write-off (current threshold)
-const HOME_OFFICE_RATE_PER_HOUR = 0.67 // 67c per hour method
+// NOTE: These are fallback values - actual values fetched from ATO.gov.au
+const FALLBACK_INSTANT_WRITEOFF_THRESHOLD = 20000 // $20,000 (2024-25 fallback)
+const FALLBACK_HOME_OFFICE_RATE_PER_HOUR = 0.67 // 67c per hour (2024-25 fallback)
 const MIN_CONFIDENCE_FOR_CLAIM = 60 // Minimum confidence to recommend claiming
+
+// Cache for tax rates (refreshed per function invocation)
+let cachedRates: {
+  instantWriteOffThreshold: number
+  homeOfficeRatePerHour: number
+} | null = null
+
+/**
+ * Get current deduction thresholds from ATO (cached for 24 hours)
+ */
+async function getDeductionThresholds(): Promise<{
+  instantWriteOffThreshold: number
+  homeOfficeRatePerHour: number
+}> {
+  if (cachedRates) {
+    return cachedRates
+  }
+
+  try {
+    const rates = await getCurrentTaxRates()
+
+    cachedRates = {
+      instantWriteOffThreshold: rates.instantWriteOffThreshold || FALLBACK_INSTANT_WRITEOFF_THRESHOLD,
+      homeOfficeRatePerHour: rates.homeOfficeRatePerHour || FALLBACK_HOME_OFFICE_RATE_PER_HOUR,
+    }
+
+    return cachedRates
+  } catch (error) {
+    console.warn('Failed to fetch current tax rates, using fallback values:', error)
+
+    // Return fallback values on error
+    return {
+      instantWriteOffThreshold: FALLBACK_INSTANT_WRITEOFF_THRESHOLD,
+      homeOfficeRatePerHour: FALLBACK_HOME_OFFICE_RATE_PER_HOUR,
+    }
+  }
+}
 
 // Deduction categories
 export type DeductionCategory =
@@ -513,28 +552,31 @@ function calculateDeductionSummary(opportunities: DeductionOpportunity[]): Deduc
 }
 
 /**
- * Identify instant asset write-off opportunities (≤$20,000)
+ * Identify instant asset write-off opportunities (≤ current threshold from ATO)
  */
 export async function identifyInstantWriteOffs(tenantId: string): Promise<DeductionOpportunity[]> {
   const summary = await analyzeDeductionOpportunities(tenantId)
+  const { instantWriteOffThreshold } = await getDeductionThresholds()
 
   return summary.opportunities.filter((opp) => {
     return (
       opp.category === 'Capital Allowance (Division 40)' &&
-      opp.transactions.some((tx) => tx.amount <= INSTANT_WRITEOFF_THRESHOLD)
+      opp.transactions.some((tx) => tx.amount <= instantWriteOffThreshold)
     )
   })
 }
 
 /**
- * Calculate home office deductions
+ * Calculate home office deductions using current ATO rate
  */
 export async function calculateHomeOfficeDeductions(
   tenantId: string,
   hoursWorkedFromHome: number
 ): Promise<number> {
-  // 67c per hour method
-  const perHourDeduction = hoursWorkedFromHome * HOME_OFFICE_RATE_PER_HOUR
+  const { homeOfficeRatePerHour } = await getDeductionThresholds()
+
+  // Per hour method (current ATO rate, e.g., 67c)
+  const perHourDeduction = hoursWorkedFromHome * homeOfficeRatePerHour
 
   // Could also calculate actual cost method if utility/internet expenses available
   // For now, return the per hour method

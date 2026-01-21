@@ -1,0 +1,7 @@
+Vercel CLI 50.4.5
+Retrieving project…
+Deploying team-agi/ato-app
+Uploading [--------------------] (0.0B/67B)
+Uploading [====================] (67.0B/67B)
+Error: Git author phill.mcgurk@gmail.com must have access to the team Team AGI on Vercel to create deployments.
+Learn more: https://vercel.com/docs/deployments/troubleshoot-project-collaboration

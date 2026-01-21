@@ -12,11 +12,34 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 
 // R&D Tax Incentive Rates (Division 355)
-const RND_OFFSET_RATE = 0.435 // 43.5% refundable offset for eligible companies
+// NOTE: These are fallback values - actual values fetched from ATO.gov.au
+const FALLBACK_RND_OFFSET_RATE = 0.435 // 43.5% refundable offset (2024-25 fallback)
 const MIN_CONFIDENCE_FOR_RECOMMENDATION = 70 // Minimum confidence to recommend claiming
 const REGISTRATION_DEADLINE_MONTHS = 10 // 10 months after end of financial year
+
+// Cache for R&D offset rate (refreshed per function invocation)
+let cachedRndRate: number | null = null
+
+/**
+ * Get current R&D offset rate from ATO (cached for 24 hours)
+ */
+async function getRndOffsetRate(): Promise<number> {
+  if (cachedRndRate !== null) {
+    return cachedRndRate
+  }
+
+  try {
+    const rates = await getCurrentTaxRates()
+    cachedRndRate = rates.rndOffsetRate || FALLBACK_RND_OFFSET_RATE
+    return cachedRndRate
+  } catch (error) {
+    console.warn('Failed to fetch R&D offset rate, using fallback value:', error)
+    return FALLBACK_RND_OFFSET_RATE
+  }
+}
 
 export interface FourElementTest {
   outcomeUnknown: {
@@ -134,11 +157,15 @@ export async function analyzeRndOpportunities(
 
   console.log(`Found ${rndCandidates.length} R&D candidate transactions`)
 
+  // Get current R&D offset rate from ATO
+  const rndOffsetRate = await getRndOffsetRate()
+  console.log(`Using R&D offset rate: ${(rndOffsetRate * 100).toFixed(1)}%`)
+
   // Group transactions into projects
-  const projects = groupIntoProjects(rndCandidates)
+  const projects = groupIntoProjects(rndCandidates, rndOffsetRate)
 
   // Calculate summary statistics
-  const summary = calculateRndSummary(projects)
+  const summary = calculateRndSummary(projects, rndOffsetRate)
 
   return summary
 }
@@ -147,7 +174,7 @@ export async function analyzeRndOpportunities(
  * Group R&D candidate transactions into logical projects
  * Uses category and supplier patterns to identify related work
  */
-function groupIntoProjects(transactions: any[]): RndProjectAnalysis[] {
+function groupIntoProjects(transactions: any[], rndOffsetRate: number): RndProjectAnalysis[] {
   const projectMap = new Map<string, any[]>()
 
   // Group by primary category and supplier patterns
@@ -168,7 +195,7 @@ function groupIntoProjects(transactions: any[]): RndProjectAnalysis[] {
   const projects: RndProjectAnalysis[] = []
 
   projectMap.forEach((txs, projectKey) => {
-    const project = analyzeProject(projectKey, txs)
+    const project = analyzeProject(projectKey, txs, rndOffsetRate)
     if (project.meetsEligibility && project.overallConfidence >= MIN_CONFIDENCE_FOR_RECOMMENDATION) {
       projects.push(project)
     }
@@ -183,7 +210,7 @@ function groupIntoProjects(transactions: any[]): RndProjectAnalysis[] {
 /**
  * Analyze a group of related transactions as a single R&D project
  */
-function analyzeProject(projectName: string, transactions: any[]): RndProjectAnalysis {
+function analyzeProject(projectName: string, transactions: any[], rndOffsetRate: number): RndProjectAnalysis {
   const financialYears = Array.from(new Set(transactions.map((tx) => tx.financial_year))).sort()
 
   // Calculate expenditure and eligibility
@@ -226,8 +253,8 @@ function analyzeProject(projectName: string, transactions: any[]): RndProjectAna
   // Calculate average confidence
   const avgConfidence = transactions.reduce((sum, tx) => sum + (tx.rnd_confidence || 0), 0) / transactions.length
 
-  // Calculate 43.5% offset
-  const estimatedOffset = eligibleExpenditure * RND_OFFSET_RATE
+  // Calculate R&D offset (using current ATO rate)
+  const estimatedOffset = eligibleExpenditure * rndOffsetRate
 
   // Determine if project meets eligibility
   const meetsEligibility =
@@ -491,7 +518,7 @@ function generateProjectDescription(
 /**
  * Calculate overall R&D summary across all projects
  */
-function calculateRndSummary(projects: RndProjectAnalysis[]): RndSummary {
+function calculateRndSummary(projects: RndProjectAnalysis[], rndOffsetRate: number): RndSummary {
   let totalEligibleExpenditure = 0
   let totalEstimatedOffset = 0
   let totalConfidence = 0
@@ -523,7 +550,7 @@ function calculateRndSummary(projects: RndProjectAnalysis[]): RndSummary {
         .reduce((sum, tx) => sum + tx.amount, 0)
 
       expenditureByYear[year] = (expenditureByYear[year] || 0) + yearExpenditure
-      offsetByYear[year] = (offsetByYear[year] || 0) + (yearExpenditure * RND_OFFSET_RATE)
+      offsetByYear[year] = (offsetByYear[year] || 0) + (yearExpenditure * rndOffsetRate)
     })
   })
 

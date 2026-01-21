@@ -127,6 +127,7 @@ export const sharedConfig = validateSharedConfig();
 // Optional configuration (with defaults)
 export const optionalConfig = {
   googleAiApiKey: getOptionalEnv('GOOGLE_AI_API_KEY', ''),
+  braveApiKey: getOptionalEnv('BRAVE_API_KEY', ''),
   businessName: getOptionalEnv('BUSINESS_NAME', 'Your Business'),
   businessAbn: getOptionalEnv('BUSINESS_ABN', ''),
   yourName: getOptionalEnv('YOUR_NAME', 'User'),
@@ -153,6 +154,10 @@ export function validateConfiguration(): {
     // Check for optional but recommended variables
     if (!optionalConfig.googleAiApiKey) {
       warnings.push('GOOGLE_AI_API_KEY not set - AI-powered reports will not work');
+    }
+
+    if (!optionalConfig.braveApiKey) {
+      warnings.push('BRAVE_API_KEY not set - tax rates will use fallback values instead of fetching from ATO');
     }
 
     if (!optionalConfig.businessAbn) {
