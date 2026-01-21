@@ -85,7 +85,7 @@ export async function GET(request: Request) {
     <h3 style="margin-top: 0;">Summary of Amendments</h3>
     <p>Total amendments identified: ${recommendations?.length || 0}</p>
     <p>Financial years affected: ${Object.keys(byYear).length}</p>
-    <p>Total estimated benefit: $${recommendations?.reduce((sum, r) => sum + (r.adjusted_benefit || 0), 0).toLocaleString()}</p>
+    <p>Total estimated benefit: $${recommendations?.reduce((sum, r) => sum + (r.claimable_amount || 0), 0).toLocaleString()}</p>
   </div>
 
   ${Object.entries(byYear).sort(([a], [b]) => b.localeCompare(a)).map(([year, recs]) => `
@@ -105,13 +105,13 @@ export async function GET(request: Request) {
             <tr>
               <td class="priority-${rec.priority?.toLowerCase() || 'medium'}">${rec.priority || 'Medium'}</td>
               <td>${rec.recommendation_text || 'N/A'}</td>
-              <td style="text-align: right;">$${(rec.adjusted_benefit || 0).toLocaleString()}</td>
+              <td style="text-align: right;">$${(rec.claimable_amount || 0).toLocaleString()}</td>
               <td>${rec.deadline ? new Date(rec.deadline).toLocaleDateString() : 'No deadline'}</td>
             </tr>
           `).join('')}
           <tr class="total-row">
             <td colspan="2">Total for ${year}</td>
-            <td style="text-align: right;">$${recs.reduce((sum, r) => sum + (r.adjusted_benefit || 0), 0).toLocaleString()}</td>
+            <td style="text-align: right;">$${recs.reduce((sum, r) => sum + (r.claimable_amount || 0), 0).toLocaleString()}</td>
             <td></td>
           </tr>
         </tbody>

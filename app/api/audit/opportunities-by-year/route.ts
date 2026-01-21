@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     // Get opportunities grouped by financial year
     const { data, error } = await supabase
       .from('forensic_analysis_results')
-      .select('financial_year, adjusted_benefit')
+      .select('financial_year, claimable_amount, transaction_amount')
       .eq('tenant_id', tenantId)
       .eq('is_rnd_candidate', true)
       .order('financial_year')
@@ -34,7 +34,9 @@ export async function GET(request: Request) {
       if (!acc[year]) {
         acc[year] = { name: year, value: 0, count: 0 }
       }
-      acc[year].value += row.adjusted_benefit || 0
+      // Use claimable_amount if available, otherwise transaction_amount
+      const benefit = row.claimable_amount || row.transaction_amount || 0
+      acc[year].value += benefit
       acc[year].count += 1
       return acc
     }, {} as Record<string, { name: string; value: number; count: number }>)

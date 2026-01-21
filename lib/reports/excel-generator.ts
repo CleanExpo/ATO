@@ -673,7 +673,7 @@ export async function generateExcelWorkbook(tenantId: string): Promise<Buffer> {
     .eq('tenant_id', tenantId)
 
   const rndCandidates = allResults?.filter(r => r.is_rnd_candidate) || []
-  const totalBenefit = rndCandidates.reduce((sum, r) => sum + (r.adjusted_benefit || 0), 0)
+  const totalBenefit = rndCandidates.reduce((sum, r) => sum + (r.claimable_amount || 0), 0)
 
   summarySheet.addRows([
     { metric: 'Organization', value: orgName },
@@ -853,7 +853,7 @@ export async function generateExcelWorkbook(tenantId: string): Promise<Buffer> {
     recSheet.addRows(recommendations.map(r => ({
       priority: r.priority || 'Medium',
       recommendation: r.recommendation_text || '',
-      benefit: r.adjusted_benefit || 0,
+      benefit: r.claimable_amount || 0,
       deadline: r.deadline ? new Date(r.deadline).toLocaleDateString() : '',
       status: r.status || 'Pending'
     })))
