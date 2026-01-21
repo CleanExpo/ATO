@@ -117,20 +117,29 @@ export async function analyzeAllTransactions(
             }
 
             // Convert to analysis format
-            const transactionContexts: TransactionContext[] = batchTransactions.map(txn => ({
-                transactionID: txn.transactionID || 'unknown',
-                date: txn.date || '',
-                description: buildDescription(txn),
-                amount: txn.total || 0,
-                supplier: txn.contact?.name,
-                accountCode: txn.lineItems?.[0]?.accountCode,
-                lineItems: txn.lineItems?.map(li => ({
-                    description: li.description,
-                    quantity: li.quantity,
-                    unitAmount: li.unitAmount,
-                    accountCode: li.accountCode,
-                }))
-            }))
+            const transactionContexts: TransactionContext[] = batchTransactions.map(txn => {
+                // Extract transaction ID based on type (Xero uses different ID fields)
+                const transactionId = (txn as any).bankTransactionID ||
+                                      (txn as any).invoiceID ||
+                                      (txn as any).transactionID ||
+                                      txn.transactionID ||
+                                      'unknown'
+
+                return {
+                    transactionID: transactionId,
+                    date: txn.date || '',
+                    description: buildDescription(txn),
+                    amount: txn.total || 0,
+                    supplier: txn.contact?.name,
+                    accountCode: txn.lineItems?.[0]?.accountCode,
+                    lineItems: txn.lineItems?.map(li => ({
+                        description: li.description,
+                        quantity: li.quantity,
+                        unitAmount: li.unitAmount,
+                        accountCode: li.accountCode,
+                    }))
+                }
+            })
 
             // Analyze batch
             const analyses = await analyzeTransactionBatch(
@@ -255,11 +264,11 @@ async function storeAnalysisResults(
             rnd_confidence: analysis.rndAssessment.confidence,
             rnd_reasoning: analysis.rndAssessment.reasoning,
 
-            // Four-element test
-            outcome_unknown: analysis.rndAssessment.fourElementTest.outcomeUnknown.met,
-            systematic_approach: analysis.rndAssessment.fourElementTest.systematicApproach.met,
-            new_knowledge: analysis.rndAssessment.fourElementTest.newKnowledge.met,
-            scientific_method: analysis.rndAssessment.fourElementTest.scientificMethod.met,
+            // Four-element test (Division 355)
+            div355_outcome_unknown: analysis.rndAssessment.fourElementTest.outcomeUnknown.met,
+            div355_systematic_approach: analysis.rndAssessment.fourElementTest.systematicApproach.met,
+            div355_new_knowledge: analysis.rndAssessment.fourElementTest.newKnowledge.met,
+            div355_scientific_method: analysis.rndAssessment.fourElementTest.scientificMethod.met,
 
             // Deductions
             is_fully_deductible: analysis.deductionEligibility.isFullyDeductible,
@@ -276,14 +285,29 @@ async function storeAnalysisResults(
 
             // Metadata
             ai_model: getModelInfo().model,
-            analysis_version: '1.0',
         }
     })
 
-    // Batch upsert
+    // ✅ DEDUPLICATE: Remove duplicate transaction IDs before upserting
+    // PostgreSQL's ON CONFLICT DO UPDATE cannot affect the same row twice in one statement
+    // This prevents "ON CONFLICT DO UPDATE command cannot affect row a second time" error
+    const uniqueRecords = Array.from(
+        new Map(
+            records.map(r => [`${r.tenant_id}:${r.transaction_id}`, r])
+        ).values()
+    )
+
+    const duplicatesRemoved = records.length - uniqueRecords.length
+    if (duplicatesRemoved > 0) {
+        console.warn(`⚠️  Deduplicated ${records.length} records to ${uniqueRecords.length} unique transactions (removed ${duplicatesRemoved} duplicates)`)
+    } else {
+        console.log(`✅ No duplicates found in batch of ${records.length} records`)
+    }
+
+    // Batch upsert with deduplicated records
     const { error } = await supabase
         .from('forensic_analysis_results')
-        .upsert(records, {
+        .upsert(uniqueRecords, {
             onConflict: 'tenant_id,transaction_id',
             ignoreDuplicates: false,
         })
@@ -293,7 +317,7 @@ async function storeAnalysisResults(
         throw error
     }
 
-    console.log(`Stored ${records.length} analysis results`)
+    console.log(`Stored ${uniqueRecords.length} analysis results`)
 }
 
 /**
