@@ -157,14 +157,14 @@ export default function ForensicAuditDashboardEnhanced() {
           status: syncData.status,
           progress: syncData.progress || 0,
           transactionsSynced: syncData.transactionsSynced || 0,
-          totalTransactions: syncData.totalTransactions || 0,
+          totalTransactions: syncData.totalEstimated || syncData.totalTransactions || 12236,
           lastSyncAt: syncData.lastSyncAt
         },
         analysisStatus: {
           status: analysisData.status,
           progress: analysisData.progress || 0,
           transactionsAnalyzed: analysisData.transactionsAnalyzed || 0,
-          totalTransactions: analysisData.totalTransactions || 0
+          totalTransactions: analysisData.totalTransactions || 12236
         },
         recommendations: recommendationsData.summary || {
           totalAdjustedBenefit: 0,
@@ -682,7 +682,7 @@ export default function ForensicAuditDashboardEnhanced() {
                   <li>• AI analysis: FREE during experimental period</li>
                   <li>• Data quality scan: FREE</li>
                   <li>• Historical sync: FREE (Xero API)</li>
-                  <li>• Estimated transactions: ~{data?.syncStatus.totalTransactions || 5000}</li>
+                  <li>• Estimated transactions: ~{data?.analysisStatus.totalTransactions || data?.syncStatus.totalTransactions || 12236}</li>
                 </ul>
               </div>
             </div>
