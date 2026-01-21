@@ -175,7 +175,7 @@ function DashboardContent() {
           title: 'Historical Data Sync',
           progress: syncData.progress || 0,
           current: syncData.transactionsSynced || 0,
-          total: syncData.totalTransactions || 1000,
+          total: syncData.totalEstimated || syncData.totalTransactions || 12236,
           status: 'running',
           startedAt: new Date()
         })
@@ -188,7 +188,7 @@ function DashboardContent() {
           title: 'Forensic AI Analysis',
           progress: analysisData.progress || 0,
           current: analysisData.transactionsAnalyzed || 0,
-          total: analysisData.totalTransactions || 1000,
+          total: analysisData.totalTransactions || 12236,
           status: 'running',
           startedAt: new Date()
         })
