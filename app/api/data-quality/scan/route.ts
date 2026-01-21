@@ -120,6 +120,18 @@ export async function GET(request: NextRequest) {
                 progress: 0,
                 transactionsScanned: 0,
                 issuesFound: 0,
+                issuesAutoCorrected: 0,
+                issuesPendingReview: 0,
+                issuesByType: {
+                    wrongAccount: 0,
+                    taxClassification: 0,
+                    unreconciled: 0,
+                    misallocated: 0,
+                    duplicate: 0
+                },
+                totalImpactAmount: 0,
+                lastScanAt: null,
+                errorMessage: null,
                 message: 'No scan has been started yet'
             })
         }
