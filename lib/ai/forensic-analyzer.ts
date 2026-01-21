@@ -205,12 +205,12 @@ export async function analyzeTransaction(
             .replace('{industry}', business.industry || 'N/A')
             .replace('{financialYear}', business.financialYear)
 
-        // Call Google AI (Latest Model - Gemini 2.0 Flash Exp - January 2025 - FREE during preview)
+        // Call Google AI (Gemini 3 Pro - Most Intelligent Model for Maximum Accuracy)
         const model = genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash-exp', // LATEST: Gemini 2.0 - FREE and fastest during experimental period
+            model: 'gemini-3-pro-preview', // UPGRADED: Gemini 3 Pro - Maximum accuracy for forensic tax analysis
             generationConfig: {
-                temperature: 0.1, // Very low temperature for maximum consistency and accuracy
-                maxOutputTokens: 8192, // Gemini 2.0 Flash supports up to 8192 tokens
+                temperature: 0.1, // Ultra-low temperature for maximum consistency and accuracy
+                maxOutputTokens: 8000, // Detailed analysis with comprehensive reasoning
             }
         })
 
@@ -238,8 +238,8 @@ export async function analyzeTransaction(
         // Check if it's a model configuration error
         if (errorMessage.includes('model') || errorMessage.includes('not found') || errorMessage.includes('404')) {
             console.error('🚨 AI MODEL ERROR: The configured model does not exist or is not accessible!')
-            console.error('Current model: gemini-2.0-flash-exp')
-            console.error('Available models: gemini-2.0-flash-exp, gemini-1.5-pro, gemini-1.5-flash')
+            console.error('Current model: gemini-3-pro-preview')
+            console.error('Available models: gemini-3-pro-preview, gemini-2.0-flash-exp, gemini-1.5-pro')
             console.error('Please verify GOOGLE_AI_API_KEY is valid and model name is correct')
         }
 
@@ -311,22 +311,22 @@ export function estimateAnalysisCost(transactionCount: number): {
 }
 
 /**
- * Get model information (Latest Model - Gemini 2.0 Flash Exp - January 2025)
+ * Get model information (Gemini 3 Pro - Maximum Accuracy)
  */
 export function getModelInfo() {
     return {
-        model: 'gemini-2.0-flash-exp',
-        provider: 'Google AI (Gemini 2.0)',
-        description: 'Latest Gemini 2.0 model: Fast, accurate, FREE during experimental period',
-        version: 'Gemini 2.0 Flash Experimental (January 2025)',
-        tier: 'Experimental - FREE',
+        model: 'gemini-3-pro-preview',
+        provider: 'Google AI (Gemini 3 Pro)',
+        description: 'Most Intelligent Model: Maximum accuracy for forensic tax analysis',
+        version: 'Gemini 3 Pro Preview (January 2026)',
+        tier: 'Premium - Maximum Accuracy',
         temperature: 0.1, // Ultra-low for maximum accuracy
         maxInputTokens: 1048576, // 1M tokens
-        maxOutputTokens: 8192, // 8K tokens
-        capabilities: ['Text', 'Image', 'Video', 'Audio', 'PDF', 'Function Calling', 'Search Grounding', 'Code Execution', 'Advanced Reasoning', 'Native Multimodal'],
+        maxOutputTokens: 8000, // 8K tokens
+        capabilities: ['Text', 'Image', 'Video', 'Audio', 'PDF', 'Function Calling', 'Search Grounding', 'Code Execution', 'Advanced Reasoning', 'Native Multimodal', 'Deep Analysis'],
         rateLimit: '60 requests/minute',
-        // Gemini 2.0 Flash Exp pricing (FREE during experimental period)
-        costPer1MInputTokens: 0.0, // FREE during experimental period
-        costPer1MOutputTokens: 0.0, // FREE during experimental period
+        // Gemini 3 Pro pricing
+        costPer1MInputTokens: 0.15, // Premium tier
+        costPer1MOutputTokens: 0.60, // Premium tier
     }
 }
