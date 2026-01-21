@@ -9,7 +9,7 @@ console.log('🔍 Checking Deployment Status...\n')
 console.log('=' .repeat(70))
 
 // Production URL
-const PRODUCTION_URL = 'https://ato-pyypajndj-team-agi.vercel.app'
+const PRODUCTION_URL = 'https://ato-blush.vercel.app'
 
 async function checkEndpoint(name, path) {
   try {

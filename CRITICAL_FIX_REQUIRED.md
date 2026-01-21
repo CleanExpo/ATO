@@ -51,7 +51,7 @@ This will enable automatic deployments going forward.
 
 1. **Go to Vercel Project Settings:**
    ```
-   https://vercel.com/team-agi/ato-app/settings/git
+   https://vercel.com/unite-group/ato/settings/git
    ```
 
 2. **Check Git Repository Connection:**
@@ -87,7 +87,7 @@ If you just need to deploy NOW and fix GitHub later:
 
 1. **Go to Vercel Deployments:**
    ```
-   https://vercel.com/team-agi/ato-app/deployments
+   https://vercel.com/unite-group/ato/deployments
    ```
 
 2. **Click "Create Deployment"**
@@ -154,7 +154,7 @@ Look for:
 | Environment Variables | ✅ All 10 set correctly |
 | Code in GitHub | ✅ Latest commit `b6be2ae` |
 | Build (local) | ✅ Passes all tests |
-| Vercel Project | ✅ Exists (team-agi/ato-app) |
+| Vercel Project | ✅ Exists (unite-group/ato) |
 | GitHub Connection | ❌ **NOT CONNECTED** |
 | Latest Deployment | ❌ 15 hours old (before fixes) |
 
@@ -201,8 +201,8 @@ If you're in a hurry, do Option 2 (Manual Deployment) first, then fix GitHub lat
 
 ## 📞 Quick Links
 
-- **Vercel Git Settings:** https://vercel.com/team-agi/ato-app/settings/git
-- **Vercel Deployments:** https://vercel.com/team-agi/ato-app/deployments
+- **Vercel Git Settings:** https://vercel.com/unite-group/ato/settings/git
+- **Vercel Deployments:** https://vercel.com/unite-group/ato/deployments
 - **GitHub Repo:** https://github.com/CleanExpo/ATO
 - **Vercel GitHub App:** https://github.com/marketplace/vercel
 

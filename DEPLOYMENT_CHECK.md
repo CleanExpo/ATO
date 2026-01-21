@@ -14,7 +14,7 @@
 
 ### Vercel Production
 - ⏸️ **Last deployment:** 15 hours ago (old code)
-- ⏸️ **Deployment URL:** https://ato-pyypajndj-team-agi.vercel.app
+- ⏸️ **Deployment URL:** https://ato-blush.vercel.app
 - ⏸️ **Production URL:** https://ato-app-phi.vercel.app
 - ⏸️ **New commits have NOT triggered deployment**
 
@@ -56,7 +56,7 @@ There are 2 possible reasons:
 1. Get Supabase keys: https://supabase.com/dashboard/project/xwqymjisxmtcmaebcehw/settings/api
 
 2. Add to Vercel via Dashboard:
-   - Go to: https://vercel.com/team-agi/ato-app/settings/environment-variables
+   - Go to: https://vercel.com/unite-group/ato/settings/environment-variables
    - Click "Add New"
    - Add `NEXT_PUBLIC_SUPABASE_ANON_KEY` with the "anon" key value
    - Add `SUPABASE_SERVICE_ROLE_KEY` with the "service_role" key value
@@ -75,7 +75,7 @@ echo "YOUR_SERVICE_ROLE_KEY" | vercel env add SUPABASE_SERVICE_ROLE_KEY producti
 ### Option B: Manual Deployment Trigger
 **If adding keys doesn't trigger deployment:**
 
-1. Go to: https://vercel.com/team-agi/ato-app/deployments
+1. Go to: https://vercel.com/unite-group/ato/deployments
 2. Find the latest commit `b6be2ae` (might not be deployed yet)
 3. Click "Redeploy" button
 
@@ -89,7 +89,7 @@ git push
 ### Option C: Check GitHub Integration
 **If neither works:**
 
-1. Go to: https://vercel.com/team-agi/ato-app/settings/git
+1. Go to: https://vercel.com/unite-group/ato/settings/git
 2. Verify GitHub repository is connected
 3. Check that "Automatic Deployments" is enabled
 4. If not connected, reconnect GitHub integration
@@ -102,7 +102,7 @@ Once deployment starts, check these:
 
 ### 1. Vercel Deployments Page
 ```
-https://vercel.com/team-agi/ato-app/deployments
+https://vercel.com/unite-group/ato/deployments
 ```
 Look for a new deployment with:
 - ✅ Status: "Ready" or "Building"

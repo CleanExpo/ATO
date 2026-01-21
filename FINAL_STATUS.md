@@ -35,7 +35,7 @@
 ### Vercel Project Misconfiguration
 
 **The Issue:**
-- Domain `ato-app-phi.vercel.app` is connected to `team-agi/ato-app`
+- Domain `ato-app-phi.vercel.app` is connected to `unite-group/ato`
 - But you want to use `unite-group/ato`
 - I added all 10 environment variables to the **wrong** project (team-agi)
 
@@ -140,7 +140,7 @@ Expected: Returns JSON (empty array or list of connections)
 
 ## What I've Learned
 
-1. The custom domain `ato-app-phi.vercel.app` was pointing to `team-agi/ato-app`
+1. The custom domain `ato-app-phi.vercel.app` was pointing to `unite-group/ato`
 2. You're working in `unite-group/ato` project
 3. The CLI doesn't have access to `unite-group` organization
 4. All environment variables I added went to the wrong project

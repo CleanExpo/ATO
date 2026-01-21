@@ -4,7 +4,7 @@
 
 The production domain `ato-app-phi.vercel.app` is currently connected to the **WRONG** Vercel project:
 
-- **Current (Wrong):** `team-agi/ato-app`
+- **Current (Wrong):** `unite-group/ato`
 - **Desired (Correct):** `unite-group/ato`
 
 ## Evidence
@@ -28,8 +28,8 @@ This moves the custom domain from the old project to the correct one.
 
 #### Steps:
 
-1. **Remove domain from old project (team-agi/ato-app)**
-   - Go to: https://vercel.com/team-agi/ato-app/settings/domains
+1. **Remove domain from old project (unite-group/ato)**
+   - Go to: https://vercel.com/unite-group/ato/settings/domains
    - Find `ato-app-phi.vercel.app`
    - Click the 3 dots → **Remove**
    - Confirm removal
@@ -118,7 +118,7 @@ If you don't want to move the domain, you can:
 The Vercel CLI was configured to use `team-agi` scope:
 - File `.vercel/project.json` had: `"orgId": "team_zp1CsU87brPbSks2eFbPqWJQ"`
 - This is the team-agi organization ID
-- All `vercel env add` commands went to team-agi/ato-app
+- All `vercel env add` commands went to unite-group/ato
 - But you wanted to use unite-group/ato
 
 The CLI **cannot access** unite-group because:
@@ -137,7 +137,7 @@ This means the account currently logged into the CLI doesn't have access to unit
 
 ## What's Already Done (In Wrong Project)
 
-These environment variables were added to **team-agi/ato-app** (the wrong project):
+These environment variables were added to **unite-group/ato** (the wrong project):
 
 ✅ XERO_CLIENT_ID
 ✅ XERO_CLIENT_SECRET
@@ -179,7 +179,7 @@ Once domain is transferred and variables are added:
 ## Quick Reference
 
 **Correct Project URL:** https://vercel.com/unite-group/ato
-**Wrong Project URL:** https://vercel.com/team-agi/ato-app (ignore this)
+**Wrong Project URL:** https://vercel.com/unite-group/ato (ignore this)
 **Production Domain:** ato-app-phi.vercel.app (needs to point to correct project)
 **GitHub Repo:** https://github.com/CleanExpo/ATO
 

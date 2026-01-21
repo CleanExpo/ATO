@@ -8,7 +8,7 @@
 ## What Just Happened
 
 ### 1. Discovered Outdated Production Deployment
-- Current production: https://ato-pyypajndj-team-agi.vercel.app
+- Current production: https://ato-blush.vercel.app
 - Deployment age: 2 days old (Jan 19, 2026)
 - Status: Ready, but missing latest 10 commits
 
@@ -111,7 +111,7 @@ vercel ls
 
 The URL should be something like:
 - `https://ato-[new-hash].vercel.app` OR
-- The existing URL will be updated: `https://ato-pyypajndj-team-agi.vercel.app`
+- The existing URL will be updated: `https://ato-blush.vercel.app`
 
 ### Step 2: Test Production Endpoints
 ```bash

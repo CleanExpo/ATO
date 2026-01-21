@@ -26,7 +26,7 @@
 - ✅ Updated all API routes with standardized errors
 
 ### Vercel Configuration
-- ✅ Project properly linked to `team-agi/ato-app`
+- ✅ Project properly linked to `unite-group/ato`
 - ✅ 8/10 environment variables already set:
   - XERO_CLIENT_ID
   - XERO_CLIENT_SECRET
@@ -51,7 +51,7 @@
    - `service_role` key
 
 **Add to Vercel:**
-1. Go to: https://vercel.com/team-agi/ato-app/settings/environment-variables
+1. Go to: https://vercel.com/unite-group/ato/settings/environment-variables
 2. Click "Add New" twice:
    - Name: `NEXT_PUBLIC_SUPABASE_ANON_KEY` → Value: [your anon key]
    - Name: `SUPABASE_SERVICE_ROLE_KEY` → Value: [your service_role key]
@@ -144,7 +144,7 @@ Click "Connect Xero" → Should complete OAuth flow
 ## 📞 Quick Links
 
 - **Supabase Keys:** https://supabase.com/dashboard/project/xwqymjisxmtcmaebcehw/settings/api
-- **Vercel Env Vars:** https://vercel.com/team-agi/ato-app/settings/environment-variables
-- **Vercel Deployments:** https://vercel.com/team-agi/ato-app/deployments
+- **Vercel Env Vars:** https://vercel.com/unite-group/ato/settings/environment-variables
+- **Vercel Deployments:** https://vercel.com/unite-group/ato/deployments
 - **GitHub Repo:** https://github.com/CleanExpo/ATO
 - **Full Details:** See `DEPLOYMENT_STATUS.md` and `DEPLOYMENT_CHECKLIST.md`

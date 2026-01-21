@@ -64,7 +64,7 @@ Once triggered, you'll see:
 
 After deployment shows **"Ready"**:
 1. The URL will be displayed prominently
-2. It might be the same URL as before: `https://ato-pyypajndj-team-agi.vercel.app`
+2. It might be the same URL as before: `https://ato-blush.vercel.app`
 3. Or a new URL: `https://ato-[new-id].vercel.app`
 4. **Copy this URL** - you'll need it for testing
 
@@ -83,7 +83,7 @@ node scripts/test-production.mjs https://[YOUR-PRODUCTION-URL].vercel.app
 ```
 🧪 Testing Production Deployment
 
-URL: https://ato-pyypajndj-team-agi.vercel.app
+URL: https://ato-blush.vercel.app
 ============================================================
 
 1️⃣  Tax Rates API

@@ -38,7 +38,7 @@
 2. **Add to Vercel:**
 
    **Option A: Via Vercel Dashboard (Easiest)**
-   - Go to: https://vercel.com/team-agi/ato-app/settings/environment-variables
+   - Go to: https://vercel.com/unite-group/ato/settings/environment-variables
    - Click "Add New"
    - Name: `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - Value: [paste your anon key]
@@ -55,7 +55,7 @@
 
 3. **Trigger Deployment:**
    After adding the keys, Vercel will automatically redeploy, OR you can manually trigger:
-   - Go to: https://vercel.com/team-agi/ato-app/deployments
+   - Go to: https://vercel.com/unite-group/ato/deployments
    - Click "Redeploy" on the latest deployment
 
 ---
@@ -106,7 +106,7 @@ Click "Connect Xero" → Should redirect to Xero login
 ## 📊 Deployment URLs
 
 - **Production:** https://ato-app-phi.vercel.app
-- **Vercel Dashboard:** https://vercel.com/team-agi/ato-app
+- **Vercel Dashboard:** https://vercel.com/unite-group/ato
 - **GitHub Repo:** https://github.com/CleanExpo/ATO
 - **Supabase Dashboard:** https://supabase.com/dashboard/project/xwqymjisxmtcmaebcehw
 

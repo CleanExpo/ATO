@@ -55,7 +55,7 @@
 Production deployment is the ONLY remaining task.
 
 Current Status:
-   • Production site: https://ato-pyypajndj-team-agi.vercel.app
+   • Production site: https://ato-blush.vercel.app
    • Status: OLD VERSION (2 days old)
    • API endpoints: Returning 401 Unauthorized
    • New features: NOT deployed yet

@@ -3,12 +3,12 @@
 ## The Problem
 
 The domain `ato-app-phi.vercel.app` is connected to the **WRONG Vercel project**:
-- ❌ Currently: `team-agi/ato-app`
+- ❌ Currently: `unite-group/ato`
 - ✅ Should be: `unite-group/ato`
 
 ## What I Did (Went to Wrong Project)
 
-I added all 10 environment variables to `team-agi/ato-app` - but that's not the project you're using. Those variables need to be added to `unite-group/ato` instead.
+I added all 10 environment variables to `unite-group/ato` - but that's not the project you're using. Those variables need to be added to `unite-group/ato` instead.
 
 ## What You Need To Do NOW
 
@@ -45,7 +45,7 @@ If "Not Connected":
 If the domain `ato-app-phi.vercel.app` is still pointing to team-agi:
 
 **Remove from old:**
-https://vercel.com/team-agi/ato-app/settings/domains
+https://vercel.com/unite-group/ato/settings/domains
 → Find `ato-app-phi.vercel.app` → Remove
 
 **Add to new:**
