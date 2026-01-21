@@ -72,7 +72,7 @@ export class DataQualityAgent extends Agent {
       const recommendations = []
 
       // Check 1: Missing required fields
-      const missingPrimaryCategory = samples.filter(s => !s.primary_category)
+      const missingPrimaryCategory = samples.filter((s: any) => !s.primary_category)
       if (missingPrimaryCategory.length > 0) {
         findings.push(
           this.createFinding(
@@ -93,7 +93,7 @@ export class DataQualityAgent extends Agent {
       }
 
       // Check 2: Low confidence scores
-      const lowConfidence = samples.filter(s =>
+      const lowConfidence = samples.filter((s: any) =>
         s.rnd_confidence !== null && s.rnd_confidence < 50
       )
       if (lowConfidence.length > samples.length * 0.3) {
@@ -120,7 +120,7 @@ export class DataQualityAgent extends Agent {
       }
 
       // Check 3: Missing financial data
-      const missingAmounts = samples.filter(s =>
+      const missingAmounts = samples.filter((s: any) =>
         !s.transaction_amount && !s.claimable_amount
       )
       if (missingAmounts.length > 0) {
@@ -143,7 +143,7 @@ export class DataQualityAgent extends Agent {
       }
 
       // Check 4: R&D candidates without four-element test
-      const rndWithoutTest = samples.filter(s =>
+      const rndWithoutTest = samples.filter((s: any) =>
         s.is_rnd_candidate &&
         (!s.div355_outcome_unknown ||
          !s.div355_systematic_approach ||
@@ -170,7 +170,7 @@ export class DataQualityAgent extends Agent {
       }
 
       // Check 5: Data consistency - claimable amount vs transaction amount
-      const inconsistentAmounts = samples.filter(s =>
+      const inconsistentAmounts = samples.filter((s: any) =>
         s.claimable_amount && s.transaction_amount &&
         s.claimable_amount > s.transaction_amount
       )
@@ -182,7 +182,7 @@ export class DataQualityAgent extends Agent {
             `${inconsistentAmounts.length} transactions have claimable amount > transaction amount`,
             {
               count: inconsistentAmounts.length,
-              examples: inconsistentAmounts.slice(0, 3).map(s => ({
+              examples: inconsistentAmounts.slice(0, 3).map((s: any) => ({
                 id: s.transaction_id,
                 claimable: s.claimable_amount,
                 transaction: s.transaction_amount

@@ -196,13 +196,14 @@ async function showReports(args: string[]) {
   console.log('─'.repeat(80))
 
   reports.forEach((report: any, i: number) => {
-    const statusEmoji = {
+    const statusEmoji: Record<string, string> = {
       healthy: '✅',
       warning: '⚠️',
       error: '❌'
-    }[report.status]
+    }
+    const emoji = statusEmoji[report.status] || '❓'
 
-    console.log(`\n${i + 1}. ${statusEmoji} ${report.agent_id}`)
+    console.log(`\n${i + 1}. ${emoji} ${report.agent_id}`)
     console.log(`   Status: ${report.status}`)
     console.log(`   Time: ${new Date(report.created_at).toLocaleString()}`)
     console.log(`   Findings: ${report.findings?.length || 0}`)

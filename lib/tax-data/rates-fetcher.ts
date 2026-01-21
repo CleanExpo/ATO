@@ -88,15 +88,15 @@ export class TaxRatesFetcher {
       fetchedAt: new Date(),
       sources: {
         instantWriteOff:
-          instantWriteOff.status === 'fulfilled' ? instantWriteOff.value.source : undefined,
+          instantWriteOff.status === 'fulfilled' ? instantWriteOff.value.source ?? undefined : undefined,
         homeOffice:
-          homeOffice.status === 'fulfilled' ? homeOffice.value.source : undefined,
+          homeOffice.status === 'fulfilled' ? homeOffice.value.source ?? undefined : undefined,
         rndIncentive:
-          rndIncentive.status === 'fulfilled' ? rndIncentive.value.source : undefined,
+          rndIncentive.status === 'fulfilled' ? rndIncentive.value.source ?? undefined : undefined,
         corporateTax:
-          corporateTax.status === 'fulfilled' ? corporateTax.value.source : undefined,
+          corporateTax.status === 'fulfilled' ? corporateTax.value.source ?? undefined : undefined,
         division7A:
-          division7A.status === 'fulfilled' ? division7A.value.source : undefined,
+          division7A.status === 'fulfilled' ? division7A.value.source ?? undefined : undefined,
       },
     }
   }
