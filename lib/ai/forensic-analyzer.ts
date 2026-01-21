@@ -205,9 +205,9 @@ export async function analyzeTransaction(
             .replace('{industry}', business.industry || 'N/A')
             .replace('{financialYear}', business.financialYear)
 
-        // Call Google AI (Gemini 3 Pro - Most Intelligent Model for Maximum Accuracy)
+        // Call Google AI (Gemini 2.0 Flash Exp - FREE and Available)
         const model = genAI.getGenerativeModel({
-            model: 'gemini-3-pro-preview', // UPGRADED: Gemini 3 Pro - Maximum accuracy for forensic tax analysis
+            model: 'gemini-2.0-flash-exp', // Using available free model
             generationConfig: {
                 temperature: 0.1, // Ultra-low temperature for maximum consistency and accuracy
                 maxOutputTokens: 8000, // Detailed analysis with comprehensive reasoning
