@@ -312,9 +312,8 @@ async function updateAnalysisProgress(
         .upsert({
             tenant_id: tenantId,
             sync_status: progress.status === 'analyzing' ? 'syncing' : progress.status,
-            sync_progress: progress.progress,
             transactions_synced: progress.transactionsAnalyzed,
-            total_transactions_estimated: progress.totalTransactions,
+            total_transactions: progress.totalTransactions,  // ✅ Fixed: was total_transactions_estimated
             error_message: progress.errorMessage,
             updated_at: new Date().toISOString(),
         }, {
@@ -388,12 +387,17 @@ export async function getAnalysisStatus(tenantId: string): Promise<AnalysisProgr
         return null
     }
 
+    // Calculate progress percentage from transactions
+    const transactionsAnalyzed = data.transactions_synced || 0
+    const totalTransactions = data.total_transactions || 0
+    const progress = totalTransactions > 0 ? (transactionsAnalyzed / totalTransactions) * 100 : 0
+
     return {
         tenantId,
         status: data.sync_status === 'syncing' ? 'analyzing' : data.sync_status as any,
-        progress: parseFloat(data.sync_progress || '0'),
-        transactionsAnalyzed: data.transactions_synced || 0,
-        totalTransactions: data.total_transactions_estimated || 0,
+        progress: progress,  // ✅ Fixed: calculate from transactions instead of reading non-existent column
+        transactionsAnalyzed: transactionsAnalyzed,
+        totalTransactions: totalTransactions,  // ✅ Fixed: was total_transactions_estimated
         currentBatch: 0, // Not tracked in this table
         totalBatches: 0,
         estimatedCostUSD: 0, // Would need to calculate from separate table

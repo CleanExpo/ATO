@@ -273,9 +273,9 @@ export async function analyzeTransactionBatch(
             onProgress(i + 1, transactions.length)
         }
 
-        // Small delay to avoid rate limits (Google AI allows 60 requests/minute)
+        // Delay to respect rate limits (Gemini 2.0 Flash Exp free tier: 15 requests/minute)
         if (i < transactions.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000)) // 1 second delay
+            await new Promise(resolve => setTimeout(resolve, 4000)) // 4 second delay = 15 RPM
         }
     }
 
