@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { MobileNav } from '@/components/ui/MobileNav'
 
 interface Finding {
   type: string
@@ -274,6 +275,9 @@ export default function AgentMonitorPage() {
         Monitoring updates every 10 seconds • Run{' '}
         <code className="bg-gray-100 px-2 py-1 rounded">npm run agents:help</code> for CLI commands
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   )
 }

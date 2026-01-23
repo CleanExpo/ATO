@@ -18,6 +18,7 @@ import {
     CheckCircle,
     Loader2
 } from 'lucide-react'
+import { MobileNav } from '@/components/ui/MobileNav'
 
 interface XeroConnection {
     tenant_id: string
@@ -69,16 +70,16 @@ export default function SettingsPage() {
     }
 
     return (
-        <div className="flex min-h-screen">
+        <div className="min-h-screen">
             {/* Sidebar */}
-            <aside className="sidebar">
+            <aside className="sidebar-wide">
                 <div className="p-6">
                     <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center">
                             <DollarSign className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="font-bold">ATO Optimizer</h1>
+                            <h1 className="font-bold text-[var(--text-primary)]">ATO Optimizer</h1>
                             <p className="text-xs text-[var(--text-muted)]">Tax Intelligence</p>
                         </div>
                     </div>
@@ -92,9 +93,9 @@ export default function SettingsPage() {
                             <Beaker className="w-5 h-5" />
                             <span>R&D Assessment</span>
                         </Link>
-                        <Link href="/dashboard/audit" className="sidebar-link">
+                        <Link href="/dashboard/forensic-audit" className="sidebar-link">
                             <FileSearch className="w-5 h-5" />
-                            <span>Tax Audit</span>
+                            <span>Forensic Audit</span>
                         </Link>
                         <Link href="/dashboard/losses" className="sidebar-link">
                             <TrendingDown className="w-5 h-5" />
@@ -112,7 +113,7 @@ export default function SettingsPage() {
             </aside>
 
             {/* Main Content */}
-            <main className="ml-[280px] flex-1 p-8">
+            <main className="main-content-wide">
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <h2 className="text-2xl font-bold mb-1">Settings</h2>
@@ -360,6 +361,9 @@ export default function SettingsPage() {
                     </button>
                 </div>
             </main>
+
+            {/* Mobile Bottom Navigation */}
+            <MobileNav />
         </div>
     )
 }

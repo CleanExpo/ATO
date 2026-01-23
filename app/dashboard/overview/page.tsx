@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Download
 } from 'lucide-react'
+import { MobileNav } from '@/components/ui/MobileNav'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import Link from 'next/link'
 
@@ -279,7 +280,7 @@ export default function TaxOverviewPage() {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="sidebar">
+      <aside className="sidebar-wide">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center">
@@ -313,7 +314,7 @@ export default function TaxOverviewPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="ml-[280px] flex-1 p-8">
+      <main className="main-content-wide">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -602,6 +603,9 @@ export default function TaxOverviewPage() {
           </div>
         </div>
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   )
 }

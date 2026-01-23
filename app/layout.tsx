@@ -1,11 +1,20 @@
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Geist, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { OperationProviderWrapper } from "@/components/providers/OperationProvider"
 
-const inter = Inter({
+// Editorial typography - clean, modern sans-serif
+const geist = Geist({
   subsets: ["latin"],
-  variable: "--font-inter"
+  variable: "--font-geist",
+  display: "swap",
+})
+
+// Monospace for data display - technical, precise
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  display: "swap",
 })
 
 export const metadata: Metadata = {
@@ -21,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className={inter.className} suppressHydrationWarning>
+    <html lang="en" className={`${geist.variable} ${jetbrainsMono.variable}`}>
+      <body className={geist.className} suppressHydrationWarning>
         <OperationProviderWrapper>
           {children}
         </OperationProviderWrapper>

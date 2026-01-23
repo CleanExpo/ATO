@@ -1,19 +1,18 @@
 /**
- * Live Progress Card Component
+ * Live Progress Card Component - Scientific Luxury Tier
  *
- * Enhanced with Framer Motion for smooth animations:
- * - Spring physics for progress bar
- * - AnimatePresence for entry/exit
- * - Animated counter with easing
- * - Hover micro-interactions
- * - Pulsing glow when active
+ * HUD-inspired progress tracking with:
+ * - Data strip styling with left accent border
+ * - Minimal 2px progress line
+ * - JetBrains Mono typography for data
+ * - Physics-based spring animations
+ * - Scanline effect when processing
  */
 
 'use client'
 
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ANIMATION_PRESETS } from '@/lib/operations/types'
 
 interface LiveProgressCardProps {
   title: string
@@ -21,46 +20,39 @@ interface LiveProgressCardProps {
   total: number // Total target
   percentage: number // 0-100
   icon: React.ReactNode
-  color?: 'blue' | 'green' | 'orange' | 'purple'
+  color?: 'xero' | 'ai' | 'success' | 'high' | 'info'
   subtitle?: string
   eta?: string
   isAnimating?: boolean
   className?: string
 }
 
-const colorClasses = {
-  blue: {
-    gradient: 'from-sky-500 to-blue-500',
-    border: 'border-sky-500/50',
-    bg: 'bg-sky-500/10',
-    text: 'text-sky-500',
-    glow: 'shadow-sky-500/20',
-    hex: '#0ea5e9'
+const colorConfig = {
+  xero: {
+    accent: 'var(--accent-xero)',
+    dim: 'var(--accent-xero-dim)',
+    glow: 'rgba(19, 181, 234, 0.4)',
   },
-  green: {
-    gradient: 'from-emerald-500 to-green-500',
-    border: 'border-emerald-500/50',
-    bg: 'bg-emerald-500/10',
-    text: 'text-emerald-500',
-    glow: 'shadow-emerald-500/20',
-    hex: '#10b981'
+  ai: {
+    accent: 'var(--accent-ai)',
+    dim: 'var(--accent-ai-dim)',
+    glow: 'rgba(191, 90, 242, 0.4)',
   },
-  orange: {
-    gradient: 'from-amber-500 to-orange-500',
-    border: 'border-amber-500/50',
-    bg: 'bg-amber-500/10',
-    text: 'text-amber-500',
-    glow: 'shadow-amber-500/20',
-    hex: '#f59e0b'
+  success: {
+    accent: 'var(--signal-success)',
+    dim: 'var(--signal-success-glow)',
+    glow: 'rgba(48, 209, 88, 0.4)',
   },
-  purple: {
-    gradient: 'from-purple-500 to-violet-500',
-    border: 'border-purple-500/50',
-    bg: 'bg-purple-500/10',
-    text: 'text-purple-500',
-    glow: 'shadow-purple-500/20',
-    hex: '#8b5cf6'
-  }
+  high: {
+    accent: 'var(--signal-high)',
+    dim: 'var(--signal-high-glow)',
+    glow: 'rgba(255, 149, 0, 0.4)',
+  },
+  info: {
+    accent: 'var(--signal-info)',
+    dim: 'var(--signal-info-glow)',
+    glow: 'rgba(100, 210, 255, 0.4)',
+  },
 }
 
 export default function LiveProgressCard({
@@ -69,20 +61,20 @@ export default function LiveProgressCard({
   total,
   percentage,
   icon,
-  color = 'blue',
+  color = 'xero',
   subtitle,
   eta,
   isAnimating = false,
   className = ''
 }: LiveProgressCardProps) {
   const [displayValue, setDisplayValue] = useState(value)
-  const colors = colorClasses[color]
+  const colors = colorConfig[color]
 
   // Smooth value animation with easing
   useEffect(() => {
     const startValue = displayValue
     const diff = value - startValue
-    const duration = 500
+    const duration = 600
     const startTime = performance.now()
 
     // Ease out expo for natural deceleration
@@ -101,64 +93,83 @@ export default function LiveProgressCard({
     }
 
     requestAnimationFrame(animate)
-    // displayValue is intentionally excluded - it's managed by the animation loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', ...ANIMATION_PRESETS.spring.gentle }}
-      whileHover={{ scale: 1.01 }}
-      className={`glass-card p-6 relative overflow-hidden ${
-        isAnimating ? `border-2 ${colors.border} ${colors.glow} shadow-lg` : ''
-      } ${className}`}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{
+        duration: 0.5,
+        ease: [0.23, 1, 0.32, 1],
+      }}
+      className={`data-strip ${className}`}
+      style={{
+        borderLeftColor: colors.accent,
+        padding: 'var(--space-lg)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
     >
-      {/* Animated background gradient overlay when active */}
+      {/* Animated glow overlay when active */}
       <AnimatePresence>
         {isAnimating && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.05 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-            className={`absolute inset-0 bg-gradient-to-br ${colors.gradient}`}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: `linear-gradient(90deg, ${colors.dim} 0%, transparent 40%)`,
+              pointerEvents: 'none',
+            }}
           />
         )}
       </AnimatePresence>
 
-      {/* Animated border glow */}
+      {/* Scanline effect when processing */}
       <AnimatePresence>
         {isAnimating && (
           <motion.div
-            className="absolute inset-0 rounded-2xl"
-            initial={{ opacity: 0 }}
-            animate={{
-              opacity: [0.3, 0.6, 0.3],
-              boxShadow: [
-                `0 0 20px ${colors.hex}30`,
-                `0 0 40px ${colors.hex}50`,
-                `0 0 20px ${colors.hex}30`
-              ]
-            }}
-            exit={{ opacity: 0 }}
+            initial={{ top: 0 }}
+            animate={{ top: '100%' }}
             transition={{
               duration: 2,
               repeat: Infinity,
-              ease: 'easeInOut'
+              ease: 'linear',
+            }}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              height: '2px',
+              background: `linear-gradient(90deg, transparent, ${colors.accent}, transparent)`,
+              opacity: 0.5,
+              pointerEvents: 'none',
             }}
           />
         )}
       </AnimatePresence>
 
       {/* Content */}
-      <div className="relative z-10">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+      <div style={{ position: 'relative', zIndex: 10, width: '100%' }}>
+        {/* Header Row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+            {/* Icon */}
             <motion.div
-              className={`w-10 h-10 rounded-xl ${colors.bg} flex items-center justify-center`}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 8,
+                background: colors.dim,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: colors.accent,
+              }}
               animate={isAnimating ? {
                 scale: [1, 1.05, 1],
               } : {}}
@@ -168,72 +179,95 @@ export default function LiveProgressCard({
                 ease: 'easeInOut'
               }}
             >
-              <div className={colors.text}>{icon}</div>
+              {icon}
             </motion.div>
+
+            {/* Title & Subtitle */}
             <div>
-              <h3 className="font-semibold text-[var(--text-primary)]">{title}</h3>
+              <h3 className="typo-label-md" style={{ color: 'var(--lumen-100)', textTransform: 'none', letterSpacing: '0' }}>
+                {title}
+              </h3>
               {subtitle && (
                 <motion.p
                   key={subtitle}
                   initial={{ opacity: 0, y: -5 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-xs text-[var(--text-muted)] mt-0.5"
+                  className="typo-label"
+                  style={{ marginTop: 2 }}
                 >
                   {subtitle}
                 </motion.p>
               )}
             </div>
           </div>
-        </div>
 
-        {/* Counter */}
-        <div className="mb-3">
-          <div className="flex items-baseline gap-2">
-            <motion.span
-              key={displayValue}
-              className={`text-3xl font-bold ${colors.text}`}
-            >
-              {displayValue.toLocaleString()}
-            </motion.span>
-            <span className="text-lg text-[var(--text-secondary)]">
-              / {total.toLocaleString()}
-            </span>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mb-3">
-          <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2 overflow-hidden">
-            <motion.div
-              className={`h-full bg-gradient-to-r ${colors.gradient} rounded-full relative overflow-hidden`}
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
-              transition={{ type: 'spring', ...ANIMATION_PRESETS.spring.gentle }}
-            >
-              {/* Shimmer effect on active progress */}
-              {isAnimating && (
+          {/* Pulse indicator */}
+          <AnimatePresence>
+            {isAnimating && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0 }}
+                style={{ position: 'relative' }}
+              >
                 <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                  animate={{ x: ['-100%', '200%'] }}
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background: colors.accent,
+                  }}
+                  animate={{
+                    boxShadow: [
+                      `0 0 0 0 ${colors.glow}`,
+                      `0 0 0 8px transparent`,
+                    ],
+                  }}
                   transition={{
-                    duration: 1.5,
+                    duration: 1,
                     repeat: Infinity,
-                    ease: 'linear'
                   }}
                 />
-              )}
-            </motion.div>
-          </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between text-sm">
-          <motion.span
-            className={`font-semibold ${colors.text}`}
-            key={percentage.toFixed(1)}
+        {/* Counter Row */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 'var(--space-xs)', marginBottom: 'var(--space-sm)' }}>
+          <span
+            className="typo-data-lg"
+            style={{
+              color: colors.accent,
+              fontWeight: 300,
+            }}
           >
+            {displayValue.toLocaleString()}
+          </span>
+          <span className="typo-data" style={{ color: 'var(--lumen-50)' }}>
+            / {total.toLocaleString()}
+          </span>
+        </div>
+
+        {/* Progress Line */}
+        <div className="progress-line" style={{ marginBottom: 'var(--space-sm)' }}>
+          <motion.div
+            className={`progress-line__fill ${isAnimating ? 'progress-line__fill--animated' : ''}`}
+            initial={{ width: 0 }}
+            animate={{ width: `${Math.min(100, Math.max(0, percentage))}%` }}
+            transition={{
+              duration: 0.6,
+              ease: [0.23, 1, 0.32, 1],
+            }}
+            style={{ background: colors.accent }}
+          />
+        </div>
+
+        {/* Footer Row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className="typo-data" style={{ color: colors.accent }}>
             {percentage.toFixed(1)}%
-          </motion.span>
+          </span>
           <AnimatePresence mode="wait">
             {eta && (
               <motion.span
@@ -241,43 +275,14 @@ export default function LiveProgressCard({
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="text-[var(--text-muted)]"
+                className="typo-label"
               >
-                ETA: {eta}
+                ETA {eta}
               </motion.span>
             )}
           </AnimatePresence>
         </div>
       </div>
-
-      {/* Pulse ring animation when actively processing */}
-      <AnimatePresence>
-        {isAnimating && (
-          <motion.div
-            className="absolute -top-1 -right-1"
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
-          >
-            <motion.div
-              className={`w-3 h-3 rounded-full ${colors.bg}`}
-              animate={{
-                scale: [1, 2, 1],
-                opacity: [0.7, 0, 0.7]
-              }}
-              transition={{
-                duration: 1.5,
-                repeat: Infinity,
-                ease: 'easeOut'
-              }}
-            />
-            <div
-              className={`w-3 h-3 rounded-full absolute top-0 right-0`}
-              style={{ backgroundColor: colors.hex }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   )
 }

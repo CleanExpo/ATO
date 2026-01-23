@@ -330,7 +330,7 @@ export default function ForensicAuditDashboardEnhanced() {
                 total={data.syncStatus.totalTransactions}
                 percentage={data.syncStatus.progress}
                 icon={<Building2 className="w-6 h-6" />}
-                color="blue"
+                color="xero"
                 subtitle="Fetching 5 years of transaction data"
                 isAnimating={true}
               />
@@ -344,7 +344,7 @@ export default function ForensicAuditDashboardEnhanced() {
                 total={data.analysisStatus.totalTransactions}
                 percentage={data.analysisStatus.progress}
                 icon={<Beaker className="w-6 h-6" />}
-                color="purple"
+                color="ai"
                 subtitle={`Analyzing ${data.currentYear || 'transactions'}`}
                 isAnimating={true}
               />

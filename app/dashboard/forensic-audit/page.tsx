@@ -15,6 +15,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Beaker, TrendingDown, Building2, AlertCircle, CheckCircle, Clock } from 'lucide-react'
+import { MobileNav } from '@/components/ui/MobileNav'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveChart from '@/components/dashboard/LiveChart'
@@ -452,7 +453,7 @@ export default function ForensicAuditDashboardEnhanced() {
   // Chart data for opportunities by year - now using real data from API
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-8 pb-24 md:pb-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -475,7 +476,7 @@ export default function ForensicAuditDashboardEnhanced() {
                 total={data.syncStatus.totalTransactions}
                 percentage={data.syncStatus.progress}
                 icon={<Building2 className="w-6 h-6" />}
-                color="blue"
+                color="xero"
                 subtitle="Fetching 5 years of transaction data"
                 isAnimating={true}
               />
@@ -489,7 +490,7 @@ export default function ForensicAuditDashboardEnhanced() {
                 total={data.analysisStatus.totalTransactions}
                 percentage={data.analysisStatus.progress}
                 icon={<Beaker className="w-6 h-6" />}
-                color="purple"
+                color="ai"
                 subtitle={`Analyzing ${data.currentYear || 'transactions'}`}
                 isAnimating={true}
               />
@@ -703,6 +704,9 @@ export default function ForensicAuditDashboardEnhanced() {
           </div>
         )}
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   )
 }

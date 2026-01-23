@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { MobileNav } from '@/components/ui/MobileNav'
 import StatCard from '@/components/audit/StatCard'
 
 interface CostSummary {
@@ -102,8 +103,8 @@ export default function CostMonitoringPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading cost data...</p>
+          <div className="loading-spinner mx-auto mb-4"></div>
+          <p className="text-[var(--text-secondary)]">Loading cost data...</p>
         </div>
       </div>
     )
@@ -112,13 +113,10 @@ export default function CostMonitoringPage() {
   if (error) {
     return (
       <div className="max-w-7xl mx-auto p-8">
-        <div className="bg-red-50 border border-red-200 rounded p-6">
-          <h2 className="text-xl font-bold text-red-800 mb-2">Error</h2>
-          <p className="text-red-700">{error}</p>
-          <button
-            onClick={loadCostData}
-            className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
+        <div className="alert alert--error">
+          <h2 className="text-xl font-bold mb-2">Error</h2>
+          <p>{error}</p>
+          <button onClick={loadCostData} className="btn btn-primary mt-4">
             Retry
           </button>
         </div>
@@ -136,11 +134,11 @@ export default function CostMonitoringPage() {
     <div className="max-w-7xl mx-auto p-8">
       {/* Header */}
       <div className="mb-8">
-        <Link href="/dashboard/forensic-audit" className="text-blue-600 hover:text-blue-700 mb-2 inline-block">
+        <Link href="/dashboard/forensic-audit" className="text-[var(--accent-primary)] hover:text-[var(--accent-secondary)] mb-2 inline-block">
           ← Back to Forensic Audit Dashboard
         </Link>
-        <h1 className="text-3xl font-bold text-gray-900">AI Analysis Cost Monitoring</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-[var(--text-primary)]">AI Analysis Cost Monitoring</h1>
+        <p className="text-[var(--text-secondary)] mt-2">
           Track API usage, optimize costs, and project future analysis expenses.
         </p>
       </div>
@@ -317,6 +315,9 @@ export default function CostMonitoringPage() {
           <li>✅ <strong>Monitor trends:</strong> Watch for cost spikes that may indicate inefficient analysis</li>
         </ul>
       </div>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   )
 }

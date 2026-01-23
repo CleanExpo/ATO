@@ -372,9 +372,9 @@ function DashboardContent() {
                         <RefreshCw className="w-6 h-6" />
                       }
                       color={
-                        op.type === 'data-quality' ? 'blue' :
-                        op.type === 'forensic-audit' ? 'purple' :
-                        'green'
+                        op.type === 'data-quality' ? 'xero' :
+                        op.type === 'forensic-audit' ? 'ai' :
+                        'success'
                       }
                       subtitle={`Started ${op.startedAt.toLocaleTimeString()}`}
                       eta={op.eta}

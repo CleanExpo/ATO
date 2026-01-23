@@ -230,7 +230,7 @@ export default function DataQualityPage() {
                 total={1000}
                 percentage={scanStatus.progress}
                 icon={<Scan className="w-6 h-6" />}
-                color="blue"
+                color="xero"
                 subtitle="AI analyzing transaction data"
                 eta={calculateETA()}
                 isAnimating={isScanning}

@@ -12,8 +12,10 @@ import {
     ArrowLeft,
     Filter,
     Download,
-    Play
+    Play,
+    AlertTriangle
 } from 'lucide-react'
+import { MobileNav } from '@/components/ui/MobileNav'
 
 type Connection = {
     tenant_id: string
@@ -200,16 +202,16 @@ export default function TaxAuditPage() {
     const loading = connectionsLoading || findingsLoading
 
     return (
-        <div className="flex min-h-screen">
+        <div className="min-h-screen">
             {/* Sidebar */}
-            <aside className="sidebar">
+            <aside className="sidebar-wide">
                 <div className="p-6">
                     <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center">
                             <DollarSign className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h1 className="font-bold">ATO Optimizer</h1>
+                            <h1 className="font-bold text-[var(--text-primary)]">ATO Optimizer</h1>
                             <p className="text-xs text-[var(--text-muted)]">Tax Intelligence</p>
                         </div>
                     </div>
@@ -243,7 +245,7 @@ export default function TaxAuditPage() {
             </aside>
 
             {/* Main Content */}
-            <main className="ml-[280px] flex-1 p-8">
+            <main className="main-content-wide">
                 {/* Header */}
                 <div className="flex flex-wrap items-center gap-4 mb-8">
                     <Link href="/dashboard" className="btn btn-ghost p-2">
@@ -281,7 +283,8 @@ export default function TaxAuditPage() {
                 </div>
 
                 {error && (
-                    <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
+                    <div className="alert alert--error mb-6">
+                        <AlertTriangle className="w-5 h-5" />
                         {error}
                     </div>
                 )}
@@ -448,6 +451,9 @@ export default function TaxAuditPage() {
                     </div>
                 )}
             </main>
+
+            {/* Mobile Bottom Navigation */}
+            <MobileNav />
         </div>
     )
 }

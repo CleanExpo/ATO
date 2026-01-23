@@ -13,6 +13,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { Scan, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react'
+import { MobileNav } from '@/components/ui/MobileNav'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveChart from '@/components/dashboard/LiveChart'
@@ -230,7 +231,7 @@ export default function DataQualityPage() {
                 total={1000}
                 percentage={scanStatus.progress}
                 icon={<Scan className="w-6 h-6" />}
-                color="blue"
+                color="xero"
                 subtitle="AI analyzing transaction data"
                 eta={calculateETA()}
                 isAnimating={isScanning}
@@ -337,6 +338,9 @@ export default function DataQualityPage() {
           />
         )}
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   )
 }

@@ -1,12 +1,13 @@
 /**
- * Enhanced Main Dashboard with Live Operations Overview
+ * Dashboard - Scientific Luxury Tier
  *
  * Features:
- * - Live operations status for all active processes
- * - Recent completions (last 24 hours)
- * - Animated counters for key metrics
- * - Quick action cards
- * - Real-time activity feed
+ * - Dynamic Island navigation
+ * - Asymmetrical 40/60 layouts
+ * - Data strips for information display
+ * - Holographic panels for hero sections
+ * - JetBrains Mono data typography
+ * - OLED void backgrounds with glass surfaces
  */
 
 'use client'
@@ -14,15 +15,14 @@
 import { useCallback, useEffect, Suspense, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { apiRequest, ApiRequestError } from '@/lib/api/client'
 import {
   DollarSign,
-  LayoutDashboard,
   Beaker,
   FileSearch,
   TrendingDown,
   Building2,
-  Settings,
   RefreshCw,
   Plus,
   CheckCircle,
@@ -33,7 +33,10 @@ import {
 } from 'lucide-react'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
-import ActivityFeed, { ActivityItem } from '@/components/dashboard/ActivityFeed'
+import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
+import { DataStrip, DataStripGroup } from '@/components/ui/DataStrip'
+import { HoloPanel, HoloPanelGrid } from '@/components/ui/HoloPanel'
+import { MobileNav } from '@/components/ui/MobileNav'
 
 interface Connection {
   tenant_id: string
@@ -86,15 +89,8 @@ function DashboardContent() {
   const [summary, setSummary] = useState<TransactionsSummary | null>(null)
   const [_summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
-
-  // Live operations state
   const [activeOperations, setActiveOperations] = useState<ActiveOperation[]>([])
   const [recentCompletions, setRecentCompletions] = useState<RecentCompletion[]>([])
-  const [activities, setActivities] = useState<ActivityItem[]>([])
-
-  const _addActivity = (activity: ActivityItem) => {
-    setActivities(prev => [...prev, activity])
-  }
 
   const fetchSummary = useCallback(async (tenantId: string) => {
     try {
@@ -135,23 +131,19 @@ function DashboardContent() {
     }
   }, [fetchSummary])
 
-  // Poll for active operations
   const checkActiveOperations = useCallback(async () => {
     if (!activeConnection) return
 
     try {
-      // Check data quality scan status
       const dqResponse = await fetch(`/api/data-quality/scan?tenantId=${activeConnection.tenant_id}`)
       const dqData = await dqResponse.json()
 
-      // Check forensic audit status
       const syncResponse = await fetch(`/api/audit/sync-status/${activeConnection.tenant_id}`)
       const syncData = await syncResponse.json()
 
       const analysisResponse = await fetch(`/api/audit/analysis-status/${activeConnection.tenant_id}`)
       const analysisData = await analysisResponse.json()
 
-      // Update active operations
       const operations: ActiveOperation[] = []
 
       if (dqData.status === 'scanning') {
@@ -195,7 +187,6 @@ function DashboardContent() {
 
       setActiveOperations(operations)
 
-      // Add recent completions (mock data for now)
       if (dqData.status === 'complete') {
         setRecentCompletions(prev => {
           const exists = prev.some(c => c.id === 'dq-latest')
@@ -221,13 +212,10 @@ function DashboardContent() {
     fetchConnections()
   }, [fetchConnections])
 
-  // Poll for active operations every 5 seconds
   useEffect(() => {
     if (!activeConnection) return
-
     checkActiveOperations()
     const interval = setInterval(checkActiveOperations, 5000)
-
     return () => clearInterval(interval)
   }, [activeConnection, checkActiveOperations])
 
@@ -239,372 +227,411 @@ function DashboardContent() {
   const hasConnections = connections.length > 0
 
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center">
-              <DollarSign className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="font-bold">ATO Optimizer</h1>
-              <p className="text-xs text-[var(--text-muted)]">Tax Intelligence</p>
-            </div>
-          </div>
+    <div style={{ minHeight: '100vh' }}>
+      {/* Dynamic Island Navigation */}
+      <DynamicIsland showLogo />
 
-          <nav className="space-y-1">
-            <Link href="/dashboard" className="sidebar-link active">
-              <LayoutDashboard className="w-5 h-5" />
-              <span>Dashboard</span>
-            </Link>
-            <Link href="/dashboard/data-quality" className="sidebar-link">
-              <Scan className="w-5 h-5" />
-              <span>Data Quality</span>
-            </Link>
-            <Link href="/dashboard/forensic-audit" className="sidebar-link">
-              <FileSearch className="w-5 h-5" />
-              <span>Forensic Audit</span>
-            </Link>
-            <Link href="/dashboard/rnd" className="sidebar-link">
-              <Beaker className="w-5 h-5" />
-              <span>R&D Assessment</span>
-            </Link>
-            <Link href="/dashboard/losses" className="sidebar-link">
-              <TrendingDown className="w-5 h-5" />
-              <span>Loss Analysis</span>
-            </Link>
-          </nav>
-        </div>
-
-        <div className="mt-auto p-6 border-t border-[var(--border-default)]">
-          <Link href="/dashboard/settings" className="sidebar-link">
-            <Settings className="w-5 h-5" />
-            <span>Settings</span>
-          </Link>
-        </div>
-      </aside>
+      {/* Vertical Navigation (Desktop) */}
+      <VerticalNav />
 
       {/* Main Content */}
-      <main className="ml-[280px] flex-1 p-8">
+      <main className="main-content" style={{
+        paddingTop: 'var(--space-3xl)',
+      }}>
         {/* Success Banner */}
-        {justConnected && (
-          <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3 animate-[fadeIn_0.3s_ease]">
-            <CheckCircle className="w-5 h-5 text-emerald-400" />
-            <span className="text-emerald-400">Xero account connected successfully!</span>
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold mb-1">Tax Optimization Dashboard</h2>
-            <p className="text-[var(--text-secondary)]">
-              {activeConnection
-                ? `Connected to ${activeConnection.organisation_name || activeConnection.tenant_name}`
-                : 'Connect your Xero account to get started'
-              }
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {activeConnection && (
-              <button
-                onClick={fetchConnections}
-                className="btn btn-secondary"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Sync Data
-              </button>
-            )}
-            <Link href="/api/auth/xero" className="btn btn-xero">
-              <Plus className="w-4 h-4" />
-              Add Connection
-            </Link>
-          </div>
-        </div>
+        <AnimatePresence>
+          {justConnected && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="alert alert--success"
+              style={{ marginBottom: 'var(--space-lg)' }}
+            >
+              <CheckCircle className="w-5 h-5" />
+              <span>Xero account connected successfully</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {summaryError && (
-          <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400">
-            {summaryError}
+          <div className="alert alert--error" style={{ marginBottom: 'var(--space-lg)' }}>
+            <AlertTriangle className="w-5 h-5" />
+            <span>{summaryError}</span>
           </div>
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center h-64">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
             <div className="loading-spinner" />
           </div>
         ) : !hasConnections ? (
-          /* No Connections State */
-          <div className="text-center py-20">
-            <div className="w-20 h-20 rounded-full bg-sky-500/10 flex items-center justify-center mx-auto mb-6">
-              <Building2 className="w-10 h-10 text-sky-400" />
-            </div>
-            <h3 className="text-xl font-semibold mb-3">No Xero Connections</h3>
-            <p className="text-[var(--text-secondary)] mb-8 max-w-md mx-auto">
-              Connect your Xero account to analyze your financial data and
-              discover tax optimization opportunities.
+          /* Empty State - No Connections */
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
+            style={{ textAlign: 'center', paddingTop: 'var(--space-3xl)', paddingBottom: 'var(--space-3xl)' }}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 20,
+                background: 'var(--accent-xero-dim)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto var(--space-xl)',
+              }}
+            >
+              <Building2 className="w-10 h-10" style={{ color: 'var(--accent-xero)' }} />
+            </motion.div>
+
+            <h1 className="typo-display" style={{ marginBottom: 'var(--space-md)' }}>
+              Connect Your Data
+            </h1>
+            <p className="typo-subtitle" style={{ maxWidth: 480, margin: '0 auto var(--space-xl)' }}>
+              Link your Xero account to unlock AI-powered tax analysis
+              and discover optimisation opportunities.
             </p>
-            <Link href="/api/auth/xero" className="btn btn-xero text-lg px-8 py-4">
+
+            <Link href="/api/auth/xero" className="btn btn-xero" style={{ padding: 'var(--space-md) var(--space-xl)' }}>
+              <DollarSign className="w-5 h-5" />
               Connect Xero Account
               <ArrowRight className="w-5 h-5" />
             </Link>
-          </div>
+          </motion.div>
         ) : (
           <>
-            {/* Active Operations Section */}
-            {activeOperations.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-                  <Zap className="w-5 h-5 text-amber-400" />
-                  Active Operations
-                </h3>
-                <div className="grid gap-4">
-                  {activeOperations.map(op => (
-                    <LiveProgressCard
-                      key={op.id}
-                      title={op.title}
-                      value={op.current}
-                      total={op.total}
-                      percentage={op.progress}
-                      icon={
-                        op.type === 'data-quality' ? <Scan className="w-6 h-6" /> :
-                        op.type === 'forensic-audit' ? <FileSearch className="w-6 h-6" /> :
-                        <RefreshCw className="w-6 h-6" />
-                      }
-                      color={
-                        op.type === 'data-quality' ? 'blue' :
-                        op.type === 'forensic-audit' ? 'purple' :
-                        'green'
-                      }
-                      subtitle={`Started ${op.startedAt.toLocaleTimeString()}`}
-                      eta={op.eta}
-                      isAnimating={true}
-                    />
-                  ))}
+            {/* Header Section */}
+            <motion.header
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+              style={{ marginBottom: 'var(--space-2xl)' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                <div>
+                  <h1 className="typo-display" style={{ marginBottom: 'var(--space-xs)' }}>
+                    Tax Intelligence
+                  </h1>
+                  <p className="typo-subtitle">
+                    {activeConnection
+                      ? activeConnection.organisation_name || activeConnection.tenant_name
+                      : 'Select an organisation'
+                    }
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+                  {activeConnection && (
+                    <button onClick={fetchConnections} className="btn btn-secondary">
+                      <RefreshCw className="w-4 h-4" />
+                      Sync
+                    </button>
+                  )}
+                  <Link href="/api/auth/xero" className="btn btn-xero">
+                    <Plus className="w-4 h-4" />
+                    Add
+                  </Link>
                 </div>
               </div>
-            )}
+            </motion.header>
+
+            {/* Active Operations */}
+            <AnimatePresence>
+              {activeOperations.length > 0 && (
+                <motion.section
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  style={{ marginBottom: 'var(--space-2xl)' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-md)' }}>
+                    <Zap className="w-4 h-4" style={{ color: 'var(--signal-high)' }} />
+                    <span className="typo-label-md">Active Operations</span>
+                  </div>
+
+                  <div className="layout-stack">
+                    {activeOperations.map((op, index) => (
+                      <LiveProgressCard
+                        key={op.id}
+                        title={op.title}
+                        value={op.current}
+                        total={op.total}
+                        percentage={op.progress}
+                        icon={
+                          op.type === 'data-quality' ? <Scan className="w-5 h-5" /> :
+                          op.type === 'forensic-audit' ? <FileSearch className="w-5 h-5" /> :
+                          <RefreshCw className="w-5 h-5" />
+                        }
+                        color={
+                          op.type === 'data-quality' ? 'info' :
+                          op.type === 'forensic-audit' ? 'ai' :
+                          'xero'
+                        }
+                        subtitle={`Started ${op.startedAt.toLocaleTimeString()}`}
+                        eta={op.eta}
+                        isAnimating={true}
+                        className={`stagger-${index + 1}`}
+                      />
+                    ))}
+                  </div>
+                </motion.section>
+              )}
+            </AnimatePresence>
+
+            {/* Stats Cards Row - Bento Style */}
+            <motion.section
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              style={{ marginBottom: 'var(--space-xl)' }}
+            >
+              <div className="bento-grid bento-grid--stats">
+                {/* R&D Candidate Spend */}
+                <motion.div
+                  className="stat-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <span className="stat-card__label">R&D Candidate Spend</span>
+                  <AnimatedCounter
+                    value={summary?.rndValue ?? 0}
+                    format="currency"
+                    decimals={0}
+                    size="md"
+                    variant="highlight"
+                  />
+                </motion.div>
+
+                {/* Potential Refund */}
+                <motion.div
+                  className="stat-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                >
+                  <span className="stat-card__label">Potential Refund</span>
+                  <AnimatedCounter
+                    value={summary?.rndValue ? Math.round(summary.rndValue * 0.435) : 0}
+                    format="currency"
+                    decimals={0}
+                    size="md"
+                    variant="positive"
+                  />
+                  <span className="stat-card__trend stat-card__trend--up">43.5% offset</span>
+                </motion.div>
+
+                {/* Transactions */}
+                <motion.div
+                  className="stat-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <span className="stat-card__label">Transactions Scanned</span>
+                  <AnimatedCounter
+                    value={summary?.total ?? 0}
+                    format="number"
+                    decimals={0}
+                    size="md"
+                  />
+                </motion.div>
+
+                {/* Items to Review */}
+                <motion.div
+                  className="stat-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25 }}
+                >
+                  <span className="stat-card__label">Needs Review</span>
+                  <AnimatedCounter
+                    value={summary?.needsReview ?? 0}
+                    format="number"
+                    decimals={0}
+                    size="md"
+                  />
+                  {(summary?.needsReview ?? 0) > 0 && (
+                    <span className="stat-card__trend stat-card__trend--down">Action required</span>
+                  )}
+                </motion.div>
+
+                {/* Connections */}
+                <motion.div
+                  className="stat-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <span className="stat-card__label">Xero Connections</span>
+                  <AnimatedCounter
+                    value={connections.length}
+                    format="number"
+                    decimals={0}
+                    size="md"
+                  />
+                  <span className="stat-card__trend stat-card__trend--up">Active</span>
+                </motion.div>
+              </div>
+            </motion.section>
 
             {/* Recent Completions */}
             {recentCompletions.length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-emerald-400" />
-                  Recent Completions (Last 24 Hours)
-                </h3>
-                <div className="glass-card divide-y divide-[var(--border-default)]">
-                  {recentCompletions.map(completion => (
-                    <div key={completion.id} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                        <div>
-                          <p className="font-medium text-[var(--text-primary)]">{completion.title}</p>
-                          <p className="text-sm text-[var(--text-muted)]">
-                            {completion.completedAt.toLocaleTimeString()} • {completion.result}
-                          </p>
-                        </div>
+              <motion.section
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                style={{ marginTop: 'var(--space-2xl)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-md)' }}>
+                  <CheckCircle className="w-4 h-4" style={{ color: 'var(--signal-success)' }} />
+                  <span className="typo-label-md">Recent Completions</span>
+                </div>
+
+                <DataStripGroup>
+                  {recentCompletions.map((completion, index) => (
+                    <DataStrip
+                      key={completion.id}
+                      priority="success"
+                      label={<span className="typo-label">{completion.type}</span>}
+                      metric={
+                        completion.value !== undefined ? (
+                          <span className="typo-data" style={{ color: 'var(--signal-success)' }}>
+                            {completion.value.toLocaleString()}
+                          </span>
+                        ) : null
+                      }
+                      delay={0.1 * index}
+                    >
+                      <div>
+                        <span className="typo-subtitle">{completion.title}</span>
+                        <span className="typo-label" style={{ marginLeft: 'var(--space-sm)' }}>
+                          {completion.completedAt.toLocaleTimeString()}
+                        </span>
                       </div>
-                      {completion.value !== undefined && (
-                        <div className="text-lg font-bold text-emerald-400">
-                          {completion.value.toLocaleString()}
-                        </div>
-                      )}
-                    </div>
+                    </DataStrip>
                   ))}
-                </div>
-              </div>
+                </DataStripGroup>
+              </motion.section>
             )}
 
-            {/* Stats Grid - Animated Counters */}
-            <div className="grid md:grid-cols-4 gap-6 mb-8">
-              <div className="stat-card xero">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-[var(--text-secondary)]">Connections</span>
-                  <Building2 className="w-5 h-5 text-sky-400" />
-                </div>
-                <AnimatedCounter
-                  value={connections.length}
-                  className="text-3xl font-bold"
-                />
-                <div className="text-xs text-[var(--text-muted)]">Xero organization(s)</div>
-              </div>
+            {/* Quick Actions - Feature Cards */}
+            <section style={{ marginTop: 'var(--space-xl)' }}>
+              <span className="typo-label-md" style={{ marginBottom: 'var(--space-md)', display: 'block' }}>
+                Quick Actions
+              </span>
 
-              <div className="stat-card accent">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-[var(--text-secondary)]">R&D Candidate Spend</span>
-                  <Beaker className="w-5 h-5 text-emerald-400" />
-                </div>
-                <AnimatedCounter
-                  value={summary?.rndValue ?? 0}
-                  format="currency"
-                  decimals={0}
-                  className="text-3xl font-bold text-emerald-400"
-                />
-                <div className="text-xs text-[var(--text-muted)]">flagged by transaction analysis</div>
-              </div>
-
-              <div className="stat-card">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-[var(--text-secondary)]">Review Items</span>
-                  <AlertTriangle className="w-5 h-5 text-amber-400" />
-                </div>
-                <AnimatedCounter
-                  value={summary?.needsReview ?? 0}
-                  className="text-3xl font-bold"
-                />
-                <div className="text-xs text-[var(--text-muted)]">requiring manual review</div>
-              </div>
-
-              <div className="stat-card warning">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-[var(--text-secondary)]">Transactions Scanned</span>
-                  <TrendingDown className="w-5 h-5 text-amber-400" />
-                </div>
-                <AnimatedCounter
-                  value={summary?.total ?? 0}
-                  className="text-3xl font-bold"
-                />
-                <div className="text-xs text-[var(--text-muted)]">current sync window</div>
-              </div>
-            </div>
-
-            {/* Hero CTA - Tax Overview */}
-            <Link
-              href="/dashboard/overview"
-              className="glass-card p-8 mb-8 bg-gradient-to-br from-emerald-500/10 to-sky-500/10 border-emerald-500/30 hover:border-emerald-500/50 transition-all hover:scale-[1.02]"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                      <FileSearch className="w-6 h-6 text-emerald-400" />
-                    </div>
-                    <h3 className="text-2xl font-bold">View Complete Tax Overview</h3>
+              <div className="bento-grid bento-grid--features">
+                <Link href="/dashboard/data-quality" className="feature-card">
+                  <div className="feature-card__icon feature-card__icon--blue">
+                    <Scan className="w-6 h-6" />
                   </div>
-                  <p className="text-[var(--text-secondary)] mb-4">
-                    See your estimated refund, all opportunities, issues, and actionable recommendations in one comprehensive view.
+                  <h3 className="feature-card__title">Data Quality</h3>
+                  <p className="feature-card__description">
+                    AI-powered validation and auto-correction
                   </p>
-                  <div className="flex items-center text-emerald-400 font-semibold">
-                    View Full Analysis <ArrowRight className="w-5 h-5 ml-2" />
+                  <span className="feature-card__action">
+                    Start Scan <ArrowRight className="w-4 h-4" />
+                  </span>
+                </Link>
+
+                <Link href="/dashboard/forensic-audit" className="feature-card">
+                  <div className="feature-card__icon feature-card__icon--purple">
+                    <FileSearch className="w-6 h-6" />
                   </div>
-                </div>
-                <div className="hidden lg:flex items-center gap-6">
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-emerald-400 mb-1">
-                      {summary?.rndValue ? `$${(summary.rndValue * 0.435 / 1000).toFixed(0)}k` : '—'}
-                    </div>
-                    <div className="text-xs text-[var(--text-muted)]">Potential Refund</div>
+                  <h3 className="feature-card__title">Forensic Audit</h3>
+                  <p className="feature-card__description">
+                    5-year comprehensive AI analysis
+                  </p>
+                  <span className="feature-card__action">
+                    Run Audit <ArrowRight className="w-4 h-4" />
+                  </span>
+                </Link>
+
+                <Link href="/dashboard/rnd" className="feature-card">
+                  <div className="feature-card__icon feature-card__icon--green">
+                    <Beaker className="w-6 h-6" />
                   </div>
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-amber-400 mb-1">
-                      {summary?.needsReview || '—'}
-                    </div>
-                    <div className="text-xs text-[var(--text-muted)]">Issues Found</div>
-                  </div>
-                </div>
+                  <h3 className="feature-card__title">R&D Assessment</h3>
+                  <p className="feature-card__description">
+                    Division 355 eligibility review
+                  </p>
+                  <span className="feature-card__action">
+                    Start Review <ArrowRight className="w-4 h-4" />
+                  </span>
+                </Link>
               </div>
-            </Link>
-
-            {/* Quick Actions */}
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <Link href="/dashboard/data-quality" className="glass-card p-6 hover:border-sky-500/50 transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center mb-4">
-                  <Scan className="w-6 h-6 text-sky-400" />
-                </div>
-                <h3 className="font-semibold mb-2">Data Quality Scan</h3>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                  AI-powered validation and auto-correction of your data.
-                </p>
-                <div className="flex items-center text-sky-400 text-sm font-medium">
-                  Start Scan <ArrowRight className="w-4 h-4 ml-2" />
-                </div>
-              </Link>
-
-              <Link href="/dashboard/forensic-audit" className="glass-card p-6 hover:border-purple-500/50 transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-4">
-                  <FileSearch className="w-6 h-6 text-purple-400" />
-                </div>
-                <h3 className="font-semibold mb-2">Forensic Tax Audit</h3>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                  5-year comprehensive analysis with AI-powered insights.
-                </p>
-                <div className="flex items-center text-purple-400 text-sm font-medium">
-                  Run Audit <ArrowRight className="w-4 h-4 ml-2" />
-                </div>
-              </Link>
-
-              <Link href="/dashboard/rnd" className="glass-card p-6 hover:border-emerald-500/50 transition-colors">
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-4">
-                  <Beaker className="w-6 h-6 text-emerald-400" />
-                </div>
-                <h3 className="font-semibold mb-2">R&D Tax Assessment</h3>
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                  Review candidate transactions for R&D tax incentive.
-                </p>
-                <div className="flex items-center text-emerald-400 text-sm font-medium">
-                  Start Assessment <ArrowRight className="w-4 h-4 ml-2" />
-                </div>
-              </Link>
-            </div>
-
-            {/* Activity Feed */}
-            {(activities.length > 0 || activeOperations.length > 0) && (
-              <ActivityFeed
-                items={activities}
-                maxItems={15}
-                autoScroll={true}
-                showTimestamps={true}
-              />
-            )}
+            </section>
 
             {/* Connected Organizations */}
-            <div className="glass-card mt-8">
-              <div className="p-6 border-b border-[var(--border-default)]">
-                <h3 className="font-semibold">Connected Organizations</h3>
-              </div>
-              <div className="divide-y divide-[var(--border-default)]">
+            <section style={{ marginTop: 'var(--space-xl)' }}>
+              <span className="typo-label-md" style={{ marginBottom: 'var(--space-md)', display: 'block' }}>
+                Connected Organisations
+              </span>
+
+              <div className="layout-stack">
                 {connections.map((conn) => (
-                  <div key={conn.tenant_id} className="p-6 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-sky-500/10 flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-sky-400" />
-                      </div>
-                      <div>
-                        <div className="font-medium">{conn.organisation_name || conn.tenant_name}</div>
-                        <div className="text-sm text-[var(--text-secondary)]">
-                          {conn.organisation_type} - {conn.country_code} - {conn.base_currency}
-                        </div>
-                      </div>
-                      {conn.is_demo_company && (
-                        <span className="priority-badge medium">Demo</span>
-                      )}
+                  <motion.div
+                    key={conn.tenant_id}
+                    className={`org-card ${activeConnection?.tenant_id === conn.tenant_id ? 'org-card--active' : ''}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <div className="org-card__icon">
+                      <Building2 className="w-5 h-5" />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm text-[var(--text-muted)]">
-                        Connected {new Date(conn.connected_at).toLocaleDateString()}
-                      </span>
-                      <button
-                        onClick={() => handleSelectConnection(conn)}
-                        className={`btn ${activeConnection?.tenant_id === conn.tenant_id ? 'btn-primary' : 'btn-secondary'}`}
-                      >
-                        {activeConnection?.tenant_id === conn.tenant_id ? 'Active' : 'Select'}
-                      </button>
+                    <div className="org-card__info">
+                      <div className="org-card__name">
+                        {conn.organisation_name || conn.tenant_name}
+                      </div>
+                      <div className="org-card__meta">
+                        {conn.organisation_type} • {conn.country_code} • {conn.base_currency}
+                        {conn.is_demo_company && ' • Demo'}
+                      </div>
                     </div>
-                  </div>
+                    <button
+                      onClick={() => handleSelectConnection(conn)}
+                      className={activeConnection?.tenant_id === conn.tenant_id ? 'btn btn-primary' : 'btn btn-secondary'}
+                      style={{ padding: 'var(--space-xs) var(--space-md)' }}
+                    >
+                      {activeConnection?.tenant_id === conn.tenant_id ? 'Active' : 'Select'}
+                    </button>
+                  </motion.div>
                 ))}
               </div>
-            </div>
+            </section>
           </>
         )}
       </main>
+
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
     </div>
   )
 }
 
 function DashboardLoading() {
   return (
-    <div className="flex min-h-screen items-center justify-center">
-      <div className="loading-spinner" />
+    <div style={{
+      display: 'flex',
+      minHeight: '100vh',
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+      >
+        <div className="spinner" />
+      </motion.div>
     </div>
   )
 }
