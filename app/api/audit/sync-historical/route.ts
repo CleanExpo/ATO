@@ -25,6 +25,9 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { fetchHistoricalTransactions, getSyncStatus } from '@/lib/xero/historical-fetcher'
 import type { TokenSet } from 'xero-node'
 
+// Single-user mode: Skip auth and use tenantId directly
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+
 // Helper to get valid token set for a tenant
 async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<TokenSet | null> {
     const supabase = await createServiceClient()
@@ -79,13 +82,22 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
 
 export async function POST(request: NextRequest) {
     try {
-        // Authenticate and validate tenant access (tenantId from body)
-        const auth = await requireAuth(request, { tenantIdSource: 'body' })
-        if (isErrorResponse(auth)) return auth
-
-        const { tenantId } = auth
         const baseUrl = request.nextUrl.origin
         const body = await request.json()
+        let tenantId: string
+
+        if (SINGLE_USER_MODE) {
+            // Single-user mode: Get tenantId directly from body
+            tenantId = body.tenantId
+            if (!tenantId) {
+                return createValidationError('tenantId is required')
+            }
+        } else {
+            // Multi-user mode: Authenticate and validate tenant access
+            const auth = await requireAuth(request, { tenantIdSource: 'body' })
+            if (isErrorResponse(auth)) return auth
+            tenantId = auth.tenantId
+        }
 
         // Parse optional fields
         const years = body.years && typeof body.years === 'number' ? body.years : 5
@@ -161,11 +173,21 @@ export async function POST(request: NextRequest) {
 // Quick check of sync status (alternative to dedicated status endpoint)
 export async function GET(request: NextRequest) {
     try {
-        // Authenticate and validate tenant access
-        const auth = await requireAuth(request)
-        if (isErrorResponse(auth)) return auth
+        let tenantId: string
 
-        const { tenantId } = auth
+        if (SINGLE_USER_MODE) {
+            // Single-user mode: Get tenantId directly from query
+            tenantId = request.nextUrl.searchParams.get('tenantId') || ''
+            if (!tenantId) {
+                return createValidationError('tenantId is required')
+            }
+        } else {
+            // Multi-user mode: Authenticate and validate tenant access
+            const auth = await requireAuth(request)
+            if (isErrorResponse(auth)) return auth
+            tenantId = auth.tenantId
+        }
+
         const status = await getSyncStatus(tenantId)
 
         if (!status) {
