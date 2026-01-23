@@ -217,7 +217,7 @@ export async function analyzeTransaction(
 
         // Call Google AI (Gemini 2.0 Flash Exp - FREE and Available)
         const model = getGoogleAI().getGenerativeModel({
-            model: 'gemini-pro', // Using available free model
+            model: 'gemini-1.5-pro-latest', // Using available free model
             generationConfig: {
                 temperature: 0.1, // Ultra-low temperature for maximum consistency and accuracy
                 maxOutputTokens: 8000, // Detailed analysis with comprehensive reasoning
@@ -249,7 +249,7 @@ export async function analyzeTransaction(
         if (errorMessage.includes('model') || errorMessage.includes('not found') || errorMessage.includes('404')) {
             console.error('🚨 AI MODEL ERROR: The configured model does not exist or is not accessible!')
             console.error('Current model: gemini-3-pro-preview')
-            console.error('Available models: gemini-3-pro-preview, gemini-pro, gemini-1.5-pro')
+            console.error('Available models: gemini-3-pro-preview, gemini-1.5-pro-latest, gemini-1.5-pro')
             console.error('Please verify GOOGLE_AI_API_KEY is valid and model name is correct')
         }
 
