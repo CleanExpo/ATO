@@ -45,3 +45,4 @@ next-env.d.ts
 
 .vercel
 .env*.local
+# Trigger redeploy for new API key
