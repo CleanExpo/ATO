@@ -41,6 +41,8 @@ function sanitizeErrorMessage(message: string, isProduction: boolean): string {
         'ENOTFOUND': 'Service not found',
         'fetch failed': 'Network error occurred',
         'timeout': 'Request timed out',
+        'GOOGLE_AI_API_KEY': 'AI service not configured. Please add GOOGLE_AI_API_KEY to Vercel environment variables.',
+        'API key not valid': 'AI service API key is invalid. Please check GOOGLE_AI_API_KEY in Vercel.',
     }
 
     const lowerMessage = message.toLowerCase()
