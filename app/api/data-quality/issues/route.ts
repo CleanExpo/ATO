@@ -11,17 +11,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createValidationError, createErrorResponse } from '@/lib/api/errors'
+import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getDataQualityIssues } from '@/lib/xero/data-quality-validator'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
     try {
-        const tenantId = request.nextUrl.searchParams.get('tenantId')
+        // Authenticate and validate tenant access
+        const auth = await requireAuth(request)
+        if (isErrorResponse(auth)) return auth
 
-        if (!tenantId) {
-            return createValidationError('tenantId query parameter is required')
-        }
+        const { tenantId } = auth
 
         // Optional filters
         const issueType = request.nextUrl.searchParams.get('issueType') || undefined
@@ -57,6 +58,10 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
     try {
+        // Authenticate user (issue ownership validated from database)
+        const auth = await requireAuth(request, { skipTenantValidation: true })
+        if (isErrorResponse(auth)) return auth
+
         const body = await request.json()
 
         // Validate required fields

@@ -19,22 +19,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 
 export async function GET(request: NextRequest) {
     try {
-        const tenantId = request.nextUrl.searchParams.get('tenantId')
+        // Authenticate and validate tenant access
+        const auth = await requireAuth(request)
+        if (isErrorResponse(auth)) return auth
+
+        const { tenantId } = auth
         const financialYear = request.nextUrl.searchParams.get('financialYear') || undefined
         const page = parseInt(request.nextUrl.searchParams.get('page') || '1', 10)
         const pageSize = Math.min(
             parseInt(request.nextUrl.searchParams.get('pageSize') || '100', 10),
             1000 // Max 1000 per page
         )
-
-        // Validate required fields
-        if (!tenantId) {
-            return createValidationError('tenantId query parameter is required')
-        }
 
         // Validate pagination
         if (page < 1) {

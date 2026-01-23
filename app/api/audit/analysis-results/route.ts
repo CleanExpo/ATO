@@ -19,14 +19,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { createErrorResponse } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getAnalysisResults, getCostSummary } from '@/lib/ai/batch-processor'
 import { createServiceClient } from '@/lib/supabase/server'
 import cacheManager, { CacheKeys, CacheTTL } from '@/lib/cache/cache-manager'
 
 export async function GET(request: NextRequest) {
     try {
-        const tenantId = request.nextUrl.searchParams.get('tenantId')
+        // Authenticate and validate tenant access
+        const auth = await requireAuth(request)
+        if (isErrorResponse(auth)) return auth
+
+        const { tenantId } = auth
         const financialYear = request.nextUrl.searchParams.get('financialYear') || undefined
         const isRndCandidateParam = request.nextUrl.searchParams.get('isRndCandidate')
         const primaryCategory = request.nextUrl.searchParams.get('primaryCategory') || undefined
@@ -36,11 +41,6 @@ export async function GET(request: NextRequest) {
             parseInt(request.nextUrl.searchParams.get('pageSize') || '100', 10),
             10000  // Increased from 1000 to support large exports
         )
-
-        // Validate required fields
-        if (!tenantId) {
-            return createValidationError('tenantId query parameter is required')
-        }
 
         // Parse boolean and number parameters
         const isRndCandidate = isRndCandidateParam === 'true' ? true : isRndCandidateParam === 'false' ? false : undefined

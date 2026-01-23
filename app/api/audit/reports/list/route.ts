@@ -14,17 +14,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { createErrorResponse } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    const tenantId = request.nextUrl.searchParams.get('tenantId')
+    // Authenticate and validate tenant access
+    const auth = await requireAuth(request)
+    if (isErrorResponse(auth)) return auth
+
+    const { tenantId } = auth
     const format = request.nextUrl.searchParams.get('format')
     const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50', 10)
-
-    if (!tenantId) {
-      return createValidationError('tenantId query parameter is required')
-    }
 
     console.log(`Listing reports for tenant ${tenantId}`)
 

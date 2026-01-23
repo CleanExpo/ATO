@@ -22,21 +22,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { analyzeTransaction, type TransactionContext, type BusinessContext } from '@/lib/ai/forensic-analyzer'
-import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { createErrorResponse } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
 export const maxDuration = 30 // Vercel serverless max
 
 export async function POST(request: NextRequest) {
     const startTime = Date.now()
-    
+
     try {
+        // Authenticate and validate tenant access (tenantId from body)
+        const auth = await requireAuth(request, { tenantIdSource: 'body' })
+        if (isErrorResponse(auth)) return auth
+
+        const { tenantId } = auth
         const body = await request.json()
-        
-        // Validate required fields
-        const tenantId = body.tenantId
-        if (!tenantId || typeof tenantId !== 'string') {
-            return createValidationError('tenantId is required')
-        }
         
         const businessContext: BusinessContext = {
             name: body.businessName || 'Unknown Business',
@@ -187,12 +187,11 @@ function getDescription(rawData: Record<string, unknown>): string {
 
 // GET endpoint to check progress
 export async function GET(request: NextRequest) {
-    const tenantId = request.nextUrl.searchParams.get('tenantId')
-    
-    if (!tenantId) {
-        return createValidationError('tenantId query parameter is required')
-    }
-    
+    // Authenticate and validate tenant access
+    const auth = await requireAuth(request)
+    if (isErrorResponse(auth)) return auth
+
+    const { tenantId } = auth
     const supabase = await createServiceClient()
     
     const { count: totalAnalyzed } = await supabase

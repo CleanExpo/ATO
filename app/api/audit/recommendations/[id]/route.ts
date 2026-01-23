@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
 
 export async function GET(
@@ -16,13 +17,13 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Authenticate and validate tenant access
+    const auth = await requireAuth(request)
+    if (isErrorResponse(auth)) return auth
+
+    const { tenantId } = auth
     const { id } = await params
     const recommendationId = id
-    const tenantId = request.nextUrl.searchParams.get('tenantId')
-
-    if (!tenantId) {
-      return createValidationError('tenantId query parameter is required')
-    }
 
     if (!recommendationId) {
       return createValidationError('Recommendation ID is required')
@@ -65,13 +66,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Authenticate and validate tenant access
+    const auth = await requireAuth(request)
+    if (isErrorResponse(auth)) return auth
+
+    const { tenantId } = auth
     const { id } = await params
     const recommendationId = id
-    const tenantId = request.nextUrl.searchParams.get('tenantId')
-
-    if (!tenantId) {
-      return createValidationError('tenantId query parameter is required')
-    }
 
     if (!recommendationId) {
       return createValidationError('Recommendation ID is required')

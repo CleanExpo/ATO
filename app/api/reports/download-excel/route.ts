@@ -1,13 +1,13 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { generateExcelWorkbook } from '@/lib/reports/excel-generator'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const tenantId = searchParams.get('tenantId')
+export async function GET(request: NextRequest) {
+  // Authenticate and validate tenant access
+  const auth = await requireAuth(request)
+  if (isErrorResponse(auth)) return auth
 
-  if (!tenantId) {
-    return NextResponse.json({ error: 'tenantId required' }, { status: 400 })
-  }
+  const { tenantId } = auth
 
   try {
     console.log(`Generating Excel workbook for tenant: ${tenantId}`)

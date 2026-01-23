@@ -11,16 +11,17 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createValidationError, createErrorResponse } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getCorrectionLogs, revertCorrection } from '@/lib/xero/auto-correction-engine'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
     try {
-        const tenantId = request.nextUrl.searchParams.get('tenantId')
+        // Authenticate and validate tenant access
+        const auth = await requireAuth(request)
+        if (isErrorResponse(auth)) return auth
 
-        if (!tenantId) {
-            return createValidationError('tenantId query parameter is required')
-        }
+        const { tenantId } = auth
 
         // Optional filters
         const status = request.nextUrl.searchParams.get('status') || undefined
@@ -53,13 +54,12 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json()
+        // Authenticate and validate tenant access (tenantId from body)
+        const auth = await requireAuth(request, { tenantIdSource: 'body' })
+        if (isErrorResponse(auth)) return auth
 
-        // Validate required fields
-        const tenantId = body.tenantId
-        if (!tenantId || typeof tenantId !== 'string') {
-            return createValidationError('tenantId is required and must be a string')
-        }
+        const { tenantId } = auth
+        const body = await request.json()
 
         const correctionId = body.correctionId
         if (!correctionId || typeof correctionId !== 'string') {

@@ -1,18 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const tenantId = searchParams.get('tenantId')
+export async function GET(request: NextRequest) {
+  // Authenticate and validate tenant access
+  const auth = await requireAuth(request)
+  if (isErrorResponse(auth)) return auth
 
-  if (!tenantId) {
-    return NextResponse.json({ error: 'tenantId required' }, { status: 400 })
-  }
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const { tenantId, supabase } = auth
 
   try {
     // Get all R&D candidates with their details
@@ -40,9 +34,10 @@ export async function GET(request: Request) {
     }
 
     // Group by primary_category (project type)
-    const projectMap = new Map()
+    type Candidate = { primary_category?: string; amount?: number; financial_year?: string; rnd_confidence?: number; description?: string; supplier?: string }
+    const projectMap = new Map<string, { id: string; name: string; transactions: Candidate[]; totalSpend: number; years: Set<string> }>()
 
-    candidates.forEach(c => {
+    candidates.forEach((c: Candidate) => {
       const category = c.primary_category || 'Uncategorized'
       if (!projectMap.has(category)) {
         projectMap.set(category, {
@@ -54,7 +49,7 @@ export async function GET(request: Request) {
         })
       }
 
-      const project = projectMap.get(category)
+      const project = projectMap.get(category)!
       project.transactions.push(c)
       project.totalSpend += Math.abs(c.amount || 0)
       if (c.financial_year) {
@@ -78,7 +73,7 @@ export async function GET(request: Request) {
     }))
 
     // Calculate totals
-    const totalExpenditure = candidates.reduce((sum, c) => sum + Math.abs(c.amount || 0), 0)
+    const totalExpenditure = candidates.reduce((sum: number, c: Candidate) => sum + Math.abs(c.amount || 0), 0)
     const offsetRate = 0.435 // 43.5% R&D offset for companies with turnover < $20M
     const totalOffset = totalExpenditure * offsetRate
 

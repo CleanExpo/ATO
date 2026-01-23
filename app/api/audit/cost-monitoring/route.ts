@@ -16,19 +16,20 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { createErrorResponse } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import cacheManager, { CacheTTL } from '@/lib/cache/cache-manager'
 
 export async function GET(request: NextRequest) {
   try {
-    const tenantId = request.nextUrl.searchParams.get('tenantId')
+    // Authenticate and validate tenant access
+    const auth = await requireAuth(request)
+    if (isErrorResponse(auth)) return auth
+
+    const { tenantId } = auth
     const startDate = request.nextUrl.searchParams.get('startDate') || undefined
     const endDate = request.nextUrl.searchParams.get('endDate') || undefined
-
-    if (!tenantId) {
-      return createValidationError('tenantId query parameter is required')
-    }
 
     console.log(`Getting cost monitoring data for tenant ${tenantId}`)
 

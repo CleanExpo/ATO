@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
-import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { createErrorResponse, createNotFoundError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import type { TokenSet } from 'xero-node'
 
 // Helper to get valid token set for a tenant (single-user mode)
@@ -76,19 +77,18 @@ function toXeroDateTime(dateValue: string): string | null {
 }
 
 // GET /api/xero/transactions - Get transactions with R&D flagging
-// Single-user mode: No authentication required
 export async function GET(request: NextRequest) {
     try {
+        // Authenticate and validate tenant access
+        const auth = await requireAuth(request)
+        if (isErrorResponse(auth)) return auth
+
+        const { tenantId } = auth
         const baseUrl = request.nextUrl.origin
-        const tenantId = request.nextUrl.searchParams.get('tenantId')
         const fromDate = request.nextUrl.searchParams.get('fromDate')
         const toDate = request.nextUrl.searchParams.get('toDate')
         const page = parseInt(request.nextUrl.searchParams.get('page') || '1', 10)
         const pageSize = 100
-
-        if (!tenantId) {
-            return createValidationError('Tenant ID is required')
-        }
 
         const tokenSet = await getValidTokenSet(tenantId, baseUrl)
         if (!tokenSet) {

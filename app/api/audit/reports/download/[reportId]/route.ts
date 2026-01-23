@@ -12,12 +12,17 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ reportId: string }> }
 ) {
   try {
+    // Authenticate user (report ownership validated from database)
+    const auth = await requireAuthOnly(request)
+    if (isErrorResponse(auth)) return auth
+
     const { reportId } = await params
     const format = request.nextUrl.searchParams.get('format') || 'pdf'
 
@@ -68,6 +73,10 @@ export async function DELETE(
   { params }: { params: Promise<{ reportId: string }> }
 ) {
   try {
+    // Authenticate user (report ownership validated from database)
+    const auth = await requireAuthOnly(request)
+    if (isErrorResponse(auth)) return auth
+
     const { reportId } = await params
 
     if (!reportId) {

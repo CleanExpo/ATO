@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
-import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { createErrorResponse, createNotFoundError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import type { TokenSet } from 'xero-node'
 import { Account } from 'xero-node'
 
@@ -58,15 +59,14 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
 }
 
 // GET /api/xero/accounts - Get chart of accounts
-// Single-user mode: No authentication required
 export async function GET(request: NextRequest) {
     try {
-        const baseUrl = request.nextUrl.origin
-        const tenantId = request.nextUrl.searchParams.get('tenantId')
+        // Authenticate and validate tenant access
+        const auth = await requireAuth(request)
+        if (isErrorResponse(auth)) return auth
 
-        if (!tenantId) {
-            return createValidationError('Tenant ID is required')
-        }
+        const { tenantId } = auth
+        const baseUrl = request.nextUrl.origin
 
         const tokenSet = await getValidTokenSet(tenantId, baseUrl)
         if (!tokenSet) {

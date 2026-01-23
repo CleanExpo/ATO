@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import type { TokenSet } from 'xero-node'
 
 type XeroReportCell = {
@@ -95,18 +96,17 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
 }
 
 // GET /api/xero/reports - Get financial reports
-// Single-user mode: No authentication required
 export async function GET(request: NextRequest) {
     try {
+        // Authenticate and validate tenant access
+        const auth = await requireAuth(request)
+        if (isErrorResponse(auth)) return auth
+
+        const { tenantId } = auth
         const baseUrl = request.nextUrl.origin
-        const tenantId = request.nextUrl.searchParams.get('tenantId')
         const reportType = request.nextUrl.searchParams.get('type') || 'TrialBalance'
         const fromDate = request.nextUrl.searchParams.get('fromDate')
         const toDate = request.nextUrl.searchParams.get('toDate')
-
-        if (!tenantId) {
-            return createValidationError('Tenant ID is required')
-        }
 
         const tokenSet = await getValidTokenSet(tenantId, baseUrl)
         if (!tokenSet) {

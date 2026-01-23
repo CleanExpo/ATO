@@ -1,18 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const tenantId = searchParams.get('tenantId')
+export async function GET(request: NextRequest) {
+  // Authenticate and validate tenant access
+  const auth = await requireAuth(request)
+  if (isErrorResponse(auth)) return auth
 
-  if (!tenantId) {
-    return NextResponse.json({ error: 'tenantId required' }, { status: 400 })
-  }
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const { tenantId, supabase } = auth
 
   try {
     // Get opportunities grouped by financial year
@@ -29,7 +23,10 @@ export async function GET(request: Request) {
     }
 
     // Group by year and sum benefits
-    const byYear = (data || []).reduce((acc, row) => {
+    type YearSummary = Record<string, { name: string; value: number; count: number }>
+    type AnalysisRow = { financial_year: string | null; claimable_amount: number | null; transaction_amount: number | null }
+    const rows: AnalysisRow[] = data || []
+    const byYear = rows.reduce((acc: YearSummary, row: AnalysisRow) => {
       const year = row.financial_year || 'Unknown'
       if (!acc[year]) {
         acc[year] = { name: year, value: 0, count: 0 }
@@ -39,7 +36,7 @@ export async function GET(request: Request) {
       acc[year].value += benefit
       acc[year].count += 1
       return acc
-    }, {} as Record<string, { name: string; value: number; count: number }>)
+    }, {} as YearSummary)
 
     return NextResponse.json({
       opportunities: Object.values(byYear).sort((a, b) => a.name.localeCompare(b.name))

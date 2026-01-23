@@ -11,17 +11,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { createErrorResponse } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getCostSummary } from '@/lib/ai/batch-processor'
 import cacheManager, { CacheTTL } from '@/lib/cache/cache-manager'
 
 export async function GET(request: NextRequest) {
   try {
-    const tenantId = request.nextUrl.searchParams.get('tenantId')
+    // Authenticate and validate tenant access
+    const auth = await requireAuth(request)
+    if (isErrorResponse(auth)) return auth
 
-    if (!tenantId) {
-      return createValidationError('tenantId query parameter is required')
-    }
+    const { tenantId } = auth
 
     // Cache cost stats for 5 minutes
     const cacheKey = `cost-stats:${tenantId}`

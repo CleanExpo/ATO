@@ -1,12 +1,30 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse } from '@/lib/api/errors'
+import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
-// GET /api/xero/organizations - List connected organizations
-// Single-user mode: Returns all connections without user filtering
-export async function GET() {
+// GET /api/xero/organizations - List connected organizations for authenticated user
+export async function GET(request: NextRequest) {
     try {
+        // Authenticate user (returns all orgs user has access to)
+        const auth = await requireAuthOnly(request)
+        if (isErrorResponse(auth)) return auth
+
+        const { user } = auth
         const supabase = await createServiceClient()
+
+        // Only return connections the user has access to
+        const { data: userAccess } = await supabase
+            .from('user_tenant_access')
+            .select('tenant_id')
+            .eq('user_id', user.id)
+
+        const tenantIds = userAccess?.map(a => a.tenant_id) || []
+
+        // If user has no tenant access, return empty list
+        if (tenantIds.length === 0) {
+            return NextResponse.json({ connections: [] })
+        }
 
         const { data: connections, error } = await supabase
             .from('xero_connections')
@@ -21,6 +39,7 @@ export async function GET() {
         connected_at,
         updated_at
       `)
+            .in('tenant_id', tenantIds)
             .order('connected_at', { ascending: false })
 
         if (error) {

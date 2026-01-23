@@ -16,6 +16,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
+import { requireTenantAccess, createForbiddenResponse } from '@/lib/auth/tenant-guard'
 import { getSyncStatus } from '@/lib/xero/historical-fetcher'
 
 export async function GET(
@@ -23,11 +25,19 @@ export async function GET(
     { params }: { params: Promise<{ tenantId: string }> }
 ) {
     try {
+        // Authenticate user
+        const auth = await requireAuthOnly(request)
+        if (isErrorResponse(auth)) return auth
+
         const { tenantId } = await params
 
         if (!tenantId) {
             return createValidationError('tenantId parameter is required')
         }
+
+        // Validate tenant access
+        const tenantCheck = await requireTenantAccess(auth.supabase, auth.user.id, tenantId)
+        if (tenantCheck instanceof NextResponse) return tenantCheck
 
         console.log(`Getting sync status for tenant ${tenantId}`)
 

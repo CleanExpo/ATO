@@ -1,15 +1,16 @@
-import { createClient } from '@supabase/supabase-js'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
+import { createServiceClient } from '@/lib/supabase/server'
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const agentId = searchParams.get('agentId')
-  const limit = parseInt(searchParams.get('limit') || '100')
+export async function GET(request: NextRequest) {
+  // Authenticate user
+  const auth = await requireAuthOnly(request)
+  if (isErrorResponse(auth)) return auth
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  const agentId = request.nextUrl.searchParams.get('agentId')
+  const limit = parseInt(request.nextUrl.searchParams.get('limit') || '100')
+
+  const supabase = await createServiceClient()
 
   try {
     let query = supabase
@@ -41,11 +42,12 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+export async function POST(request: NextRequest) {
+  // Authenticate user
+  const auth = await requireAuthOnly(request)
+  if (isErrorResponse(auth)) return auth
+
+  const supabase = await createServiceClient()
 
   try {
     const body = await request.json()

@@ -5,10 +5,20 @@
  * This is a one-time endpoint.
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+    // Authenticate user (admin check should be added for production)
+    const auth = await requireAuthOnly(request)
+    if (isErrorResponse(auth)) return auth
+
+    // TODO: Add admin role check here
+    // if (auth.user.role !== 'admin') {
+    //     return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
+    // }
+
     try {
         const supabase = await createServiceClient()
         
@@ -48,7 +58,11 @@ ADD COLUMN IF NOT EXISTS analyzed_at timestamptz DEFAULT NULL;
     }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    // Authenticate user (admin check should be added for production)
+    const auth = await requireAuthOnly(request)
+    if (isErrorResponse(auth)) return auth
+
     try {
         const supabase = await createServiceClient()
         

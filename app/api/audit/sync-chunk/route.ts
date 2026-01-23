@@ -26,6 +26,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getFinancialYears } from '@/lib/types'
 import type { TokenSet } from 'xero-node'
 
@@ -81,16 +82,15 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
 
 export async function POST(request: NextRequest) {
     const startTime = Date.now()
-    
+
     try {
+        // Authenticate and validate tenant access (tenantId from body)
+        const auth = await requireAuth(request, { tenantIdSource: 'body' })
+        if (isErrorResponse(auth)) return auth
+
+        const { tenantId } = auth
         const baseUrl = request.nextUrl.origin
         const body = await request.json()
-
-        // Validate required fields
-        const tenantId = body.tenantId
-        if (!tenantId || typeof tenantId !== 'string') {
-            return createValidationError('tenantId is required')
-        }
 
         // Get financial years
         const financialYears = getFinancialYears().slice(0, 5) // Last 5 years
@@ -288,12 +288,11 @@ function calculateProgress(
 
 // GET endpoint to check sync status
 export async function GET(request: NextRequest) {
-    const tenantId = request.nextUrl.searchParams.get('tenantId')
-    
-    if (!tenantId) {
-        return createValidationError('tenantId query parameter is required')
-    }
+    // Authenticate and validate tenant access
+    const auth = await requireAuth(request)
+    if (isErrorResponse(auth)) return auth
 
+    const { tenantId } = auth
     const supabase = await createServiceClient()
     
     const { data: status } = await supabase

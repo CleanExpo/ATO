@@ -1,24 +1,17 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { generatePDF, generateClientPDF } from '@/lib/reports/pdf-generator'
-import { createClient } from '@supabase/supabase-js'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const tenantId = searchParams.get('tenantId')
-  const type = searchParams.get('type') || 'technical' // 'technical' or 'client'
+export async function GET(request: NextRequest) {
+  // Authenticate and validate tenant access
+  const auth = await requireAuth(request)
+  if (isErrorResponse(auth)) return auth
 
-  if (!tenantId) {
-    return NextResponse.json({ error: 'tenantId required' }, { status: 400 })
-  }
+  const { tenantId, supabase } = auth
+  const type = request.nextUrl.searchParams.get('type') || 'technical' // 'technical' or 'client'
 
   try {
     console.log(`Generating ${type} PDF for tenant: ${tenantId}`)
-
-    // Fetch organization details from Xero connection
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
 
     const { data: xeroOrg } = await supabase
       .from('xero_connections')

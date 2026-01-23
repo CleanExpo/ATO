@@ -1,25 +1,18 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const tenantId = searchParams.get('tenantId')
+export async function GET(request: NextRequest) {
+  // Authenticate and validate tenant access
+  const auth = await requireAuth(request)
+  if (isErrorResponse(auth)) return auth
 
-  if (!tenantId) {
-    return NextResponse.json({ error: 'tenantId required' }, { status: 400 })
-  }
+  const { tenantId, supabase } = auth
 
   try {
     console.log(`Generating amendment schedules for tenant: ${tenantId}`)
 
     // Import puppeteer for PDF generation
     const puppeteer = await import('puppeteer')
-
-    // Fetch organization details
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
 
     const { data: xeroOrg } = await supabase
       .from('xero_connections')
@@ -40,8 +33,9 @@ export async function GET(request: Request) {
       .limit(50)
 
     // Group by financial year
-    const byYear: Record<string, any[]> = {}
-    recommendations?.forEach(rec => {
+    type Recommendation = { financial_year?: string; priority?: string; recommendation_text?: string; claimable_amount?: number; deadline?: string }
+    const byYear: Record<string, Recommendation[]> = {}
+    recommendations?.forEach((rec: Recommendation) => {
       const year = rec.financial_year || 'Unknown'
       if (!byYear[year]) {
         byYear[year] = []
@@ -85,7 +79,7 @@ export async function GET(request: Request) {
     <h3 style="margin-top: 0;">Summary of Amendments</h3>
     <p>Total amendments identified: ${recommendations?.length || 0}</p>
     <p>Financial years affected: ${Object.keys(byYear).length}</p>
-    <p>Total estimated benefit: $${recommendations?.reduce((sum, r) => sum + (r.claimable_amount || 0), 0).toLocaleString()}</p>
+    <p>Total estimated benefit: $${recommendations?.reduce((sum: number, r: Recommendation) => sum + (r.claimable_amount || 0), 0).toLocaleString()}</p>
   </div>
 
   ${Object.entries(byYear).sort(([a], [b]) => b.localeCompare(a)).map(([year, recs]) => `

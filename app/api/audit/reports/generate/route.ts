@@ -23,19 +23,20 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { generatePDFReportData, generatePDFReportHTML } from '@/lib/reports/pdf-generator'
 import { generateExcelWorkbookData, exportWorkbookAsCSVZip } from '@/lib/reports/excel-generator'
 import { generateAmendmentSchedules, generateAmendmentSummaryText } from '@/lib/reports/amendment-schedules'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { tenantId, format, organizationName, abn } = body
+    // Authenticate and validate tenant access (tenantId from body)
+    const auth = await requireAuth(request, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
 
-    // Validate required fields
-    if (!tenantId) {
-      return createValidationError('tenantId is required')
-    }
+    const { tenantId } = auth
+    const body = await request.json()
+    const { format, organizationName, abn } = body
 
     if (!format) {
       return createValidationError('format is required')

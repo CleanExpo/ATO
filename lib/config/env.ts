@@ -117,12 +117,34 @@ function validateSharedConfig() {
   };
 }
 
-// Export validated configurations
-// These will throw ConfigurationError at module load if misconfigured
+// Export validated configurations lazily
+// Validation only happens when config is first accessed, not at module load
+// This allows builds to succeed even without all env vars present
 
-export const serverConfig = validateServerConfig();
-export const clientConfig = validateClientConfig();
-export const sharedConfig = validateSharedConfig();
+let _serverConfig: ReturnType<typeof validateServerConfig> | null = null;
+let _clientConfig: ReturnType<typeof validateClientConfig> | null = null;
+let _sharedConfig: ReturnType<typeof validateSharedConfig> | null = null;
+
+export const serverConfig = new Proxy({} as ReturnType<typeof validateServerConfig>, {
+  get(_, prop) {
+    if (!_serverConfig) _serverConfig = validateServerConfig();
+    return _serverConfig[prop as keyof typeof _serverConfig];
+  }
+});
+
+export const clientConfig = new Proxy({} as ReturnType<typeof validateClientConfig>, {
+  get(_, prop) {
+    if (!_clientConfig) _clientConfig = validateClientConfig();
+    return _clientConfig[prop as keyof typeof _clientConfig];
+  }
+});
+
+export const sharedConfig = new Proxy({} as ReturnType<typeof validateSharedConfig>, {
+  get(_, prop) {
+    if (!_sharedConfig) _sharedConfig = validateSharedConfig();
+    return _sharedConfig[prop as keyof typeof _sharedConfig];
+  }
+});
 
 // Optional configuration (with defaults)
 export const optionalConfig = {
