@@ -27,13 +27,25 @@ import {
 } from '@/lib/recommendations/recommendation-engine'
 import cacheManager, { CacheKeys, CacheTTL } from '@/lib/cache/cache-manager'
 
+// Single-user mode: Skip auth and use tenantId directly
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate and validate tenant access
-    const auth = await requireAuth(request)
-    if (isErrorResponse(auth)) return auth
+    let tenantId: string
 
-    const { tenantId } = auth
+    if (SINGLE_USER_MODE) {
+      // Single-user mode: Get tenantId from query
+      tenantId = request.nextUrl.searchParams.get('tenantId') || ''
+      if (!tenantId) {
+        return createValidationError('tenantId is required')
+      }
+    } else {
+      // Multi-user mode: Authenticate and validate tenant access
+      const auth = await requireAuth(request)
+      if (isErrorResponse(auth)) return auth
+      tenantId = auth.tenantId
+    }
     const priority = request.nextUrl.searchParams.get('priority') as Priority | null
     const taxArea = request.nextUrl.searchParams.get('taxArea') as TaxArea | null
     const startYear = request.nextUrl.searchParams.get('startYear') || undefined
