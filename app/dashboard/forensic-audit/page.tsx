@@ -1,945 +1,447 @@
 /**
- * Enhanced Forensic Audit Dashboard
+ * Simplified Forensic Audit Landing Page
  *
- * Features:
- * - Multi-year analysis progress visualization
- * - Live opportunity counters by tax area
- * - Real-time charts showing findings
- * - Activity feed with recent discoveries
- * - Dual-format view (Client vs Accountant)
+ * 3 Simple Cards: Start → Analysis → Report
+ * All work happens in background. After Report complete, go to advanced page.
  */
 
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Beaker, TrendingDown, Building2, AlertCircle, CheckCircle, Clock } from 'lucide-react'
-import { MobileNav } from '@/components/ui/MobileNav'
-import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
-import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
-import LiveChart from '@/components/dashboard/LiveChart'
-import ActivityFeed, { ActivityItem } from '@/components/dashboard/ActivityFeed'
-import FormatToggleWrapper from '@/components/dashboard/FormatToggleWrapper'
 import {
-  transformForensicAuditToClientView,
-  type ForensicAuditResult
-} from '@/lib/utils/client-view-transformer'
+  PlayCircle,
+  Loader2,
+  FileText,
+  CheckCircle2,
+  ArrowRight,
+  Sparkles
+} from 'lucide-react'
 
-interface YearProgress {
-  status: 'complete' | 'analyzing' | 'queued' | 'idle'
-  progress?: number
-  transactions?: number
-  currentTransaction?: number
+type Stage = 'idle' | 'syncing' | 'analyzing' | 'complete'
+
+interface ProgressData {
+  stage: Stage
+  syncProgress: number
+  analysisProgress: number
+  transactionsSynced: number
+  transactionsAnalyzed: number
+  totalTransactions: number
+  totalBenefit: number
 }
 
-interface DashboardData {
-  syncStatus: {
-    status: 'idle' | 'syncing' | 'complete' | 'error'
-    progress: number
-    transactionsSynced: number
-    totalTransactions: number
-    lastSyncAt?: string
-  }
-  analysisStatus: {
-    status: 'idle' | 'analyzing' | 'complete' | 'error'
-    progress: number
-    transactionsAnalyzed: number
-    totalTransactions: number
-  }
-  recommendations: {
-    totalAdjustedBenefit: number
-    byTaxArea: {
-      rnd: number
-      deductions: number
-      losses: number
-      div7a: number
-    }
-    byPriority: {
-      critical: number
-      high: number
-      medium: number
-      low: number
-    }
-    criticalRecommendations: Array<{
-      id: string
-      action: string
-      adjustedBenefit: number
-      deadline: string
-    }>
-  }
-  yearProgress?: Record<string, YearProgress>
-  currentYear?: string
-}
-
-export default function ForensicAuditDashboardEnhanced() {
-  const _router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState<DashboardData | null>(null)
-  const [error, setError] = useState<string | null>(null)
+export default function ForensicAuditLanding() {
+  const router = useRouter()
   const [tenantId, setTenantId] = useState<string | null>(null)
-  const [activities, setActivities] = useState<ActivityItem[]>([])
-  const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null)
-  const [opportunitiesByYear, setOpportunitiesByYear] = useState<Array<{name: string, value: number}>>([])
+  const [progress, setProgress] = useState<ProgressData>({
+    stage: 'idle',
+    syncProgress: 0,
+    analysisProgress: 0,
+    transactionsSynced: 0,
+    transactionsAnalyzed: 0,
+    totalTransactions: 0,
+    totalBenefit: 0
+  })
+  const [isPolling, setIsPolling] = useState(false)
 
-
+  // Fetch tenant ID on mount
   useEffect(() => {
     fetchTenantId()
   }, [])
 
+  // Check current status when tenant loaded
   useEffect(() => {
     if (tenantId) {
-      loadDashboardData()
+      checkCurrentStatus()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
-
-  // Fetch real opportunities by year data
-  useEffect(() => {
-    async function loadOpportunities() {
-      if (!tenantId) return
-
-      try {
-        const res = await fetch(`/api/audit/opportunities-by-year?tenantId=${tenantId}`)
-        if (!res.ok) {
-          console.error('Failed to fetch opportunities by year')
-          return
-        }
-
-        const result = await res.json()
-        setOpportunitiesByYear(result.opportunities || [])
-      } catch (error) {
-        console.error('Failed to load opportunities by year:', error)
-      }
-    }
-
-    loadOpportunities()
-  }, [tenantId, data?.analysisStatus.status])
-
-  const addActivity = (activity: ActivityItem) => {
-    setActivities(prev => [...prev, activity])
-  }
 
   async function fetchTenantId() {
     try {
       const response = await fetch('/api/xero/organizations')
       const data = await response.json()
-
       if (data.connections && data.connections.length > 0) {
         setTenantId(data.connections[0].tenant_id)
-      } else {
-        setError('No Xero connections found. Please connect your Xero account first.')
       }
     } catch (err) {
       console.error('Failed to fetch tenant ID:', err)
-      setError('Failed to load Xero connection')
     }
   }
 
-  const loadDashboardData = useCallback(async () => {
+  const checkCurrentStatus = useCallback(async () => {
     if (!tenantId) return
 
     try {
-      setLoading(true)
-      setError(null)
-
-      // Fetch all data in parallel
-      const [syncResponse, analysisResponse, recommendationsResponse] = await Promise.all([
+      const [syncRes, analysisRes, recRes] = await Promise.all([
         fetch(`/api/audit/sync-status/${tenantId}`),
         fetch(`/api/audit/analysis-status/${tenantId}`),
         fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
       ])
 
-      const syncData = await syncResponse.json()
-      const analysisData = await analysisResponse.json()
-      const recommendationsData = await recommendationsResponse.json()
+      const syncData = await syncRes.json()
+      const analysisData = await analysisRes.json()
+      const recData = await recRes.json()
 
-      setData({
-        syncStatus: {
-          status: syncData.status,
-          progress: syncData.progress || 0,
-          transactionsSynced: syncData.transactionsSynced || 0,
-          totalTransactions: syncData.totalEstimated || syncData.totalTransactions || 12236,
-          lastSyncAt: syncData.lastSyncAt
-        },
-        analysisStatus: {
-          status: analysisData.status,
-          progress: analysisData.progress || 0,
-          transactionsAnalyzed: analysisData.transactionsAnalyzed || 0,
-          totalTransactions: analysisData.totalTransactions || 12236
-        },
-        recommendations: recommendationsData.summary || {
-          totalAdjustedBenefit: 0,
-          byTaxArea: { rnd: 0, deductions: 0, losses: 0, div7a: 0 },
-          byPriority: { critical: 0, high: 0, medium: 0, low: 0 },
-          criticalRecommendations: []
-        },
-        yearProgress: analysisData.yearProgress,
-        currentYear: analysisData.currentYear
-      })
-
-      // Add activity
-      if (analysisData.status === 'analyzing') {
-        addActivity({
-          id: Date.now().toString(),
-          timestamp: new Date(),
-          message: `Analyzing ${analysisData.currentYear || 'transactions'}...`,
-          type: 'info'
-        })
+      let stage: Stage = 'idle'
+      if (analysisData.status === 'complete') {
+        stage = 'complete'
+      } else if (analysisData.status === 'analyzing') {
+        stage = 'analyzing'
+      } else if (syncData.status === 'syncing') {
+        stage = 'syncing'
+      } else if (syncData.status === 'complete') {
+        stage = 'analyzing' // Ready for analysis
       }
+
+      setProgress({
+        stage,
+        syncProgress: syncData.progress || 0,
+        analysisProgress: analysisData.progress || 0,
+        transactionsSynced: syncData.transactionsSynced || 0,
+        transactionsAnalyzed: analysisData.transactionsAnalyzed || 0,
+        totalTransactions: syncData.totalEstimated || analysisData.totalTransactions || 12000,
+        totalBenefit: recData.summary?.totalAdjustedBenefit || 0
+      })
     } catch (err) {
-      console.error('Failed to load dashboard data:', err)
-      setError('Failed to load dashboard data')
-    } finally {
-      setLoading(false)
+      console.error('Failed to check status:', err)
     }
   }, [tenantId])
 
-  async function startHistoricalSync() {
+  // Polling for progress updates
+  useEffect(() => {
+    if (!isPolling || !tenantId) return
+
+    const interval = setInterval(checkCurrentStatus, 5000)
+    return () => clearInterval(interval)
+  }, [isPolling, tenantId, checkCurrentStatus])
+
+  async function handleStart() {
     if (!tenantId) return
 
-    addActivity({
-      id: Date.now().toString(),
-      timestamp: new Date(),
-      message: 'Starting 5-year historical data sync...',
-      type: 'info'
-    })
+    setProgress(p => ({ ...p, stage: 'syncing' }))
+    setIsPolling(true)
 
     try {
-      const response = await fetch('/api/audit/sync-historical', {
+      // Start historical sync
+      await fetch('/api/audit/sync-historical', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId, years: 5 })
       })
 
-      if (response.ok) {
-        pollSyncProgress()
-      }
+      // Poll until sync complete, then start analysis
+      pollUntilComplete()
     } catch (err) {
-      console.error('Failed to start sync:', err)
-      setError('Failed to start historical sync')
+      console.error('Failed to start:', err)
     }
   }
 
-  async function startAnalysis() {
+  async function pollUntilComplete() {
     if (!tenantId) return
 
-    addActivity({
-      id: Date.now().toString(),
-      timestamp: new Date(),
-      message: 'Starting AI forensic analysis...',
-      type: 'info'
-    })
+    const poll = async () => {
+      const syncRes = await fetch(`/api/audit/sync-status/${tenantId}`)
+      const syncData = await syncRes.json()
 
-    try {
-      const response = await fetch('/api/audit/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId })
-      })
-
-      if (response.ok) {
-        pollAnalysisProgress()
-      }
-    } catch (err) {
-      console.error('Failed to start analysis:', err)
-      setError('Failed to start AI analysis')
-    }
-  }
-
-  // Download handler functions
-  async function downloadClientReport() {
-    if (!tenantId) {
-      alert('Please connect to Xero first')
-      return
-    }
-
-    try {
-      const res = await fetch(`/api/reports/download-pdf?tenantId=${tenantId}&type=client`)
-      if (!res.ok) throw new Error('Failed to generate report')
-
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `client-report-${tenantId}-${Date.now()}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      addActivity({
-        id: Date.now().toString(),
-        timestamp: new Date(),
-        message: 'Client report downloaded successfully',
-        type: 'success'
-      })
-    } catch (error) {
-      console.error('Download failed:', error)
-      alert('Failed to download report: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    }
-  }
-
-  async function downloadTechnicalPDF() {
-    if (!tenantId) {
-      alert('Please connect to Xero first')
-      return
-    }
-
-    try {
-      const res = await fetch(`/api/reports/download-pdf?tenantId=${tenantId}&type=technical`)
-      if (!res.ok) throw new Error('Failed to generate PDF')
-
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `technical-report-${tenantId}-${Date.now()}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      addActivity({
-        id: Date.now().toString(),
-        timestamp: new Date(),
-        message: 'Technical PDF downloaded successfully',
-        type: 'success'
-      })
-    } catch (error) {
-      console.error('Download failed:', error)
-      alert('Failed to download PDF: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    }
-  }
-
-  async function exportExcelWorkbook() {
-    if (!tenantId) {
-      alert('Please connect to Xero first')
-      return
-    }
-
-    try {
-      const res = await fetch(`/api/reports/download-excel?tenantId=${tenantId}`)
-      if (!res.ok) throw new Error('Failed to generate Excel file')
-
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `forensic-audit-${tenantId}-${Date.now()}.xlsx`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      addActivity({
-        id: Date.now().toString(),
-        timestamp: new Date(),
-        message: 'Excel workbook exported successfully',
-        type: 'success'
-      })
-    } catch (error) {
-      console.error('Export failed:', error)
-      alert('Failed to export Excel: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    }
-  }
-
-  async function downloadAmendmentSchedules() {
-    if (!tenantId) {
-      alert('Please connect to Xero first')
-      return
-    }
-
-    try {
-      const res = await fetch(`/api/reports/amendment-schedules?tenantId=${tenantId}`)
-      if (!res.ok) throw new Error('Failed to generate schedules')
-
-      const blob = await res.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `amendment-schedules-${tenantId}-${Date.now()}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-
-      addActivity({
-        id: Date.now().toString(),
-        timestamp: new Date(),
-        message: 'Amendment schedules downloaded successfully',
-        type: 'success'
-      })
-    } catch (error) {
-      console.error('Download failed:', error)
-      alert('Failed to download schedules: ' + (error instanceof Error ? error.message : 'Unknown error'))
-    }
-  }
-
-  function pollSyncProgress() {
-    const interval = setInterval(async () => {
-      await loadDashboardData()
-
-      if (data?.syncStatus.status === 'complete' || data?.syncStatus.status === 'error') {
-        clearInterval(interval)
-        setPollInterval(null)
-        addActivity({
-          id: Date.now().toString(),
-          timestamp: new Date(),
-          message: `Sync complete! ${data.syncStatus.transactionsSynced} transactions synced`,
-          type: 'success'
+      if (syncData.status === 'complete') {
+        // Start analysis
+        setProgress(p => ({ ...p, stage: 'analyzing' }))
+        await fetch('/api/audit/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId })
         })
+
+        // Poll analysis
+        pollAnalysis()
+      } else {
+        setProgress(p => ({
+          ...p,
+          syncProgress: syncData.progress || 0,
+          transactionsSynced: syncData.transactionsSynced || 0,
+          totalTransactions: syncData.totalEstimated || p.totalTransactions
+        }))
+        setTimeout(poll, 3000)
       }
-    }, 5000)
-
-    setPollInterval(interval)
-  }
-
-  function pollAnalysisProgress() {
-    const interval = setInterval(async () => {
-      await loadDashboardData()
-
-      if (data?.analysisStatus.status === 'complete' || data?.analysisStatus.status === 'error') {
-        clearInterval(interval)
-        setPollInterval(null)
-        addActivity({
-          id: Date.now().toString(),
-          timestamp: new Date(),
-          message: `Analysis complete! Found $${Math.round(data.recommendations.totalAdjustedBenefit / 1000)}k in opportunities`,
-          type: 'success'
-        })
-      }
-    }, 15000)
-
-    setPollInterval(interval)
-  }
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollInterval) clearInterval(pollInterval)
     }
-  }, [pollInterval])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="loading-spinner mx-auto mb-4" />
-          <p className="text-[var(--text-secondary)]">Loading dashboard...</p>
-        </div>
-      </div>
-    )
+    poll()
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="glass-card p-8 max-w-md text-center">
-          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Error</h2>
-          <p className="text-[var(--text-secondary)] mb-4">{error}</p>
-          <button onClick={() => loadDashboardData()} className="btn btn-primary">
-            Retry
-          </button>
-        </div>
-      </div>
-    )
+  async function pollAnalysis() {
+    if (!tenantId) return
+
+    const poll = async () => {
+      const analysisRes = await fetch(`/api/audit/analysis-status/${tenantId}`)
+      const analysisData = await analysisRes.json()
+
+      if (analysisData.status === 'complete') {
+        // Get final results
+        const recRes = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
+        const recData = await recRes.json()
+
+        setProgress(p => ({
+          ...p,
+          stage: 'complete',
+          analysisProgress: 100,
+          transactionsAnalyzed: analysisData.transactionsAnalyzed || 0,
+          totalBenefit: recData.summary?.totalAdjustedBenefit || 0
+        }))
+        setIsPolling(false)
+      } else {
+        setProgress(p => ({
+          ...p,
+          analysisProgress: analysisData.progress || 0,
+          transactionsAnalyzed: analysisData.transactionsAnalyzed || 0
+        }))
+        setTimeout(poll, 5000)
+      }
+    }
+
+    poll()
   }
 
-  const isReady = data?.syncStatus.status === 'complete' && data?.analysisStatus.status === 'complete'
-  const isAnalyzing = data?.analysisStatus.status === 'analyzing'
+  function goToAdvanced() {
+    router.push('/dashboard/forensic-audit/advanced')
+  }
 
-  // Chart data for opportunities by year - now using real data from API
+  const getStepStatus = (step: number) => {
+    const { stage, syncProgress, analysisProgress } = progress
+
+    if (step === 1) {
+      if (stage === 'idle') return 'ready'
+      return 'complete'
+    }
+    if (step === 2) {
+      if (stage === 'idle') return 'pending'
+      if (stage === 'syncing') return 'active'
+      if (stage === 'analyzing') return 'active'
+      return 'complete'
+    }
+    if (step === 3) {
+      if (stage === 'complete') return 'ready'
+      if (stage === 'analyzing' || stage === 'syncing') return 'pending'
+      return 'pending'
+    }
+    return 'pending'
+  }
 
   return (
-    <div className="min-h-screen p-8 pb-24 md:pb-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-8">
+      <div className="max-w-5xl w-full">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">
-            Forensic Tax Audit Dashboard
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span className="text-sm text-emerald-400 font-medium">AI-Powered Tax Analysis</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+            Forensic Tax Audit
           </h1>
-          <p className="text-[var(--text-secondary)]">
-            5-year comprehensive analysis with AI-powered insights
+          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+            Discover hidden tax opportunities in your Xero data with AI-powered analysis
           </p>
         </div>
 
-        {/* Live Progress Cards */}
-        {(data?.syncStatus.status === 'syncing' || data?.analysisStatus.status === 'analyzing') && (
-          <div className="grid lg:grid-cols-2 gap-6 mb-8">
-            {/* Historical Sync Progress */}
-            {data?.syncStatus.status === 'syncing' && (
-              <LiveProgressCard
-                title="Historical Data Sync"
-                value={data.syncStatus.transactionsSynced}
-                total={data.syncStatus.totalTransactions}
-                percentage={data.syncStatus.progress}
-                icon={<Building2 className="w-6 h-6" />}
-                color="xero"
-                subtitle="Fetching 5 years of transaction data"
-                isAnimating={true}
-              />
-            )}
+        {/* 3 Cards */}
+        <div className="grid md:grid-cols-3 gap-6 mb-12">
 
-            {/* AI Analysis Progress */}
-            {data?.analysisStatus.status === 'analyzing' && (
-              <LiveProgressCard
-                title="AI Forensic Analysis"
-                value={data.analysisStatus.transactionsAnalyzed}
-                total={data.analysisStatus.totalTransactions}
-                percentage={data.analysisStatus.progress}
-                icon={<Beaker className="w-6 h-6" />}
-                color="ai"
-                subtitle={`Analyzing ${data.currentYear || 'transactions'}`}
-                isAnimating={true}
-              />
-            )}
+          {/* Card 1: Start */}
+          <StepCard
+            step={1}
+            title="Start"
+            description="Connect your Xero account and begin the 5-year historical data sync"
+            icon={<PlayCircle className="w-8 h-8" />}
+            status={getStepStatus(1)}
+            progress={progress.syncProgress}
+            detail={progress.stage === 'syncing'
+              ? `Syncing ${progress.transactionsSynced.toLocaleString()} transactions...`
+              : progress.transactionsSynced > 0
+                ? `${progress.transactionsSynced.toLocaleString()} transactions synced`
+                : 'Ready to begin'}
+            onAction={progress.stage === 'idle' ? handleStart : undefined}
+            actionLabel="Start Sync"
+          />
+
+          {/* Arrow */}
+          <div className="hidden md:flex items-center justify-center absolute left-1/3 -translate-x-1/2">
+            <ArrowRight className="w-6 h-6 text-slate-600" />
           </div>
-        )}
 
-        {/* Year-by-Year Progress */}
-        {isAnalyzing && data?.yearProgress && (
-          <div className="glass-card p-6 mb-8">
-            <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">
-              Year-by-Year Progress
-            </h3>
-            <div className="space-y-3">
-              {Object.entries(data.yearProgress).map(([year, progress]) => (
-                <div key={year} className="flex items-center gap-4">
-                  <div className="w-32 font-medium text-[var(--text-primary)]">{year}</div>
-                  <div className="flex-1">
-                    {progress.status === 'complete' ? (
-                      <div className="flex items-center gap-2 text-emerald-400">
-                        <CheckCircle className="w-5 h-5" />
-                        <span>Complete ({progress.transactions} transactions)</span>
-                      </div>
-                    ) : progress.status === 'analyzing' ? (
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1">
-                          <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2">
-                            <div
-                              className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-500"
-                              style={{ width: `${progress.progress || 0}%` }}
-                            />
-                          </div>
-                        </div>
-                        <span className="text-sm text-[var(--text-secondary)]">
-                          {progress.currentTransaction} / {progress.transactions}
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-[var(--text-muted)]">
-                        <Clock className="w-5 h-5" />
-                        <span>Queued</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+          {/* Card 2: Analysis */}
+          <StepCard
+            step={2}
+            title="Analysis"
+            description="AI analyzes every transaction for R&D, deductions, and compliance issues"
+            icon={<Loader2 className={`w-8 h-8 ${progress.stage === 'analyzing' ? 'animate-spin' : ''}`} />}
+            status={getStepStatus(2)}
+            progress={progress.analysisProgress}
+            detail={progress.stage === 'analyzing'
+              ? `Analyzing ${progress.transactionsAnalyzed.toLocaleString()} of ${progress.totalTransactions.toLocaleString()}`
+              : progress.transactionsAnalyzed > 0
+                ? `${progress.transactionsAnalyzed.toLocaleString()} transactions analyzed`
+                : 'Waiting for sync'}
+          />
+
+          {/* Card 3: Report */}
+          <StepCard
+            step={3}
+            title="Report"
+            description="View detailed findings, opportunities, and actionable recommendations"
+            icon={<FileText className="w-8 h-8" />}
+            status={getStepStatus(3)}
+            detail={progress.stage === 'complete'
+              ? `$${Math.round(progress.totalBenefit / 1000).toLocaleString()}k in opportunities found`
+              : 'Waiting for analysis'}
+            onAction={progress.stage === 'complete' ? goToAdvanced : undefined}
+            actionLabel="View Report"
+            highlight={progress.stage === 'complete'}
+          />
+        </div>
+
+        {/* Status Bar */}
+        {(progress.stage === 'syncing' || progress.stage === 'analyzing') && (
+          <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-slate-400">
+                {progress.stage === 'syncing' ? 'Syncing historical data...' : 'AI analysis in progress...'}
+              </span>
+              <span className="text-sm font-medium text-white">
+                {progress.stage === 'syncing'
+                  ? `${Math.round(progress.syncProgress)}%`
+                  : `${Math.round(progress.analysisProgress)}%`}
+              </span>
             </div>
-          </div>
-        )}
-
-        {/* Opportunity Counters - Show when analysis is complete */}
-        {isReady && data && (
-          <>
-            {/* Total Opportunity Hero */}
-            <div className="glass-card p-8 mb-8 text-center">
-              <p className="text-[var(--text-muted)] text-sm uppercase tracking-wide mb-2">
-                Total Tax Opportunity
-              </p>
-              <AnimatedCounter
-                value={data.recommendations.totalAdjustedBenefit}
-                format="currency"
-                decimals={2}
-                className="text-5xl font-bold text-emerald-400"
+            <div className="w-full bg-slate-700 rounded-full h-2">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
+                style={{
+                  width: `${progress.stage === 'syncing' ? progress.syncProgress : progress.analysisProgress}%`
+                }}
               />
-              <p className="text-[var(--text-secondary)] text-sm mt-2">
-                Confidence-adjusted benefit
-              </p>
             </div>
-
-            {/* Opportunity Breakdown */}
-            <div className="grid md:grid-cols-4 gap-6 mb-8">
-              <Link href="/dashboard/forensic-audit/rnd">
-                <div className="glass-card p-6 hover:border-purple-500/50 transition-colors cursor-pointer border-l-4 border-l-purple-500">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Beaker className="w-6 h-6 text-purple-400" />
-                    <h3 className="font-semibold text-[var(--text-primary)]">R&D Tax Incentive</h3>
-                  </div>
-                  <AnimatedCounter
-                    value={data.recommendations.byTaxArea.rnd}
-                    format="currency"
-                    decimals={0}
-                    className="text-3xl font-bold text-purple-400"
-                  />
-                  <p className="text-xs text-[var(--text-muted)] mt-2">Division 355 • 43.5% offset</p>
-                </div>
-              </Link>
-
-              <div className="glass-card p-6 border-l-4 border-l-sky-500">
-                <div className="flex items-center gap-3 mb-3">
-                  <TrendingDown className="w-6 h-6 text-sky-400" />
-                  <h3 className="font-semibold text-[var(--text-primary)]">Deductions</h3>
-                </div>
-                <AnimatedCounter
-                  value={data.recommendations.byTaxArea.deductions}
-                  format="currency"
-                  decimals={0}
-                  className="text-3xl font-bold text-sky-400"
-                />
-                <p className="text-xs text-[var(--text-muted)] mt-2">Division 8 • Section 8-1</p>
-              </div>
-
-              <div className="glass-card p-6 border-l-4 border-l-amber-500">
-                <div className="flex items-center gap-3 mb-3">
-                  <TrendingDown className="w-6 h-6 text-amber-400" />
-                  <h3 className="font-semibold text-[var(--text-primary)]">Loss Carry-Forward</h3>
-                </div>
-                <AnimatedCounter
-                  value={data.recommendations.byTaxArea.losses}
-                  format="currency"
-                  decimals={0}
-                  className="text-3xl font-bold text-amber-400"
-                />
-                <p className="text-xs text-[var(--text-muted)] mt-2">Division 36/165</p>
-              </div>
-
-              <div className="glass-card p-6 border-l-4 border-l-red-500">
-                <div className="flex items-center gap-3 mb-3">
-                  <AlertCircle className="w-6 h-6 text-red-400" />
-                  <h3 className="font-semibold text-[var(--text-primary)]">Division 7A</h3>
-                </div>
-                <AnimatedCounter
-                  value={data.recommendations.byTaxArea.div7a}
-                  format="currency"
-                  decimals={0}
-                  className="text-3xl font-bold text-red-400"
-                />
-                <p className="text-xs text-[var(--text-muted)] mt-2">ITAA 1936</p>
-              </div>
-            </div>
-
-            {/* Opportunities Chart */}
-            {opportunitiesByYear.length > 0 && (
-              <div className="mb-8">
-                <LiveChart
-                  data={opportunitiesByYear}
-                  type="bar"
-                  title="Opportunities by Year"
-                  dataKey="value"
-                  height={300}
-                />
-              </div>
-            )}
-
-            {/* Dual-Format Results */}
-            <FormatToggleWrapper
-              clientView={<ClientView data={data} onDownloadReport={downloadClientReport} />}
-              technicalView={
-                <TechnicalView
-                  data={data}
-                  onDownloadPDF={downloadTechnicalPDF}
-                  onExportExcel={exportExcelWorkbook}
-                  onDownloadSchedules={downloadAmendmentSchedules}
-                />
-              }
-              defaultView="accountant"
-            />
-          </>
-        )}
-
-        {/* Activity Feed */}
-        {activities.length > 0 && (
-          <div className="mt-8">
-            <ActivityFeed items={activities} maxItems={20} autoScroll={true} showTimestamps={true} />
-          </div>
-        )}
-
-        {/* Quick Actions - Show when not ready */}
-        {!isReady && (
-          <div className="glass-card p-8 text-center">
-            <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">
-              Ready to Start?
-            </h3>
-            <p className="text-[var(--text-secondary)] mb-4 max-w-xl mx-auto">
-              Run a comprehensive 5-year forensic analysis to discover tax opportunities
+            <p className="text-xs text-slate-500 mt-3 text-center">
+              This runs in the background. You can leave this page and come back later.
             </p>
+          </div>
+        )}
 
-            {/* Cost Estimate - FREE during experimental period */}
-            <div className="glass-card p-4 mb-6 max-w-2xl mx-auto border-emerald-500/30 bg-emerald-500/10">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <h4 className="font-semibold text-emerald-400">Cost Estimate</h4>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-emerald-400 mb-1">$0.00 USD</div>
-                <p className="text-sm text-[var(--text-secondary)] mb-2">
-                  <strong className="text-emerald-400">FREE</strong> - Using Gemini 2.0 Flash (Experimental)
-                </p>
-                <ul className="text-xs text-[var(--text-muted)] space-y-1 text-left max-w-md mx-auto">
-                  <li>• AI analysis: FREE during experimental period</li>
-                  <li>• Data quality scan: FREE</li>
-                  <li>• Historical sync: FREE (Xero API)</li>
-                  <li>• Estimated transactions: ~{data?.analysisStatus.totalTransactions || data?.syncStatus.totalTransactions || 12236}</li>
-                </ul>
-              </div>
-            </div>
-
-            <div className="flex gap-4 justify-center">
-              {data?.syncStatus.status !== 'complete' && (
-                <button onClick={startHistoricalSync} className="btn btn-primary">
-                  Start Historical Sync (FREE)
-                </button>
-              )}
-              {data?.syncStatus.status === 'complete' && data?.analysisStatus.status !== 'complete' && (
-                <button onClick={startAnalysis} className="btn btn-primary">
-                  Start AI Analysis (FREE)
-                </button>
-              )}
-            </div>
+        {/* Success State */}
+        {progress.stage === 'complete' && (
+          <div className="bg-emerald-500/10 rounded-2xl p-8 border border-emerald-500/30 text-center">
+            <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
+            <h3 className="text-2xl font-bold text-white mb-2">Analysis Complete!</h3>
+            <p className="text-4xl font-bold text-emerald-400 mb-4">
+              ${Math.round(progress.totalBenefit / 1000).toLocaleString()}k
+            </p>
+            <p className="text-slate-400 mb-6">in potential tax opportunities discovered</p>
+            <button
+              onClick={goToAdvanced}
+              className="px-8 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-colors"
+            >
+              View Detailed Report →
+            </button>
           </div>
         )}
       </div>
-
-      {/* Mobile Bottom Navigation */}
-      <MobileNav />
     </div>
   )
 }
 
-// Client View Component
-function ClientView({
-  data,
-  onDownloadReport
+// Step Card Component
+function StepCard({
+  step,
+  title,
+  description,
+  icon,
+  status,
+  progress,
+  detail,
+  onAction,
+  actionLabel,
+  highlight
 }: {
-  data: DashboardData
-  onDownloadReport: () => void
+  step: number
+  title: string
+  description: string
+  icon: React.ReactNode
+  status: 'pending' | 'ready' | 'active' | 'complete'
+  progress?: number
+  detail: string
+  onAction?: () => void
+  actionLabel?: string
+  highlight?: boolean
 }) {
-  const forensicResult: ForensicAuditResult = {
-    totalAdjustedBenefit: data.recommendations.totalAdjustedBenefit,
-    byTaxArea: data.recommendations.byTaxArea,
-    byPriority: data.recommendations.byPriority,
-    transactionsAnalyzed: data.analysisStatus.transactionsAnalyzed,
-    yearsAnalyzed: 5
+  const statusStyles = {
+    pending: 'border-slate-700/50 bg-slate-800/30 opacity-60',
+    ready: 'border-slate-600/50 bg-slate-800/50 hover:border-slate-500/50',
+    active: 'border-cyan-500/50 bg-cyan-500/5',
+    complete: 'border-emerald-500/50 bg-emerald-500/5'
   }
 
-  const summary = transformForensicAuditToClientView(forensicResult)
+  const iconStyles = {
+    pending: 'text-slate-600',
+    ready: 'text-slate-400',
+    active: 'text-cyan-400',
+    complete: 'text-emerald-400'
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Headline */}
-      <div className="glass-card p-8 text-center">
-        <div className="text-4xl mb-2">🎯</div>
-        <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-4">
-          {summary.headline}
-        </h2>
-        <p className="text-[var(--text-secondary)] max-w-2xl mx-auto">
-          {summary.whatThisMeans}
-        </p>
+    <div className={`
+      relative rounded-2xl p-6 border transition-all duration-300
+      ${statusStyles[status]}
+      ${highlight ? 'ring-2 ring-emerald-500/50' : ''}
+    `}>
+      {/* Step Number */}
+      <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-slate-900 border-2 border-slate-700 flex items-center justify-center">
+        <span className="text-sm font-bold text-slate-400">{step}</span>
       </div>
 
-      {/* Key Findings */}
-      <div className="glass-card p-6">
-        <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">
-          What We Found
-        </h3>
-        <ul className="space-y-3">
-          {summary.keyFindings.map((finding, index) => (
-            <li key={index} className="flex items-start gap-3">
-              <CheckCircle className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-              <span className="text-[var(--text-secondary)]">{finding}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Opportunity Breakdown */}
-      {summary.issueBreakdown.length > 0 && (
-        <div className="glass-card p-6">
-          <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">
-            Where the Savings Come From
-          </h3>
-          <div className="space-y-3">
-            {summary.issueBreakdown.map((item, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <div
-                  className="w-3 h-3 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
-                <div className="flex-1">
-                  <p className="font-medium text-[var(--text-primary)]">{item.name}</p>
-                  <p className="text-sm text-[var(--text-muted)]">{item.description}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-semibold text-[var(--text-primary)]">
-                    {item.percentage.toFixed(0)}%
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Status Badge */}
+      {status === 'complete' && (
+        <div className="absolute -top-2 -right-2">
+          <CheckCircle2 className="w-6 h-6 text-emerald-400" />
         </div>
       )}
 
-      {/* Next Steps */}
-      <div className="glass-card p-6">
-        <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">
-          Next Steps
-        </h3>
-        <ol className="space-y-3">
-          {summary.nextSteps.map((step, index) => (
-            <li key={index} className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm font-semibold">
-                {index + 1}
-              </span>
-              <span className="text-[var(--text-secondary)]">{step}</span>
-            </li>
-          ))}
-        </ol>
+      {/* Icon */}
+      <div className={`mb-4 ${iconStyles[status]}`}>
+        {icon}
       </div>
 
-      {/* Download Button */}
-      <div className="flex justify-center">
-        <button onClick={onDownloadReport} className="btn btn-primary">
-          Download Client-Friendly Report
-        </button>
-      </div>
-    </div>
-  )
-}
+      {/* Title */}
+      <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
 
-// Technical View Component
-function TechnicalView({
-  data,
-  onDownloadPDF,
-  onExportExcel,
-  onDownloadSchedules
-}: {
-  data: DashboardData
-  onDownloadPDF: () => void
-  onExportExcel: () => void
-  onDownloadSchedules: () => void
-}) {
-  return (
-    <div className="space-y-6">
-      {/* Analysis Summary */}
-      <div className="glass-card p-6">
-        <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">
-          Analysis Summary
-        </h3>
-        <div className="grid md:grid-cols-3 gap-6">
-          <div>
-            <p className="text-sm text-[var(--text-muted)] mb-1">Transactions Analyzed</p>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {data.analysisStatus.transactionsAnalyzed.toLocaleString()}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--text-muted)] mb-1">Years Covered</p>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">5 Years</p>
-          </div>
-          <div>
-            <p className="text-sm text-[var(--text-muted)] mb-1">Critical Items</p>
-            <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {data.recommendations.byPriority.critical}
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Description */}
+      <p className="text-sm text-slate-400 mb-4">{description}</p>
 
-      {/* Tax Area Breakdown */}
-      <div className="glass-card p-6">
-        <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">
-          Opportunities by Tax Area
-        </h3>
-        <div className="space-y-4">
-          <TaxAreaRow
-            label="R&D Tax Incentive (Division 355)"
-            amount={data.recommendations.byTaxArea.rnd}
-            description="43.5% offset on eligible R&D expenditure"
-          />
-          <TaxAreaRow
-            label="General Deductions (Division 8, Section 8-1)"
-            amount={data.recommendations.byTaxArea.deductions}
-            description="Missed business expense deductions"
-          />
-          <TaxAreaRow
-            label="Loss Carry-Forward (Division 36/165)"
-            amount={data.recommendations.byTaxArea.losses}
-            description="Unused tax losses from prior years"
-          />
-          <TaxAreaRow
-            label="Division 7A Compliance (ITAA 1936)"
-            amount={data.recommendations.byTaxArea.div7a}
-            description="Deemed dividend risks to address"
+      {/* Progress Bar (if active) */}
+      {status === 'active' && progress !== undefined && (
+        <div className="w-full bg-slate-700 rounded-full h-1.5 mb-4">
+          <div
+            className="h-full rounded-full bg-cyan-400 transition-all duration-500"
+            style={{ width: `${progress}%` }}
           />
         </div>
-      </div>
+      )}
 
-      {/* Priority Breakdown */}
-      <div className="glass-card p-6">
-        <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-4">
-          Recommendations by Priority
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-red-500/10 rounded-lg border border-red-500/30">
-            <div className="text-3xl font-bold text-red-400">
-              {data.recommendations.byPriority.critical}
-            </div>
-            <div className="text-sm text-[var(--text-muted)]">Critical</div>
-          </div>
-          <div className="text-center p-4 bg-amber-500/10 rounded-lg border border-amber-500/30">
-            <div className="text-3xl font-bold text-amber-400">
-              {data.recommendations.byPriority.high}
-            </div>
-            <div className="text-sm text-[var(--text-muted)]">High</div>
-          </div>
-          <div className="text-center p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
-            <div className="text-3xl font-bold text-yellow-400">
-              {data.recommendations.byPriority.medium}
-            </div>
-            <div className="text-sm text-[var(--text-muted)]">Medium</div>
-          </div>
-          <div className="text-center p-4 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
-            <div className="text-3xl font-bold text-emerald-400">
-              {data.recommendations.byPriority.low}
-            </div>
-            <div className="text-sm text-[var(--text-muted)]">Low</div>
-          </div>
-        </div>
-      </div>
+      {/* Detail */}
+      <p className="text-xs text-slate-500 mb-4">{detail}</p>
 
-      {/* Download Buttons */}
-      <div className="flex gap-4">
-        <button onClick={onDownloadPDF} className="btn btn-primary flex-1">
-          Download Technical PDF
+      {/* Action Button */}
+      {onAction && actionLabel && (
+        <button
+          onClick={onAction}
+          className={`
+            w-full py-2.5 rounded-lg font-medium transition-colors
+            ${highlight
+              ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+              : 'bg-slate-700 hover:bg-slate-600 text-white'}
+          `}
+        >
+          {actionLabel}
         </button>
-        <button onClick={onExportExcel} className="btn btn-secondary flex-1">
-          Export Excel Workbook
-        </button>
-        <button onClick={onDownloadSchedules} className="btn btn-secondary flex-1">
-          Amendment Schedules
-        </button>
-      </div>
-    </div>
-  )
-}
-
-// Helper component
-function TaxAreaRow({ label, amount, description }: { label: string; amount: number; description: string }) {
-  return (
-    <div className="flex items-center justify-between p-4 bg-[var(--bg-tertiary)] rounded-lg">
-      <div>
-        <p className="font-semibold text-[var(--text-primary)]">{label}</p>
-        <p className="text-sm text-[var(--text-muted)]">{description}</p>
-      </div>
-      <div className="text-2xl font-bold text-emerald-400">
-        ${Math.round(amount / 1000)}k
-      </div>
+      )}
     </div>
   )
 }
