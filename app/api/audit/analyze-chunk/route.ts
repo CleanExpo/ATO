@@ -201,14 +201,24 @@ export async function POST(request: NextRequest) {
         console.error('[analyze-chunk] Error:', error)
 
         // Return detailed error for debugging
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        const errorStack = error instanceof Error ? error.stack : undefined
+        let errorMessage: string
+        let errorStack: string | undefined
+
+        if (error instanceof Error) {
+            errorMessage = error.message
+            errorStack = error.stack?.split('\n').slice(0, 5).join('\n')
+        } else if (typeof error === 'object' && error !== null) {
+            // Handle non-Error objects (like Supabase errors)
+            errorMessage = JSON.stringify(error, null, 2)
+        } else {
+            errorMessage = String(error)
+        }
 
         return NextResponse.json({
             success: false,
             error: errorMessage,
             errorType: error instanceof Error ? error.constructor.name : typeof error,
-            stack: errorStack?.split('\n').slice(0, 5).join('\n'),
+            stack: errorStack,
             hint: errorMessage.includes('API key')
                 ? 'Check GOOGLE_AI_API_KEY in Vercel environment variables'
                 : errorMessage.includes('model')
