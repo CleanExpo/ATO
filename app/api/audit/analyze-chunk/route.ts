@@ -289,6 +289,7 @@ async function storeAnalysisResults(
             tenant_id: tenantId,
             transaction_id: analysis.transactionId,
             financial_year: financialYear,
+            analysis_type: 'forensic', // Required NOT NULL column
 
             // Categories
             primary_category: analysis.categories.primary,
