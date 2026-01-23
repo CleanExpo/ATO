@@ -1,8 +1,8 @@
 /**
- * Simplified Forensic Audit Landing Page
+ * Forensic Tax Audit - Vertical Data Stream Design
  *
- * 3 Simple Cards: Start → Analysis → Report
- * All work happens in background. After Report complete, go to advanced page.
+ * Cyber-physical aesthetic with vertical node layout
+ * No boxes, no carousels - just floating nodes connected by a glowing line
  */
 
 'use client'
@@ -10,15 +10,14 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  PlayCircle,
-  Loader2,
-  FileText,
+  Zap,
+  Cpu,
+  FileSearch,
   CheckCircle2,
-  ArrowRight,
-  Sparkles
+  AlertCircle
 } from 'lucide-react'
 
-type Stage = 'idle' | 'syncing' | 'analyzing' | 'complete'
+type Stage = 'idle' | 'syncing' | 'analyzing' | 'complete' | 'error'
 
 interface ProgressData {
   stage: Stage
@@ -28,9 +27,10 @@ interface ProgressData {
   transactionsAnalyzed: number
   totalTransactions: number
   totalBenefit: number
+  error?: string
 }
 
-export default function ForensicAuditLanding() {
+export default function ForensicAuditPage() {
   const router = useRouter()
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [progress, setProgress] = useState<ProgressData>({
@@ -90,7 +90,7 @@ export default function ForensicAuditLanding() {
       } else if (syncData.status === 'syncing') {
         stage = 'syncing'
       } else if (syncData.status === 'complete') {
-        stage = 'analyzing' // Ready for analysis
+        stage = 'analyzing'
       }
 
       setProgress({
@@ -122,17 +122,16 @@ export default function ForensicAuditLanding() {
     setIsPolling(true)
 
     try {
-      // Start historical sync
       await fetch('/api/audit/sync-historical', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tenantId, years: 5 })
       })
 
-      // Poll until sync complete, then start analysis
       pollUntilComplete()
     } catch (err) {
       console.error('Failed to start:', err)
+      setProgress(p => ({ ...p, stage: 'error', error: 'Failed to start sync' }))
     }
   }
 
@@ -140,28 +139,30 @@ export default function ForensicAuditLanding() {
     if (!tenantId) return
 
     const poll = async () => {
-      const syncRes = await fetch(`/api/audit/sync-status/${tenantId}`)
-      const syncData = await syncRes.json()
+      try {
+        const syncRes = await fetch(`/api/audit/sync-status/${tenantId}`)
+        const syncData = await syncRes.json()
 
-      if (syncData.status === 'complete') {
-        // Start analysis
-        setProgress(p => ({ ...p, stage: 'analyzing' }))
-        await fetch('/api/audit/analyze', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tenantId })
-        })
-
-        // Poll analysis
-        pollAnalysis()
-      } else {
-        setProgress(p => ({
-          ...p,
-          syncProgress: syncData.progress || 0,
-          transactionsSynced: syncData.transactionsSynced || 0,
-          totalTransactions: syncData.totalEstimated || p.totalTransactions
-        }))
-        setTimeout(poll, 3000)
+        if (syncData.status === 'complete') {
+          setProgress(p => ({ ...p, stage: 'analyzing' }))
+          await fetch('/api/audit/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tenantId })
+          })
+          pollAnalysis()
+        } else {
+          setProgress(p => ({
+            ...p,
+            syncProgress: syncData.progress || 0,
+            transactionsSynced: syncData.transactionsSynced || 0,
+            totalTransactions: syncData.totalEstimated || p.totalTransactions
+          }))
+          setTimeout(poll, 3000)
+        }
+      } catch (err) {
+        console.error('Polling error:', err)
+        setTimeout(poll, 5000)
       }
     }
 
@@ -172,28 +173,32 @@ export default function ForensicAuditLanding() {
     if (!tenantId) return
 
     const poll = async () => {
-      const analysisRes = await fetch(`/api/audit/analysis-status/${tenantId}`)
-      const analysisData = await analysisRes.json()
+      try {
+        const analysisRes = await fetch(`/api/audit/analysis-status/${tenantId}`)
+        const analysisData = await analysisRes.json()
 
-      if (analysisData.status === 'complete') {
-        // Get final results
-        const recRes = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
-        const recData = await recRes.json()
+        if (analysisData.status === 'complete') {
+          const recRes = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
+          const recData = await recRes.json()
 
-        setProgress(p => ({
-          ...p,
-          stage: 'complete',
-          analysisProgress: 100,
-          transactionsAnalyzed: analysisData.transactionsAnalyzed || 0,
-          totalBenefit: recData.summary?.totalAdjustedBenefit || 0
-        }))
-        setIsPolling(false)
-      } else {
-        setProgress(p => ({
-          ...p,
-          analysisProgress: analysisData.progress || 0,
-          transactionsAnalyzed: analysisData.transactionsAnalyzed || 0
-        }))
+          setProgress(p => ({
+            ...p,
+            stage: 'complete',
+            analysisProgress: 100,
+            transactionsAnalyzed: analysisData.transactionsAnalyzed || 0,
+            totalBenefit: recData.summary?.totalAdjustedBenefit || 0
+          }))
+          setIsPolling(false)
+        } else {
+          setProgress(p => ({
+            ...p,
+            analysisProgress: analysisData.progress || 0,
+            transactionsAnalyzed: analysisData.transactionsAnalyzed || 0
+          }))
+          setTimeout(poll, 5000)
+        }
+      } catch (err) {
+        console.error('Analysis polling error:', err)
         setTimeout(poll, 5000)
       }
     }
@@ -205,243 +210,258 @@ export default function ForensicAuditLanding() {
     router.push('/dashboard/forensic-audit/advanced')
   }
 
-  const getStepStatus = (step: number) => {
-    const { stage, syncProgress, analysisProgress } = progress
+  // Determine node states
+  const getNodeState = (node: 1 | 2 | 3) => {
+    const { stage } = progress
 
-    if (step === 1) {
-      if (stage === 'idle') return 'ready'
+    if (node === 1) {
+      if (stage === 'idle') return 'active'
       return 'complete'
     }
-    if (step === 2) {
-      if (stage === 'idle') return 'pending'
-      if (stage === 'syncing') return 'active'
-      if (stage === 'analyzing') return 'active'
-      return 'complete'
+    if (node === 2) {
+      if (stage === 'syncing' || stage === 'analyzing') return 'active'
+      if (stage === 'complete') return 'complete'
+      return 'inactive'
     }
-    if (step === 3) {
-      if (stage === 'complete') return 'ready'
-      if (stage === 'analyzing' || stage === 'syncing') return 'pending'
-      return 'pending'
+    if (node === 3) {
+      if (stage === 'complete') return 'active'
+      return 'inactive'
     }
-    return 'pending'
+    return 'inactive'
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-8">
-      <div className="max-w-5xl w-full">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 mb-6">
-            <Sparkles className="w-4 h-4 text-emerald-400" />
-            <span className="text-sm text-emerald-400 font-medium">AI-Powered Tax Analysis</span>
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
-            Forensic Tax Audit
-          </h1>
-          <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-            Discover hidden tax opportunities in your Xero data with AI-powered analysis
-          </p>
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 relative overflow-hidden">
+
+      {/* Ambient Background Glow */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-teal-500/5 rounded-full blur-3xl" />
+      </div>
+
+      {/* Header */}
+      <div className="text-center mb-16 relative z-10">
+        <h1 className="text-3xl md:text-4xl font-light tracking-[0.3em] text-white/90 uppercase mb-3">
+          Forensic Audit
+        </h1>
+        <p className="text-sm tracking-[0.2em] text-cyan-400/60 uppercase">
+          AI-Powered Tax Intelligence
+        </p>
+      </div>
+
+      {/* Vertical Data Stream */}
+      <div className="relative z-10 flex flex-col items-center">
+
+        {/* The Glowing Vertical Line */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px">
+          <div className="w-full h-full bg-gradient-to-b from-cyan-400/80 via-teal-400/40 to-teal-400/10" />
+          {/* Animated pulse on the line */}
+          {(progress.stage === 'syncing' || progress.stage === 'analyzing') && (
+            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-cyan-400 to-transparent animate-pulse-down" />
+          )}
         </div>
 
-        {/* 3 Cards */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-
-          {/* Card 1: Start */}
-          <StepCard
-            step={1}
-            title="Start"
-            description="Connect your Xero account and begin the 5-year historical data sync"
-            icon={<PlayCircle className="w-8 h-8" />}
-            status={getStepStatus(1)}
-            progress={progress.syncProgress}
-            detail={progress.stage === 'syncing'
-              ? `Syncing ${progress.transactionsSynced.toLocaleString()} transactions...`
+        {/* Node 1: INITIATE */}
+        <DataNode
+          state={getNodeState(1)}
+          icon={<Zap className="w-5 h-5" />}
+          label="INITIATE"
+          sublabel={
+            progress.stage === 'idle'
+              ? 'Ready to begin 5-year historical sync'
               : progress.transactionsSynced > 0
                 ? `${progress.transactionsSynced.toLocaleString()} transactions synced`
-                : 'Ready to begin'}
-            onAction={progress.stage === 'idle' ? handleStart : undefined}
-            actionLabel="Start Sync"
-          />
+                : 'Sync initiated'
+          }
+          action={progress.stage === 'idle' ? handleStart : undefined}
+          actionLabel="INITIATE SYNC"
+        />
 
-          {/* Arrow */}
-          <div className="hidden md:flex items-center justify-center absolute left-1/3 -translate-x-1/2">
-            <ArrowRight className="w-6 h-6 text-slate-600" />
-          </div>
+        {/* Connector */}
+        <div className="h-20 md:h-28" />
 
-          {/* Card 2: Analysis */}
-          <StepCard
-            step={2}
-            title="Analysis"
-            description="AI analyzes every transaction for R&D, deductions, and compliance issues"
-            icon={<Loader2 className={`w-8 h-8 ${progress.stage === 'analyzing' ? 'animate-spin' : ''}`} />}
-            status={getStepStatus(2)}
-            progress={progress.analysisProgress}
-            detail={progress.stage === 'analyzing'
-              ? `Analyzing ${progress.transactionsAnalyzed.toLocaleString()} of ${progress.totalTransactions.toLocaleString()}`
-              : progress.transactionsAnalyzed > 0
-                ? `${progress.transactionsAnalyzed.toLocaleString()} transactions analyzed`
-                : 'Waiting for sync'}
-          />
+        {/* Node 2: PROCESS */}
+        <DataNode
+          state={getNodeState(2)}
+          icon={<Cpu className="w-5 h-5" />}
+          label="PROCESS"
+          sublabel={
+            progress.stage === 'syncing'
+              ? `Syncing... ${Math.round(progress.syncProgress)}%`
+              : progress.stage === 'analyzing'
+                ? `Analyzing ${progress.transactionsAnalyzed.toLocaleString()} transactions`
+                : 'Awaiting data stream'
+          }
+          progress={
+            progress.stage === 'syncing'
+              ? progress.syncProgress
+              : progress.stage === 'analyzing'
+                ? progress.analysisProgress
+                : undefined
+          }
+        />
 
-          {/* Card 3: Report */}
-          <StepCard
-            step={3}
-            title="Report"
-            description="View detailed findings, opportunities, and actionable recommendations"
-            icon={<FileText className="w-8 h-8" />}
-            status={getStepStatus(3)}
-            detail={progress.stage === 'complete'
-              ? `$${Math.round(progress.totalBenefit / 1000).toLocaleString()}k in opportunities found`
-              : 'Waiting for analysis'}
-            onAction={progress.stage === 'complete' ? goToAdvanced : undefined}
-            actionLabel="View Report"
-            highlight={progress.stage === 'complete'}
-          />
-        </div>
+        {/* Connector */}
+        <div className="h-20 md:h-28" />
 
-        {/* Status Bar */}
-        {(progress.stage === 'syncing' || progress.stage === 'analyzing') && (
-          <div className="bg-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-slate-400">
-                {progress.stage === 'syncing' ? 'Syncing historical data...' : 'AI analysis in progress...'}
-              </span>
-              <span className="text-sm font-medium text-white">
-                {progress.stage === 'syncing'
-                  ? `${Math.round(progress.syncProgress)}%`
-                  : `${Math.round(progress.analysisProgress)}%`}
-              </span>
-            </div>
-            <div className="w-full bg-slate-700 rounded-full h-2">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all duration-500"
-                style={{
-                  width: `${progress.stage === 'syncing' ? progress.syncProgress : progress.analysisProgress}%`
-                }}
-              />
-            </div>
-            <p className="text-xs text-slate-500 mt-3 text-center">
-              This runs in the background. You can leave this page and come back later.
-            </p>
-          </div>
-        )}
+        {/* Node 3: OUTPUT */}
+        <DataNode
+          state={getNodeState(3)}
+          icon={<FileSearch className="w-5 h-5" />}
+          label="OUTPUT"
+          sublabel={
+            progress.stage === 'complete'
+              ? `$${Math.round(progress.totalBenefit / 1000).toLocaleString()}k in opportunities`
+              : 'Awaiting analysis completion'
+          }
+          action={progress.stage === 'complete' ? goToAdvanced : undefined}
+          actionLabel="VIEW REPORT"
+          highlight={progress.stage === 'complete'}
+        />
 
-        {/* Success State */}
-        {progress.stage === 'complete' && (
-          <div className="bg-emerald-500/10 rounded-2xl p-8 border border-emerald-500/30 text-center">
-            <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto mb-4" />
-            <h3 className="text-2xl font-bold text-white mb-2">Analysis Complete!</h3>
-            <p className="text-4xl font-bold text-emerald-400 mb-4">
-              ${Math.round(progress.totalBenefit / 1000).toLocaleString()}k
-            </p>
-            <p className="text-slate-400 mb-6">in potential tax opportunities discovered</p>
-            <button
-              onClick={goToAdvanced}
-              className="px-8 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-colors"
-            >
-              View Detailed Report →
-            </button>
-          </div>
-        )}
       </div>
+
+      {/* Status Readout */}
+      {progress.stage !== 'idle' && progress.stage !== 'complete' && (
+        <div className="mt-16 relative z-10 text-center">
+          <div className="inline-flex items-center gap-3 px-6 py-3 border border-cyan-500/20 bg-cyan-500/5">
+            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span className="text-xs tracking-[0.15em] text-cyan-400/80 uppercase font-mono">
+              {progress.stage === 'syncing' ? 'Data Stream Active' : 'Neural Processing'}
+            </span>
+          </div>
+          <p className="text-xs text-white/30 mt-4 tracking-wide">
+            Process runs in background. Safe to navigate away.
+          </p>
+        </div>
+      )}
+
+      {/* Completion State */}
+      {progress.stage === 'complete' && (
+        <div className="mt-16 relative z-10 text-center">
+          <div className="inline-flex items-center gap-3 px-6 py-3 border border-emerald-500/30 bg-emerald-500/5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs tracking-[0.15em] text-emerald-400/80 uppercase font-mono">
+              Analysis Complete
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Error State */}
+      {progress.stage === 'error' && (
+        <div className="mt-16 relative z-10 text-center">
+          <div className="inline-flex items-center gap-3 px-6 py-3 border border-red-500/30 bg-red-500/5">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+            <span className="text-xs tracking-[0.15em] text-red-400/80 uppercase font-mono">
+              {progress.error || 'Process Error'}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* CSS for pulse animation */}
+      <style jsx>{`
+        @keyframes pulse-down {
+          0% { transform: translateY(-100%); opacity: 1; }
+          100% { transform: translateY(400%); opacity: 0; }
+        }
+        .animate-pulse-down {
+          animation: pulse-down 2s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   )
 }
 
-// Step Card Component
-function StepCard({
-  step,
-  title,
-  description,
+// Data Node Component - Floating text/icon anchored to the vertical line
+function DataNode({
+  state,
   icon,
-  status,
-  progress,
-  detail,
-  onAction,
+  label,
+  sublabel,
+  action,
   actionLabel,
+  progress,
   highlight
 }: {
-  step: number
-  title: string
-  description: string
+  state: 'inactive' | 'active' | 'complete'
   icon: React.ReactNode
-  status: 'pending' | 'ready' | 'active' | 'complete'
-  progress?: number
-  detail: string
-  onAction?: () => void
+  label: string
+  sublabel: string
+  action?: () => void
   actionLabel?: string
+  progress?: number
   highlight?: boolean
 }) {
-  const statusStyles = {
-    pending: 'border-slate-700/50 bg-slate-800/30 opacity-60',
-    ready: 'border-slate-600/50 bg-slate-800/50 hover:border-slate-500/50',
-    active: 'border-cyan-500/50 bg-cyan-500/5',
-    complete: 'border-emerald-500/50 bg-emerald-500/5'
-  }
-
-  const iconStyles = {
-    pending: 'text-slate-600',
-    ready: 'text-slate-400',
-    active: 'text-cyan-400',
-    complete: 'text-emerald-400'
-  }
+  const isActive = state === 'active'
+  const isComplete = state === 'complete'
+  const isInactive = state === 'inactive'
 
   return (
     <div className={`
-      relative rounded-2xl p-6 border transition-all duration-300
-      ${statusStyles[status]}
-      ${highlight ? 'ring-2 ring-emerald-500/50' : ''}
+      relative flex items-center gap-8 transition-all duration-500
+      ${isInactive ? 'opacity-40' : 'opacity-100'}
     `}>
-      {/* Step Number */}
-      <div className="absolute -top-3 -left-3 w-8 h-8 rounded-full bg-slate-900 border-2 border-slate-700 flex items-center justify-center">
-        <span className="text-sm font-bold text-slate-400">{step}</span>
+
+      {/* The Node Marker (on the line) */}
+      <div className={`
+        absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full transition-all duration-300
+        ${isActive ? 'bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.6)]' : ''}
+        ${isComplete ? 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)]' : ''}
+        ${isInactive ? 'bg-white/20 border border-white/10' : ''}
+      `} />
+
+      {/* Left Content */}
+      <div className="w-48 text-right pr-8">
+        <div className={`
+          flex items-center justify-end gap-3 mb-2
+          ${isActive ? 'text-white' : isComplete ? 'text-emerald-400/80' : 'text-white/40'}
+        `}>
+          <span className="text-sm tracking-[0.2em] font-medium uppercase">{label}</span>
+          <div className={isActive ? 'text-cyan-400' : isComplete ? 'text-emerald-400' : 'text-white/30'}>
+            {isComplete ? <CheckCircle2 className="w-5 h-5" /> : icon}
+          </div>
+        </div>
+        <p className={`
+          text-xs tracking-wide
+          ${isActive ? 'text-white/60' : 'text-white/30'}
+        `}>
+          {sublabel}
+        </p>
+
+        {/* Progress indicator */}
+        {progress !== undefined && isActive && (
+          <div className="mt-3 h-px bg-white/10 w-full">
+            <div
+              className="h-full bg-cyan-400 transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Status Badge */}
-      {status === 'complete' && (
-        <div className="absolute -top-2 -right-2">
-          <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-        </div>
-      )}
+      {/* Spacer for the line */}
+      <div className="w-6" />
 
-      {/* Icon */}
-      <div className={`mb-4 ${iconStyles[status]}`}>
-        {icon}
+      {/* Right Content - Action Button */}
+      <div className="w-48 pl-8">
+        {action && actionLabel && (
+          <button
+            onClick={action}
+            className={`
+              group relative px-6 py-2.5 font-mono text-xs tracking-[0.15em] uppercase
+              transition-all duration-200 border
+              ${highlight
+                ? 'border-emerald-400/50 text-emerald-400 hover:bg-emerald-400 hover:text-black'
+                : 'border-white/30 text-white/80 hover:bg-white hover:text-black hover:border-white'
+              }
+            `}
+          >
+            <span className="relative z-10">[ {actionLabel} ]</span>
+          </button>
+        )}
       </div>
-
-      {/* Title */}
-      <h3 className="text-xl font-semibold text-white mb-2">{title}</h3>
-
-      {/* Description */}
-      <p className="text-sm text-slate-400 mb-4">{description}</p>
-
-      {/* Progress Bar (if active) */}
-      {status === 'active' && progress !== undefined && (
-        <div className="w-full bg-slate-700 rounded-full h-1.5 mb-4">
-          <div
-            className="h-full rounded-full bg-cyan-400 transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-
-      {/* Detail */}
-      <p className="text-xs text-slate-500 mb-4">{detail}</p>
-
-      {/* Action Button */}
-      {onAction && actionLabel && (
-        <button
-          onClick={onAction}
-          className={`
-            w-full py-2.5 rounded-lg font-medium transition-colors
-            ${highlight
-              ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
-              : 'bg-slate-700 hover:bg-slate-600 text-white'}
-          `}
-        >
-          {actionLabel}
-        </button>
-      )}
     </div>
   )
 }
