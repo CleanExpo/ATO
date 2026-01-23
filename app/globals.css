@@ -19,6 +19,14 @@
   --color-high: #ea580c;
   --color-medium: #ca8a04;
   --color-low: #16a34a;
+
+  /* Operation Status Colours */
+  --color-op-sync: #0ea5e9;
+  --color-op-analysis: #8b5cf6;
+  --color-op-data-quality: #06b6d4;
+  --color-op-report: #f59e0b;
+  --color-op-success: #10b981;
+  --color-op-error: #ef4444;
   
   /* Light Theme Backgrounds */
   --bg-primary: #ffffff;
@@ -549,6 +557,54 @@ body {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Skeleton Shimmer Animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 0%,
+    var(--bg-secondary) 50%,
+    var(--bg-tertiary) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Operation Status Colours */
+.operation-sync { --operation-colour: #0ea5e9; }
+.operation-analysis { --operation-colour: #8b5cf6; }
+.operation-data-quality { --operation-colour: #06b6d4; }
+.operation-report { --operation-colour: #f59e0b; }
+
+/* Progress Bar Shimmer */
+@keyframes progress-shimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.progress-bar-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: progress-shimmer 2s linear infinite;
 }
 
 /* Avatar */
