@@ -30,6 +30,9 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getFinancialYears } from '@/lib/types'
 import type { TokenSet } from 'xero-node'
 
+// Single-user mode: Skip auth and use tenantId directly
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+
 const PAGE_SIZE = 100
 const TRANSACTION_TYPES = ['BANK', 'ACCPAY', 'ACCREC'] as const
 
@@ -84,13 +87,22 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now()
 
     try {
-        // Authenticate and validate tenant access (tenantId from body)
-        const auth = await requireAuth(request, { tenantIdSource: 'body' })
-        if (isErrorResponse(auth)) return auth
-
-        const { tenantId } = auth
         const baseUrl = request.nextUrl.origin
         const body = await request.json()
+        let tenantId: string
+
+        if (SINGLE_USER_MODE) {
+            // Single-user mode: Get tenantId from body
+            tenantId = body.tenantId
+            if (!tenantId) {
+                return createValidationError('tenantId is required')
+            }
+        } else {
+            // Multi-user mode: Authenticate and validate tenant access
+            const auth = await requireAuth(request, { tenantIdSource: 'body' })
+            if (isErrorResponse(auth)) return auth
+            tenantId = auth.tenantId
+        }
 
         // Get financial years
         const financialYears = getFinancialYears().slice(0, 5) // Last 5 years
@@ -171,11 +183,10 @@ export async function POST(request: NextRequest) {
                         transaction_date: txn.date,
                         financial_year: year,
                         contact_name: txn.contact?.name || null,
-                        amount: txn.total || null,
+                        total_amount: txn.total || null,
                         status: txn.status || null,
-                        raw_data: txn,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
+                        reference: txn.reference || null,
+                        raw_data: txn
                     }
                 })
                 .filter(r => r !== null)
@@ -288,11 +299,20 @@ function calculateProgress(
 
 // GET endpoint to check sync status
 export async function GET(request: NextRequest) {
-    // Authenticate and validate tenant access
-    const auth = await requireAuth(request)
-    if (isErrorResponse(auth)) return auth
+    let tenantId: string
 
-    const { tenantId } = auth
+    if (SINGLE_USER_MODE) {
+        // Single-user mode: Get tenantId from query
+        tenantId = request.nextUrl.searchParams.get('tenantId') || ''
+        if (!tenantId) {
+            return createValidationError('tenantId is required')
+        }
+    } else {
+        // Multi-user mode: Authenticate and validate tenant access
+        const auth = await requireAuth(request)
+        if (isErrorResponse(auth)) return auth
+        tenantId = auth.tenantId
+    }
     const supabase = await createServiceClient()
     
     const { data: status } = await supabase
