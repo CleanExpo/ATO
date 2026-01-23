@@ -14,7 +14,7 @@
 import { XeroClient } from 'xero-node'
 import { createXeroClient, refreshXeroTokens, isTokenExpired } from '@/lib/xero/client'
 import { withRetry } from '@/lib/xero/retry'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getFinancialYears, type FinancialYear } from '@/lib/types'
 
 // Interfaces
@@ -382,7 +382,8 @@ export async function getCachedTransactions(
     tenantId: string,
     financialYear?: string
 ): Promise<HistoricalTransaction[]> {
-    const supabase = await createClient()
+    // Use service client to bypass RLS for server-side operations
+    const supabase = await createServiceClient()
 
     let query = supabase
         .from('historical_transactions_cache')
