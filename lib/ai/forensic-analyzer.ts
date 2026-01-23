@@ -14,8 +14,18 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { optionalConfig } from '@/lib/config/env'
 
-// Initialize Google AI
-const genAI = new GoogleGenerativeAI(optionalConfig.googleAiApiKey)
+// Initialize Google AI lazily to avoid errors when API key is missing
+let genAI: GoogleGenerativeAI | null = null
+
+function getGoogleAI(): GoogleGenerativeAI {
+    if (!optionalConfig.googleAiApiKey) {
+        throw new Error('GOOGLE_AI_API_KEY is not configured. Please add it to your Vercel environment variables.')
+    }
+    if (!genAI) {
+        genAI = new GoogleGenerativeAI(optionalConfig.googleAiApiKey)
+    }
+    return genAI
+}
 
 // Types
 export interface TransactionContext {
@@ -206,7 +216,7 @@ export async function analyzeTransaction(
             .replace('{financialYear}', business.financialYear)
 
         // Call Google AI (Gemini 2.0 Flash Exp - FREE and Available)
-        const model = genAI.getGenerativeModel({
+        const model = getGoogleAI().getGenerativeModel({
             model: 'gemini-2.0-flash-exp', // Using available free model
             generationConfig: {
                 temperature: 0.1, // Ultra-low temperature for maximum consistency and accuracy
