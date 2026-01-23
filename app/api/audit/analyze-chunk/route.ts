@@ -25,7 +25,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
-import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type TransactionContext, type BusinessContext, type ForensicAnalysis } from '@/lib/ai/forensic-analyzer'
+import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext, type BusinessContext, type ForensicAnalysis } from '@/lib/ai/forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 
 export const maxDuration = 60 // Vercel serverless max (Pro plan)
@@ -320,9 +320,6 @@ async function storeAnalysisResults(
             fbt_implications: analysis.complianceFlags.fbtImplications,
             division7a_risk: analysis.complianceFlags.division7aRisk,
             compliance_notes: analysis.complianceFlags.notes,
-
-            // Metadata
-            ai_model: getModelInfo().model,
         }
     })
 
@@ -359,7 +356,6 @@ async function trackAnalysisCost(
     supabase: any
 ): Promise<void> {
     const costEstimate = estimateAnalysisCost(transactionCount)
-    const modelInfo = getModelInfo()
 
     const { error } = await supabase
         .from('ai_analysis_costs')
@@ -371,7 +367,6 @@ async function trackAnalysisCost(
             input_tokens: costEstimate.inputTokens,
             output_tokens: costEstimate.outputTokens,
             estimated_cost_usd: costUSD,
-            ai_model: modelInfo.model,
         })
 
     if (error) {
