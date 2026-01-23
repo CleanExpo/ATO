@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       opportunities: Object.values(byYear).sort((a, b) => a.name.localeCompare(b.name))
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch opportunities by year:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

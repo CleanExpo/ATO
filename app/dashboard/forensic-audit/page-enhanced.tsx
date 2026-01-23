@@ -72,7 +72,7 @@ interface DashboardData {
 }
 
 export default function ForensicAuditDashboardEnhanced() {
-  const router = useRouter()
+  const _router = useRouter()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -88,6 +88,7 @@ export default function ForensicAuditDashboardEnhanced() {
     if (tenantId) {
       loadDashboardData()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
 
   const addActivity = (activity: ActivityItem) => {

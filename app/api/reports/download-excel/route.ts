@@ -17,17 +17,18 @@ export async function GET(request: NextRequest) {
 
     console.log(`Excel generated successfully: ${excelBuffer.length} bytes`)
 
-    return new NextResponse(excelBuffer as any, {
+    return new NextResponse(new Uint8Array(excelBuffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'Content-Disposition': `attachment; filename="forensic-audit-${tenantId}-${Date.now()}.xlsx"`,
         'Content-Length': excelBuffer.length.toString()
       }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Excel generation failed:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to generate Excel file', details: error.message },
+      { error: 'Failed to generate Excel file', details: errorMessage },
       { status: 500 }
     )
   }

@@ -11,7 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
 export async function GET(

@@ -21,7 +21,7 @@ interface CacheStats {
 }
 
 class CacheManager {
-  private cache: Map<string, CacheEntry<any>>
+  private cache: Map<string, CacheEntry<unknown>>
   private stats: {
     hits: number
     misses: number

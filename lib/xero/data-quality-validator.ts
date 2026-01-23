@@ -12,7 +12,7 @@
  */
 
 import { createClient } from '@/lib/supabase/server'
-import { classifyTransaction, type ClassificationResult, type Transaction, type AccountCodeOption } from '@/lib/ai/account-classifier'
+import { classifyTransaction, type Transaction, type AccountCodeOption } from '@/lib/ai/account-classifier'
 import type { HistoricalTransaction } from '@/lib/xero/historical-fetcher'
 
 // Types
@@ -231,7 +231,7 @@ export async function scanForDataQualityIssues(options: ScanOptions): Promise<Sc
  * Check if transaction is in wrong account using AI classifier
  */
 async function checkWrongAccount(
-    txn: any,
+    txn: Record<string, unknown>,
     chartOfAccounts: AccountCodeOption[]
 ): Promise<DataQualityIssue | null> {
     try {
@@ -246,9 +246,9 @@ async function checkWrongAccount(
 
         // Prepare transaction for classification
         const transaction: Transaction = {
-            transactionId: txn.transaction_id,
-            date: txn.transaction_date,
-            description: lineItem.description || txn.contact_name || 'No description',
+            transactionId: txn.transaction_id as string,
+            date: txn.transaction_date as string,
+            description: lineItem.description || (txn.contact_name as string) || 'No description',
             supplier: rawData.contact?.name,
             amount: Math.abs(lineItem.lineAmount),
             currentAccountCode: lineItem.accountCode || '',
@@ -266,7 +266,7 @@ async function checkWrongAccount(
         if (!classification.isCorrect && classification.suggestedAccountCode) {
             return {
                 issueId: crypto.randomUUID(),
-                transactionId: txn.transaction_id,
+                transactionId: txn.transaction_id as string,
                 issueType: 'wrong_account',
                 severity: classification.severity,
                 currentState: {
@@ -283,14 +283,14 @@ async function checkWrongAccount(
                 confidence: classification.confidence,
                 aiReasoning: classification.reasoning,
                 impactAmount: transaction.amount,
-                financialYear: txn.financial_year
+                financialYear: txn.financial_year as string
             }
         }
 
         return null
 
     } catch (error) {
-        console.error(`Error checking account for transaction ${txn.transaction_id}:`, error)
+        console.error(`Error checking account for transaction ${txn.transaction_id as string}:`, error)
         return null
     }
 }
@@ -298,7 +298,7 @@ async function checkWrongAccount(
 /**
  * Check for tax classification errors
  */
-async function checkTaxClassification(txn: any): Promise<DataQualityIssue | null> {
+async function checkTaxClassification(txn: Record<string, unknown>): Promise<DataQualityIssue | null> {
     try {
         const rawData = txn.raw_data as HistoricalTransaction
         const lineItem = rawData.lineItems?.[0]
@@ -318,7 +318,7 @@ async function checkTaxClassification(txn: any): Promise<DataQualityIssue | null
         if (shouldBeGstFree && lineItem.taxType !== 'EXEMPTINPUT' && lineItem.taxType !== 'NONE') {
             return {
                 issueId: crypto.randomUUID(),
-                transactionId: txn.transaction_id,
+                transactionId: txn.transaction_id as string,
                 issueType: 'tax_classification',
                 severity: 'medium',
                 currentState: {
@@ -333,14 +333,14 @@ async function checkTaxClassification(txn: any): Promise<DataQualityIssue | null
                 confidence: 60,  // Conservative confidence
                 aiReasoning: 'Keyword match suggests GST-free treatment',
                 impactAmount: Math.abs(lineItem.lineAmount) * 0.1,  // 10% GST impact
-                financialYear: txn.financial_year
+                financialYear: txn.financial_year as string
             }
         }
 
         return null
 
     } catch (error) {
-        console.error(`Error checking tax classification for transaction ${txn.transaction_id}:`, error)
+        console.error(`Error checking tax classification for transaction ${txn.transaction_id as string}:`, error)
         return null
     }
 }
@@ -348,7 +348,7 @@ async function checkTaxClassification(txn: any): Promise<DataQualityIssue | null
 /**
  * Check for duplicate transactions
  */
-async function checkForDuplicates(txn: any, allTransactions: any[]): Promise<DataQualityIssue | null> {
+async function checkForDuplicates(txn: Record<string, unknown>, allTransactions: Record<string, unknown>[]): Promise<DataQualityIssue | null> {
     try {
         // Find potential duplicates (same date, amount, description)
         const rawData = txn.raw_data as HistoricalTransaction
@@ -368,7 +368,7 @@ async function checkForDuplicates(txn: any, allTransactions: any[]): Promise<Dat
         if (duplicates.length > 0) {
             return {
                 issueId: crypto.randomUUID(),
-                transactionId: txn.transaction_id,
+                transactionId: txn.transaction_id as string,
                 issueType: 'duplicate',
                 severity: 'high',
                 currentState: {
@@ -376,19 +376,19 @@ async function checkForDuplicates(txn: any, allTransactions: any[]): Promise<Dat
                     amount: Math.abs(rawData.total)
                 },
                 suggestedFix: {
-                    reasoning: `Possible duplicate of transaction(s): ${duplicates.map(d => d.transaction_id).join(', ')}`
+                    reasoning: `Possible duplicate of transaction(s): ${duplicates.map(d => d.transaction_id as string).join(', ')}`
                 },
                 confidence: 75,
                 aiReasoning: 'Same date, amount, and supplier - likely duplicate',
                 impactAmount: Math.abs(rawData.total),
-                financialYear: txn.financial_year
+                financialYear: txn.financial_year as string
             }
         }
 
         return null
 
     } catch (error) {
-        console.error(`Error checking duplicates for transaction ${txn.transaction_id}:`, error)
+        console.error(`Error checking duplicates for transaction ${txn.transaction_id as string}:`, error)
         return null
     }
 }
@@ -396,7 +396,7 @@ async function checkForDuplicates(txn: any, allTransactions: any[]): Promise<Dat
 /**
  * Check for unreconciled transactions
  */
-async function checkUnreconciled(txn: any): Promise<DataQualityIssue | null> {
+async function checkUnreconciled(txn: Record<string, unknown>): Promise<DataQualityIssue | null> {
     try {
         const rawData = txn.raw_data as HistoricalTransaction
 
@@ -404,7 +404,7 @@ async function checkUnreconciled(txn: any): Promise<DataQualityIssue | null> {
         if (txn.transaction_type === 'BANK' && rawData.status !== 'AUTHORISED') {
             return {
                 issueId: crypto.randomUUID(),
-                transactionId: txn.transaction_id,
+                transactionId: txn.transaction_id as string,
                 issueType: 'unreconciled',
                 severity: 'medium',
                 currentState: {
@@ -417,14 +417,14 @@ async function checkUnreconciled(txn: any): Promise<DataQualityIssue | null> {
                 confidence: 80,
                 aiReasoning: 'Transaction status indicates not authorised',
                 impactAmount: Math.abs(rawData.total),
-                financialYear: txn.financial_year
+                financialYear: txn.financial_year as string
             }
         }
 
         return null
 
     } catch (error) {
-        console.error(`Error checking reconciliation for transaction ${txn.transaction_id}:`, error)
+        console.error(`Error checking reconciliation for transaction ${txn.transaction_id as string}:`, error)
         return null
     }
 }
@@ -432,7 +432,7 @@ async function checkUnreconciled(txn: any): Promise<DataQualityIssue | null> {
 /**
  * Fetch chart of accounts for the tenant
  */
-async function fetchChartOfAccounts(tenantId: string): Promise<AccountCodeOption[]> {
+async function fetchChartOfAccounts(_tenantId: string): Promise<AccountCodeOption[]> {
     // In a real implementation, this would fetch from Xero API
     // For now, return a basic chart of accounts
     return [
@@ -516,7 +516,7 @@ async function initializeScanStatus(tenantId: string): Promise<void> {
 /**
  * Update scan status
  */
-async function updateScanStatus(tenantId: string, updates: Record<string, any>): Promise<void> {
+async function updateScanStatus(tenantId: string, updates: Record<string, unknown>): Promise<void> {
     const supabase = await createClient()
 
     await supabase
@@ -528,7 +528,7 @@ async function updateScanStatus(tenantId: string, updates: Record<string, any>):
 /**
  * Get scan status for tenant
  */
-export async function getScanStatus(tenantId: string): Promise<any> {
+export async function getScanStatus(tenantId: string): Promise<Record<string, unknown> | null> {
     const supabase = await createClient()
 
     const { data, error } = await supabase

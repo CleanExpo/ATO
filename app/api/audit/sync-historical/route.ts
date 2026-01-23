@@ -19,7 +19,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
+import { isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { fetchHistoricalTransactions, getSyncStatus } from '@/lib/xero/historical-fetcher'

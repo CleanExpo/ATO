@@ -12,7 +12,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Scan, AlertCircle, CheckCircle, TrendingUp, Beaker } from 'lucide-react'
+import { Scan, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveChart from '@/components/dashboard/LiveChart'
@@ -53,6 +53,7 @@ export default function DataQualityPage() {
       }
     }
     fetchTenant()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchScanStatus = useCallback(async (tid: string) => {

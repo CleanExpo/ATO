@@ -60,7 +60,11 @@ export async function GET() {
   }
 }
 
-function calculateOverallGrade(summaries: any[]): string {
+interface PerformanceSummary {
+    averageDuration: number
+}
+
+function calculateOverallGrade(summaries: PerformanceSummary[]): string {
   if (summaries.length === 0) return 'N/A'
 
   const totalDuration = summaries.reduce((sum, s) => sum + s.averageDuration, 0)

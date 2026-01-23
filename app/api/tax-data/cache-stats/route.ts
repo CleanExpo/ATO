@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server'
 import { getCacheManager } from '@/lib/tax-data/cache-manager'
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
   try {
     const cacheManager = getCacheManager()
     const stats = await cacheManager.getCacheStats()
@@ -25,14 +25,15 @@ export async function GET(request: Request) {
         isExpired: stats.expiresIn === 0,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to get cache stats:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to get cache statistics',
-        message: error.message,
+        message: errorMessage,
       },
       { status: 500 }
     )

@@ -18,7 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
-import { requireTenantAccess, createForbiddenResponse } from '@/lib/auth/tenant-guard'
+import { requireTenantAccess } from '@/lib/auth/tenant-guard'
 import { getAnalysisStatus } from '@/lib/ai/batch-processor'
 
 export async function GET(

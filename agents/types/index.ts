@@ -4,7 +4,7 @@ export interface Finding {
   type: string
   severity: 'low' | 'medium' | 'high' | 'critical'
   description: string
-  details?: any
+  details?: unknown
   timestamp: Date
 }
 
@@ -55,7 +55,7 @@ export abstract class Agent {
     status: 'healthy' | 'warning' | 'error',
     findings: Finding[],
     recommendations: Recommendation[],
-    metadata?: any
+    metadata?: Record<string, unknown>
   ): AgentReport {
     return {
       agentId: this.agentId,
@@ -71,7 +71,7 @@ export abstract class Agent {
     type: string,
     severity: 'low' | 'medium' | 'high' | 'critical',
     description: string,
-    details?: any
+    details?: unknown
   ): Finding {
     return {
       type,

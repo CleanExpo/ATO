@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
 
       console.log(`Amendment schedules generated: ${pdfBuffer.length} bytes`)
 
-      return new NextResponse(Buffer.from(pdfBuffer) as any, {
+      return new NextResponse(Buffer.from(pdfBuffer), {
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="amendment-schedules-${tenantId}-${Date.now()}.pdf"`,
@@ -150,10 +150,11 @@ export async function GET(request: NextRequest) {
     } finally {
       await browser.close()
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Amendment schedules generation failed:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to generate amendment schedules', details: error.message },
+      { error: 'Failed to generate amendment schedules', details: errorMessage },
       { status: 500 }
     )
   }

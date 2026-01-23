@@ -33,17 +33,18 @@ export async function GET(request: NextRequest) {
     console.log(`PDF generated successfully: ${pdfBuffer.length} bytes`)
 
     // Return as downloadable file
-    return new NextResponse(pdfBuffer as any, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': `attachment; filename="${type}-report-${tenantId}-${Date.now()}.pdf"`,
         'Content-Length': pdfBuffer.length.toString()
       }
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('PDF generation failed:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to generate PDF', details: error.message },
+      { error: 'Failed to generate PDF', details: errorMessage },
       { status: 500 }
     )
   }

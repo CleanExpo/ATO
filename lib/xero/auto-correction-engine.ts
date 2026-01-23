@@ -11,7 +11,6 @@
  * - Never touch low-confidence (<70%) - just report
  */
 
-import { XeroClient } from 'xero-node'
 import { createXeroClient, refreshXeroTokens, isTokenExpired } from '@/lib/xero/client'
 import { createClient } from '@/lib/supabase/server'
 import type { DataQualityIssue } from '@/lib/xero/data-quality-validator'
@@ -23,8 +22,8 @@ export interface CorrectionLog {
     issueType: string
     correctionDate: Date
 
-    beforeState: any
-    afterState: any
+    beforeState: Record<string, unknown>
+    afterState: Record<string, unknown>
 
     correctionMethod: 'journal_entry' | 'reclassification' | 'tax_update' | 'reconciliation'
     xeroJournalId?: string
@@ -259,7 +258,9 @@ async function createReclassificationJournal(
 
         // Check if token needs refresh
         let currentAccessToken = accessToken
+         
         if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)) {
+             
             const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)
             currentAccessToken = newTokens.access_token || accessToken
         }
@@ -305,7 +306,7 @@ async function createReclassificationJournal(
 
             return {
                 journalId: createdJournal.manualJournalID || '',
-                journalNumber: (createdJournal as any).reference || ''
+                journalNumber: (createdJournal as unknown as Record<string, unknown>).reference as string || ''
             }
         }
 
@@ -459,7 +460,9 @@ export async function revertCorrection(
             await xero.initialize()
 
             let currentAccessToken = accessToken
+             
             if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)) {
+                 
                 const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)
                 currentAccessToken = newTokens.access_token || accessToken
             }

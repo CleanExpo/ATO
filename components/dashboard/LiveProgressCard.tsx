@@ -101,6 +101,8 @@ export default function LiveProgressCard({
     }
 
     requestAnimationFrame(animate)
+    // displayValue is intentionally excluded - it's managed by the animation loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
   return (

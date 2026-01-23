@@ -120,8 +120,8 @@ export class TaxRatesFetcher {
       const amount = await this.jinaScraper.parseInstantWriteOffThreshold(url)
 
       return { amount, source: url }
-    } catch (error: any) {
-      console.error('  ❌ Failed to fetch instant write-off:', error.message)
+    } catch (error: unknown) {
+      console.error('  ❌ Failed to fetch instant write-off:', error instanceof Error ? error.message : String(error))
       return { amount: null, source: null }
     }
   }
@@ -145,8 +145,8 @@ export class TaxRatesFetcher {
       const rate = await this.jinaScraper.parseHomeOfficeRate(url)
 
       return { rate, source: url }
-    } catch (error: any) {
-      console.error('  ❌ Failed to fetch home office rate:', error.message)
+    } catch (error: unknown) {
+      console.error('  ❌ Failed to fetch home office rate:', error instanceof Error ? error.message : String(error))
       return { rate: null, source: null }
     }
   }
@@ -173,8 +173,8 @@ export class TaxRatesFetcher {
       // For now, use same rate for small business
       // In reality, there are two rates: 18.5% and 43.5%
       return { rate, smallBusinessRate: rate, source: url }
-    } catch (error: any) {
-      console.error('  ❌ Failed to fetch R&D offset rate:', error.message)
+    } catch (error: unknown) {
+      console.error('  ❌ Failed to fetch R&D offset rate:', error instanceof Error ? error.message : String(error))
       return { rate: null, smallBusinessRate: null, source: null }
     }
   }
@@ -203,8 +203,8 @@ export class TaxRatesFetcher {
         standard: rates?.standard || null,
         source: url,
       }
-    } catch (error: any) {
-      console.error('  ❌ Failed to fetch corporate tax rates:', error.message)
+    } catch (error: unknown) {
+      console.error('  ❌ Failed to fetch corporate tax rates:', error instanceof Error ? error.message : String(error))
       return { smallBusiness: null, standard: null, source: null }
     }
   }
@@ -228,8 +228,8 @@ export class TaxRatesFetcher {
       const rate = await this.jinaScraper.parseDivision7ARate(url)
 
       return { rate, source: url }
-    } catch (error: any) {
-      console.error('  ❌ Failed to fetch Division 7A rate:', error.message)
+    } catch (error: unknown) {
+      console.error('  ❌ Failed to fetch Division 7A rate:', error instanceof Error ? error.message : String(error))
       return { rate: null, source: null }
     }
   }

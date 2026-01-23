@@ -28,7 +28,6 @@ import {
   CheckCircle,
   AlertTriangle,
   ArrowRight,
-  Clock,
   Scan,
   Zap
 } from 'lucide-react'
@@ -85,7 +84,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true)
   const [activeConnection, setActiveConnection] = useState<Connection | null>(null)
   const [summary, setSummary] = useState<TransactionsSummary | null>(null)
-  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [_summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
 
   // Live operations state
@@ -93,7 +92,7 @@ function DashboardContent() {
   const [recentCompletions, setRecentCompletions] = useState<RecentCompletion[]>([])
   const [activities, setActivities] = useState<ActivityItem[]>([])
 
-  const addActivity = (activity: ActivityItem) => {
+  const _addActivity = (activity: ActivityItem) => {
     setActivities(prev => [...prev, activity])
   }
 

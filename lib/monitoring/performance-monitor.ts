@@ -11,7 +11,7 @@ interface PerformanceMetric {
   endTime?: number
   duration?: number
   success: boolean
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 interface PerformanceSummary {
@@ -39,7 +39,7 @@ class PerformanceMonitor {
   /**
    * Start tracking a performance metric
    */
-  startOperation(operation: string, metadata?: Record<string, any>): string {
+  startOperation(operation: string, metadata?: Record<string, unknown>): string {
     const id = `${operation}-${Date.now()}-${Math.random()}`
     const metric: PerformanceMetric = {
       operation,
@@ -85,14 +85,14 @@ class PerformanceMonitor {
   async trackOperation<T>(
     operation: string,
     fn: () => Promise<T>,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<T> {
     this.startOperation(operation, metadata)
     try {
       const result = await fn()
       this.endOperation(operation, true)
       return result
-    } catch (error) {
+    } catch (error: unknown) {
       this.endOperation(operation, false)
       throw error
     }
@@ -188,7 +188,7 @@ class PerformanceMonitor {
   /**
    * Export metrics for external monitoring
    */
-  exportMetrics(): Record<string, any> {
+  exportMetrics(): Record<string, unknown> {
     const summaries = this.getAllSummaries()
 
     return {
@@ -209,11 +209,11 @@ export default performanceMonitor
 /**
  * Middleware wrapper for automatic performance tracking
  */
-export function withPerformanceTracking<T extends (...args: any[]) => Promise<any>>(
+export function withPerformanceTracking<T extends (...args: unknown[]) => Promise<unknown>>(
   operation: string,
   fn: T
 ): T {
-  return (async (...args: any[]) => {
+  return (async (...args: unknown[]) => {
     return await performanceMonitor.trackOperation(operation, () => fn(...args))
   }) as T
 }

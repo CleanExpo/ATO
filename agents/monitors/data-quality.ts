@@ -1,8 +1,8 @@
 import { Agent, AgentReport } from '../types'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export class DataQualityAgent extends Agent {
-  private supabase: any
+  private supabase: SupabaseClient
 
   constructor(tenantId: string) {
     super('data-quality', tenantId)
@@ -72,7 +72,9 @@ export class DataQualityAgent extends Agent {
       const recommendations = []
 
       // Check 1: Missing required fields
-      const missingPrimaryCategory = samples.filter((s: any) => !s.primary_category)
+      const missingPrimaryCategory = samples.filter((s: unknown) => {
+        return s && typeof s === 'object' && 'primary_category' in s && !s.primary_category
+      })
       if (missingPrimaryCategory.length > 0) {
         findings.push(
           this.createFinding(
@@ -93,9 +95,10 @@ export class DataQualityAgent extends Agent {
       }
 
       // Check 2: Low confidence scores
-      const lowConfidence = samples.filter((s: any) =>
-        s.rnd_confidence !== null && s.rnd_confidence < 50
-      )
+      const lowConfidence = samples.filter((s: unknown) => {
+        return s && typeof s === 'object' && 'rnd_confidence' in s &&
+               s.rnd_confidence !== null && typeof s.rnd_confidence === 'number' && s.rnd_confidence < 50
+      })
       if (lowConfidence.length > samples.length * 0.3) {
         // More than 30% low confidence
         findings.push(
@@ -120,9 +123,10 @@ export class DataQualityAgent extends Agent {
       }
 
       // Check 3: Missing financial data
-      const missingAmounts = samples.filter((s: any) =>
-        !s.transaction_amount && !s.claimable_amount
-      )
+      const missingAmounts = samples.filter((s: unknown) => {
+        return s && typeof s === 'object' && 'transaction_amount' in s && 'claimable_amount' in s &&
+               !s.transaction_amount && !s.claimable_amount
+      })
       if (missingAmounts.length > 0) {
         findings.push(
           this.createFinding(
@@ -143,13 +147,16 @@ export class DataQualityAgent extends Agent {
       }
 
       // Check 4: R&D candidates without four-element test
-      const rndWithoutTest = samples.filter((s: any) =>
-        s.is_rnd_candidate &&
-        (!s.div355_outcome_unknown ||
-         !s.div355_systematic_approach ||
-         !s.div355_new_knowledge ||
-         !s.div355_scientific_method)
-      )
+      const rndWithoutTest = samples.filter((s: unknown) => {
+        return s && typeof s === 'object' &&
+               'is_rnd_candidate' in s && s.is_rnd_candidate &&
+               'div355_outcome_unknown' in s && 'div355_systematic_approach' in s &&
+               'div355_new_knowledge' in s && 'div355_scientific_method' in s &&
+               (!s.div355_outcome_unknown ||
+                !s.div355_systematic_approach ||
+                !s.div355_new_knowledge ||
+                !s.div355_scientific_method)
+      })
       if (rndWithoutTest.length > 0) {
         findings.push(
           this.createFinding(
@@ -170,10 +177,12 @@ export class DataQualityAgent extends Agent {
       }
 
       // Check 5: Data consistency - claimable amount vs transaction amount
-      const inconsistentAmounts = samples.filter((s: any) =>
-        s.claimable_amount && s.transaction_amount &&
-        s.claimable_amount > s.transaction_amount
-      )
+      const inconsistentAmounts = samples.filter((s: unknown) => {
+        return s && typeof s === 'object' &&
+               'claimable_amount' in s && 'transaction_amount' in s &&
+               typeof s.claimable_amount === 'number' && typeof s.transaction_amount === 'number' &&
+               s.claimable_amount > s.transaction_amount
+      })
       if (inconsistentAmounts.length > 0) {
         findings.push(
           this.createFinding(
@@ -182,11 +191,17 @@ export class DataQualityAgent extends Agent {
             `${inconsistentAmounts.length} transactions have claimable amount > transaction amount`,
             {
               count: inconsistentAmounts.length,
-              examples: inconsistentAmounts.slice(0, 3).map((s: any) => ({
-                id: s.transaction_id,
-                claimable: s.claimable_amount,
-                transaction: s.transaction_amount
-              }))
+              examples: inconsistentAmounts.slice(0, 3).map((s: unknown) => {
+                if (s && typeof s === 'object' && 'transaction_id' in s &&
+                    'claimable_amount' in s && 'transaction_amount' in s) {
+                  return {
+                    id: s.transaction_id,
+                    claimable: s.claimable_amount,
+                    transaction: s.transaction_amount
+                  }
+                }
+                return { id: 'unknown', claimable: 0, transaction: 0 }
+              })
             }
           )
         )
@@ -217,15 +232,18 @@ export class DataQualityAgent extends Agent {
         lastRun: new Date()
       })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorStack = error instanceof Error ? error.stack : undefined
+
       return this.createReport(
         'error',
         [
           this.createFinding(
             'agent-error',
             'critical',
-            `Failed to analyze data quality: ${error.message}`,
-            { error: error.stack }
+            `Failed to analyze data quality: ${errorMessage}`,
+            { error: errorStack }
           )
         ],
         [
@@ -240,11 +258,12 @@ export class DataQualityAgent extends Agent {
     }
   }
 
-  private calculateQualityScore(samples: any[], findings: any[]): number {
+  private calculateQualityScore(samples: unknown[], findings: unknown[]): number {
     // Simple quality score: 100 - (issues * 10)
-    const issueCount = findings.filter(f =>
-      f.severity === 'high' || f.severity === 'critical'
-    ).length
+    const issueCount = findings.filter((f: unknown) => {
+      return f && typeof f === 'object' && 'severity' in f &&
+             (f.severity === 'high' || f.severity === 'critical')
+    }).length
 
     return Math.max(0, 100 - (issueCount * 10))
   }

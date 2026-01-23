@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { serverConfig, sharedConfig } from '@/lib/config/env'
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
         // Generate random state for CSRF protection
         const state = crypto.randomUUID()

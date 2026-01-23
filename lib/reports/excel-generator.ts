@@ -562,7 +562,7 @@ async function fetchTransactionData(tenantId: string): Promise<any[]> {
  */
 export function exportSheetAsCSV(
   sheet: { headers: string[]; data: any[][] },
-  sheetName: string
+  _sheetName: string
 ): string {
   const rows = [sheet.headers, ...sheet.data]
 

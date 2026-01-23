@@ -20,8 +20,7 @@ import {
   BezierContext,
   CouncilContext,
   CubicBezier,
-  SpringConfig,
-  DEFAULT_ANIMATION_CONFIGS
+  SpringConfig
 } from '../types'
 
 export class BezierAdvisor implements Advisor {
@@ -137,7 +136,7 @@ export class BezierAdvisor implements Advisor {
   }
 
   private recommendConfig(context: BezierContext): AnimationConfig {
-    const { animationType, elementType, urgency, currentConfig, targetDistance } = context
+    const { animationType, elementType, urgency, targetDistance } = context
     const guidelines = this.DURATION_GUIDELINES[animationType]
 
     // Determine base duration
@@ -226,7 +225,7 @@ export class BezierAdvisor implements Advisor {
     }
   }
 
-  private validatePhysics(config: AnimationConfig, context: BezierContext): boolean {
+  private validatePhysics(config: AnimationConfig, _context: BezierContext): boolean {
     // Validate spring physics if applicable
     if (config.spring) {
       const { damping, stiffness, mass } = config.spring

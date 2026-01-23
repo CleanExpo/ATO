@@ -70,8 +70,8 @@ export class TaxDataCacheManager {
         cacheHit: true,
         cacheAge,
       }
-    } catch (error: any) {
-      console.error('Failed to get cached rates:', error.message)
+    } catch (error: unknown) {
+      console.error('Failed to get cached rates:', error instanceof Error ? error.message : String(error))
       return null
     }
   }
@@ -100,7 +100,7 @@ export class TaxDataCacheManager {
       const supabase = await createClient()
 
       const { error } = await supabase.from('tax_rates_cache').insert({
-        rates: rates as any, // Store entire rates object as JSONB
+        rates: rates as unknown as Record<string, unknown>, // Store entire rates object as JSONB
         created_at: new Date().toISOString(),
       })
 
@@ -109,8 +109,8 @@ export class TaxDataCacheManager {
       } else {
         console.log('✅ Tax rates cached successfully')
       }
-    } catch (error: any) {
-      console.error('Error caching rates:', error.message)
+    } catch (error: unknown) {
+      console.error('Error caching rates:', error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -131,8 +131,8 @@ export class TaxDataCacheManager {
       } else {
         console.log('✅ Cache cleared')
       }
-    } catch (error: any) {
-      console.error('Error clearing cache:', error.message)
+    } catch (error: unknown) {
+      console.error('Error clearing cache:', error instanceof Error ? error.message : String(error))
     }
   }
 
@@ -166,8 +166,8 @@ export class TaxDataCacheManager {
         cacheAge,
         expiresIn: expiresIn > 0 ? expiresIn : 0,
       }
-    } catch (error: any) {
-      console.error('Failed to get cache stats:', error.message)
+    } catch (error: unknown) {
+      console.error('Failed to get cache stats:', error instanceof Error ? error.message : String(error))
       return { hasCachedData: false }
     }
   }

@@ -12,7 +12,6 @@ import type {
   Operation,
   OperationState,
   OperationAction,
-  OperationType,
   Toast,
   ToastType
 } from './types'

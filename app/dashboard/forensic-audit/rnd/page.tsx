@@ -69,6 +69,7 @@ export default function RndDetailPage() {
     if (tenantId) {
       loadRndData()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
 
   async function loadRndData() {
@@ -87,27 +88,37 @@ export default function RndDetailPage() {
       const apiData = await res.json()
 
       // Transform API data to match the expected interface
+      // Type guard for project data
+      interface ApiProject {
+        avgConfidence?: number
+        transactionCount?: number
+        name?: string
+        category?: string
+        financialYears?: string[]
+        totalSpend?: number
+      }
+
       const transformedData: RndSummary = {
         totalProjects: apiData.totalProjects || 0,
         totalEligibleExpenditure: apiData.totalEligibleExpenditure || 0,
         totalEstimatedOffset: apiData.totalEstimatedOffset || 0,
         averageConfidence: apiData.projects?.length > 0
-          ? apiData.projects.reduce((sum: number, p: any) => sum + (p.avgConfidence || 0), 0) / apiData.projects.length
+          ? apiData.projects.reduce((sum: number, p: ApiProject) => sum + (p.avgConfidence || 0), 0) / apiData.projects.length
           : 0,
-        coreRndTransactions: apiData.projects?.reduce((sum: number, p: any) => sum + (p.transactionCount || 0), 0) || 0,
+        coreRndTransactions: apiData.projects?.reduce((sum: number, p: ApiProject) => sum + (p.transactionCount || 0), 0) || 0,
         supportingRndTransactions: 0, // Not currently tracked, could be added later
-        projects: (apiData.projects || []).map((p: any) => ({
+        projects: (apiData.projects || []).map((p: ApiProject) => ({
           projectName: p.name || 'Unnamed Project',
           projectDescription: `R&D activities in ${p.category}`,
           financialYears: p.financialYears || [],
           totalExpenditure: p.totalSpend || 0,
           eligibleExpenditure: p.totalSpend || 0, // Assuming all spend is eligible for R&D candidates
           estimatedOffset: (p.totalSpend || 0) * (apiData.offsetRate || 0.435),
-          meetsEligibility: p.avgConfidence >= 70,
+          meetsEligibility: (p.avgConfidence || 0) >= 70,
           overallConfidence: Math.round(p.avgConfidence || 0),
           transactionCount: p.transactionCount || 0,
-          registrationDeadline: calculateRegistrationDeadline(p.financialYears),
-          registrationStatus: calculateRegistrationStatus(p.financialYears),
+          registrationDeadline: calculateRegistrationDeadline(p.financialYears || []),
+          registrationStatus: calculateRegistrationStatus(p.financialYears || []),
           recommendations: generateRecommendations(p, apiData.offsetRate)
         }))
       }
@@ -150,9 +161,9 @@ export default function RndDetailPage() {
   }
 
   // Helper function to generate recommendations
-  function generateRecommendations(project: any, offsetRate: number): string[] {
+  function generateRecommendations(project: { avgConfidence?: number; financialYears?: string[] }, _offsetRate: number): string[] {
     const recommendations: string[] = []
-    const status = calculateRegistrationStatus(project.financialYears)
+    const status = calculateRegistrationStatus(project.financialYears || [])
 
     if (status === 'deadline_passed') {
       recommendations.push('⚠️ Registration deadline has passed')
@@ -169,7 +180,7 @@ export default function RndDetailPage() {
     recommendations.push('Maintain technical documentation of development process')
     recommendations.push('Document four-element test compliance for each activity')
 
-    if (project.avgConfidence < 75) {
+    if ((project.avgConfidence ?? 0) < 75) {
       recommendations.push('Consider additional documentation to strengthen R&D claim')
     }
 

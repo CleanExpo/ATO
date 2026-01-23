@@ -14,11 +14,11 @@ import { createServiceClient } from '@/lib/supabase/server'
 
 // Tax rates
 const CORPORATE_TAX_RATE_SMALL = 0.25 // 25% for small business
-const CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% for other companies
+const _CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% for other companies (reserved for future use)
 
 // COT/SBT thresholds
-const COT_OWNERSHIP_THRESHOLD = 0.50 // 50% ownership continuity required
-const SBT_LOOKBACK_YEARS = 3 // Look back 3 years to determine "same business"
+const _COT_OWNERSHIP_THRESHOLD = 0.50 // 50% ownership continuity required (reserved for future use)
+const _SBT_LOOKBACK_YEARS = 3 // Look back 3 years to determine "same business" (reserved for future use)
 
 export interface LossPosition {
   financialYear: string
@@ -243,7 +243,7 @@ function analyzeSingleYearLoss(currentYear: LossPosition, previousYears: LossPos
 /**
  * Analyze Continuity of Ownership Test (COT) and Same Business Test (SBT)
  */
-function analyzeCotSbt(currentYear: LossPosition, previousYears: LossPosition[]): CotSbtAnalysis {
+function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]): CotSbtAnalysis {
   // In a complete implementation, this would:
   // 1. Check shareholder registry for ownership changes
   // 2. Verify 50%+ continuity of ownership

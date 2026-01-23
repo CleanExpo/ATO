@@ -72,7 +72,7 @@ interface DashboardData {
 }
 
 export default function ForensicAuditDashboardEnhanced() {
-  const router = useRouter()
+  const _router = useRouter()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -90,6 +90,7 @@ export default function ForensicAuditDashboardEnhanced() {
     if (tenantId) {
       loadDashboardData()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
 
   // Fetch real opportunities by year data
@@ -272,9 +273,9 @@ export default function ForensicAuditDashboardEnhanced() {
         message: 'Client report downloaded successfully',
         type: 'success'
       })
-    } catch (error: any) {
+    } catch (error) {
       console.error('Download failed:', error)
-      alert('Failed to download report: ' + error.message)
+      alert('Failed to download report: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
 
@@ -304,9 +305,9 @@ export default function ForensicAuditDashboardEnhanced() {
         message: 'Technical PDF downloaded successfully',
         type: 'success'
       })
-    } catch (error: any) {
+    } catch (error) {
       console.error('Download failed:', error)
-      alert('Failed to download PDF: ' + error.message)
+      alert('Failed to download PDF: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
 
@@ -336,9 +337,9 @@ export default function ForensicAuditDashboardEnhanced() {
         message: 'Excel workbook exported successfully',
         type: 'success'
       })
-    } catch (error: any) {
+    } catch (error) {
       console.error('Export failed:', error)
-      alert('Failed to export Excel: ' + error.message)
+      alert('Failed to export Excel: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
 
@@ -368,9 +369,9 @@ export default function ForensicAuditDashboardEnhanced() {
         message: 'Amendment schedules downloaded successfully',
         type: 'success'
       })
-    } catch (error: any) {
+    } catch (error) {
       console.error('Download failed:', error)
-      alert('Failed to download schedules: ' + error.message)
+      alert('Failed to download schedules: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
 

@@ -22,7 +22,7 @@ export interface ActivityItem {
   message: string
   type: 'info' | 'success' | 'warning' | 'error'
   icon?: React.ReactNode
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 interface ActivityFeedProps {

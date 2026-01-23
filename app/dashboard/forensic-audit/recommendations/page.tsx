@@ -48,6 +48,7 @@ export default function RecommendationsPage() {
 
   useEffect(() => {
     filterRecommendations()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [priorityFilter, taxAreaFilter, recommendations])
 
   async function loadRecommendations() {

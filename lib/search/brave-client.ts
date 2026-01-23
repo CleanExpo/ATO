@@ -89,20 +89,24 @@ export class BraveSearchClient {
 
       return {
         query,
-        results: webResults.map((result: any) => ({
-          title: result.title,
-          url: result.url,
-          description: result.description,
-          age: result.age,
-          page_age: result.page_age,
-          language: result.language,
-          family_friendly: result.family_friendly,
-        })),
+        results: webResults.map((result: unknown) => {
+          const r = result as Record<string, unknown>
+          return {
+            title: String(r.title || ''),
+            url: String(r.url || ''),
+            description: String(r.description || ''),
+            age: r.age ? String(r.age) : undefined,
+            page_age: r.page_age ? String(r.page_age) : undefined,
+            language: r.language ? String(r.language) : undefined,
+            family_friendly: typeof r.family_friendly === 'boolean' ? r.family_friendly : undefined,
+          }
+        }),
         totalResults: data.web?.total || 0,
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Brave Search error:', error)
-      throw new Error(`Failed to search: ${error.message}`)
+      const message = error instanceof Error ? error.message : String(error)
+      throw new Error(`Failed to search: ${message}`)
     }
   }
 
@@ -130,8 +134,9 @@ export class BraveSearchClient {
       console.log(`Found ATO page: ${topResult.title} - ${topResult.url}`)
 
       return topResult.url
-    } catch (error: any) {
-      console.error(`Failed to search ATO for "${query}":`, error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error(`Failed to search ATO for "${query}":`, message)
       return null
     }
   }

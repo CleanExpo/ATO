@@ -173,15 +173,18 @@ export class AnalysisMonitorAgent extends Agent {
         lastRun: new Date()
       })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorStack = error instanceof Error ? error.stack : undefined
+
       return this.createReport(
         'error',
         [
           this.createFinding(
             'agent-error',
             'critical',
-            `Failed to check analysis status: ${error.message}`,
-            { error: error.stack }
+            `Failed to check analysis status: ${errorMessage}`,
+            { error: errorStack }
           )
         ],
         [

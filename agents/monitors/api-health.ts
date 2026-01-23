@@ -132,15 +132,18 @@ export class APIHealthAgent extends Agent {
         lastRun: new Date()
       })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorStack = error instanceof Error ? error.stack : undefined
+
       return this.createReport(
         'error',
         [
           this.createFinding(
             'agent-error',
             'critical',
-            `Failed to test API endpoints: ${error.message}`,
-            { error: error.stack }
+            `Failed to test API endpoints: ${errorMessage}`,
+            { error: errorStack }
           )
         ],
         [
@@ -175,15 +178,16 @@ export class APIHealthAgent extends Agent {
         healthy: response.ok && duration < 2000
       }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       const duration = Date.now() - start
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
       return {
         endpoint,
         status: 0,
         duration,
         healthy: false,
-        error: error.message
+        error: errorMessage
       }
     }
   }

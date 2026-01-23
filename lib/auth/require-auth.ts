@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { authMiddleware, createAuthErrorResponse, type AuthResult } from './middleware'
+import { authMiddleware, type AuthResult } from './middleware'
 import { requireTenantAccess, createForbiddenResponse } from './tenant-guard'
 
 /**

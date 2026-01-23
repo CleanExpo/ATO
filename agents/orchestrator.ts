@@ -1,17 +1,17 @@
-import { Agent, AgentReport, Task, Finding, Recommendation } from './types'
+import { Agent, AgentReport, Task, Finding } from './types'
 import { AnalysisMonitorAgent } from './monitors/analysis-monitor'
 import { DataQualityAgent } from './monitors/data-quality'
 import { APIHealthAgent } from './monitors/api-health'
 import { SchemaValidationAgent } from './monitors/schema-validation'
 import { TaxDataFreshnessAgent } from './monitors/tax-data-freshness'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export class OrchestratorAgent {
   private agents: Agent[]
   private taskQueue: Task[] = []
   private findings: Finding[] = []
   private tenantId: string
-  private supabase: any
+  private supabase: SupabaseClient
   private isRunning: boolean = false
   private intervalId?: NodeJS.Timeout
 

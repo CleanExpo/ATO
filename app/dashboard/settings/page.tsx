@@ -51,9 +51,9 @@ export default function SettingsPage() {
 
                 const data = await res.json()
                 setXeroConnections(data.organisations || [])
-            } catch (err: any) {
+            } catch (err) {
                 console.error('Error fetching Xero connections:', err)
-                setXeroError(err.message || 'Failed to load Xero connections')
+                setXeroError(err instanceof Error ? err.message : 'Failed to load Xero connections')
             } finally {
                 setXeroLoading(false)
             }

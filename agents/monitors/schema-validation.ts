@@ -1,8 +1,8 @@
 import { Agent, AgentReport } from '../types'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export class SchemaValidationAgent extends Agent {
-  private supabase: any
+  private supabase: SupabaseClient
 
   // Expected columns in forensic_analysis_results table
   private expectedColumns = [
@@ -92,18 +92,27 @@ export class SchemaValidationAgent extends Agent {
         return this.validateColumns(actualColumns, startTime)
       }
 
-      const actualColumns = columns.map((c: any) => c.column_name)
+      const actualColumns = (Array.isArray(columns) ? columns : [columns]).map((c: unknown) => {
+        if (c && typeof c === 'object' && 'column_name' in c && typeof c.column_name === 'string') {
+          return c.column_name
+        }
+        return ''
+      }).filter((name: string) => name !== '')
+
       return this.validateColumns(actualColumns, startTime)
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorStack = error instanceof Error ? error.stack : undefined
+
       return this.createReport(
         'error',
         [
           this.createFinding(
             'agent-error',
             'critical',
-            `Failed to validate schema: ${error.message}`,
-            { error: error.stack }
+            `Failed to validate schema: ${errorMessage}`,
+            { error: errorStack }
           )
         ],
         [

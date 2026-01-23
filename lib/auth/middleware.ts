@@ -70,7 +70,7 @@ export function createAuthErrorResponse(
  * @returns AuthResult on success, NextResponse (401) on failure
  */
 export async function authMiddleware(
-  request: NextRequest
+  _request: NextRequest
 ): Promise<AuthResult | NextResponse> {
   const cookieStore = await cookies()
 

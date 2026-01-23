@@ -176,15 +176,18 @@ export class TaxDataFreshnessAgent extends Agent {
         lastRun: new Date()
       })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      const errorStack = error instanceof Error ? error.stack : undefined
+
       return this.createReport(
         'error',
         [
           this.createFinding(
             'agent-error',
             'critical',
-            `Failed to check tax data freshness: ${error.message}`,
-            { error: error.stack }
+            `Failed to check tax data freshness: ${errorMessage}`,
+            { error: errorStack }
           )
         ],
         [
@@ -241,8 +244,9 @@ export class TaxDataFreshnessAgent extends Agent {
 
       return rates
 
-    } catch (error: any) {
-      console.warn(`Error fetching ATO rates:`, error.message)
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      console.warn(`Error fetching ATO rates:`, errorMessage)
       return {}
     }
   }

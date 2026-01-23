@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { CouncilOfLogicOrchestrator } from '@/agents/council/council-orchestrator'
-import type { ConversionStage, CONVERSION_STAGE_ORDER } from '@/agents/council/types'
+import type { ConversionStage } from '@/agents/council/types'
 
 const VALID_STAGES: ConversionStage[] = [
   'awareness',

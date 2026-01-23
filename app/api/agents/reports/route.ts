@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ reports: data || [] })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch agent reports:', error)
     return NextResponse.json(
       { error: 'Internal server error' },
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ report: data }, { status: 201 })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to create agent report:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

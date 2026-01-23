@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     const reportId = `REPORT-${Date.now()}`
 
     // Generate based on format
-    let reportData: any
+    let reportData: unknown
     let estimatedTime = '30 seconds'
 
     switch (format) {

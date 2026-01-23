@@ -21,7 +21,6 @@ import {
   FileText,
   Beaker,
   Scale,
-  Building2,
   ArrowRight,
   RefreshCw,
   Download
@@ -66,7 +65,7 @@ interface TaxOverview {
 }
 
 export default function TaxOverviewPage() {
-  const router = useRouter()
+  const _router = useRouter()
   const [overview, setOverview] = useState<TaxOverview | null>(null)
   const [loading, setLoading] = useState(true)
   const [tenantId, setTenantId] = useState<string | null>(null)
@@ -118,18 +117,26 @@ export default function TaxOverviewPage() {
         const summary = analysisData.summary || {}
         const results = analysisData.results || []
 
+        // Type guard for transaction result
+        interface TransactionResult {
+          is_rnd_candidate?: boolean
+          transaction_amount?: number
+          is_fully_deductible?: boolean
+          claimable_amount?: number
+        }
+
         // Calculate R&D offset (43.5% of eligible R&D spend)
-        const rndCandidates = results.filter((r: any) => r.is_rnd_candidate)
+        const rndCandidates = results.filter((r: TransactionResult) => r.is_rnd_candidate)
         const rndTotalSpend = rndCandidates.reduce(
-          (sum: number, r: any) => sum + Math.abs(r.transaction_amount || 0),
+          (sum: number, r: TransactionResult) => sum + Math.abs(r.transaction_amount || 0),
           0
         )
         const rndOffset = rndTotalSpend * 0.435 // 43.5% R&D tax offset
 
         // Calculate general deductions (tax saved at company rate 25%)
-        const fullyDeductible = results.filter((r: any) => r.is_fully_deductible)
+        const fullyDeductible = results.filter((r: TransactionResult) => r.is_fully_deductible)
         const deductibleAmount = fullyDeductible.reduce(
-          (sum: number, r: any) => sum + (r.claimable_amount || 0),
+          (sum: number, r: TransactionResult) => sum + (r.claimable_amount || 0),
           0
         )
         const deductionsSaving = deductibleAmount * 0.25 // 25% company tax rate

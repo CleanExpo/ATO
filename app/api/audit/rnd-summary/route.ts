@@ -64,11 +64,11 @@ export async function GET(request: NextRequest) {
       category: p.name,
       totalSpend: p.totalSpend,
       transactionCount: p.transactions.length,
-      avgConfidence: p.transactions.reduce((sum: number, t: any) => sum + (t.rnd_confidence || 0), 0) / p.transactions.length,
+      avgConfidence: p.transactions.reduce((sum: number, t: Candidate) => sum + (t.rnd_confidence || 0), 0) / p.transactions.length,
       financialYears: Array.from(p.years).sort(),
       eligibleActivities: p.transactions
         .slice(0, 5)
-        .map((t: any) => t.description || t.supplier || 'No description')
+        .map((t: Candidate) => t.description || t.supplier || 'No description')
         .filter((desc: string, index: number, self: string[]) => self.indexOf(desc) === index)
     }))
 
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
       offsetRate: offsetRate,
       projects: projects.sort((a, b) => b.totalSpend - a.totalSpend)
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch R&D summary:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

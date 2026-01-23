@@ -176,7 +176,7 @@ export class VonNeumannAdvisor implements Advisor {
     userAction: string,
     systemResponse: 'incentivise' | 'neutral' | 'friction',
     context: VonNeumannContext,
-    stageConfig: ConversionStageConfig
+    _stageConfig: ConversionStageConfig
   ): number {
     // Base payoff from action type
     let payoff = this.getBasePayoff(userAction)
@@ -340,7 +340,7 @@ export class VonNeumannAdvisor implements Advisor {
     return Math.round(baseClv * probability * multiplier)
   }
 
-  private assessRisk(probability: number, context: VonNeumannContext): 'low' | 'medium' | 'high' {
+  private assessRisk(probability: number, _context: VonNeumannContext): 'low' | 'medium' | 'high' {
     // Risk of losing the user
     if (probability > 0.6) return 'low'
     if (probability > 0.3) return 'medium'
@@ -407,7 +407,7 @@ export class VonNeumannAdvisor implements Advisor {
   async trackConversion(
     context: VonNeumannContext,
     action: string,
-    value?: number
+    _value?: number
   ): Promise<{ success: boolean; nextStage?: ConversionStage }> {
     const currentIndex = CONVERSION_STAGE_ORDER.indexOf(context.currentStage)
     const isPositiveAction = this.getBasePayoff(action) > 0

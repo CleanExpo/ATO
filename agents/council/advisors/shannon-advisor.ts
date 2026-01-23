@@ -353,7 +353,7 @@ export class ShannonAdvisor implements Advisor {
   private estimateCostSavings(
     tokenAnalysis: TokenAnalysis,
     redundantPatterns: Array<{ matches: number }>,
-    tier: ShannonContext['modelTier']
+    _tier: ShannonContext['modelTier']
   ): number {
     // Estimate tokens that could be saved
     let potentialSavedTokens = 0
@@ -375,7 +375,7 @@ export class ShannonAdvisor implements Advisor {
 
   private generateRecommendation(
     analysis: InformationAnalysis,
-    context: ShannonContext
+    _context: ShannonContext
   ): string {
     const { efficiency, tokenBudget, actualUsage, estimatedCostSavings } = analysis
 

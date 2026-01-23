@@ -87,6 +87,8 @@ export default function AnimatedCounter({
         cancelAnimationFrame(frameRef.current)
       }
     }
+    // displayValue is intentionally excluded - it's managed by the animation loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, duration, isInitialized])
 
   // Format the display value

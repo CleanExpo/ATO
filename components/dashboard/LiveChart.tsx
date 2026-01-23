@@ -34,7 +34,7 @@ interface ChartDataPoint {
   name: string
   value: number
   color?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 interface LiveChartProps {
@@ -60,13 +60,24 @@ const DEFAULT_COLORS = [
   '#84cc16', // Lime
 ]
 
+// Recharts tooltip props type
+interface TooltipProps {
+  active?: boolean
+  payload?: Array<{
+    name: string
+    value: number | string
+    color: string
+  }>
+  label?: string
+}
+
 // Custom tooltip styling
-const CustomTooltip = ({ active, payload, label }: any) => {
+const CustomTooltip = ({ active, payload, label }: TooltipProps) => {
   if (active && payload && payload.length) {
     return (
       <div className="glass-card p-3 border border-[var(--border-default)]">
         <p className="text-[var(--text-primary)] font-semibold mb-1">{label}</p>
-        {payload.map((entry: any, index: number) => (
+        {payload.map((entry, index: number) => (
           <p key={index} className="text-sm" style={{ color: entry.color }}>
             {entry.name}: {typeof entry.value === 'number'
               ? entry.value.toLocaleString()

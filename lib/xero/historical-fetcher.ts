@@ -65,8 +65,6 @@ export async function fetchHistoricalTransactions(
     refreshToken: string,
     options: FetchOptions = { years: 5 }
 ): Promise<SyncProgress> {
-    const supabase = await createClient()
-
     // Initialize sync status
     const syncStatus: SyncProgress = {
         tenantId,
@@ -92,7 +90,9 @@ export async function fetchHistoricalTransactions(
 
         // Check if token needs refresh
         let currentAccessToken = accessToken
+         
         if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)) {
+             
             const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)
             currentAccessToken = newTokens.access_token || accessToken
         }
@@ -171,7 +171,7 @@ async function fetchTransactionsByType(
     tenantId: string,
     type: string,
     fy: FinancialYear,
-    forceResync: boolean = false
+    _forceResync: boolean = false
 ): Promise<HistoricalTransaction[]> {
     const allTransactions: HistoricalTransaction[] = []
     let page = 1
@@ -185,6 +185,7 @@ async function fetchTransactionsByType(
                 const where = `Date >= DateTime(${fy.startDate.replace(/-/g, ',')}) AND Date <= DateTime(${fy.endDate.replace(/-/g, ',')})`
 
                 // Fetch page from Xero
+                 
                 let response: any
                 switch (type) {
                     case 'ACCPAY':
@@ -251,9 +252,10 @@ async function cacheTransactions(
         .map(txn => {
             // Extract transaction ID based on type
             // Xero uses different ID fields for different transaction types
-            const transactionId = (txn as any).bankTransactionID ||
-                                  (txn as any).invoiceID ||
-                                  (txn as any).transactionID ||
+            const txnRecord = txn as unknown as Record<string, unknown>
+            const transactionId = txnRecord.bankTransactionID ||
+                                  txnRecord.invoiceID ||
+                                  txnRecord.transactionID ||
                                   txn.transactionID
 
             // Debug logging for transactions without IDs

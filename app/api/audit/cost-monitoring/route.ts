@@ -161,7 +161,13 @@ async function getCostMonitoringData(
   }
 }
 
-function calculateDailyTrends(costs: any[]) {
+interface CostRecord {
+    analyzed_at: string
+    cost_usd?: number | null
+    transactions_in_batch?: number | null
+}
+
+function calculateDailyTrends(costs: CostRecord[]) {
   const dailyMap = new Map<string, { cost: number; transactions: number; batches: number }>()
 
   costs.forEach((c) => {
@@ -185,7 +191,7 @@ function calculateDailyTrends(costs: any[]) {
     .sort((a, b) => a.date.localeCompare(b.date))
 }
 
-function calculateWeeklyTrends(costs: any[]) {
+function calculateWeeklyTrends(costs: CostRecord[]) {
   const weeklyMap = new Map<string, { cost: number; transactions: number; batches: number }>()
 
   costs.forEach((c) => {

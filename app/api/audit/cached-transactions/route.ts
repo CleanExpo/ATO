@@ -20,7 +20,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
-import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 
 export async function GET(request: NextRequest) {
     try {

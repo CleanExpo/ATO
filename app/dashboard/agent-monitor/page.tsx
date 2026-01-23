@@ -6,7 +6,7 @@ interface Finding {
   type: string
   severity: 'low' | 'medium' | 'high' | 'critical'
   description: string
-  details?: any
+  details?: unknown
   timestamp: string
 }
 
@@ -23,7 +23,7 @@ interface AgentReport {
   status: 'healthy' | 'warning' | 'error'
   findings: Finding[]
   recommendations: Recommendation[]
-  metadata?: any
+  metadata?: unknown
   created_at: string
 }
 
@@ -57,8 +57,8 @@ export default function AgentMonitorPage() {
       setReports(data.reports || [])
       setLastUpdate(new Date())
       setError(null)
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
       console.error('Failed to fetch agent reports:', err)
     } finally {
       setLoading(false)

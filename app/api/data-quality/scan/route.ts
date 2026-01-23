@@ -18,6 +18,23 @@ import { scanForDataQualityIssues, getScanStatus } from '@/lib/xero/data-quality
 import { applyAutoCorrestions } from '@/lib/xero/auto-correction-engine'
 import { createServiceClient } from '@/lib/supabase/server'
 
+interface ScanStatus {
+    scan_status: string
+    scan_progress: string | number | null
+    transactions_scanned: number
+    issues_found: number
+    issues_auto_corrected: number
+    issues_pending_review: number
+    wrong_account_count: number
+    tax_classification_count: number
+    unreconciled_count: number
+    misallocated_count: number
+    duplicate_count: number
+    total_impact_amount: string | number | null
+    last_scan_at: string | null
+    error_message: string | null
+}
+
 export async function POST(request: NextRequest) {
     try {
         // Authenticate and validate tenant access (tenantId from body)
@@ -111,9 +128,9 @@ export async function GET(request: NextRequest) {
         if (isErrorResponse(auth)) return auth
 
         const { tenantId } = auth
-        const status = await getScanStatus(tenantId)
+        const rawStatus = await getScanStatus(tenantId)
 
-        if (!status) {
+        if (!rawStatus) {
             return NextResponse.json({
                 status: 'idle',
                 progress: 0,
@@ -135,9 +152,11 @@ export async function GET(request: NextRequest) {
             })
         }
 
+        const status = rawStatus as unknown as ScanStatus
+
         return NextResponse.json({
             status: status.scan_status,
-            progress: parseFloat(status.scan_progress || 0),
+            progress: parseFloat(String(status.scan_progress ?? '0')),
             transactionsScanned: status.transactions_scanned || 0,
             issuesFound: status.issues_found || 0,
             issuesAutoCorrected: status.issues_auto_corrected || 0,
@@ -149,10 +168,10 @@ export async function GET(request: NextRequest) {
                 misallocated: status.misallocated_count || 0,
                 duplicate: status.duplicate_count || 0
             },
-            totalImpactAmount: parseFloat(status.total_impact_amount || 0),
+            totalImpactAmount: parseFloat(String(status.total_impact_amount ?? '0')),
             lastScanAt: status.last_scan_at,
             errorMessage: status.error_message,
-            message: getStatusMessage(status.scan_status, parseFloat(status.scan_progress || 0))
+            message: getStatusMessage(status.scan_status, parseFloat(String(status.scan_progress ?? '0')))
         })
 
     } catch (error) {

@@ -79,7 +79,6 @@ export function ReportDownloadButton({
   const { startOperation, updateOperation, completeOperation, toast } = useOperations()
 
   const config = REPORT_CONFIG[type]
-  const Icon = config.icon
 
   const handleDownload = useCallback(async () => {
     if (state === 'generating') return

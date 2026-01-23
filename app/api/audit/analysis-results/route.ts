@@ -22,7 +22,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getAnalysisResults, getCostSummary } from '@/lib/ai/batch-processor'
-import { createServiceClient } from '@/lib/supabase/server'
 import cacheManager, { CacheKeys, CacheTTL } from '@/lib/cache/cache-manager'
 
 export async function GET(request: NextRequest) {
@@ -99,7 +98,21 @@ export async function GET(request: NextRequest) {
     }
 }
 
-function calculateSummary(results: any[]) {
+interface AnalysisResult {
+    is_rnd_candidate?: boolean
+    meets_div355_criteria?: boolean
+    rnd_activity_type?: string
+    primary_category?: string | null
+    category_confidence?: number
+    is_fully_deductible?: boolean
+    claimable_amount?: number | null
+    requires_documentation?: boolean
+    fbt_implications?: boolean
+    division7a_risk?: boolean
+    financial_year?: string | null
+}
+
+function calculateSummary(results: AnalysisResult[]) {
     const total = results.length
 
     // R&D Statistics
@@ -115,9 +128,9 @@ function calculateSummary(results: any[]) {
     })
 
     // Confidence distribution
-    const highConfidence = results.filter(r => r.category_confidence >= 80).length
-    const mediumConfidence = results.filter(r => r.category_confidence >= 60 && r.category_confidence < 80).length
-    const lowConfidence = results.filter(r => r.category_confidence < 60).length
+    const highConfidence = results.filter(r => (r.category_confidence ?? 0) >= 80).length
+    const mediumConfidence = results.filter(r => (r.category_confidence ?? 0) >= 60 && (r.category_confidence ?? 0) < 80).length
+    const lowConfidence = results.filter(r => (r.category_confidence ?? 0) < 60).length
 
     // Deduction statistics
     const fullyDeductible = results.filter(r => r.is_fully_deductible).length

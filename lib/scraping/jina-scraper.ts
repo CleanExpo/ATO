@@ -73,9 +73,10 @@ export class JinaScraper {
         markdown,
         scrapedAt: new Date(),
       }
-    } catch (error: any) {
-      console.error(`Failed to scrape ${url}:`, error.message)
-      throw new Error(`Scraping failed: ${error.message}`)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error(`Failed to scrape ${url}:`, message)
+      throw new Error(`Scraping failed: ${message}`)
     }
   }
 
@@ -113,8 +114,9 @@ export class JinaScraper {
 
       console.log(`Parsed instant write-off threshold: $${threshold.toLocaleString()}`)
       return threshold
-    } catch (error: any) {
-      console.error('Failed to parse instant write-off threshold:', error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to parse instant write-off threshold:', message)
       return null
     }
   }
@@ -151,8 +153,9 @@ export class JinaScraper {
 
       console.log(`Parsed R&D offset rate: ${(rate * 100).toFixed(1)}%`)
       return rate
-    } catch (error: any) {
-      console.error('Failed to parse R&D offset rate:', error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to parse R&D offset rate:', message)
       return null
     }
   }
@@ -182,8 +185,9 @@ export class JinaScraper {
 
       console.log(`Parsed home office rate: ${cents}c per hour`)
       return rate
-    } catch (error: any) {
-      console.error('Failed to parse home office rate:', error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to parse home office rate:', message)
       return null
     }
   }
@@ -220,8 +224,9 @@ export class JinaScraper {
 
       console.log(`Parsed Division 7A rate: ${(rate * 100).toFixed(2)}%`)
       return rate
-    } catch (error: any) {
-      console.error('Failed to parse Division 7A rate:', error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to parse Division 7A rate:', message)
       return null
     }
   }
@@ -264,8 +269,9 @@ export class JinaScraper {
 
       console.log(`Parsed corporate tax rates: ${(rates.smallBusiness * 100)}% / ${(rates.standard * 100)}%`)
       return rates
-    } catch (error: any) {
-      console.error('Failed to parse corporate tax rates:', error.message)
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to parse corporate tax rates:', message)
       return null
     }
   }

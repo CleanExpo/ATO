@@ -331,7 +331,6 @@ export class CouncilOfLogicOrchestrator {
       return weightB - weightA
     })
 
-    const topRecommendation = sortedRecs[0]
     const finalDecision = this.formulateFinalDecision(sortedRecs)
 
     return {

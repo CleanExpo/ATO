@@ -9,7 +9,7 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { RefreshCw, Brain, Shield, FileText, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { RefreshCw, Brain, Shield, FileText, ChevronDown } from 'lucide-react'
 import { useOperations } from '@/lib/operations/operation-context'
 import { OPERATION_CONFIG, ANIMATION_PRESETS, type OperationType } from '@/lib/operations/types'
 
@@ -22,7 +22,7 @@ const ICONS: Record<OperationType, typeof RefreshCw> = {
 }
 
 export function GlobalOperationIndicator() {
-  const { state, getActiveOperations, removeOperation } = useOperations()
+  const { getActiveOperations } = useOperations()
   const [isExpanded, setIsExpanded] = useState(true)
 
   const activeOperations = getActiveOperations()

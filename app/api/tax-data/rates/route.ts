@@ -39,14 +39,15 @@ export async function GET(request: Request) {
         sources: rates.sources,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to fetch tax rates:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to fetch tax rates',
-        message: error.message,
+        message: errorMessage,
       },
       { status: 500 }
     )

@@ -133,16 +133,35 @@ export async function generateRecommendations(
   return summary
 }
 
+interface RndProject {
+  projectName: string
+  projectDescription: string
+  overallConfidence: number
+  eligibilityCriteria: {
+    outcomeUnknown: {
+      evidence: string[]
+    }
+  }
+  documentationRequired: string[]
+  transactions: Array<{
+    transactionId: string
+    transactionDate: string
+    amount: number
+  }>
+  financialYears: string[]
+  meetsEligibility: boolean
+}
+
 /**
  * Create R&D recommendation from project analysis
  */
 function createRndRecommendation(
-  project: any,
+  project: RndProject,
   financialYear: string
 ): ActionableRecommendation {
   const yearExpenditure = project.transactions
-    .filter((tx: any) => tx.transactionDate.includes(financialYear.replace('FY', '')))
-    .reduce((sum: number, tx: any) => sum + tx.amount, 0)
+    .filter((tx) => tx.transactionDate.includes(financialYear.replace('FY', '')))
+    .reduce((sum, tx) => sum + tx.amount, 0)
 
   const yearOffset = yearExpenditure * 0.435 // 43.5%
 
@@ -173,18 +192,34 @@ function createRndRecommendation(
     documentationRequired: project.documentationRequired,
     estimatedAccountingCost: estimateAccountingCost('rnd', yearOffset),
     netBenefit: (yearOffset * (project.overallConfidence / 100)) - estimateAccountingCost('rnd', yearOffset),
-    transactionIds: project.transactions.map((tx: any) => tx.transactionId),
+    transactionIds: project.transactions.map((tx) => tx.transactionId),
     transactionCount: project.transactions.length,
     status: 'identified',
     notes: '',
   }
 }
 
+interface DeductionOpportunity {
+  category: string
+  financialYear: string
+  unclaimedAmount: number
+  estimatedTaxSaving: number
+  confidence: number
+  legislativeReference: string
+  documentationRequired: string[]
+  transactionCount: number
+  transactions: Array<{
+    transactionId: string
+    description: string
+    amount: number
+  }>
+}
+
 /**
  * Create deduction recommendation from opportunity analysis
  */
 function createDeductionRecommendation(
-  opportunity: any
+  opportunity: DeductionOpportunity
 ): ActionableRecommendation {
   const deadline = calculateAmendmentDeadline(opportunity.financialYear)
   const amendmentWindow = getAmendmentWindow(deadline)
@@ -210,14 +245,25 @@ function createDeductionRecommendation(
     deadline,
     amendmentWindow,
     legislativeReference: opportunity.legislativeReference,
-    supportingEvidence: opportunity.transactions.map((tx: any) => tx.description).slice(0, 5),
+    supportingEvidence: opportunity.transactions.map((tx) => tx.description).slice(0, 5),
     documentationRequired: opportunity.documentationRequired,
     estimatedAccountingCost: estimateAccountingCost('deductions', taxSaving),
     netBenefit: (taxSaving * (opportunity.confidence / 100)) - estimateAccountingCost('deductions', taxSaving),
-    transactionIds: opportunity.transactions.map((tx: any) => tx.transactionId),
+    transactionIds: opportunity.transactions.map((tx) => tx.transactionId),
     transactionCount: opportunity.transactionCount,
     status: 'identified',
     notes: '',
+  }
+}
+
+interface LossAnalysis {
+  financialYear: string
+  optimization: {
+    additionalBenefit: number
+    reasoning: string
+  }
+  cotSbtAnalysis: {
+    cotNotes: string[]
   }
 }
 
@@ -225,7 +271,7 @@ function createDeductionRecommendation(
  * Create loss optimization recommendation
  */
 function createLossRecommendation(
-  lossAnalysis: any
+  lossAnalysis: LossAnalysis
 ): ActionableRecommendation {
   const deadline = calculateAmendmentDeadline(lossAnalysis.financialYear)
   const amendmentWindow = getAmendmentWindow(deadline)
@@ -262,11 +308,23 @@ function createLossRecommendation(
   }
 }
 
+interface LoanAnalysis {
+  loanId: string
+  shareholderName: string
+  closingBalance: number
+  riskLevel: 'critical' | 'high' | 'medium' | 'low'
+  potentialTaxLiability: number
+  complianceIssues: string[]
+  financialYears: string[]
+  isCompliant: boolean
+  deemedDividendRisk: number
+}
+
 /**
  * Create Division 7A compliance recommendation
  */
 function createDiv7aRecommendation(
-  loanAnalysis: any
+  loanAnalysis: LoanAnalysis
 ): ActionableRecommendation {
   const latestYear = loanAnalysis.financialYears[loanAnalysis.financialYears.length - 1]
   const deadline = calculateAmendmentDeadline(latestYear)

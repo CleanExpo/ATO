@@ -17,7 +17,7 @@ import { createClient } from '@supabase/supabase-js'
 // Get tenant ID from environment or use default
 const TENANT_ID = process.env.TENANT_ID || '8a8caf6c-614b-45a5-9e15-46375122407c'
 
-const commands = {
+const commands: Record<string, (args: string[]) => Promise<void> | void> = {
   start: startOrchestrator,
   run: runSingleAgent,
   report: showReports,
@@ -30,7 +30,7 @@ async function main() {
   const command = args[0] || 'help'
 
   if (command in commands) {
-    await (commands as any)[command](args.slice(1))
+    await commands[command](args.slice(1))
   } else {
     console.error(`❌ Unknown command: ${command}`)
     showHelp([])
@@ -38,7 +38,7 @@ async function main() {
   }
 }
 
-async function startOrchestrator(args: string[]) {
+async function startOrchestrator(_args: string[]) {
   console.log('🚀 Starting Autonomous Agent Orchestrator')
   console.log(`   Tenant ID: ${TENANT_ID}`)
   console.log('')
@@ -195,7 +195,15 @@ async function showReports(args: string[]) {
 
   console.log('─'.repeat(80))
 
-  reports.forEach((report: any, i: number) => {
+  interface AgentReport {
+    agent_id: string
+    status: string
+    created_at: string
+    findings?: Array<{ severity: string; description: string }>
+    recommendations?: unknown[]
+  }
+
+  reports.forEach((report: AgentReport, i: number) => {
     const statusEmoji: Record<string, string> = {
       healthy: '✅',
       warning: '⚠️',
@@ -210,10 +218,10 @@ async function showReports(args: string[]) {
     console.log(`   Recommendations: ${report.recommendations?.length || 0}`)
 
     // Show critical findings
-    const criticalFindings = report.findings?.filter((f: any) => f.severity === 'critical') || []
+    const criticalFindings = report.findings?.filter((f) => f.severity === 'critical') || []
     if (criticalFindings.length > 0) {
       console.log(`   🚨 Critical Issues: ${criticalFindings.length}`)
-      criticalFindings.forEach((f: any) => {
+      criticalFindings.forEach((f) => {
         console.log(`      - ${f.description}`)
       })
     }
@@ -222,13 +230,13 @@ async function showReports(args: string[]) {
   console.log('\n' + '─'.repeat(80))
 }
 
-async function stopOrchestrator(args: string[]) {
+async function stopOrchestrator(_args: string[]) {
   console.log('🛑 Stopping orchestrator...')
   console.log('   (Use Ctrl+C if running in foreground)')
   // This is mainly for documentation - actual stopping happens via SIGINT/SIGTERM
 }
 
-function showHelp(args: string[]) {
+function showHelp(_args: string[]) {
   console.log(`
 🤖 Autonomous Agent CLI
 

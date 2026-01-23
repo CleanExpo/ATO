@@ -37,7 +37,7 @@ export interface ProposedAmendments {
 export interface FormData {
   formType: string
   formNumber?: string
-  prefillData: Record<string, any>
+  prefillData: Record<string, unknown>
   instructions: string[]
 }
 
@@ -77,7 +77,6 @@ export interface AmendmentSummary {
 }
 
 const CORPORATE_TAX_RATE_SMALL = 0.25 // 25% for small business
-const CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% for other companies
 
 /**
  * Generate amendment schedules for all years with recommendations

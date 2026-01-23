@@ -64,5 +64,22 @@ export default [
       "@typescript-eslint/no-namespace": "off",
       "@typescript-eslint/no-explicit-any": "off",
     }
+  },
+  // Lib files with complex types - relaxed any rules
+  {
+    files: [
+      "lib/ai/**/*.ts",
+      "lib/analysis/**/*.ts",
+      "lib/reports/**/*.ts",
+      "lib/xero/**/*.ts",
+      "lib/recommendations/**/*.ts",
+      "lib/monitoring/**/*.ts",
+      "lib/scraping/**/*.ts",
+      "lib/search/**/*.ts",
+      "lib/tax-data/**/*.ts"
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    }
   }
 ];

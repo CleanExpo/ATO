@@ -7,7 +7,7 @@
 import { NextResponse } from 'next/server'
 import { getCacheManager } from '@/lib/tax-data/cache-manager'
 
-export async function POST(request: Request) {
+export async function POST(_request: Request) {
   try {
     const cacheManager = getCacheManager()
 
@@ -41,14 +41,15 @@ export async function POST(request: Request) {
         sources: rates.sources,
       },
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Failed to refresh tax rates:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to refresh tax rates',
-        message: error.message,
+        message: errorMessage,
       },
       { status: 500 }
     )
