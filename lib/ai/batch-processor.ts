@@ -9,7 +9,7 @@
  * - Database storage
  */
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type TransactionContext, type BusinessContext, type ForensicAnalysis } from './forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
@@ -41,7 +41,8 @@ export async function analyzeAllTransactions(
     options: AnalysisOptions = {}
 ): Promise<AnalysisProgress> {
     const batchSize = options.batchSize || 50 // Process 50 at a time
-    const supabase = await createClient()
+    // Use service client to bypass RLS for server-side operations
+    const supabase = await createServiceClient()
 
     // Initialize progress
     const progress: AnalysisProgress = {
@@ -240,7 +241,8 @@ async function storeAnalysisResults(
     analyses: ForensicAnalysis[],
     originalTransactions: any[]
 ): Promise<void> {
-    const supabase = await createClient()
+    // Use service client to bypass RLS for server-side operations
+    const supabase = await createServiceClient()
 
     // Map analyses to database schema
     const records = analyses.map((analysis, index) => {
@@ -327,7 +329,8 @@ async function updateAnalysisProgress(
     tenantId: string,
     progress: AnalysisProgress
 ): Promise<void> {
-    const supabase = await createClient()
+    // Use service client to bypass RLS for server-side operations
+    const supabase = await createServiceClient()
 
     // Store in audit_sync_status table (reuse existing table)
     // In a real system, you'd have a separate analysis_status table
@@ -357,7 +360,8 @@ async function trackAnalysisCost(
     transactionCount: number,
     costUSD: number
 ): Promise<void> {
-    const supabase = await createClient()
+    // Use service client to bypass RLS for server-side operations
+    const supabase = await createServiceClient()
 
     const costEstimate = estimateAnalysisCost(transactionCount)
     const modelInfo = getModelInfo()
@@ -399,7 +403,8 @@ function calculateFinancialYear(date: string | Date): string {
  * Get analysis status
  */
 export async function getAnalysisStatus(tenantId: string): Promise<AnalysisProgress | null> {
-    const supabase = await createClient()
+    // Use service client to bypass RLS for server-side operations
+    const supabase = await createServiceClient()
 
     const { data, error } = await supabase
         .from('audit_sync_status')
@@ -441,7 +446,8 @@ export async function getAnalysisResults(
         minConfidence?: number
     }
 ): Promise<any[]> {
-    const supabase = await createClient()
+    // Use service client to bypass RLS for server-side operations
+    const supabase = await createServiceClient()
 
     let query = supabase
         .from('forensic_analysis_results')
@@ -483,7 +489,8 @@ export async function getCostSummary(tenantId: string): Promise<{
     totalApiCalls: number
     costPerTransaction: number
 }> {
-    const supabase = await createClient()
+    // Use service client to bypass RLS for server-side operations
+    const supabase = await createServiceClient()
 
     const { data, error } = await supabase
         .from('ai_analysis_costs')
