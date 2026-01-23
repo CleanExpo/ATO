@@ -21,24 +21,29 @@ import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 import { requireTenantAccess } from '@/lib/auth/tenant-guard'
 import { getAnalysisStatus } from '@/lib/ai/batch-processor'
 
+// Single-user mode: Skip auth and use tenantId directly from URL
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ tenantId: string }> }
 ) {
     try {
-        // Authenticate user
-        const auth = await requireAuthOnly(request)
-        if (isErrorResponse(auth)) return auth
-
         const { tenantId } = await params
 
         if (!tenantId) {
             return createValidationError('tenantId parameter is required')
         }
 
-        // Validate tenant access
-        const tenantCheck = await requireTenantAccess(auth.supabase, auth.user.id, tenantId)
-        if (tenantCheck instanceof NextResponse) return tenantCheck
+        if (!SINGLE_USER_MODE) {
+            // Multi-user mode: Authenticate user
+            const auth = await requireAuthOnly(request)
+            if (isErrorResponse(auth)) return auth
+
+            // Validate tenant access
+            const tenantCheck = await requireTenantAccess(auth.supabase, auth.user.id, tenantId)
+            if (tenantCheck instanceof NextResponse) return tenantCheck
+        }
 
         console.log(`Getting analysis status for tenant ${tenantId}`)
 

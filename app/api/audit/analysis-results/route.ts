@@ -19,18 +19,30 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createErrorResponse } from '@/lib/api/errors'
+import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getAnalysisResults, getCostSummary } from '@/lib/ai/batch-processor'
 import cacheManager, { CacheKeys, CacheTTL } from '@/lib/cache/cache-manager'
 
+// Single-user mode: Skip auth and use tenantId directly
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+
 export async function GET(request: NextRequest) {
     try {
-        // Authenticate and validate tenant access
-        const auth = await requireAuth(request)
-        if (isErrorResponse(auth)) return auth
+        let tenantId: string
 
-        const { tenantId } = auth
+        if (SINGLE_USER_MODE) {
+            // Single-user mode: Get tenantId from query
+            tenantId = request.nextUrl.searchParams.get('tenantId') || ''
+            if (!tenantId) {
+                return createValidationError('tenantId is required')
+            }
+        } else {
+            // Multi-user mode: Authenticate and validate tenant access
+            const auth = await requireAuth(request)
+            if (isErrorResponse(auth)) return auth
+            tenantId = auth.tenantId
+        }
         const financialYear = request.nextUrl.searchParams.get('financialYear') || undefined
         const isRndCandidateParam = request.nextUrl.searchParams.get('isRndCandidate')
         const primaryCategory = request.nextUrl.searchParams.get('primaryCategory') || undefined

@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
+import { createValidationError } from '@/lib/api/errors'
+
+// Single-user mode: Skip auth and use tenantId directly
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
 
 export async function GET(request: NextRequest) {
-  // Authenticate and validate tenant access
-  const auth = await requireAuth(request)
-  if (isErrorResponse(auth)) return auth
+  let tenantId: string
+  let supabase
 
-  const { tenantId, supabase } = auth
+  if (SINGLE_USER_MODE) {
+    // Single-user mode: Get tenantId from query
+    tenantId = request.nextUrl.searchParams.get('tenantId') || ''
+    if (!tenantId) {
+      return createValidationError('tenantId is required')
+    }
+    supabase = await createServiceClient()
+  } else {
+    // Multi-user mode: Authenticate and validate tenant access
+    const auth = await requireAuth(request)
+    if (isErrorResponse(auth)) return auth
+    tenantId = auth.tenantId
+    supabase = auth.supabase
+  }
 
   try {
     // Get all R&D candidates with their details

@@ -21,13 +21,25 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
+// Single-user mode: Skip auth and use tenantId directly
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+
 export async function GET(request: NextRequest) {
     try {
-        // Authenticate and validate tenant access
-        const auth = await requireAuth(request)
-        if (isErrorResponse(auth)) return auth
+        let tenantId: string
 
-        const { tenantId } = auth
+        if (SINGLE_USER_MODE) {
+            // Single-user mode: Get tenantId from query
+            tenantId = request.nextUrl.searchParams.get('tenantId') || ''
+            if (!tenantId) {
+                return createValidationError('tenantId is required')
+            }
+        } else {
+            // Multi-user mode: Authenticate and validate tenant access
+            const auth = await requireAuth(request)
+            if (isErrorResponse(auth)) return auth
+            tenantId = auth.tenantId
+        }
         const financialYear = request.nextUrl.searchParams.get('financialYear') || undefined
         const page = parseInt(request.nextUrl.searchParams.get('page') || '1', 10)
         const pageSize = Math.min(
