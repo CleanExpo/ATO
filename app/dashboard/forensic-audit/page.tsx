@@ -118,92 +118,156 @@ export default function ForensicAuditPage() {
   async function handleStart() {
     if (!tenantId) return
 
-    setProgress(p => ({ ...p, stage: 'syncing' }))
+    setProgress(p => ({ ...p, stage: 'syncing', syncProgress: 0 }))
     setIsPolling(true)
 
+    // Use chunked sync - call repeatedly until complete
+    runChunkedSync()
+  }
+
+  async function runChunkedSync() {
+    if (!tenantId) return
+
+    let year: string | null = null
+    let type: string | null = null
+    let page = 1
+    let totalSynced = 0
+
+    const syncChunk = async () => {
+      try {
+        const body: Record<string, unknown> = { tenantId }
+        if (year) body.year = year
+        if (type) body.type = type
+        if (page > 1) body.page = page
+
+        const res = await fetch('/api/audit/sync-chunk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          console.error('Sync chunk error:', data)
+          setProgress(p => ({ ...p, stage: 'error', error: data.message || 'Sync failed' }))
+          return
+        }
+
+        totalSynced += data.cached || 0
+
+        // Update progress
+        setProgress(p => ({
+          ...p,
+          syncProgress: data.allComplete ? 100 : (data.currentProgress ?
+            Math.min(95, ((5 - getYearIndex(data.currentProgress.year)) / 5) * 100) : p.syncProgress),
+          transactionsSynced: totalSynced
+        }))
+
+        if (data.allComplete) {
+          // Sync done, start analysis
+          console.log('Sync complete, starting analysis...')
+          setProgress(p => ({ ...p, stage: 'analyzing', syncProgress: 100 }))
+          runChunkedAnalysis()
+        } else {
+          // Continue with next chunk
+          year = data.nextYear
+          type = data.nextType
+          page = data.hasMore ? data.nextPage : 1
+
+          // Small delay to avoid rate limits
+          setTimeout(syncChunk, 500)
+        }
+      } catch (err) {
+        console.error('Sync chunk error:', err)
+        // Retry on network errors
+        setTimeout(syncChunk, 2000)
+      }
+    }
+
+    syncChunk()
+  }
+
+  function getYearIndex(year: string): number {
+    const match = year.match(/FY(\d{2})-(\d{2})/)
+    if (!match) return 0
+    return parseInt(match[1]) - 20 // FY24-25 = 4, FY23-24 = 3, etc.
+  }
+
+  async function runChunkedAnalysis() {
+    if (!tenantId) return
+
+    let offset = 0
+    const batchSize = 25
+    let totalAnalyzed = 0
+
+    const analyzeChunk = async () => {
+      try {
+        const res = await fetch('/api/audit/analyze-chunk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tenantId, offset, batchSize })
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          console.error('Analysis chunk error:', data)
+          // Don't fail on individual chunk errors, continue
+          if (data.error?.includes('No unanalyzed transactions')) {
+            // Analysis complete
+            await finishAnalysis()
+            return
+          }
+          // Retry this chunk
+          setTimeout(analyzeChunk, 3000)
+          return
+        }
+
+        totalAnalyzed += data.analyzed || 0
+
+        setProgress(p => ({
+          ...p,
+          analysisProgress: data.progress || Math.min(95, (totalAnalyzed / (data.remaining + totalAnalyzed)) * 100),
+          transactionsAnalyzed: totalAnalyzed
+        }))
+
+        if (data.remaining === 0 || data.isComplete) {
+          await finishAnalysis()
+        } else {
+          // Continue with next chunk
+          offset += batchSize
+          // Delay to respect Gemini rate limits (15 req/min free tier)
+          setTimeout(analyzeChunk, 4500)
+        }
+      } catch (err) {
+        console.error('Analysis chunk error:', err)
+        setTimeout(analyzeChunk, 5000)
+      }
+    }
+
+    analyzeChunk()
+  }
+
+  async function finishAnalysis() {
+    if (!tenantId) return
+
     try {
-      await fetch('/api/audit/sync-historical', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId, years: 5 })
-      })
+      const recRes = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
+      const recData = await recRes.json()
 
-      pollUntilComplete()
+      setProgress(p => ({
+        ...p,
+        stage: 'complete',
+        analysisProgress: 100,
+        totalBenefit: recData.summary?.totalAdjustedBenefit || 0
+      }))
+      setIsPolling(false)
     } catch (err) {
-      console.error('Failed to start:', err)
-      setProgress(p => ({ ...p, stage: 'error', error: 'Failed to start sync' }))
+      console.error('Failed to get recommendations:', err)
+      setProgress(p => ({ ...p, stage: 'complete', analysisProgress: 100 }))
+      setIsPolling(false)
     }
-  }
-
-  async function pollUntilComplete() {
-    if (!tenantId) return
-
-    const poll = async () => {
-      try {
-        const syncRes = await fetch(`/api/audit/sync-status/${tenantId}`)
-        const syncData = await syncRes.json()
-
-        if (syncData.status === 'complete') {
-          setProgress(p => ({ ...p, stage: 'analyzing' }))
-          await fetch('/api/audit/analyze', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tenantId })
-          })
-          pollAnalysis()
-        } else {
-          setProgress(p => ({
-            ...p,
-            syncProgress: syncData.progress || 0,
-            transactionsSynced: syncData.transactionsSynced || 0,
-            totalTransactions: syncData.totalEstimated || p.totalTransactions
-          }))
-          setTimeout(poll, 3000)
-        }
-      } catch (err) {
-        console.error('Polling error:', err)
-        setTimeout(poll, 5000)
-      }
-    }
-
-    poll()
-  }
-
-  async function pollAnalysis() {
-    if (!tenantId) return
-
-    const poll = async () => {
-      try {
-        const analysisRes = await fetch(`/api/audit/analysis-status/${tenantId}`)
-        const analysisData = await analysisRes.json()
-
-        if (analysisData.status === 'complete') {
-          const recRes = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
-          const recData = await recRes.json()
-
-          setProgress(p => ({
-            ...p,
-            stage: 'complete',
-            analysisProgress: 100,
-            transactionsAnalyzed: analysisData.transactionsAnalyzed || 0,
-            totalBenefit: recData.summary?.totalAdjustedBenefit || 0
-          }))
-          setIsPolling(false)
-        } else {
-          setProgress(p => ({
-            ...p,
-            analysisProgress: analysisData.progress || 0,
-            transactionsAnalyzed: analysisData.transactionsAnalyzed || 0
-          }))
-          setTimeout(poll, 5000)
-        }
-      } catch (err) {
-        console.error('Analysis polling error:', err)
-        setTimeout(poll, 5000)
-      }
-    }
-
-    poll()
   }
 
   function goToAdvanced() {
