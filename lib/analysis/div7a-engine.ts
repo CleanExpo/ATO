@@ -234,7 +234,7 @@ async function analyzeSingleLoan(
   const financialYears = Array.from(new Set(transactions.map((tx: any) => tx.financial_year))).sort() as string[]
   const latestYear = financialYears[financialYears.length - 1]
 
-  let openingBalance = 0
+  const openingBalance = 0
   let advancesThisYear = 0
   let repaymentsThisYear = 0
   let interestCharged = 0
