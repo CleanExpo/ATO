@@ -199,7 +199,22 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
         console.error('[analyze-chunk] Error:', error)
-        return createErrorResponse(error, { operation: 'analyzeChunk' }, 500)
+
+        // Return detailed error for debugging
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        const errorStack = error instanceof Error ? error.stack : undefined
+
+        return NextResponse.json({
+            success: false,
+            error: errorMessage,
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
+            stack: errorStack?.split('\n').slice(0, 5).join('\n'),
+            hint: errorMessage.includes('API key')
+                ? 'Check GOOGLE_AI_API_KEY in Vercel environment variables'
+                : errorMessage.includes('model')
+                ? 'The AI model may not be available. Try a different model.'
+                : 'Check Vercel function logs for details'
+        }, { status: 500 })
     }
 }
 
