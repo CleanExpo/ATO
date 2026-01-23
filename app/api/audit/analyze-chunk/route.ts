@@ -1,218 +1,402 @@
 /**
  * POST /api/audit/analyze-chunk
  *
- * Chunked AI analysis - analyzes ONE transaction at a time to work within Vercel's timeout.
+ * Chunked AI analysis endpoint - processes a batch of transactions at a time to work within Vercel's timeout limits.
  * Client should call repeatedly until allComplete is true.
  *
  * Body:
- * - tenantId: string (required)
- * - businessName?: string
- * - abn?: string
- * - industry?: string
+ * - tenantId: string (required) - Xero tenant ID
+ * - batch: number (optional) - Batch number to process (defaults to 0)
+ * - batchSize: number (optional) - Transactions per batch (defaults to 25, max 50)
  *
  * Response:
  * - success: boolean
- * - transactionAnalyzed: object (the transaction that was analyzed)
- * - analysis: object (the forensic analysis result)
- * - remaining: number (transactions left to analyze)
- * - allComplete: boolean
- * - progress: object
+ * - analyzed: number - Transactions analyzed this batch
+ * - totalAnalyzed: number - Total transactions analyzed so far
+ * - totalTransactions: number - Total transactions to analyze
+ * - hasMore: boolean - Whether there are more batches
+ * - nextBatch: number - Next batch number (if hasMore)
+ * - allComplete: boolean - Whether ALL batches have been processed
+ * - progress: number - Overall progress percentage
+ * - timing: { analyzeMs, totalMs }
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { analyzeTransaction, type TransactionContext, type BusinessContext } from '@/lib/ai/forensic-analyzer'
-import { createErrorResponse } from '@/lib/api/errors'
-import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
+import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
+import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type TransactionContext, type BusinessContext, type ForensicAnalysis } from '@/lib/ai/forensic-analyzer'
+import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 
-export const maxDuration = 30 // Vercel serverless max
+export const maxDuration = 60 // Vercel serverless max (Pro plan)
+
+// Single-user mode: Skip auth and use tenantId directly
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+
+const DEFAULT_BATCH_SIZE = 25 // Smaller batches for faster response
+const MAX_BATCH_SIZE = 50
 
 export async function POST(request: NextRequest) {
     const startTime = Date.now()
 
     try {
-        // Authenticate and validate tenant access (tenantId from body)
-        const auth = await requireAuth(request, { tenantIdSource: 'body' })
-        if (isErrorResponse(auth)) return auth
-
-        const { tenantId } = auth
         const body = await request.json()
-        
-        const businessContext: BusinessContext = {
-            name: body.businessName || 'Unknown Business',
-            abn: body.abn,
-            industry: body.industry,
-            financialYear: new Date().getFullYear().toString()
+        let tenantId: string
+
+        if (SINGLE_USER_MODE) {
+            tenantId = body.tenantId
+            if (!tenantId) {
+                return createValidationError('tenantId is required')
+            }
+        } else {
+            return createValidationError('Multi-user mode not supported')
         }
-        
+
+        // Parse optional fields
+        const batch = body.batch || 0
+        const batchSize = Math.min(body.batchSize || DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE)
+
+        console.log(`[analyze-chunk] Processing batch ${batch} (size: ${batchSize}) for tenant ${tenantId}`)
+
         const supabase = await createServiceClient()
-        
-        // Get next unanalyzed transaction
-        const { data: transactions, error: fetchError } = await supabase
-            .from('historical_transactions_cache')
-            .select('*')
-            .eq('tenant_id', tenantId)
-            .is('analysis_complete', null)
-            .limit(1)
-        
-        if (fetchError) {
-            console.error('[analyze-chunk] Fetch error:', fetchError)
-            return createErrorResponse(fetchError, { operation: 'fetchTransaction' }, 500)
+
+        // Get all cached transactions
+        const allTransactions = await getCachedTransactions(tenantId)
+        const totalTransactions = allTransactions.length
+
+        if (totalTransactions === 0) {
+            return createValidationError('No cached transactions found. Run historical sync first.')
         }
-        
-        // Check if all done
-        if (!transactions || transactions.length === 0) {
-            // Count total analyzed
-            const { count: totalAnalyzed } = await supabase
-                .from('historical_transactions_cache')
-                .select('*', { count: 'exact', head: true })
-                .eq('tenant_id', tenantId)
-                .eq('analysis_complete', true)
-            
+
+        // Calculate batch range
+        const startIndex = batch * batchSize
+        const endIndex = Math.min(startIndex + batchSize, totalTransactions)
+        const batchTransactions = allTransactions.slice(startIndex, endIndex)
+
+        if (batchTransactions.length === 0) {
+            // All done!
             return NextResponse.json({
                 success: true,
+                analyzed: 0,
+                totalAnalyzed: totalTransactions,
+                totalTransactions,
+                hasMore: false,
+                nextBatch: null,
                 allComplete: true,
-                totalAnalyzed: totalAnalyzed || 0,
+                progress: 100,
                 message: 'All transactions have been analyzed'
             })
         }
-        
-        const txn = transactions[0]
-        
-        // Transform to TransactionContext
-        const rawData = txn.raw_data || {}
-        const transactionContext: TransactionContext = {
-            transactionID: txn.transaction_id,
-            date: txn.transaction_date || rawData.date,
-            description: getDescription(rawData),
-            amount: txn.amount || rawData.total || 0,
-            supplier: txn.contact_name || rawData.contact?.name,
-            accountCode: rawData.lineItems?.[0]?.accountCode,
-            lineItems: rawData.lineItems
+
+        // Get business context
+        const { data: connection } = await supabase
+            .from('xero_connections')
+            .select('organisation_name, tenant_name')
+            .eq('tenant_id', tenantId)
+            .single()
+
+        const businessContext: BusinessContext = {
+            name: connection?.organisation_name || connection?.tenant_name || 'Unknown Business',
+            financialYear: 'Multi-year'
         }
-        
-        console.log(`[analyze-chunk] Analyzing: ${transactionContext.transactionID} - ${transactionContext.description?.slice(0, 50)}...`)
-        
-        // Run AI analysis
-        const analysis = await analyzeTransaction(transactionContext, businessContext)
-        
-        // Store results
-        const { error: updateError } = await supabase
-            .from('historical_transactions_cache')
-            .update({
-                analysis_complete: true,
-                analysis_result: analysis,
-                analyzed_at: new Date().toISOString()
-            })
-            .eq('tenant_id', tenantId)
-            .eq('transaction_id', txn.transaction_id)
-        
-        if (updateError) {
-            console.error('[analyze-chunk] Update error:', updateError)
-        }
-        
-        // Count remaining
-        const { count: remaining } = await supabase
-            .from('historical_transactions_cache')
-            .select('*', { count: 'exact', head: true })
-            .eq('tenant_id', tenantId)
-            .is('analysis_complete', null)
-        
-        const { count: totalAnalyzed } = await supabase
-            .from('historical_transactions_cache')
-            .select('*', { count: 'exact', head: true })
-            .eq('tenant_id', tenantId)
-            .eq('analysis_complete', true)
-        
-        const processingTime = Date.now() - startTime
-        
-        console.log(`[analyze-chunk] Complete in ${processingTime}ms. Remaining: ${remaining}`)
-        
-        return NextResponse.json({
-            success: true,
-            allComplete: remaining === 0,
-            transactionAnalyzed: {
-                id: txn.transaction_id,
-                date: txn.transaction_date,
-                description: transactionContext.description?.slice(0, 100),
-                amount: transactionContext.amount
-            },
-            analysis: {
-                categories: analysis.categories,
-                isRndCandidate: analysis.rndAssessment.isRndCandidate,
-                isFullyDeductible: analysis.deductionEligibility.isFullyDeductible,
-                division7aRisk: analysis.complianceFlags.division7aRisk,
-                fbtImplications: analysis.complianceFlags.fbtImplications
-            },
-            progress: {
-                analyzed: totalAnalyzed || 0,
-                remaining: remaining || 0,
-                total: (totalAnalyzed || 0) + (remaining || 0),
-                percentComplete: (((totalAnalyzed || 0) / ((totalAnalyzed || 0) + (remaining || 0))) * 100).toFixed(1)
-            },
-            timing: {
-                processingMs: processingTime
+
+        // Convert to analysis format
+        const transactionContexts: TransactionContext[] = batchTransactions.map((txn: any) => {
+            const transactionId = txn.bankTransactionID ||
+                                  txn.invoiceID ||
+                                  txn.transactionID ||
+                                  'unknown'
+
+            return {
+                transactionID: transactionId,
+                date: txn.date || '',
+                description: buildDescription(txn),
+                amount: txn.total || 0,
+                supplier: txn.contact?.name,
+                accountCode: txn.lineItems?.[0]?.accountCode,
+                lineItems: txn.lineItems?.map((li: any) => ({
+                    description: li.description,
+                    quantity: li.quantity,
+                    unitAmount: li.unitAmount,
+                    accountCode: li.accountCode,
+                }))
             }
         })
-        
+
+        // Analyze batch with AI
+        const analyzeStartTime = Date.now()
+        const analyses = await analyzeTransactionBatch(
+            transactionContexts,
+            businessContext,
+            (completed, total) => {
+                console.log(`[analyze-chunk] Batch ${batch} progress: ${completed}/${total}`)
+            }
+        )
+        const analyzeTime = Date.now() - analyzeStartTime
+
+        console.log(`[analyze-chunk] Analyzed ${analyses.length} transactions in ${analyzeTime}ms`)
+
+        // Store analysis results
+        await storeAnalysisResults(tenantId, analyses, batchTransactions, supabase)
+
+        // Track cost
+        const costEstimate = estimateAnalysisCost(analyses.length)
+        await trackAnalysisCost(tenantId, analyses.length, costEstimate.estimatedCostUSD, supabase)
+
+        // Calculate progress
+        const totalAnalyzed = endIndex
+        const progress = (totalAnalyzed / totalTransactions) * 100
+        const hasMore = endIndex < totalTransactions
+        const allComplete = !hasMore
+
+        // Update sync status
+        await supabase
+            .from('audit_sync_status')
+            .upsert({
+                tenant_id: tenantId,
+                sync_status: allComplete ? 'complete' : 'syncing',
+                transactions_synced: totalAnalyzed,
+                total_transactions: totalTransactions,
+                updated_at: new Date().toISOString()
+            }, {
+                onConflict: 'tenant_id'
+            })
+
+        // If complete, invalidate caches
+        if (allComplete) {
+            const invalidatedCount = invalidateTenantCache(tenantId)
+            console.log(`[analyze-chunk] Analysis complete. Invalidated ${invalidatedCount} cache entries.`)
+        }
+
+        const totalTime = Date.now() - startTime
+        console.log(`[analyze-chunk] Batch ${batch} complete in ${totalTime}ms - analyzed ${analyses.length}`)
+
+        return NextResponse.json({
+            success: true,
+            analyzed: analyses.length,
+            totalAnalyzed,
+            totalTransactions,
+            hasMore,
+            nextBatch: hasMore ? batch + 1 : null,
+            allComplete,
+            progress: Math.round(progress * 10) / 10,
+            currentBatch: {
+                batch,
+                startIndex,
+                endIndex,
+                transactionsInBatch: batchTransactions.length
+            },
+            cost: {
+                batchCostUSD: costEstimate.estimatedCostUSD,
+                inputTokens: costEstimate.inputTokens,
+                outputTokens: costEstimate.outputTokens
+            },
+            timing: {
+                analyzeMs: analyzeTime,
+                totalMs: totalTime
+            }
+        })
+
     } catch (error) {
         console.error('[analyze-chunk] Error:', error)
         return createErrorResponse(error, { operation: 'analyzeChunk' }, 500)
     }
 }
 
-function getDescription(rawData: Record<string, unknown>): string {
-    // Try various fields for description
-    if (rawData.reference) return String(rawData.reference)
-    if (rawData.narration) return String(rawData.narration)
-    
-    // For invoices, combine line item descriptions
-    const lineItems = rawData.lineItems as Array<{ description?: string }> | undefined
-    if (lineItems && lineItems.length > 0) {
-        const descriptions = lineItems
-            .filter(li => li.description)
-            .map(li => li.description)
+/**
+ * Build descriptive text from transaction
+ */
+function buildDescription(transaction: any): string {
+    const parts: string[] = []
+
+    if (transaction.reference) {
+        parts.push(transaction.reference)
+    }
+
+    if (transaction.contact?.name) {
+        parts.push(`from ${transaction.contact.name}`)
+    }
+
+    if (transaction.lineItems && transaction.lineItems.length > 0) {
+        const descriptions = transaction.lineItems
+            .map((li: any) => li.description)
+            .filter(Boolean)
             .join('; ')
-        if (descriptions) return descriptions
+
+        if (descriptions) {
+            parts.push(descriptions)
+        }
     }
-    
-    // For bank transactions
-    if (rawData.bankAccount) {
-        const bankAccount = rawData.bankAccount as { name?: string }
-        return `Bank Transaction - ${bankAccount.name || 'Unknown'}`
-    }
-    
-    return 'No description available'
+
+    return parts.join(' - ') || 'No description'
 }
 
-// GET endpoint to check progress
-export async function GET(request: NextRequest) {
-    // Authenticate and validate tenant access
-    const auth = await requireAuth(request)
-    if (isErrorResponse(auth)) return auth
+/**
+ * Calculate financial year from date
+ */
+function calculateFinancialYear(date: string | Date): string {
+    const d = typeof date === 'string' ? new Date(date) : date
+    const year = d.getFullYear()
+    const month = d.getMonth() + 1
 
-    const { tenantId } = auth
+    if (month >= 7) {
+        return `FY${year}-${String(year + 1).slice(2)}`
+    } else {
+        return `FY${year - 1}-${String(year).slice(2)}`
+    }
+}
+
+/**
+ * Store analysis results in database
+ */
+async function storeAnalysisResults(
+    tenantId: string,
+    analyses: ForensicAnalysis[],
+    originalTransactions: any[],
+    supabase: any
+): Promise<void> {
+    // Map analyses to database schema
+    const records = analyses.map((analysis, index) => {
+        const txn = originalTransactions[index]
+        const financialYear = calculateFinancialYear(txn.date)
+
+        return {
+            tenant_id: tenantId,
+            transaction_id: analysis.transactionId,
+            financial_year: financialYear,
+
+            // Categories
+            primary_category: analysis.categories.primary,
+            secondary_categories: analysis.categories.secondary,
+            category_confidence: analysis.categories.confidence,
+
+            // R&D Assessment
+            is_rnd_candidate: analysis.rndAssessment.isRndCandidate,
+            meets_div355_criteria: analysis.rndAssessment.meetsDiv355Criteria,
+            rnd_activity_type: analysis.rndAssessment.activityType,
+            rnd_confidence: analysis.rndAssessment.confidence,
+            rnd_reasoning: analysis.rndAssessment.reasoning,
+
+            // Four-element test (Division 355)
+            div355_outcome_unknown: analysis.rndAssessment.fourElementTest.outcomeUnknown.met,
+            div355_systematic_approach: analysis.rndAssessment.fourElementTest.systematicApproach.met,
+            div355_new_knowledge: analysis.rndAssessment.fourElementTest.newKnowledge.met,
+            div355_scientific_method: analysis.rndAssessment.fourElementTest.scientificMethod.met,
+
+            // Deductions
+            is_fully_deductible: analysis.deductionEligibility.isFullyDeductible,
+            deduction_type: analysis.deductionEligibility.deductionType,
+            claimable_amount: analysis.deductionEligibility.claimableAmount,
+            deduction_restrictions: analysis.deductionEligibility.restrictions,
+            deduction_confidence: analysis.deductionEligibility.confidence,
+
+            // Compliance
+            requires_documentation: analysis.complianceFlags.requiresDocumentation,
+            fbt_implications: analysis.complianceFlags.fbtImplications,
+            division7a_risk: analysis.complianceFlags.division7aRisk,
+            compliance_notes: analysis.complianceFlags.notes,
+
+            // Metadata
+            ai_model: getModelInfo().model,
+        }
+    })
+
+    // Deduplicate
+    const uniqueRecords = Array.from(
+        new Map(
+            records.map(r => [`${r.tenant_id}:${r.transaction_id}`, r])
+        ).values()
+    )
+
+    // Batch upsert
+    const { error } = await supabase
+        .from('forensic_analysis_results')
+        .upsert(uniqueRecords, {
+            onConflict: 'tenant_id,transaction_id',
+            ignoreDuplicates: false,
+        })
+
+    if (error) {
+        console.error('[analyze-chunk] Error storing results:', error)
+        throw error
+    }
+
+    console.log(`[analyze-chunk] Stored ${uniqueRecords.length} analysis results`)
+}
+
+/**
+ * Track API cost
+ */
+async function trackAnalysisCost(
+    tenantId: string,
+    transactionCount: number,
+    costUSD: number,
+    supabase: any
+): Promise<void> {
+    const costEstimate = estimateAnalysisCost(transactionCount)
+    const modelInfo = getModelInfo()
+
+    const { error } = await supabase
+        .from('ai_analysis_costs')
+        .insert({
+            tenant_id: tenantId,
+            analysis_date: new Date().toISOString().split('T')[0],
+            transactions_analyzed: transactionCount,
+            api_calls_made: transactionCount,
+            input_tokens: costEstimate.inputTokens,
+            output_tokens: costEstimate.outputTokens,
+            estimated_cost_usd: costUSD,
+            ai_model: modelInfo.model,
+        })
+
+    if (error) {
+        console.error('[analyze-chunk] Error tracking cost:', error)
+    }
+}
+
+// GET endpoint to check analysis status
+export async function GET(request: NextRequest) {
+    let tenantId: string
+
+    if (SINGLE_USER_MODE) {
+        tenantId = request.nextUrl.searchParams.get('tenantId') || ''
+        if (!tenantId) {
+            return createValidationError('tenantId is required')
+        }
+    } else {
+        return createValidationError('Multi-user mode not supported')
+    }
+
     const supabase = await createServiceClient()
-    
-    const { count: totalAnalyzed } = await supabase
+
+    // Get sync status
+    const { data: status } = await supabase
+        .from('audit_sync_status')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .single()
+
+    // Count analyzed transactions
+    const { count: analyzedCount } = await supabase
+        .from('forensic_analysis_results')
+        .select('*', { count: 'exact', head: true })
+        .eq('tenant_id', tenantId)
+
+    // Count total cached transactions
+    const { count: totalCount } = await supabase
         .from('historical_transactions_cache')
         .select('*', { count: 'exact', head: true })
         .eq('tenant_id', tenantId)
-        .eq('analysis_complete', true)
-    
-    const { count: remaining } = await supabase
-        .from('historical_transactions_cache')
-        .select('*', { count: 'exact', head: true })
-        .eq('tenant_id', tenantId)
-        .is('analysis_complete', null)
-    
-    const total = (totalAnalyzed || 0) + (remaining || 0)
-    
+
+    const progress = totalCount && totalCount > 0
+        ? ((analyzedCount || 0) / totalCount) * 100
+        : 0
+
     return NextResponse.json({
-        analyzed: totalAnalyzed || 0,
-        remaining: remaining || 0,
-        total,
-        percentComplete: total > 0 ? (((totalAnalyzed || 0) / total) * 100).toFixed(1) : '0',
-        allComplete: remaining === 0 && total > 0
+        status: status?.sync_status || 'idle',
+        progress: Math.round(progress * 10) / 10,
+        transactionsAnalyzed: analyzedCount || 0,
+        totalTransactions: totalCount || 0,
+        lastUpdate: status?.updated_at
     })
 }
