@@ -19,11 +19,12 @@ interface AnimatedCounterProps {
   prefix?: string // e.g., "$" or "#"
   suffix?: string // e.g., "k" or "%"
   decimals?: number // Number of decimal places
-  variant?: 'default' | 'positive' | 'negative' | 'highlight' // Color variant
+  variant?: 'default' | 'positive' | 'negative' | 'highlight' | 'warning' | 'success' // Color variant
   size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' // Size variant
   className?: string
   format?: 'number' | 'currency' | 'compact' // Formatting style
   label?: string // Optional label below value
+  colorOverride?: string // Custom color override (CSS variable or hex)
 }
 
 // Easing function with mass - feels like physical movement
@@ -50,10 +51,12 @@ const sizeFontSizes = {
 
 // Variant to color mapping
 const variantColors = {
-  default: 'var(--lumen-100)',
-  positive: 'var(--signal-success)',
-  negative: 'var(--signal-critical)',
+  default: 'var(--text-primary)',
+  positive: 'var(--color-success)',
+  negative: 'var(--color-error)',
   highlight: 'var(--accent-primary)',
+  warning: 'var(--color-warning)',
+  success: 'var(--color-success)',
 }
 
 export default function AnimatedCounter({
@@ -67,6 +70,7 @@ export default function AnimatedCounter({
   className = '',
   format = 'number',
   label,
+  colorOverride,
 }: AnimatedCounterProps) {
   const [displayValue, setDisplayValue] = useState(0)
   const [isInitialized, setIsInitialized] = useState(false)
@@ -145,10 +149,12 @@ export default function AnimatedCounter({
 
   const formattedValue = formatValue(displayValue)
 
-  // Determine color based on variant or auto-detect
-  const textColor = variant === 'default'
-    ? (value > 0 ? variantColors.positive : value < 0 ? variantColors.negative : variantColors.default)
-    : variantColors[variant]
+  // Determine color based on colorOverride, variant, or auto-detect
+  const textColor = colorOverride
+    ? colorOverride
+    : variant === 'default'
+      ? (value > 0 ? variantColors.positive : value < 0 ? variantColors.negative : variantColors.default)
+      : variantColors[variant]
 
   return (
     <div className={`metric-block ${className}`.trim()}>

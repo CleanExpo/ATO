@@ -251,7 +251,7 @@ function DashboardContent() {
               justifyContent: 'space-between',
               padding: 'var(--space-sm) var(--space-md)',
               marginBottom: 'var(--space-lg)',
-              background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%)',
+              background: 'linear-gradient(90deg, var(--color-success-dim) 0%, rgba(16, 185, 129, 0.05) 100%)',
               borderRadius: '12px',
               border: '1px solid rgba(16, 185, 129, 0.3)',
             }}
@@ -262,17 +262,17 @@ function DashboardContent() {
                 alignItems: 'center',
                 gap: '6px',
                 padding: '4px 12px',
-                background: 'rgba(16, 185, 129, 0.2)',
+                background: 'var(--color-success-dim)',
                 borderRadius: '20px',
               }}>
                 <span style={{
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  background: '#10B981',
+                  background: 'var(--color-success)',
                   animation: 'pulse 2s infinite',
                 }} />
-                <span style={{ color: '#10B981', fontWeight: 600, fontSize: '12px', letterSpacing: '0.5px' }}>
+                <span style={{ color: 'var(--color-success)', fontWeight: 600, fontSize: '12px', letterSpacing: '0.5px' }}>
                   LIVE DATA
                 </span>
               </div>
@@ -281,7 +281,7 @@ function DashboardContent() {
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', color: 'var(--text-muted)', fontSize: '12px' }}>
-              <Shield className="w-4 h-4" style={{ color: '#10B981' }} />
+              <Shield className="w-4 h-4" style={{ color: 'var(--color-success)' }} />
               <span>Read-only access</span>
             </div>
           </motion.div>
@@ -389,8 +389,8 @@ function DashboardContent() {
                       <span style={{
                         fontSize: '11px',
                         fontWeight: 600,
-                        color: '#10B981',
-                        background: 'rgba(16, 185, 129, 0.1)',
+                        color: 'var(--color-success)',
+                        background: 'var(--color-success-dim)',
                         padding: '2px 8px',
                         borderRadius: '4px',
                         textTransform: 'uppercase',
@@ -426,14 +426,14 @@ function DashboardContent() {
                   style={{
                     marginBottom: 'var(--space-xl)',
                     padding: 'var(--space-md)',
-                    background: 'rgba(99, 102, 241, 0.05)',
+                    background: 'var(--color-indigo-dim)',
                     borderRadius: '16px',
                     border: '1px solid rgba(99, 102, 241, 0.2)',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                      <Activity className="w-5 h-5" style={{ color: '#6366F1' }} />
+                      <Activity className="w-5 h-5" style={{ color: 'var(--color-indigo)' }} />
                       <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
                         Processing Your Data
                       </span>
@@ -704,8 +704,8 @@ function DashboardContent() {
                               fontSize: '10px',
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              background: 'rgba(245, 158, 11, 0.2)',
-                              color: '#F59E0B',
+                              background: 'var(--color-warning-dim)',
+                              color: 'var(--color-warning)',
                               fontWeight: 600,
                             }}>
                               DEMO
@@ -716,8 +716,8 @@ function DashboardContent() {
                               fontSize: '10px',
                               padding: '2px 6px',
                               borderRadius: '4px',
-                              background: 'rgba(16, 185, 129, 0.2)',
-                              color: '#10B981',
+                              background: 'var(--color-success-dim)',
+                              color: 'var(--color-success)',
                               fontWeight: 600,
                             }}>
                               LIVE

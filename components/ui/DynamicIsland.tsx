@@ -14,21 +14,30 @@ import {
   Menu,
   X
 } from 'lucide-react'
+import {
+  getDesktopNavItems,
+  isNavItemActive,
+  type NavItemConfig,
+  type IconName
+} from '@/lib/config/navigation'
 
-interface NavItem {
-  href: string
-  label: string
-  icon: ReactNode
+// Icon mapping for rendering
+const iconMap: Record<IconName, React.ComponentType<{ size?: number }>> = {
+  LayoutDashboard,
+  Search,
+  FileSearch,
+  Beaker,
+  TrendingDown,
+  Settings,
 }
 
-const navItems: NavItem[] = [
-  { href: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={16} /> },
-  { href: '/dashboard/data-quality', label: 'Data', icon: <Search size={16} /> },
-  { href: '/dashboard/forensic-audit', label: 'Audit', icon: <FileSearch size={16} /> },
-  { href: '/dashboard/rnd', label: 'R&D', icon: <Beaker size={16} /> },
-  { href: '/dashboard/losses', label: 'Losses', icon: <TrendingDown size={16} /> },
-  { href: '/dashboard/settings', label: 'Settings', icon: <Settings size={16} /> },
-]
+function NavIcon({ name, size = 16 }: { name: IconName; size?: number }) {
+  const Icon = iconMap[name]
+  return Icon ? <Icon size={size} /> : null
+}
+
+// Get navigation items from shared config
+const navItems = getDesktopNavItems()
 
 interface DynamicIslandProps {
   /** Show logo/brand element */
@@ -72,8 +81,7 @@ export function DynamicIsland({ showLogo = false, logo }: DynamicIslandProps) {
       {/* Desktop Navigation */}
       <div className="hidden md:flex items-center gap-1">
         {navItems.map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href))
+          const isActive = isNavItemActive(item, pathname)
 
           return (
             <Link
@@ -81,8 +89,8 @@ export function DynamicIsland({ showLogo = false, logo }: DynamicIslandProps) {
               href={item.href}
               className={`dynamic-island__item ${isActive ? 'dynamic-island__item--active' : ''}`}
             >
-              {item.icon}
-              <span className="ml-2">{item.label}</span>
+              <NavIcon name={item.icon} size={16} />
+              <span className="ml-2">{item.shortLabel || item.label}</span>
             </Link>
           )
         })}
@@ -113,8 +121,7 @@ export function DynamicIsland({ showLogo = false, logo }: DynamicIslandProps) {
             transition={{ duration: 0.2 }}
           >
             {navItems.map((item) => {
-              const isActive = pathname === item.href ||
-                (item.href !== '/dashboard' && pathname.startsWith(item.href))
+              const isActive = isNavItemActive(item, pathname)
 
               return (
                 <Link
@@ -124,7 +131,7 @@ export function DynamicIsland({ showLogo = false, logo }: DynamicIslandProps) {
                   className={`dynamic-island__item w-full justify-start ${isActive ? 'dynamic-island__item--active' : ''}`}
                   style={{ borderRadius: '8px', marginBottom: '4px' }}
                 >
-                  {item.icon}
+                  <NavIcon name={item.icon} size={16} />
                   <span className="ml-3">{item.label}</span>
                 </Link>
               )
@@ -144,6 +151,8 @@ export function DynamicIsland({ showLogo = false, logo }: DynamicIslandProps) {
  */
 export function VerticalNav() {
   const pathname = usePathname()
+  const mainItems = navItems.filter(item => item.href !== '/dashboard/settings')
+  const settingsItem = navItems.find(item => item.href === '/dashboard/settings')
 
   return (
     <nav className="vertical-nav">
@@ -152,9 +161,8 @@ export function VerticalNav() {
       </Link>
 
       <div className="vertical-nav__items">
-        {navItems.slice(0, -1).map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href))
+        {mainItems.map((item) => {
+          const isActive = isNavItemActive(item, pathname)
 
           return (
             <Link
@@ -163,20 +171,22 @@ export function VerticalNav() {
               className={`vertical-nav__item ${isActive ? 'vertical-nav__item--active' : ''}`}
               title={item.label}
             >
-              {item.icon}
+              <NavIcon name={item.icon} size={18} />
             </Link>
           )
         })}
       </div>
 
       <div className="vertical-nav__footer">
-        <Link
-          href="/dashboard/settings"
-          className={`vertical-nav__item ${pathname === '/dashboard/settings' ? 'vertical-nav__item--active' : ''}`}
-          title="Settings"
-        >
-          <Settings size={18} />
-        </Link>
+        {settingsItem && (
+          <Link
+            href={settingsItem.href}
+            className={`vertical-nav__item ${isNavItemActive(settingsItem, pathname) ? 'vertical-nav__item--active' : ''}`}
+            title={settingsItem.label}
+          >
+            <NavIcon name={settingsItem.icon} size={18} />
+          </Link>
+        )}
       </div>
     </nav>
   )

@@ -128,9 +128,9 @@ export default function SettingsPage() {
                 </div>
 
                 {saved && (
-                    <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
-                        <Save className="w-5 h-5 text-emerald-400" />
-                        <span className="text-emerald-400">Settings saved successfully!</span>
+                    <div className="mb-6 p-4 rounded-xl flex items-center gap-3" style={{ background: 'var(--color-success-dim)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                        <Save className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
+                        <span style={{ color: 'var(--color-success)' }}>Settings saved successfully!</span>
                     </div>
                 )}
 
@@ -138,8 +138,8 @@ export default function SettingsPage() {
                     {/* Business Details */}
                     <div className="glass-card p-6">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center">
-                                <Building2 className="w-5 h-5 text-sky-400" />
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-cyan-dim)' }}>
+                                <Building2 className="w-5 h-5" style={{ color: 'var(--color-cyan)' }} />
                             </div>
                             <h3 className="font-semibold">Business Details</h3>
                         </div>
@@ -175,8 +175,8 @@ export default function SettingsPage() {
                     {/* Accountant Details */}
                     <div className="glass-card p-6">
                         <div className="flex items-center gap-3 mb-6">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                                <User className="w-5 h-5 text-emerald-400" />
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-success-dim)' }}>
+                                <User className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
                             </div>
                             <h3 className="font-semibold">Accountant Details</h3>
                         </div>
@@ -225,15 +225,15 @@ export default function SettingsPage() {
                 {/* Xero Connection */}
                 <div className="glass-card p-6 mt-8">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-[#13B5EA]/10 flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-[#13B5EA]" />
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-xero-dim)' }}>
+                            <Building2 className="w-5 h-5" style={{ color: 'var(--color-xero)' }} />
                         </div>
                         <h3 className="font-semibold">Xero Connection</h3>
                     </div>
 
                     {xeroLoading && (
                         <div className="flex items-center justify-center p-8">
-                            <Loader2 className="w-6 h-6 animate-spin text-[#13B5EA]" />
+                            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--color-xero)' }} />
                             <span className="ml-3 text-[var(--text-secondary)]">
                                 Loading connection status...
                             </span>
@@ -241,12 +241,12 @@ export default function SettingsPage() {
                     )}
 
                     {xeroError && (
-                        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                        <div className="p-4 rounded-xl" style={{ background: 'var(--color-error-dim)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
                             <div className="flex items-center gap-3">
-                                <AlertCircle className="w-5 h-5 text-red-400" />
+                                <AlertCircle className="w-5 h-5" style={{ color: 'var(--color-error)' }} />
                                 <div className="flex-1">
-                                    <p className="text-sm font-medium text-red-400">Error loading connections</p>
-                                    <p className="text-xs text-red-400/70 mt-1">{xeroError}</p>
+                                    <p className="text-sm font-medium" style={{ color: 'var(--color-error)' }}>Error loading connections</p>
+                                    <p className="text-xs mt-1" style={{ color: 'rgba(239, 68, 68, 0.7)' }}>{xeroError}</p>
                                 </div>
                             </div>
                         </div>
@@ -255,7 +255,7 @@ export default function SettingsPage() {
                     {!xeroLoading && !xeroError && xeroConnections.length === 0 && (
                         <div className="flex items-center justify-between p-4 rounded-xl bg-[var(--bg-tertiary)]">
                             <div className="flex items-center gap-3">
-                                <AlertCircle className="w-5 h-5 text-amber-400" />
+                                <AlertCircle className="w-5 h-5" style={{ color: 'var(--color-warning)' }} />
                                 <span className="text-[var(--text-secondary)]">
                                     No Xero account connected
                                 </span>
@@ -269,12 +269,12 @@ export default function SettingsPage() {
                     {!xeroLoading && !xeroError && xeroConnections.length > 0 && (
                         <div className="space-y-4">
                             {xeroConnections.map((conn) => (
-                                <div key={conn.tenant_id} className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                                <div key={conn.tenant_id} className="p-4 rounded-xl" style={{ background: 'var(--color-success-dim)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-3">
-                                                <CheckCircle className="w-5 h-5 text-emerald-400" />
-                                                <span className="font-semibold text-emerald-400">
+                                                <CheckCircle className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
+                                                <span className="font-semibold" style={{ color: 'var(--color-success)' }}>
                                                     Connected to Xero
                                                 </span>
                                             </div>
@@ -335,18 +335,18 @@ export default function SettingsPage() {
                 {/* Email Settings */}
                 <div className="glass-card p-6 mt-8">
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                            <Mail className="w-5 h-5 text-purple-400" />
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--accent-primary-dim)' }}>
+                            <Mail className="w-5 h-5" style={{ color: 'var(--accent-primary)' }} />
                         </div>
                         <h3 className="font-semibold">Email Settings</h3>
                     </div>
 
                     <p className="text-sm text-[var(--text-secondary)] mb-4">
-                        Configure email sending for the <code className="text-sky-400">/send-to-accountant</code> workflow
+                        Configure email sending for the <code style={{ color: 'var(--color-cyan)' }}>/send-to-accountant</code> workflow
                     </p>
 
-                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
-                        <p className="text-sm text-amber-400">
+                    <div className="p-4 rounded-xl" style={{ background: 'var(--color-warning-dim)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                        <p className="text-sm" style={{ color: 'var(--color-warning)' }}>
                             Email settings are configured via environment variables for security.
                             Contact your administrator to update Gmail App Password settings.
                         </p>

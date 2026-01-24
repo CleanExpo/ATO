@@ -53,6 +53,14 @@
   --color-info-light: #dbeafe;
   --color-info-dim: rgba(59, 130, 246, 0.1);
 
+  --color-indigo: #6366f1;
+  --color-indigo-light: #e0e7ff;
+  --color-indigo-dim: rgba(99, 102, 241, 0.1);
+
+  --color-cyan: #06b6d4;
+  --color-cyan-light: #cffafe;
+  --color-cyan-dim: rgba(6, 182, 212, 0.1);
+
   /* Xero Brand */
   --color-xero: #13b5ea;
   --color-xero-light: #e0f7fe;
@@ -1334,6 +1342,17 @@ select {
 .main-content {
   margin-left: var(--sidebar-width);
   padding: var(--space-xl);
+  padding-top: calc(var(--space-3xl) + 60px); /* Account for DynamicIsland */
+  min-height: 100vh;
+  max-width: 1400px;
+}
+
+/* Page content - standardised wrapper for all pages */
+.page-content {
+  padding: var(--space-xl);
+  padding-top: calc(var(--space-3xl) + 60px); /* Account for DynamicIsland */
+  max-width: 1400px;
+  margin: 0 auto;
   min-height: 100vh;
 }
 
@@ -1360,6 +1379,13 @@ select {
   .main-content,
   .main-content-wide {
     padding: var(--space-2xl);
+    padding-top: calc(var(--space-3xl) + 60px);
+  }
+
+  .page-content {
+    margin-left: var(--sidebar-width);
+    padding: var(--space-2xl);
+    padding-top: calc(var(--space-3xl) + 60px);
   }
 }
 
@@ -1425,9 +1451,11 @@ select {
 
   /* Remove sidebar margins */
   .main-content,
-  .main-content-wide {
+  .main-content-wide,
+  .page-content {
     margin-left: 0;
     padding: var(--space-md);
+    padding-top: calc(var(--space-2xl) + 40px); /* Smaller top padding on mobile */
     padding-bottom: calc(var(--mobile-nav-height) + var(--space-xl));
   }
 

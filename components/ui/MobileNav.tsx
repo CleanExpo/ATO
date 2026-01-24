@@ -13,66 +13,38 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard,
+  Search,
   Beaker,
   FileSearch,
   TrendingDown,
   Settings
 } from 'lucide-react'
+import {
+  getMobileNavItems,
+  isNavItemActive,
+  type IconName
+} from '@/lib/config/navigation'
 
-interface NavItem {
-  href: string
-  label: string
-  icon: React.ReactNode
-  matchPaths?: string[]
+// Icon mapping for mobile nav
+const iconMap: Record<IconName, React.ComponentType<{ className?: string }>> = {
+  LayoutDashboard,
+  Search,
+  FileSearch,
+  Beaker,
+  TrendingDown,
+  Settings,
 }
 
-const navItems: NavItem[] = [
-  {
-    href: '/dashboard',
-    label: 'Home',
-    icon: <LayoutDashboard className="mobile-nav__icon" />,
-    matchPaths: ['/dashboard']
-  },
-  {
-    href: '/dashboard/rnd',
-    label: 'R&D',
-    icon: <Beaker className="mobile-nav__icon" />,
-    matchPaths: ['/dashboard/rnd']
-  },
-  {
-    href: '/dashboard/forensic-audit',
-    label: 'Audit',
-    icon: <FileSearch className="mobile-nav__icon" />,
-    matchPaths: ['/dashboard/forensic-audit', '/dashboard/audit', '/dashboard/data-quality']
-  },
-  {
-    href: '/dashboard/losses',
-    label: 'Losses',
-    icon: <TrendingDown className="mobile-nav__icon" />,
-    matchPaths: ['/dashboard/losses']
-  },
-  {
-    href: '/dashboard/settings',
-    label: 'Settings',
-    icon: <Settings className="mobile-nav__icon" />,
-    matchPaths: ['/dashboard/settings']
-  }
-]
+function NavIcon({ name }: { name: IconName }) {
+  const Icon = iconMap[name]
+  return Icon ? <Icon className="mobile-nav__icon" /> : null
+}
+
+// Get navigation items from shared config
+const navItems = getMobileNavItems()
 
 export function MobileNav() {
   const pathname = usePathname()
-
-  const isActive = (item: NavItem): boolean => {
-    if (item.matchPaths) {
-      return item.matchPaths.some(path => {
-        if (path === '/dashboard') {
-          return pathname === '/dashboard'
-        }
-        return pathname.startsWith(path)
-      })
-    }
-    return pathname === item.href
-  }
 
   return (
     <nav className="mobile-nav">
@@ -80,10 +52,10 @@ export function MobileNav() {
         <Link
           key={item.href}
           href={item.href}
-          className={`mobile-nav__item ${isActive(item) ? 'mobile-nav__item--active' : ''}`}
+          className={`mobile-nav__item ${isNavItemActive(item, pathname) ? 'mobile-nav__item--active' : ''}`}
         >
-          {item.icon}
-          <span className="mobile-nav__label">{item.label}</span>
+          <NavIcon name={item.icon} />
+          <span className="mobile-nav__label">{item.shortLabel || item.label}</span>
         </Link>
       ))}
     </nav>

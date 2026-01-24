@@ -1,8 +1,8 @@
 /**
  * Forensic Tax Audit - Vertical Data Stream Design
  *
- * Cyber-physical aesthetic with vertical node layout
- * No boxes, no carousels - just floating nodes connected by a glowing line
+ * Clean aesthetic with vertical node layout matching lavender theme
+ * Floating nodes connected by a glowing line
  */
 
 'use client'
@@ -16,6 +16,8 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react'
+import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
+import { MobileNav } from '@/components/ui/MobileNav'
 
 type Stage = 'idle' | 'syncing' | 'analyzing' | 'complete' | 'error'
 
@@ -295,33 +297,38 @@ export default function ForensicAuditPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-8 relative overflow-hidden">
+    <div style={{ minHeight: '100vh' }}>
+      {/* Navigation */}
+      <DynamicIsland showLogo />
+      <VerticalNav />
 
-      {/* Ambient Background Glow */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-teal-500/5 rounded-full blur-3xl" />
-      </div>
+      <main className="main-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
 
-      {/* Header */}
-      <div className="text-center mb-16 relative z-10">
-        <h1 className="text-3xl md:text-4xl font-light tracking-[0.3em] text-white/90 uppercase mb-3">
-          Forensic Audit
-        </h1>
-        <p className="text-sm tracking-[0.2em] text-cyan-400/60 uppercase">
-          AI-Powered Tax Intelligence
-        </p>
-      </div>
+        {/* Ambient Background Glow */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-3xl" style={{ background: 'var(--accent-primary-glow)' }} />
+          <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-3xl" style={{ background: 'var(--color-success-dim)' }} />
+        </div>
+
+        {/* Header */}
+        <div className="text-center mb-16 relative z-10">
+          <h1 className="typo-display" style={{ letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 'var(--space-sm)' }}>
+            Forensic Audit
+          </h1>
+          <p style={{ fontSize: '0.875rem', letterSpacing: '0.1em', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>
+            AI-Powered Tax Intelligence
+          </p>
+        </div>
 
       {/* Vertical Data Stream */}
       <div className="relative z-10 flex flex-col items-center">
 
         {/* The Glowing Vertical Line */}
         <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px">
-          <div className="w-full h-full bg-gradient-to-b from-cyan-400/80 via-teal-400/40 to-teal-400/10" />
+          <div className="w-full h-full" style={{ background: 'linear-gradient(to bottom, var(--accent-primary), var(--accent-tertiary), transparent)' }} />
           {/* Animated pulse on the line */}
           {(progress.stage === 'syncing' || progress.stage === 'analyzing') && (
-            <div className="absolute top-0 left-0 w-full h-24 bg-gradient-to-b from-cyan-400 to-transparent animate-pulse-down" />
+            <div className="absolute top-0 left-0 w-full h-24 animate-pulse-down" style={{ background: 'linear-gradient(to bottom, var(--accent-primary), transparent)' }} />
           )}
         </div>
 
@@ -388,13 +395,13 @@ export default function ForensicAuditPage() {
       {/* Status Readout */}
       {progress.stage !== 'idle' && progress.stage !== 'complete' && (
         <div className="mt-16 relative z-10 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-3 border border-cyan-500/20 bg-cyan-500/5">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            <span className="text-xs tracking-[0.15em] text-cyan-400/80 uppercase font-mono">
+          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl" style={{ border: '1px solid var(--border-medium)', background: 'var(--accent-primary-dim)' }}>
+            <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent-primary)' }} />
+            <span className="text-xs tracking-[0.15em] uppercase font-mono" style={{ color: 'var(--accent-primary)' }}>
               {progress.stage === 'syncing' ? 'Data Stream Active' : 'Neural Processing'}
             </span>
           </div>
-          <p className="text-xs text-white/30 mt-4 tracking-wide">
+          <p className="text-xs mt-4 tracking-wide" style={{ color: 'var(--text-muted)' }}>
             Process runs in background. Safe to navigate away.
           </p>
         </div>
@@ -403,9 +410,9 @@ export default function ForensicAuditPage() {
       {/* Completion State */}
       {progress.stage === 'complete' && (
         <div className="mt-16 relative z-10 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-3 border border-emerald-500/30 bg-emerald-500/5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span className="text-xs tracking-[0.15em] text-emerald-400/80 uppercase font-mono">
+          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl" style={{ border: '1px solid rgba(16, 185, 129, 0.3)', background: 'var(--color-success-dim)' }}>
+            <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--color-success)' }} />
+            <span className="text-xs tracking-[0.15em] uppercase font-mono" style={{ color: 'var(--color-success)' }}>
               Analysis Complete
             </span>
           </div>
@@ -415,9 +422,9 @@ export default function ForensicAuditPage() {
       {/* Error State */}
       {progress.stage === 'error' && (
         <div className="mt-16 relative z-10 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-3 border border-red-500/30 bg-red-500/5">
-            <AlertCircle className="w-4 h-4 text-red-400" />
-            <span className="text-xs tracking-[0.15em] text-red-400/80 uppercase font-mono">
+          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl" style={{ border: '1px solid rgba(239, 68, 68, 0.3)', background: 'var(--color-error-dim)' }}>
+            <AlertCircle className="w-4 h-4" style={{ color: 'var(--color-error)' }} />
+            <span className="text-xs tracking-[0.15em] uppercase font-mono" style={{ color: 'var(--color-error)' }}>
               {progress.error || 'Process Error'}
             </span>
           </div>
@@ -434,6 +441,10 @@ export default function ForensicAuditPage() {
           animation: pulse-down 2s ease-in-out infinite;
         }
       `}</style>
+      </main>
+
+      {/* Mobile Navigation */}
+      <MobileNav />
     </div>
   )
 }
@@ -469,37 +480,38 @@ function DataNode({
     `}>
 
       {/* The Node Marker (on the line) */}
-      <div className={`
-        absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full transition-all duration-300
-        ${isActive ? 'bg-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.6)]' : ''}
-        ${isComplete ? 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.5)]' : ''}
-        ${isInactive ? 'bg-white/20 border border-white/10' : ''}
-      `} />
+      <div
+        className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full transition-all duration-300"
+        style={{
+          background: isActive ? 'var(--accent-primary)' : isComplete ? 'var(--color-success)' : 'var(--border-medium)',
+          boxShadow: isActive ? '0 0 20px var(--accent-primary-glow)' : isComplete ? '0 0 15px var(--color-success-dim)' : 'none'
+        }}
+      />
 
       {/* Left Content */}
       <div className="w-48 text-right pr-8">
-        <div className={`
-          flex items-center justify-end gap-3 mb-2
-          ${isActive ? 'text-white' : isComplete ? 'text-emerald-400/80' : 'text-white/40'}
-        `}>
+        <div
+          className="flex items-center justify-end gap-3 mb-2"
+          style={{ color: isActive ? 'var(--text-primary)' : isComplete ? 'var(--color-success)' : 'var(--text-muted)' }}
+        >
           <span className="text-sm tracking-[0.2em] font-medium uppercase">{label}</span>
-          <div className={isActive ? 'text-cyan-400' : isComplete ? 'text-emerald-400' : 'text-white/30'}>
+          <div style={{ color: isActive ? 'var(--accent-primary)' : isComplete ? 'var(--color-success)' : 'var(--text-muted)' }}>
             {isComplete ? <CheckCircle2 className="w-5 h-5" /> : icon}
           </div>
         </div>
-        <p className={`
-          text-xs tracking-wide
-          ${isActive ? 'text-white/60' : 'text-white/30'}
-        `}>
+        <p
+          className="text-xs tracking-wide"
+          style={{ color: isActive ? 'var(--text-secondary)' : 'var(--text-muted)' }}
+        >
           {sublabel}
         </p>
 
         {/* Progress indicator */}
         {progress !== undefined && isActive && (
-          <div className="mt-3 h-px bg-white/10 w-full">
+          <div className="mt-3 h-1 w-full rounded-full" style={{ background: 'var(--border-light)' }}>
             <div
-              className="h-full bg-cyan-400 transition-all duration-500"
-              style={{ width: `${progress}%` }}
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${progress}%`, background: 'var(--accent-primary)' }}
             />
           </div>
         )}
@@ -513,16 +525,10 @@ function DataNode({
         {action && actionLabel && (
           <button
             onClick={action}
-            className={`
-              group relative px-6 py-2.5 font-mono text-xs tracking-[0.15em] uppercase
-              transition-all duration-200 border
-              ${highlight
-                ? 'border-emerald-400/50 text-emerald-400 hover:bg-emerald-400 hover:text-black'
-                : 'border-white/30 text-white/80 hover:bg-white hover:text-black hover:border-white'
-              }
-            `}
+            className={highlight ? 'btn btn-primary' : 'btn btn-secondary'}
+            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}
           >
-            <span className="relative z-10">[ {actionLabel} ]</span>
+            {actionLabel}
           </button>
         )}
       </div>

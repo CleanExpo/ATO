@@ -243,22 +243,24 @@ export default function DataQualityPage() {
               <div className="glass-card p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[var(--text-secondary)]">Issues Found</span>
-                  <AlertCircle className="w-5 h-5 text-amber-400" />
+                  <AlertCircle className="w-5 h-5" style={{ color: 'var(--color-warning)' }} />
                 </div>
                 <AnimatedCounter
                   value={scanStatus.issuesFound}
-                  className="text-3xl font-bold text-amber-400"
+                  className="text-3xl font-bold"
+                  variant="warning"
                 />
               </div>
 
               <div className="glass-card p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-[var(--text-secondary)]">Auto-Fixed</span>
-                  <CheckCircle className="w-5 h-5 text-emerald-400" />
+                  <CheckCircle className="w-5 h-5" style={{ color: 'var(--color-success)' }} />
                 </div>
                 <AnimatedCounter
                   value={scanStatus.issuesAutoCorrected}
-                  className="text-3xl font-bold text-emerald-400"
+                  className="text-3xl font-bold"
+                  variant="success"
                 />
               </div>
             </div>
@@ -281,8 +283,8 @@ export default function DataQualityPage() {
             {/* Financial Impact Card */}
             <div className="glass-card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-emerald-400" />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--color-success-dim)' }}>
+                  <TrendingUp className="w-6 h-6" style={{ color: 'var(--color-success)' }} />
                 </div>
                 <div>
                   <h3 className="font-semibold">Financial Impact</h3>
@@ -296,7 +298,8 @@ export default function DataQualityPage() {
                 value={scanStatus.totalImpactAmount}
                 format="currency"
                 decimals={2}
-                className="text-4xl font-bold text-emerald-400"
+                className="text-4xl font-bold"
+                variant="success"
               />
 
               <div className="mt-6 grid grid-cols-2 gap-4">
@@ -382,19 +385,19 @@ function ClientView({ data }: { data: DataQualityScanResult }) {
       {/* Quick Stats */}
       <div className="grid md:grid-cols-3 gap-6">
         <div className="glass-card p-6 text-center">
-          <div className="text-4xl font-bold text-emerald-400 mb-2">
+          <div className="text-4xl font-bold mb-2" style={{ color: 'var(--color-success)' }}>
             ${Math.round(summary.visualData.savingsPotential / 1000)}k
           </div>
           <div className="text-sm text-[var(--text-secondary)]">Potential Savings</div>
         </div>
         <div className="glass-card p-6 text-center">
-          <div className="text-4xl font-bold text-amber-400 mb-2">
+          <div className="text-4xl font-bold mb-2" style={{ color: 'var(--color-warning)' }}>
             {summary.visualData.issuesCount}
           </div>
           <div className="text-sm text-[var(--text-secondary)]">Issues to Review</div>
         </div>
         <div className="glass-card p-6 text-center">
-          <div className="text-4xl font-bold text-sky-400 mb-2">
+          <div className="text-4xl font-bold mb-2" style={{ color: 'var(--color-cyan)' }}>
             {summary.visualData.estimatedFixTime}
           </div>
           <div className="text-sm text-[var(--text-secondary)]">Estimated Fix Time</div>
@@ -409,7 +412,7 @@ function ClientView({ data }: { data: DataQualityScanResult }) {
         <ol className="space-y-3">
           {summary.nextSteps.map((step, index) => (
             <li key={index} className="flex items-start gap-3">
-              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-sky-500/20 text-sky-400 flex items-center justify-center text-sm font-semibold">
+              <span className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-sm font-semibold" style={{ background: 'var(--color-cyan-dim)', color: 'var(--color-cyan)' }}>
                 {index + 1}
               </span>
               <span className="text-[var(--text-secondary)]">{step}</span>
@@ -498,7 +501,7 @@ function TechnicalView({ data }: { data: DataQualityScanResult }) {
         <ul className="space-y-3 text-[var(--text-secondary)]">
           <li>• <strong>{data.issuesAutoCorrected}</strong> auto-corrections applied (confidence ≥90%)</li>
           <li>• <strong>{data.issuesPendingReview}</strong> flagged for accountant review (70-89% confidence)</li>
-          <li>• Total Financial Impact: <strong className="text-emerald-400">${data.totalImpactAmount.toLocaleString()}</strong></li>
+          <li>• Total Financial Impact: <strong style={{ color: 'var(--color-success)' }}>${data.totalImpactAmount.toLocaleString()}</strong></li>
           <li>• Recommended: Review medium-confidence items before finalizing</li>
         </ul>
       </div>
