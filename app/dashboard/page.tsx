@@ -1,13 +1,11 @@
 /**
- * Dashboard - Scientific Luxury Tier
+ * Dashboard - Simplified & Clear UI
  *
  * Features:
- * - Dynamic Island navigation
- * - Asymmetrical 40/60 layouts
- * - Data strips for information display
- * - Holographic panels for hero sections
- * - JetBrains Mono data typography
- * - OLED void backgrounds with glass surfaces
+ * - Clear "LIVE DATA" indicator showing real Xero connection
+ * - Simple progress tracking
+ * - Easy-to-understand organisation switcher
+ * - Real-time sync status
  */
 
 'use client'
@@ -29,7 +27,11 @@ import {
   AlertTriangle,
   ArrowRight,
   Scan,
-  Zap
+  Zap,
+  Shield,
+  Database,
+  Activity,
+  Clock
 } from 'lucide-react'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
@@ -238,6 +240,53 @@ function DashboardContent() {
       <main className="main-content" style={{
         paddingTop: 'var(--space-3xl)',
       }}>
+        {/* LIVE DATA Banner - Always visible when connected */}
+        {hasConnections && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: 'var(--space-sm) var(--space-md)',
+              marginBottom: 'var(--space-lg)',
+              background: 'linear-gradient(90deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%)',
+              borderRadius: '12px',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 12px',
+                background: 'rgba(16, 185, 129, 0.2)',
+                borderRadius: '20px',
+              }}>
+                <span style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  background: '#10B981',
+                  animation: 'pulse 2s infinite',
+                }} />
+                <span style={{ color: '#10B981', fontWeight: 600, fontSize: '12px', letterSpacing: '0.5px' }}>
+                  LIVE DATA
+                </span>
+              </div>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                Connected to Xero • Real financial data
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)', color: 'var(--text-muted)', fontSize: '12px' }}>
+              <Shield className="w-4 h-4" style={{ color: '#10B981' }} />
+              <span>Read-only access</span>
+            </div>
+          </motion.div>
+        )}
+
         {/* Success Banner */}
         <AnimatePresence>
           {justConnected && (
@@ -307,53 +356,92 @@ function DashboardContent() {
           </motion.div>
         ) : (
           <>
-            {/* Header Section */}
+            {/* Header Section - Simplified */}
             <motion.header
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-              style={{ marginBottom: 'var(--space-2xl)' }}
+              style={{ marginBottom: 'var(--space-xl)' }}
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                 <div>
-                  <h1 className="typo-display" style={{ marginBottom: 'var(--space-xs)' }}>
-                    Tax Intelligence
-                  </h1>
-                  <p className="typo-subtitle">
-                    {activeConnection
-                      ? activeConnection.organisation_name || activeConnection.tenant_name
-                      : 'Select an organisation'
-                    }
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-xs)' }}>
+                    <h1 className="typo-display">
+                      Tax Dashboard
+                    </h1>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                    <Building2 className="w-4 h-4" style={{ color: 'var(--accent-xero)' }} />
+                    <span style={{
+                      fontSize: '16px',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      background: 'var(--accent-xero-dim)',
+                      padding: '4px 12px',
+                      borderRadius: '8px',
+                    }}>
+                      {activeConnection
+                        ? activeConnection.organisation_name || activeConnection.tenant_name
+                        : 'Select an organisation'
+                      }
+                    </span>
+                    {activeConnection && !activeConnection.is_demo_company && (
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#10B981',
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase',
+                      }}>
+                        Production
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
                   {activeConnection && (
-                    <button onClick={fetchConnections} className="btn btn-secondary">
-                      <RefreshCw className="w-4 h-4" />
-                      Sync
-                    </button>
+                    <Link href="/dashboard/forensic-audit" className="btn btn-primary">
+                      <Database className="w-4 h-4" />
+                      Sync & Analyse
+                    </Link>
                   )}
                   <Link href="/api/auth/xero" className="btn btn-xero">
                     <Plus className="w-4 h-4" />
-                    Add
+                    Add Organisation
                   </Link>
                 </div>
               </div>
             </motion.header>
 
-            {/* Active Operations */}
+            {/* Active Operations - Enhanced with clear progress */}
             <AnimatePresence>
               {activeOperations.length > 0 && (
                 <motion.section
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  style={{ marginBottom: 'var(--space-2xl)' }}
+                  style={{
+                    marginBottom: 'var(--space-xl)',
+                    padding: 'var(--space-md)',
+                    background: 'rgba(99, 102, 241, 0.05)',
+                    borderRadius: '16px',
+                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                  }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-md)' }}>
-                    <Zap className="w-4 h-4" style={{ color: 'var(--signal-high)' }} />
-                    <span className="typo-label-md">Active Operations</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                      <Activity className="w-5 h-5" style={{ color: '#6366F1' }} />
+                      <span style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
+                        Processing Your Data
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                      <Clock className="w-3 h-3" />
+                      <span>Running in background</span>
+                    </div>
                   </div>
 
                   <div className="layout-stack">
@@ -570,41 +658,101 @@ function DashboardContent() {
               </div>
             </section>
 
-            {/* Connected Organizations */}
+            {/* Connected Organizations - Enhanced clarity */}
             <section style={{ marginTop: 'var(--space-xl)' }}>
-              <span className="typo-label-md" style={{ marginBottom: 'var(--space-md)', display: 'block' }}>
-                Connected Organisations
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                  <Database className="w-4 h-4" style={{ color: 'var(--accent-xero)' }} />
+                  <span style={{ fontWeight: 600, fontSize: '14px' }}>
+                    Your Xero Organisations ({connections.length})
+                  </span>
+                </div>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Click to switch • Data syncs separately for each
+                </span>
+              </div>
 
               <div className="layout-stack">
-                {connections.map((conn) => (
-                  <motion.div
-                    key={conn.tenant_id}
-                    className={`org-card ${activeConnection?.tenant_id === conn.tenant_id ? 'org-card--active' : ''}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                  >
-                    <div className="org-card__icon">
-                      <Building2 className="w-5 h-5" />
-                    </div>
-                    <div className="org-card__info">
-                      <div className="org-card__name">
-                        {conn.organisation_name || conn.tenant_name}
-                      </div>
-                      <div className="org-card__meta">
-                        {conn.organisation_type} • {conn.country_code} • {conn.base_currency}
-                        {conn.is_demo_company && ' • Demo'}
-                      </div>
-                    </div>
-                    <button
+                {connections.map((conn) => {
+                  const isActive = activeConnection?.tenant_id === conn.tenant_id
+                  return (
+                    <motion.div
+                      key={conn.tenant_id}
                       onClick={() => handleSelectConnection(conn)}
-                      className={activeConnection?.tenant_id === conn.tenant_id ? 'btn btn-primary' : 'btn btn-secondary'}
-                      style={{ padding: 'var(--space-xs) var(--space-md)' }}
+                      className={`org-card ${isActive ? 'org-card--active' : ''}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      style={{
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        border: isActive ? '2px solid var(--accent-xero)' : '1px solid var(--border-default)',
+                        background: isActive ? 'rgba(19, 181, 234, 0.05)' : 'transparent',
+                      }}
+                      whileHover={{ scale: 1.01, borderColor: 'var(--accent-xero)' }}
                     >
-                      {activeConnection?.tenant_id === conn.tenant_id ? 'Active' : 'Select'}
-                    </button>
-                  </motion.div>
-                ))}
+                      <div className="org-card__icon" style={{
+                        background: isActive ? 'var(--accent-xero)' : 'var(--accent-xero-dim)',
+                        color: isActive ? 'white' : 'var(--accent-xero)',
+                      }}>
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <div className="org-card__info">
+                        <div className="org-card__name" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                          {conn.organisation_name || conn.tenant_name}
+                          {conn.is_demo_company && (
+                            <span style={{
+                              fontSize: '10px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              background: 'rgba(245, 158, 11, 0.2)',
+                              color: '#F59E0B',
+                              fontWeight: 600,
+                            }}>
+                              DEMO
+                            </span>
+                          )}
+                          {!conn.is_demo_company && (
+                            <span style={{
+                              fontSize: '10px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              background: 'rgba(16, 185, 129, 0.2)',
+                              color: '#10B981',
+                              fontWeight: 600,
+                            }}>
+                              LIVE
+                            </span>
+                          )}
+                        </div>
+                        <div className="org-card__meta">
+                          {conn.organisation_type} • {conn.country_code} • {conn.base_currency}
+                        </div>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--space-sm)',
+                      }}>
+                        {isActive && (
+                          <span style={{
+                            fontSize: '11px',
+                            color: 'var(--accent-xero)',
+                            fontWeight: 600,
+                          }}>
+                            Currently Viewing
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleSelectConnection(conn) }}
+                          className={isActive ? 'btn btn-primary' : 'btn btn-secondary'}
+                          style={{ padding: 'var(--space-xs) var(--space-md)' }}
+                        >
+                          {isActive ? 'Active' : 'Select'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  )
+                })}
               </div>
             </section>
           </>
