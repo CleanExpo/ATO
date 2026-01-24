@@ -94,26 +94,51 @@ export async function GET(request: NextRequest) {
         // Build where clause for contact name search
         // Xero API doesn't support partial contact name search in where clause
         // So we'll fetch all invoices and filter client-side
+        // For better performance, also filter by type (ACCREC = sales invoices for bad debt)
         let whereClause = ''
+        const includeReceivablesOnly = request.nextUrl.searchParams.get('receivablesOnly') === 'true'
+
         if (status) {
             whereClause = `Status=="${status}"`
         }
 
-        // Fetch invoices from Xero
-        const response = await client.accountingApi.getInvoices(
-            tenantId,
-            undefined,    // ifModifiedSince
-            whereClause || undefined,  // where
-            undefined,    // order
-            undefined,    // ids
-            undefined,    // invoiceNumbers
-            undefined,    // contactIDs
-            undefined,    // statuses
-            1,            // page
-            true          // includeArchived
-        )
+        // For bad debt searches, focus on sales invoices (ACCREC)
+        if (includeReceivablesOnly) {
+            whereClause = whereClause
+                ? `${whereClause}&&Type=="ACCREC"`
+                : 'Type=="ACCREC"'
+        }
 
-        const allInvoices = response.body.invoices || []
+        // Fetch all invoices from Xero (paginated)
+        let allInvoices: any[] = []
+        let page = 1
+        let hasMore = true
+
+        while (hasMore && page <= 20) { // Max 20 pages (2000 invoices)
+            const response = await client.accountingApi.getInvoices(
+                tenantId,
+                undefined,    // ifModifiedSince
+                whereClause || undefined,  // where
+                undefined,    // order
+                undefined,    // ids
+                undefined,    // invoiceNumbers
+                undefined,    // contactIDs
+                undefined,    // statuses
+                page,         // page
+                true          // includeArchived
+            )
+
+            const invoices = response.body.invoices || []
+            allInvoices = allInvoices.concat(invoices)
+
+            // Stop if we got less than 100 (default page size)
+            if (invoices.length < 100) {
+                hasMore = false
+            }
+            page++
+        }
+
+        console.log(`Fetched ${allInvoices.length} total invoices across ${page - 1} pages`)
 
         // Filter by contact name (case-insensitive partial match)
         const searchLower = search.toLowerCase()

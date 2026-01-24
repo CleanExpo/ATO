@@ -5,6 +5,9 @@ import { createErrorResponse, createValidationError, createNotFoundError } from 
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import type { TokenSet } from 'xero-node'
 
+// Single-user mode: Skip auth and use tenantId directly
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+
 type XeroReportCell = {
     value?: string
     attributes?: Record<string, unknown>
@@ -98,11 +101,22 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
 // GET /api/xero/reports - Get financial reports
 export async function GET(request: NextRequest) {
     try {
-        // Authenticate and validate tenant access
-        const auth = await requireAuth(request)
-        if (isErrorResponse(auth)) return auth
+        let tenantId: string
 
-        const { tenantId } = auth
+        if (SINGLE_USER_MODE) {
+            // Single-user mode: get tenantId from query param
+            const queryTenantId = request.nextUrl.searchParams.get('tenantId')
+            if (!queryTenantId) {
+                return createValidationError('tenantId is required')
+            }
+            tenantId = queryTenantId
+        } else {
+            // Multi-user mode: authenticate and validate tenant access
+            const auth = await requireAuth(request)
+            if (isErrorResponse(auth)) return auth
+            tenantId = auth.tenantId
+        }
+
         const baseUrl = request.nextUrl.origin
         const reportType = request.nextUrl.searchParams.get('type') || 'TrialBalance'
         const fromDate = request.nextUrl.searchParams.get('fromDate')

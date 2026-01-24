@@ -13,6 +13,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import type { TokenSet } from 'xero-node'
+import { TaxRate } from 'xero-node'
 
 // Helper to get valid token set for a tenant
 async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
@@ -134,13 +135,13 @@ export async function GET(request: NextRequest) {
                     isGstFree: taxType === 'EXEMPTOUTPUT' || taxType === 'EXEMPTEXPORT',
                     isInputTaxed: taxType === 'INPUTTAXED',
                     isBasExcluded: taxType === 'BASEXCLUDED' || taxType === 'NONE',
-                    needsReview: !rate.taxType || rate.status !== 'ACTIVE'
+                    needsReview: !rate.taxType || rate.status !== TaxRate.StatusEnum.ACTIVE
                 }
             }
         })
 
         // Summary statistics
-        const activeTaxRates = categorisedRates.filter(r => r.status === 'ACTIVE')
+        const activeTaxRates = categorisedRates.filter(r => r.status === TaxRate.StatusEnum.ACTIVE)
         const gstRates = activeTaxRates.filter(r => r.flags.isGstApplicable)
         const exemptRates = activeTaxRates.filter(r => r.flags.isGstFree || r.flags.isInputTaxed)
 

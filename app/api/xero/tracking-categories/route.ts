@@ -13,6 +13,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import type { TokenSet } from 'xero-node'
+import { TrackingOption, TrackingCategory } from 'xero-node'
 
 // Helper to get valid token set for a tenant
 async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
@@ -117,7 +118,7 @@ export async function GET(request: NextRequest) {
         // Map tracking categories with options
         const categoriesWithAnalysis = trackingCategories.map(category => {
             const options = category.options || []
-            const activeOptions = options.filter(opt => opt.status === 'ACTIVE')
+            const activeOptions = options.filter(opt => opt.status === TrackingOption.StatusEnum.ACTIVE)
 
             // Check if category might be R&D related
             const isRndRelated = category.name?.toLowerCase().includes('r&d') ||
@@ -164,7 +165,7 @@ export async function GET(request: NextRequest) {
             trackingCategories: categoriesWithAnalysis,
             summary: {
                 total: trackingCategories.length,
-                active: categoriesWithAnalysis.filter(c => c.status === 'ACTIVE').length,
+                active: categoriesWithAnalysis.filter(c => c.status === TrackingCategory.StatusEnum.ACTIVE).length,
                 rndRelated: categoriesWithAnalysis.filter(c => c.analysis.isRndRelated).length,
                 costCentres: categoriesWithAnalysis.filter(c => c.analysis.isCostCentre).length
             },
