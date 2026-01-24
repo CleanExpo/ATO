@@ -201,6 +201,25 @@ export async function POST(request: NextRequest) {
 
                 if (error) {
                     console.error('[sync-chunk] Cache error:', error)
+                    // Return error details for debugging
+                    return NextResponse.json({
+                        success: false,
+                        error: 'Database cache error',
+                        errorDetails: {
+                            message: error.message,
+                            code: error.code,
+                            details: error.details,
+                            hint: error.hint
+                        },
+                        fetched: transactions.length,
+                        recordsAttempted: cacheRecords.length,
+                        sampleRecord: cacheRecords[0] ? {
+                            tenant_id: cacheRecords[0].tenant_id,
+                            transaction_id: cacheRecords[0].transaction_id,
+                            transaction_date: cacheRecords[0].transaction_date,
+                            financial_year: cacheRecords[0].financial_year
+                        } : null
+                    }, { status: 500 })
                 } else {
                     cachedCount = cacheRecords.length
                 }
