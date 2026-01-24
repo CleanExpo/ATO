@@ -385,23 +385,42 @@ export async function getCachedTransactions(
     // Use service client to bypass RLS for server-side operations
     const supabase = await createServiceClient()
 
-    let query = supabase
-        .from('historical_transactions_cache')
-        .select('raw_data')
-        .eq('tenant_id', tenantId)
+    // Supabase has a default 1000 row limit - we need to paginate to get all records
+    const allRecords: HistoricalTransaction[] = []
+    const pageSize = 1000
+    let offset = 0
+    let hasMore = true
 
-    if (financialYear) {
-        query = query.eq('financial_year', financialYear)
+    while (hasMore) {
+        let query = supabase
+            .from('historical_transactions_cache')
+            .select('raw_data')
+            .eq('tenant_id', tenantId)
+            .range(offset, offset + pageSize - 1)
+            .order('created_at', { ascending: true })
+
+        if (financialYear) {
+            query = query.eq('financial_year', financialYear)
+        }
+
+        const { data, error } = await query
+
+        if (error) {
+            console.error('Error getting cached transactions:', error)
+            throw error
+        }
+
+        if (data && data.length > 0) {
+            allRecords.push(...data.map(record => record.raw_data as HistoricalTransaction))
+            offset += pageSize
+            hasMore = data.length === pageSize // If we got a full page, there might be more
+        } else {
+            hasMore = false
+        }
     }
 
-    const { data, error } = await query
-
-    if (error) {
-        console.error('Error getting cached transactions:', error)
-        throw error
-    }
-
-    return data.map(record => record.raw_data as HistoricalTransaction)
+    console.log(`[getCachedTransactions] Retrieved ${allRecords.length} transactions for tenant ${tenantId}`)
+    return allRecords
 }
 
 /**
