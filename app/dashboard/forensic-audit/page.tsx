@@ -8,7 +8,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Zap,
   Cpu,
@@ -34,6 +34,7 @@ interface ProgressData {
 
 export default function ForensicAuditPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [progress, setProgress] = useState<ProgressData>({
     stage: 'idle',
@@ -46,10 +47,11 @@ export default function ForensicAuditPage() {
   })
   const [isPolling, setIsPolling] = useState(false)
 
-  // Fetch tenant ID on mount
+  // Fetch tenant ID on mount or URL change
   useEffect(() => {
     fetchTenantId()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   // Check current status when tenant loaded
   useEffect(() => {
@@ -59,6 +61,13 @@ export default function ForensicAuditPage() {
   }, [tenantId])
 
   async function fetchTenantId() {
+    // Check URL parameter first
+    const urlTenantId = searchParams.get('tenantId')
+    if (urlTenantId) {
+      setTenantId(urlTenantId)
+      return
+    }
+
     try {
       const response = await fetch('/api/xero/organizations')
       const data = await response.json()
@@ -273,7 +282,10 @@ export default function ForensicAuditPage() {
   }
 
   function goToAdvanced() {
-    router.push('/dashboard/forensic-audit/advanced')
+    const url = tenantId
+      ? `/dashboard/forensic-audit/advanced?tenantId=${tenantId}`
+      : '/dashboard/forensic-audit/advanced'
+    router.push(url)
   }
 
   // Determine node states

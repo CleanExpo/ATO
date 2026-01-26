@@ -7,9 +7,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { MobileNav } from '@/components/ui/MobileNav'
+import ExpandableRecommendationCard from '@/components/forensic-audit/ExpandableRecommendationCard'
 
 interface Recommendation {
   id: string
@@ -27,6 +28,8 @@ interface Recommendation {
   amendmentWindow: 'open' | 'closing_soon' | 'closed'
   transactionCount: number
   status: 'identified' | 'in_progress' | 'completed' | 'rejected'
+  legislativeReference?: string
+  documentationRequired?: string[]
 }
 
 type FilterType = 'all' | 'critical' | 'high' | 'medium' | 'low'
@@ -34,18 +37,48 @@ type TaxAreaFilter = 'all' | 'rnd' | 'deductions' | 'losses' | 'div7a'
 
 export default function RecommendationsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [filteredRecommendations, setFilteredRecommendations] = useState<Recommendation[]>([])
   const [priorityFilter, setPriorityFilter] = useState<FilterType>('all')
   const [taxAreaFilter, setTaxAreaFilter] = useState<TaxAreaFilter>('all')
   const [error, setError] = useState<string | null>(null)
+  const [tenantId, setTenantId] = useState<string | null>(null)
 
-  const tenantId = 'demo-tenant'
+  // Fetch tenant ID from URL params or organizations API
+  useEffect(() => {
+    async function fetchTenantId() {
+      // Check URL parameter first
+      const urlTenantId = searchParams.get('tenantId')
+      if (urlTenantId) {
+        setTenantId(urlTenantId)
+        return
+      }
+
+      // Otherwise fetch from organizations API
+      try {
+        const response = await fetch('/api/xero/organizations')
+        const data = await response.json()
+        if (data.connections && data.connections.length > 0) {
+          setTenantId(data.connections[0].tenant_id)
+        } else {
+          setError('No Xero connections found. Please connect your Xero account first.')
+        }
+      } catch (err) {
+        console.error('Failed to fetch tenant ID:', err)
+        setError('Failed to load Xero connection')
+      }
+    }
+    fetchTenantId()
+  }, [searchParams])
 
   useEffect(() => {
-    loadRecommendations()
-  }, [])
+    if (tenantId) {
+      loadRecommendations()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId])
 
   useEffect(() => {
     filterRecommendations()
@@ -53,6 +86,8 @@ export default function RecommendationsPage() {
   }, [priorityFilter, taxAreaFilter, recommendations])
 
   async function loadRecommendations() {
+    if (!tenantId) return
+
     try {
       setLoading(true)
       setError(null)
@@ -83,63 +118,7 @@ export default function RecommendationsPage() {
     setFilteredRecommendations(filtered)
   }
 
-  function getPriorityColor(priority: string): string {
-    switch (priority) {
-      case 'critical':
-        return 'border-red-500 bg-red-50'
-      case 'high':
-        return 'border-orange-500 bg-orange-50'
-      case 'medium':
-        return 'border-yellow-500 bg-yellow-50'
-      case 'low':
-        return 'border-gray-500 bg-gray-50'
-      default:
-        return 'border-gray-300 bg-white'
-    }
-  }
-
-  function getPriorityBadgeColor(priority: string): string {
-    switch (priority) {
-      case 'critical':
-        return 'bg-red-600 text-white'
-      case 'high':
-        return 'bg-orange-600 text-white'
-      case 'medium':
-        return 'bg-yellow-600 text-white'
-      case 'low':
-        return 'bg-gray-600 text-white'
-      default:
-        return 'bg-gray-400 text-white'
-    }
-  }
-
-  function getTaxAreaLabel(taxArea: string): string {
-    switch (taxArea) {
-      case 'rnd':
-        return 'R&D'
-      case 'deductions':
-        return 'Deductions'
-      case 'losses':
-        return 'Losses'
-      case 'div7a':
-        return 'Division 7A'
-      default:
-        return taxArea
-    }
-  }
-
-  function getAmendmentWindowIcon(window: string): string {
-    switch (window) {
-      case 'closing_soon':
-        return '⚠️'
-      case 'closed':
-        return '❌'
-      default:
-        return '✅'
-    }
-  }
-
-  if (loading) {
+  if (loading || !tenantId) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -322,80 +301,15 @@ export default function RecommendationsPage() {
             </div>
           ) : (
             filteredRecommendations.map((rec) => (
-              <div
+              <ExpandableRecommendationCard
                 key={rec.id}
-                className={`border-l-4 ${getPriorityColor(rec.priority)} rounded-r shadow hover:shadow-lg transition cursor-pointer p-6`}
-                onClick={() => router.push(`/dashboard/forensic-audit/recommendations/${rec.id}?tenantId=${tenantId}`)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    {/* Priority Badge */}
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className={`px-3 py-1 rounded text-xs font-bold ${getPriorityBadgeColor(rec.priority)}`}>
-                        {rec.priority.toUpperCase()}
-                      </span>
-                      <span className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs font-medium">
-                        {getTaxAreaLabel(rec.taxArea)}
-                      </span>
-                      <span className="px-3 py-1 bg-gray-200 text-gray-700 rounded text-xs font-medium">
-                        {rec.financialYear}
-                      </span>
-                      <span className="text-sm">
-                        {getAmendmentWindowIcon(rec.amendmentWindow)}{' '}
-                        {rec.amendmentWindow === 'closing_soon'
-                          ? 'Deadline Approaching'
-                          : rec.amendmentWindow === 'closed'
-                          ? 'Deadline Passed'
-                          : 'Amendment Window Open'}
-                      </span>
-                    </div>
-
-                    {/* Action */}
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">{rec.action}</h3>
-
-                    {/* Description */}
-                    <p className="text-sm text-gray-700 mb-3">{rec.description}</p>
-
-                    {/* Details */}
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                      <span>
-                        <strong>Benefit:</strong> ${rec.adjustedBenefit.toLocaleString('en-AU')}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        <strong>Confidence:</strong> {rec.confidence}%
-                      </span>
-                      <span>•</span>
-                      <span>
-                        <strong>Deadline:</strong> {new Date(rec.deadline).toLocaleDateString()}
-                      </span>
-                      <span>•</span>
-                      <span>
-                        <strong>Forms:</strong> {rec.atoForms.join(', ')}
-                      </span>
-                      {rec.transactionCount > 0 && (
-                        <>
-                          <span>•</span>
-                          <span>
-                            <strong>Transactions:</strong> {rec.transactionCount}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Benefit Amount */}
-                  <div className="text-right ml-6">
-                    <p className="text-sm text-gray-500 mb-1">Adjusted Benefit</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      ${rec.adjustedBenefit.toLocaleString('en-AU')}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Net: ${rec.netBenefit.toLocaleString('en-AU')}
-                    </p>
-                  </div>
-                </div>
-              </div>
+                recommendation={{
+                  ...rec,
+                  legislativeReference: rec.legislativeReference || 'Section 8-1 ITAA 1997',
+                  documentationRequired: rec.documentationRequired || [],
+                }}
+                tenantId={tenantId || ''}
+              />
             ))
           )}
         </div>

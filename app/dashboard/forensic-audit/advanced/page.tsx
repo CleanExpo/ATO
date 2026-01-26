@@ -12,7 +12,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Beaker, TrendingDown, Building2, AlertCircle, CheckCircle, Clock } from 'lucide-react'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
@@ -73,6 +73,7 @@ interface DashboardData {
 
 export default function ForensicAuditDashboardEnhanced() {
   const _router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -82,7 +83,8 @@ export default function ForensicAuditDashboardEnhanced() {
 
   useEffect(() => {
     fetchTenantId()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   useEffect(() => {
     if (tenantId) {
@@ -97,6 +99,14 @@ export default function ForensicAuditDashboardEnhanced() {
 
   async function fetchTenantId() {
     try {
+      // Check URL parameter first
+      const urlTenantId = searchParams.get('tenantId')
+      if (urlTenantId) {
+        setTenantId(urlTenantId)
+        return
+      }
+
+      // Otherwise fetch from organizations API
       const response = await fetch('/api/xero/organizations')
       const data = await response.json()
 

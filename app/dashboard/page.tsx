@@ -58,6 +58,11 @@ type TransactionsSummary = {
   rndValue: number
   needsReview: number
   missingTaxTypes: number
+  // From cached/analyzed data
+  cachedTransactions: number
+  analyzedTransactions: number
+  totalBenefit: number
+  dataSource: 'cached' | 'live'
 }
 
 interface ActiveOperation {
@@ -98,10 +103,50 @@ function DashboardContent() {
     try {
       setSummaryLoading(true)
       setSummaryError(null)
-      const data = await apiRequest<{ summary: TransactionsSummary }>(
-        `/api/xero/transactions?tenantId=${encodeURIComponent(tenantId)}`
-      )
-      setSummary(data.summary || null)
+
+      // Fetch from CACHED data (synced historical transactions) and AI analysis
+      const [cachedRes, recommendationsRes] = await Promise.all([
+        fetch(`/api/audit/cached-transactions?tenantId=${encodeURIComponent(tenantId)}&limit=1`),
+        fetch(`/api/audit/recommendations?tenantId=${encodeURIComponent(tenantId)}`)
+      ])
+
+      const cachedData = await cachedRes.json()
+      const recData = await recommendationsRes.json()
+
+      // Get counts from cached data
+      const cachedTotal = cachedData.summary?.totalTransactions || cachedData.pagination?.total || 0
+
+      // Get R&D findings from AI analysis recommendations
+      const rndBenefit = recData.summary?.byTaxArea?.rnd || 0
+      const totalBenefit = recData.summary?.totalAdjustedBenefit || recData.summary?.totalEstimatedBenefit || 0
+      const rndRecommendations = recData.recommendations?.filter((r: { taxArea: string }) => r.taxArea === 'rnd') || []
+
+      // If we have cached data, use it; otherwise fall back to live API
+      if (cachedTotal > 0) {
+        setSummary({
+          total: cachedTotal,
+          rndCandidates: rndRecommendations.length,
+          rndValue: rndBenefit,
+          needsReview: recData.summary?.byPriority?.high || 0,
+          missingTaxTypes: 0,
+          cachedTransactions: cachedTotal,
+          analyzedTransactions: recData.summary?.totalRecommendations || 0,
+          totalBenefit: totalBenefit,
+          dataSource: 'cached'
+        })
+      } else {
+        // Fallback to live Xero API if no cached data
+        const liveData = await apiRequest<{ summary: { total: number; rndCandidates: number; rndValue: number; needsReview: number; missingTaxTypes: number } }>(
+          `/api/xero/transactions?tenantId=${encodeURIComponent(tenantId)}`
+        )
+        setSummary({
+          ...liveData.summary,
+          cachedTransactions: 0,
+          analyzedTransactions: 0,
+          totalBenefit: 0,
+          dataSource: 'live'
+        })
+      }
     } catch (error) {
       console.error('Failed to fetch summary:', error)
       const errorMessage = error instanceof ApiRequestError
@@ -480,15 +525,49 @@ function DashboardContent() {
               transition={{ duration: 0.5 }}
               style={{ marginBottom: 'var(--space-xl)' }}
             >
+              {/* Data Source Indicator */}
+              {summary?.dataSource === 'cached' && (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-xs)',
+                  marginBottom: 'var(--space-md)',
+                  fontSize: '12px',
+                  color: 'var(--color-success)'
+                }}>
+                  <Database className="w-4 h-4" />
+                  <span>Showing AI-analyzed historical data (5 years)</span>
+                </div>
+              )}
               <div className="bento-grid bento-grid--stats">
-                {/* R&D Candidate Spend */}
+                {/* Total Tax Benefit Found */}
                 <motion.div
                   className="stat-card"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 }}
                 >
-                  <span className="stat-card__label">R&D Candidate Spend</span>
+                  <span className="stat-card__label">Total Tax Benefit Found</span>
+                  <AnimatedCounter
+                    value={summary?.totalBenefit ?? 0}
+                    format="currency"
+                    decimals={0}
+                    size="md"
+                    variant="positive"
+                  />
+                  {(summary?.totalBenefit ?? 0) > 0 && (
+                    <span className="stat-card__trend stat-card__trend--up">AI Analyzed</span>
+                  )}
+                </motion.div>
+
+                {/* R&D Tax Offset */}
+                <motion.div
+                  className="stat-card"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                >
+                  <span className="stat-card__label">R&D Tax Offset</span>
                   <AnimatedCounter
                     value={summary?.rndValue ?? 0}
                     format="currency"
@@ -496,50 +575,38 @@ function DashboardContent() {
                     size="md"
                     variant="highlight"
                   />
+                  {(summary?.rndValue ?? 0) > 0 && (
+                    <span className="stat-card__trend stat-card__trend--up">Division 355</span>
+                  )}
                 </motion.div>
 
-                {/* Potential Refund */}
-                <motion.div
-                  className="stat-card"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 }}
-                >
-                  <span className="stat-card__label">Potential Refund</span>
-                  <AnimatedCounter
-                    value={summary?.rndValue ? Math.round(summary.rndValue * 0.435) : 0}
-                    format="currency"
-                    decimals={0}
-                    size="md"
-                    variant="positive"
-                  />
-                  <span className="stat-card__trend stat-card__trend--up">43.5% offset</span>
-                </motion.div>
-
-                {/* Transactions */}
+                {/* Historical Transactions */}
                 <motion.div
                   className="stat-card"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  <span className="stat-card__label">Transactions Scanned</span>
+                  <span className="stat-card__label">Historical Transactions</span>
                   <AnimatedCounter
-                    value={summary?.total ?? 0}
+                    value={summary?.cachedTransactions ?? summary?.total ?? 0}
                     format="number"
                     decimals={0}
                     size="md"
                   />
+                  {(summary?.cachedTransactions ?? 0) > 0 && (
+                    <span className="stat-card__trend stat-card__trend--up">Synced</span>
+                  )}
                 </motion.div>
 
-                {/* Items to Review */}
+                {/* High Priority Items */}
                 <motion.div
                   className="stat-card"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.25 }}
                 >
-                  <span className="stat-card__label">Needs Review</span>
+                  <span className="stat-card__label">High Priority</span>
                   <AnimatedCounter
                     value={summary?.needsReview ?? 0}
                     format="number"

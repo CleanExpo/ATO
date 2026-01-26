@@ -74,7 +74,19 @@ export async function POST(request: NextRequest) {
         const batchTransactions = allTransactions.slice(startIndex, endIndex)
 
         if (batchTransactions.length === 0) {
-            // All done!
+            // All done! Ensure status is marked complete
+            await supabase
+                .from('audit_sync_status')
+                .upsert({
+                    tenant_id: tenantId,
+                    sync_status: 'complete',
+                    transactions_synced: totalTransactions,
+                    total_transactions: totalTransactions,
+                    updated_at: new Date().toISOString()
+                }, {
+                    onConflict: 'tenant_id'
+                })
+
             return NextResponse.json({
                 success: true,
                 analyzed: 0,
