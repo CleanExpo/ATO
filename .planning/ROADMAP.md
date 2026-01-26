@@ -62,11 +62,11 @@
 **Objective**: Improve dashboard UX and add interactive features
 
 ### Phase 8: Dashboard Enhancements
-**Status**: IN PROGRESS (1/3 plans complete)
+**Status**: IN PROGRESS (2/3 plans complete)
 - [ ] Real-time analysis progress display
 - [x] Interactive transaction explorer (Plan 08-01 COMPLETED)
+- [x] Export to Excel/PDF directly from UI (Plan 08-02 COMPLETED)
 - [ ] Drill-down into recommendations
-- [ ] Export to Excel/PDF directly from UI
 
 ### Phase 9: Accountant Collaboration Portal
 **Status**: NOT STARTED
