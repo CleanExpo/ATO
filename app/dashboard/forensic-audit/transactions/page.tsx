@@ -10,8 +10,9 @@
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { MobileNav } from '@/components/ui/MobileNav'
+import { TransactionDetailRow } from '@/components/forensic-audit/TransactionDetailRow'
 
 // ─── Debounce Hook ───────────────────────────────────────────────────
 
@@ -250,6 +251,37 @@ function TransactionsPage() {
     const ps = searchParams.get('pageSize')
     return ps ? parseInt(ps, 10) : 50
   })
+
+  // Selection and expansion state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  // Toggle selection
+  function toggleSelection(transactionId: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(transactionId)) {
+        next.delete(transactionId)
+      } else {
+        next.add(transactionId)
+      }
+      return next
+    })
+  }
+
+  // Toggle all selection
+  function toggleSelectAll() {
+    if (selectedIds.size === transactions.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(transactions.map(t => t.transaction_id)))
+    }
+  }
+
+  // Clear selection
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
 
   // Sync filters to URL for shareable links
   useEffect(() => {
@@ -630,6 +662,48 @@ function TransactionsPage() {
           )}
         </motion.div>
 
+        {/* ── Selection Actions Bar ── */}
+        <AnimatePresence>
+          {selectedIds.size > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2, ease: EASING.outExpo }}
+              className="mb-4 p-4 border-[0.5px] rounded-sm flex items-center justify-between"
+              style={{
+                borderColor: `${SPECTRAL.cyan}30`,
+                backgroundColor: `${SPECTRAL.cyan}08`,
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-sm" style={{ color: SPECTRAL.cyan }}>
+                  {selectedIds.size} transaction{selectedIds.size !== 1 ? 's' : ''} selected
+                </span>
+                <button
+                  onClick={clearSelection}
+                  className="text-[10px] uppercase tracking-[0.15em] text-white/40 hover:text-white/70 transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+              <button
+                className="px-4 py-2 rounded-sm text-[10px] uppercase tracking-[0.15em] font-medium border-[0.5px] flex items-center gap-2 transition-all hover:brightness-110"
+                style={{
+                  borderColor: `${SPECTRAL.emerald}40`,
+                  color: SPECTRAL.emerald,
+                  backgroundColor: `${SPECTRAL.emerald}15`,
+                }}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Export Selected
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* ── Table ── */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -642,6 +716,15 @@ function TransactionsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/[0.06]">
+                  {/* Select All Checkbox */}
+                  <th className="px-3 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      checked={transactions.length > 0 && selectedIds.size === transactions.length}
+                      onChange={toggleSelectAll}
+                      className="w-4 h-4 rounded border-white/20 bg-transparent text-cyan-500 focus:ring-cyan-500 focus:ring-offset-0 cursor-pointer"
+                    />
+                  </th>
                   <th
                     onClick={() => handleSort('transaction_date')}
                     className="px-4 py-3 text-left text-[10px] uppercase tracking-[0.2em] text-white/40 font-medium cursor-pointer hover:text-white/70 transition-colors"
@@ -695,12 +778,15 @@ function TransactionsPage() {
                   <th className="px-4 py-3 text-left text-[10px] uppercase tracking-[0.2em] text-white/40 font-medium">
                     Deduction
                   </th>
+                  <th className="px-3 py-3 w-10">
+                    {/* Expand indicator header */}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {transactions.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-20 text-center">
+                    <td colSpan={9} className="px-4 py-20 text-center">
                       <div className="flex flex-col items-center gap-4">
                         <BreathingOrb colour={SPECTRAL.grey} isActive={false} size="md" />
                         <p className="text-white/30 text-sm">No transactions match the current filters</p>
@@ -722,81 +808,16 @@ function TransactionsPage() {
                     </td>
                   </tr>
                 ) : (
-                  transactions.map((txn, idx) => (
-                    <motion.tr
+                  transactions.map((txn) => (
+                    <TransactionDetailRow
                       key={txn.transaction_id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: Math.min(idx * 0.02, 0.5), duration: 0.3, ease: EASING.outExpo }}
-                      className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors cursor-pointer"
-                    >
-                      <td className="px-4 py-3 text-sm text-white/50 font-mono tabular-nums">
-                        {formatDate(txn.transaction_date)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="max-w-[200px]">
-                          <p className="text-sm text-white/70 truncate">{txn.supplier_name || 'Unknown'}</p>
-                          <p className="text-[10px] text-white/30 truncate mt-0.5">
-                            {txn.transaction_description?.substring(0, 50) || '-'}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums">
-                        <span className={txn.transaction_amount >= 0 ? 'text-white/70' : 'text-red-400'}>
-                          {formatCurrency(Math.abs(txn.transaction_amount))}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-sm text-[10px] uppercase tracking-[0.1em] border-[0.5px]"
-                          style={{
-                            borderColor: `${getCategoryColour(txn.primary_category)}30`,
-                            color: getCategoryColour(txn.primary_category),
-                            backgroundColor: `${getCategoryColour(txn.primary_category)}08`,
-                          }}
-                        >
-                          {txn.primary_category || 'Uncategorised'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <div className="w-12 h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all"
-                              style={{
-                                width: `${txn.category_confidence || 0}%`,
-                                backgroundColor: (txn.category_confidence || 0) >= 80 ? SPECTRAL.emerald :
-                                  (txn.category_confidence || 0) >= 60 ? SPECTRAL.amber : SPECTRAL.red
-                              }}
-                            />
-                          </div>
-                          <span className="text-[10px] text-white/40 tabular-nums w-8">
-                            {txn.category_confidence || 0}%
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {txn.is_rnd_candidate ? (
-                          <span
-                            className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold"
-                            style={{
-                              backgroundColor: `${SPECTRAL.magenta}15`,
-                              color: SPECTRAL.magenta,
-                              border: `0.5px solid ${SPECTRAL.magenta}40`
-                            }}
-                          >
-                            R
-                          </span>
-                        ) : (
-                          <span className="text-white/20">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm text-white/50">
-                          {txn.deduction_type || (txn.is_fully_deductible ? 'Full' : '-')}
-                        </span>
-                      </td>
-                    </motion.tr>
+                      transaction={txn}
+                      isExpanded={expandedId === txn.transaction_id}
+                      isSelected={selectedIds.has(txn.transaction_id)}
+                      onToggleExpand={() => setExpandedId(expandedId === txn.transaction_id ? null : txn.transaction_id)}
+                      onToggleSelect={() => toggleSelection(txn.transaction_id)}
+                      categoryColour={getCategoryColour(txn.primary_category)}
+                    />
                   ))
                 )}
               </tbody>
