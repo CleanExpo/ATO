@@ -1,6 +1,7 @@
 /**
  * Expandable Recommendation Card
  *
+ * Scientific Luxury Design System implementation.
  * Shows recommendation summary in collapsed state.
  * Expands to show transaction table with Xero links on click.
  *
@@ -10,21 +11,12 @@
  * - Animated expand/collapse with framer-motion
  * - Pagination support (20 at a time)
  * - Direct Xero links for each transaction
+ * - Breathing orbs, spectral colours, data strips
  */
 
 'use client'
 
 import { useState, useCallback } from 'react'
-import {
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
-  FileText,
-  Calendar,
-  DollarSign,
-  AlertTriangle,
-  Loader2
-} from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface Transaction {
@@ -68,6 +60,109 @@ interface ExpandableRecommendationCardProps {
   tenantId: string
 }
 
+// ─── Design Tokens ───────────────────────────────────────────────────
+
+const SPECTRAL = {
+  cyan: '#00F5FF',
+  emerald: '#00FF88',
+  amber: '#FFB800',
+  red: '#FF4444',
+  magenta: '#FF00FF',
+  grey: '#6B7280',
+} as const
+
+const EASING = {
+  outExpo: [0.19, 1, 0.22, 1] as [number, number, number, number],
+}
+
+const PRIORITY_COLOURS: Record<string, string> = {
+  critical: SPECTRAL.red,
+  high: SPECTRAL.amber,
+  medium: SPECTRAL.cyan,
+  low: SPECTRAL.grey,
+}
+
+const TAX_AREA_LABELS: Record<string, string> = {
+  rnd: 'R&D Tax Incentive',
+  deductions: 'Deductions',
+  losses: 'Loss Carry-Forward',
+  div7a: 'Division 7A',
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
+function formatCurrencyDetailed(amount: number): string {
+  return new Intl.NumberFormat('en-AU', {
+    style: 'currency',
+    currency: 'AUD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)
+}
+
+function formatDate(dateStr: string): string {
+  if (!dateStr) return 'N/A'
+  try {
+    return new Date(dateStr).toLocaleDateString('en-AU', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
+  } catch {
+    return dateStr
+  }
+}
+
+// ─── Breathing Orb ──────────────────────────────────────────────────
+
+function BreathingOrb({ colour, isActive = true, size = 'xs' }: {
+  colour: string
+  isActive?: boolean
+  size?: 'xs' | 'sm'
+}) {
+  const sizes = { xs: 'h-5 w-5', sm: 'h-8 w-8' }
+  const dotSizes = { xs: 'h-1.5 w-1.5', sm: 'h-2 w-2' }
+
+  return (
+    <motion.div
+      className={`${sizes[size]} flex items-center justify-center rounded-full border-[0.5px]`}
+      style={{
+        borderColor: isActive ? `${colour}50` : 'rgba(255,255,255,0.1)',
+        backgroundColor: isActive ? `${colour}10` : 'rgba(255,255,255,0.02)',
+        boxShadow: isActive ? `0 0 20px ${colour}30` : 'none',
+      }}
+    >
+      <motion.div
+        className={`${dotSizes[size]} rounded-full`}
+        style={{ backgroundColor: colour }}
+        animate={isActive ? { scale: [1, 1.3, 1], opacity: [1, 0.6, 1] } : {}}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    </motion.div>
+  )
+}
+
+// ─── External Link Icon ─────────────────────────────────────────────
+
+function ExternalLinkIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+    </svg>
+  )
+}
+
+// ─── Component ───────────────────────────────────────────────────────
+
 export default function ExpandableRecommendationCard({
   recommendation,
   tenantId,
@@ -80,26 +175,7 @@ export default function ExpandableRecommendationCard({
   const [hasMore, setHasMore] = useState(false)
   const [offset, setOffset] = useState(0)
 
-  const priorityColors: Record<string, string> = {
-    critical: 'border-l-red-500 bg-red-500/5',
-    high: 'border-l-orange-500 bg-orange-500/5',
-    medium: 'border-l-yellow-500 bg-yellow-500/5',
-    low: 'border-l-gray-400 bg-gray-400/5',
-  }
-
-  const priorityBadgeColors: Record<string, string> = {
-    critical: 'bg-red-600 text-white',
-    high: 'bg-orange-500 text-white',
-    medium: 'bg-yellow-500 text-gray-900',
-    low: 'bg-gray-500 text-white',
-  }
-
-  const taxAreaLabels: Record<string, string> = {
-    rnd: 'R&D Tax Incentive',
-    deductions: 'Deductions',
-    losses: 'Loss Carry-Forward',
-    div7a: 'Division 7A',
-  }
+  const priorityColour = PRIORITY_COLOURS[recommendation.priority] || SPECTRAL.grey
 
   const loadTransactions = useCallback(async (loadMore = false) => {
     if (loading) return
@@ -147,44 +223,16 @@ export default function ExpandableRecommendationCard({
     }
   }
 
-  function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)
-  }
-
-  function formatCurrencyDetailed(amount: number): string {
-    return new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount)
-  }
-
-  function formatDate(dateStr: string): string {
-    if (!dateStr) return 'N/A'
-    try {
-      return new Date(dateStr).toLocaleDateString('en-AU', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      })
-    } catch {
-      return dateStr
-    }
-  }
-
   return (
     <div
-      className={`border-l-4 rounded-lg shadow-sm transition-all duration-300 bg-white ${
-        priorityColors[recommendation.priority] || priorityColors.low
-      } ${isExpanded ? 'ring-2 ring-purple-500/30 shadow-md' : 'hover:shadow-md'}`}
+      className="border-[0.5px] rounded-sm transition-all"
+      style={{
+        borderColor: isExpanded ? `${priorityColour}30` : 'rgba(255,255,255,0.06)',
+        backgroundColor: isExpanded ? `${priorityColour}03` : 'rgba(255,255,255,0.01)',
+        boxShadow: isExpanded ? `0 0 40px ${priorityColour}08` : 'none',
+      }}
     >
-      {/* Header - Always visible */}
+      {/* ── Header ── */}
       <div
         className="p-5 cursor-pointer select-none"
         onClick={handleToggle}
@@ -193,137 +241,157 @@ export default function ExpandableRecommendationCard({
           <div className="flex-1 min-w-0">
             {/* Badges */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
+              <BreathingOrb colour={priorityColour} isActive size="xs" />
               <span
-                className={`px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide ${
-                  priorityBadgeColors[recommendation.priority] || priorityBadgeColors.low
-                }`}
+                className="px-2 py-0.5 rounded-sm text-[10px] font-bold uppercase tracking-[0.15em] border-[0.5px]"
+                style={{
+                  borderColor: `${priorityColour}30`,
+                  color: priorityColour,
+                  backgroundColor: `${priorityColour}08`,
+                }}
               >
                 {recommendation.priority}
               </span>
-              <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded text-xs font-medium">
-                {taxAreaLabels[recommendation.taxArea] || recommendation.taxArea}
+              <span
+                className="px-2 py-0.5 rounded-sm text-[10px] uppercase tracking-[0.1em] border-[0.5px]"
+                style={{
+                  borderColor: `${SPECTRAL.magenta}20`,
+                  color: `${SPECTRAL.magenta}90`,
+                  backgroundColor: `${SPECTRAL.magenta}06`,
+                }}
+              >
+                {TAX_AREA_LABELS[recommendation.taxArea] || recommendation.taxArea}
               </span>
-              <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-medium">
+              <span className="px-2 py-0.5 rounded-sm text-[10px] border-[0.5px] border-white/[0.06] text-white/40 font-mono">
                 {recommendation.financialYear}
               </span>
               {recommendation.transactionCount > 0 && (
-                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                  {recommendation.transactionCount} transactions
+                <span
+                  className="px-2 py-0.5 rounded-sm text-[10px] border-[0.5px] font-mono tabular-nums"
+                  style={{
+                    borderColor: `${SPECTRAL.cyan}20`,
+                    color: `${SPECTRAL.cyan}80`,
+                    backgroundColor: `${SPECTRAL.cyan}06`,
+                  }}
+                >
+                  {recommendation.transactionCount} txns
                 </span>
               )}
             </div>
 
             {/* Action */}
-            <h3 className="text-lg font-semibold text-gray-900 mb-2 leading-tight">
+            <h3 className="text-base font-medium text-white/90 mb-2 leading-tight">
               {recommendation.action}
             </h3>
 
             {/* Description */}
-            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+            <p className="text-sm text-white/40 mb-3 line-clamp-2">
               {recommendation.description}
             </p>
 
             {/* Details row */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-              <span>
-                <strong className="text-gray-700">Confidence:</strong> {recommendation.confidence}%
+            <div className="flex flex-wrap items-center gap-4 text-[10px] text-white/30">
+              <span className="font-mono tabular-nums">
+                <span className="uppercase tracking-[0.15em]">Conf</span> {recommendation.confidence}%
               </span>
-              <span>
-                <strong className="text-gray-700">Reference:</strong> {recommendation.legislativeReference}
-              </span>
+              <div className="h-3 w-px bg-white/10" />
+              <span>{recommendation.legislativeReference}</span>
               {recommendation.deadline && (
-                <span>
-                  <strong className="text-gray-700">Deadline:</strong> {formatDate(recommendation.deadline)}
-                </span>
+                <>
+                  <div className="h-3 w-px bg-white/10" />
+                  <span className="font-mono tabular-nums">{formatDate(recommendation.deadline)}</span>
+                </>
               )}
             </div>
           </div>
 
           {/* Right side - benefit and chevron */}
-          <div className="flex flex-col items-end flex-shrink-0">
-            <div className="text-right mb-2">
-              <p className="text-xs text-gray-500 mb-0.5">Adjusted Benefit</p>
-              <p className="text-2xl font-bold text-emerald-600">
+          <div className="flex flex-col items-end flex-shrink-0 gap-3">
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1">Adjusted Benefit</p>
+              <p className="text-2xl font-mono font-medium tabular-nums" style={{ color: SPECTRAL.emerald }}>
                 {formatCurrency(recommendation.adjustedBenefit)}
               </p>
             </div>
-            <div className="p-1 rounded-full bg-gray-100">
-              {isExpanded ? (
-                <ChevronUp className="w-5 h-5 text-gray-500" />
-              ) : (
-                <ChevronDown className="w-5 h-5 text-gray-500" />
-              )}
-            </div>
+            <motion.div
+              animate={{ rotate: isExpanded ? 180 : 0 }}
+              transition={{ duration: 0.3, ease: EASING.outExpo }}
+              className="w-6 h-6 flex items-center justify-center rounded-sm border-[0.5px] border-white/[0.06]"
+              style={{ background: 'rgba(255,255,255,0.02)' }}
+            >
+              <svg className="w-3 h-3 text-white/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </motion.div>
           </div>
         </div>
       </div>
 
-      {/* Expanded content */}
+      {/* ── Expanded Content ── */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            transition={{ duration: 0.35, ease: EASING.outExpo }}
             className="overflow-hidden"
           >
-            <div className="border-t border-gray-200 p-5 bg-gray-50/50">
-              {/* Summary Cards */}
+            <div className="border-t border-white/[0.06] p-5">
+              {/* Summary Data Strip */}
               {summary && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <DollarSign className="w-4 h-4 text-emerald-500" />
-                      <span className="text-sm text-gray-500">Total Amount</span>
-                    </div>
-                    <p className="text-xl font-bold text-gray-900">
+                <div className="flex flex-wrap items-center gap-6 px-4 py-3 mb-6 border-[0.5px] border-white/[0.06] rounded-sm"
+                  style={{ background: 'rgba(255,255,255,0.01)' }}
+                >
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/30">Total Amount</span>
+                    <span className="font-mono text-lg font-medium tabular-nums" style={{ color: SPECTRAL.emerald }}>
                       {formatCurrency(summary.totalAmount)}
-                    </p>
+                    </span>
                   </div>
-
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText className="w-4 h-4 text-blue-500" />
-                      <span className="text-sm text-gray-500">Transactions</span>
-                    </div>
-                    <p className="text-xl font-bold text-gray-900">
+                  <div className="h-5 w-px bg-white/10" />
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] uppercase tracking-[0.2em] text-white/30">Transactions</span>
+                    <span className="font-mono text-lg font-medium text-white/70 tabular-nums">
                       {summary.transactionCount}
-                    </p>
+                    </span>
                   </div>
-
-                  <div className="bg-white rounded-lg p-4 border border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Calendar className="w-4 h-4 text-purple-500" />
-                      <span className="text-sm text-gray-500">By Year</span>
-                    </div>
-                    <div className="text-sm text-gray-700 space-y-0.5">
-                      {Object.entries(summary.byFinancialYear)
-                        .sort(([a], [b]) => b.localeCompare(a))
-                        .slice(0, 3)
-                        .map(([fy, data]) => (
-                          <div key={fy} className="flex justify-between">
-                            <span className="text-gray-500">{fy}:</span>
-                            <span className="font-medium">{formatCurrency(data.amount)}</span>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
+                  {Object.entries(summary.byFinancialYear)
+                    .sort(([a], [b]) => b.localeCompare(a))
+                    .slice(0, 3)
+                    .map(([fy, data]) => (
+                      <div key={fy} className="flex items-baseline gap-2">
+                        <div className="h-5 w-px bg-white/10" />
+                        <span className="text-[10px] text-white/30 font-mono">{fy}</span>
+                        <span className="font-mono text-sm text-white/50 tabular-nums">
+                          {formatCurrency(data.amount)}
+                        </span>
+                      </div>
+                    ))}
                 </div>
               )}
 
               {/* Documentation Required */}
               {recommendation.documentationRequired && recommendation.documentationRequired.length > 0 && (
-                <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div
+                  className="mb-6 p-4 border-[0.5px] rounded-sm"
+                  style={{
+                    borderColor: `${SPECTRAL.amber}20`,
+                    backgroundColor: `${SPECTRAL.amber}05`,
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <BreathingOrb colour={SPECTRAL.amber} isActive size="xs" />
                     <div>
-                      <h4 className="font-semibold text-amber-800 mb-2">
+                      <h4 className="text-[10px] uppercase tracking-[0.2em] mb-2" style={{ color: SPECTRAL.amber }}>
                         Documentation Required
                       </h4>
-                      <ul className="list-disc list-inside text-sm text-amber-700 space-y-1">
+                      <ul className="space-y-1">
                         {recommendation.documentationRequired.map((doc, i) => (
-                          <li key={i}>{doc}</li>
+                          <li key={i} className="text-sm text-white/40 flex items-start gap-2">
+                            <span className="text-white/20 mt-1">&bull;</span>
+                            {doc}
+                          </li>
                         ))}
                       </ul>
                     </div>
@@ -333,13 +401,27 @@ export default function ExpandableRecommendationCard({
 
               {/* ATO Forms */}
               {recommendation.atoForms && recommendation.atoForms.length > 0 && (
-                <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-semibold text-blue-800 mb-2">
+                <div
+                  className="mb-6 p-4 border-[0.5px] rounded-sm"
+                  style={{
+                    borderColor: `${SPECTRAL.cyan}20`,
+                    backgroundColor: `${SPECTRAL.cyan}05`,
+                  }}
+                >
+                  <h4 className="text-[10px] uppercase tracking-[0.2em] mb-3" style={{ color: SPECTRAL.cyan }}>
                     ATO Forms Required
                   </h4>
                   <div className="flex flex-wrap gap-2">
                     {recommendation.atoForms.map((form, i) => (
-                      <span key={i} className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">
+                      <span
+                        key={i}
+                        className="px-2.5 py-1 rounded-sm text-xs font-mono border-[0.5px]"
+                        style={{
+                          borderColor: `${SPECTRAL.cyan}20`,
+                          color: `${SPECTRAL.cyan}80`,
+                          backgroundColor: `${SPECTRAL.cyan}08`,
+                        }}
+                      >
                         {form}
                       </span>
                     ))}
@@ -349,73 +431,73 @@ export default function ExpandableRecommendationCard({
 
               {/* Transactions Table */}
               {loading && transactions.length === 0 ? (
-                <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-2" />
-                  <p className="text-gray-500">Loading transactions...</p>
+                <div className="flex flex-col items-center gap-4 py-12">
+                  <BreathingOrb colour={SPECTRAL.cyan} isActive size="sm" />
+                  <p className="text-white/30 text-sm">Loading transactions...</p>
                 </div>
               ) : error ? (
-                <div className="text-center py-8 text-red-600">
-                  <p className="mb-2">{error}</p>
+                <div className="text-center py-12">
+                  <BreathingOrb colour={SPECTRAL.red} isActive size="sm" />
+                  <p className="mt-3 text-sm" style={{ color: SPECTRAL.red }}>{error}</p>
                   <button
-                    onClick={() => loadTransactions()}
-                    className="text-sm text-purple-600 hover:text-purple-700 hover:underline"
+                    onClick={(e) => { e.stopPropagation(); loadTransactions() }}
+                    className="mt-3 text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white/70 transition-colors"
                   >
                     Retry
                   </button>
                 </div>
               ) : transactions.length > 0 ? (
                 <>
-                  <h4 className="font-semibold text-gray-900 mb-3">
-                    Transaction Details
-                    <span className="font-normal text-gray-500 ml-2">
-                      (Top {transactions.length} by amount)
+                  <div className="flex items-baseline gap-2 mb-3">
+                    <h4 className="text-[10px] uppercase tracking-[0.2em] text-white/40">Transaction Details</h4>
+                    <span className="text-[10px] text-white/20 font-mono tabular-nums">
+                      Top {transactions.length} by amount
                     </span>
-                  </h4>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                  </div>
+                  <div className="overflow-x-auto border-[0.5px] border-white/[0.06] rounded-sm">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="bg-gray-100">
-                          <th className="text-left py-3 px-4 text-gray-600 font-medium">
-                            Date
-                          </th>
-                          <th className="text-left py-3 px-4 text-gray-600 font-medium">
-                            Supplier/Contact
-                          </th>
-                          <th className="text-left py-3 px-4 text-gray-600 font-medium">
-                            Description
-                          </th>
-                          <th className="text-left py-3 px-4 text-gray-600 font-medium">
-                            Account
-                          </th>
-                          <th className="text-right py-3 px-4 text-gray-600 font-medium">
-                            Amount
-                          </th>
-                          <th className="text-center py-3 px-4 text-gray-600 font-medium">
-                            Xero
-                          </th>
+                        <tr className="border-b border-white/[0.06]">
+                          {['Date', 'Supplier/Contact', 'Description', 'Account', 'Amount', 'Xero'].map((h) => (
+                            <th
+                              key={h}
+                              className={`py-3 px-4 text-[10px] uppercase tracking-[0.2em] text-white/30 font-normal ${
+                                h === 'Amount' ? 'text-right' : h === 'Xero' ? 'text-center' : 'text-left'
+                              }`}
+                            >
+                              {h}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
-                      <tbody className="bg-white">
+                      <tbody>
                         {transactions.map((txn, index) => (
-                          <tr
+                          <motion.tr
                             key={txn.transactionId}
-                            className={`border-t border-gray-100 hover:bg-gray-50 ${
-                              index % 2 === 1 ? 'bg-gray-50/50' : ''
-                            }`}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.02, duration: 0.3, ease: EASING.outExpo }}
+                            className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors"
                           >
-                            <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
+                            <td className="py-3 px-4 text-white/50 whitespace-nowrap font-mono text-xs tabular-nums">
                               {formatDate(txn.transactionDate)}
                             </td>
-                            <td className="py-3 px-4 text-gray-900 font-medium">
-                              {txn.contactName || <span className="text-gray-400 italic">Unknown</span>}
+                            <td className="py-3 px-4 text-white/90 font-medium">
+                              {txn.contactName || <span className="text-white/20 italic">Unknown</span>}
                             </td>
-                            <td className="py-3 px-4 text-gray-600 max-w-xs truncate" title={txn.description}>
+                            <td className="py-3 px-4 text-white/40 max-w-xs truncate" title={txn.description}>
                               {txn.description}
                             </td>
-                            <td className="py-3 px-4 text-gray-500 text-xs">
-                              {txn.accountCode || '-'}
+                            <td className="py-3 px-4">
+                              {txn.accountCode ? (
+                                <span className="text-[10px] font-mono text-white/40 border-[0.5px] border-white/[0.06] px-2 py-0.5 rounded-sm">
+                                  {txn.accountCode}
+                                </span>
+                              ) : (
+                                <span className="text-white/20">&mdash;</span>
+                              )}
                             </td>
-                            <td className="py-3 px-4 text-right font-mono text-gray-900">
+                            <td className="py-3 px-4 text-right font-mono font-medium text-white/70 tabular-nums">
                               {formatCurrencyDetailed(txn.amount)}
                             </td>
                             <td className="py-3 px-4 text-center">
@@ -424,36 +506,35 @@ export default function ExpandableRecommendationCard({
                                   href={txn.xeroUrl}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                                  className="inline-flex items-center justify-center w-6 h-6 rounded-sm hover:bg-white/[0.04] transition-colors"
+                                  style={{ color: SPECTRAL.cyan }}
                                   onClick={(e) => e.stopPropagation()}
                                   title="Open in Xero"
                                 >
-                                  <ExternalLink className="w-4 h-4" />
+                                  <ExternalLinkIcon />
                                 </a>
                               ) : (
-                                <span className="text-gray-300">-</span>
+                                <span className="text-white/10">&mdash;</span>
                               )}
                             </td>
-                          </tr>
+                          </motion.tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
 
-                  {/* Load more button */}
+                  {/* Load more */}
                   {hasMore && (
                     <div className="text-center mt-4">
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          loadTransactions(true)
-                        }}
+                        onClick={(e) => { e.stopPropagation(); loadTransactions(true) }}
                         disabled={loading}
-                        className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                        className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] border-[0.5px] border-white/[0.06] rounded-sm hover:border-white/[0.1] text-white/40 hover:text-white/70 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                        style={{ background: 'rgba(255,255,255,0.01)' }}
                       >
                         {loading ? (
                           <span className="flex items-center gap-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <BreathingOrb colour={SPECTRAL.cyan} isActive size="xs" />
                             Loading...
                           </span>
                         ) : (
@@ -464,9 +545,9 @@ export default function ExpandableRecommendationCard({
                   )}
                 </>
               ) : (
-                <p className="text-center py-8 text-gray-500">
-                  No transaction details available for this recommendation
-                </p>
+                <div className="py-12 text-center">
+                  <p className="text-white/20 text-sm">No transaction details available for this recommendation</p>
+                </div>
               )}
             </div>
           </motion.div>

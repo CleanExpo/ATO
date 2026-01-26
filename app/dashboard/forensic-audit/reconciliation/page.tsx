@@ -1,6 +1,7 @@
 /**
  * Reconciliation Analysis Dashboard
  *
+ * Scientific Luxury Design System implementation.
  * Shows reconciliation status across all accounts:
  * - Unreconciled bank transactions
  * - Suggested matches (bank <-> invoice)
@@ -13,6 +14,7 @@
 import { Suspense, useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { motion, AnimatePresence } from 'framer-motion'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { generateXeroUrl } from '@/lib/xero/url-generator'
 
@@ -99,6 +101,29 @@ type TabType = 'unreconciled' | 'matches' | 'duplicates' | 'missing'
 
 const PAGE_SIZE = 25
 
+// ─── Design Tokens ───────────────────────────────────────────────────
+
+const SPECTRAL = {
+  cyan: '#00F5FF',
+  emerald: '#00FF88',
+  amber: '#FFB800',
+  red: '#FF4444',
+  magenta: '#FF00FF',
+  grey: '#6B7280',
+} as const
+
+const TAB_COLOURS: Record<TabType, string> = {
+  unreconciled: SPECTRAL.amber,
+  matches: SPECTRAL.cyan,
+  duplicates: SPECTRAL.red,
+  missing: SPECTRAL.magenta,
+}
+
+const EASING = {
+  outExpo: [0.19, 1, 0.22, 1] as const,
+  smooth: [0.4, 0, 0.2, 1] as const,
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 function formatCurrency(amount: number): string {
@@ -131,52 +156,41 @@ function getXeroUrl(transactionId: string, transactionType: string): string | nu
   return generateXeroUrl({ transactionId, transactionType })
 }
 
-// ─── SVG Icons ───────────────────────────────────────────────────────
+// ─── Breathing Orb ──────────────────────────────────────────────────
 
-function ExternalLinkIcon({ className = 'w-4 h-4' }: { className?: string }) {
+function BreathingOrb({ colour, isActive = true, size = 'sm' }: {
+  colour: string
+  isActive?: boolean
+  size?: 'xs' | 'sm' | 'md'
+}) {
+  const sizes = { xs: 'h-5 w-5', sm: 'h-8 w-8', md: 'h-12 w-12' }
+  const dotSizes = { xs: 'h-1.5 w-1.5', sm: 'h-2 w-2', md: 'h-3 w-3' }
+
+  return (
+    <motion.div
+      className={`${sizes[size]} flex items-center justify-center rounded-full border-[0.5px]`}
+      style={{
+        borderColor: isActive ? `${colour}50` : 'rgba(255,255,255,0.1)',
+        backgroundColor: isActive ? `${colour}10` : 'rgba(255,255,255,0.02)',
+        boxShadow: isActive ? `0 0 30px ${colour}40` : 'none',
+      }}
+    >
+      <motion.div
+        className={`${dotSizes[size]} rounded-full`}
+        style={{ backgroundColor: colour }}
+        animate={isActive ? { scale: [1, 1.3, 1], opacity: [1, 0.6, 1] } : {}}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    </motion.div>
+  )
+}
+
+// ─── External Link Icon ─────────────────────────────────────────────
+
+function ExternalLinkIcon({ className = 'w-3.5 h-3.5' }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-    </svg>
-  )
-}
-
-function AlertTriangleIcon() {
-  return (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-    </svg>
-  )
-}
-
-function LinkIcon() {
-  return (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-    </svg>
-  )
-}
-
-function CopyIcon() {
-  return (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-    </svg>
-  )
-}
-
-function FileSearchIcon() {
-  return (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 21h7a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v11m0 5l4.879-4.879m0 0a3 3 0 104.243-4.243 3 3 0 00-4.243 4.243z" />
-    </svg>
-  )
-}
-
-function RefreshIcon({ spinning = false }: { spinning?: boolean }) {
-  return (
-    <svg className={`w-4 h-4 ${spinning ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
     </svg>
   )
 }
@@ -186,10 +200,10 @@ function RefreshIcon({ spinning = false }: { spinning?: boolean }) {
 export default function ReconciliationPageWrapper() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-gray-950">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-10 w-10 border-2 border-blue-500 border-t-transparent" />
-          <p className="mt-3 text-gray-400">Loading reconciliation...</p>
+      <div className="flex items-center justify-center min-h-screen" style={{ background: '#050505' }}>
+        <div className="flex flex-col items-center gap-4">
+          <BreathingOrb colour={SPECTRAL.cyan} isActive size="md" />
+          <p className="text-white/40 text-[10px] uppercase tracking-[0.3em]">Loading Reconciliation</p>
         </div>
       </div>
     }>
@@ -243,7 +257,6 @@ function ReconciliationPage() {
       const result = await response.json()
       if (result.data) {
         setData(result.data)
-        // Auto-select tab with most items
         const counts = {
           unreconciled: result.data.unreconciledCount,
           matches: result.data.matchCount,
@@ -264,7 +277,6 @@ function ReconciliationPage() {
     }
   }
 
-  // Calculate total issues
   const totalIssues = data
     ? data.unreconciledCount + data.matchCount + data.duplicateCount + data.missingCount
     : 0
@@ -273,362 +285,333 @@ function ReconciliationPage() {
     ? data.unreconciledAmount + data.matchAmount + data.duplicateExposure + data.missingAmount
     : 0
 
-  const tabs: { key: TabType; label: string; count: number; colour: string }[] = data
+  const tabs: { key: TabType; label: string; count: number }[] = data
     ? [
-        { key: 'unreconciled', label: 'Unreconciled', count: data.unreconciledCount, colour: 'amber' },
-        { key: 'matches', label: 'Suggested Matches', count: data.matchCount, colour: 'blue' },
-        { key: 'duplicates', label: 'Duplicates', count: data.duplicateCount, colour: 'red' },
-        { key: 'missing', label: 'Missing Entries', count: data.missingCount, colour: 'purple' },
+        { key: 'unreconciled', label: 'Unreconciled', count: data.unreconciledCount },
+        { key: 'matches', label: 'Suggested Matches', count: data.matchCount },
+        { key: 'duplicates', label: 'Duplicates', count: data.duplicateCount },
+        { key: 'missing', label: 'Missing Entries', count: data.missingCount },
       ]
     : []
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white">
+    <div className="min-h-screen text-white" style={{ background: '#050505' }}>
       <MobileNav />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Navigation */}
-        <div className="flex items-center justify-between mb-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        {/* ── Navigation ── */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: EASING.outExpo }}
+          className="flex items-center justify-between mb-10"
+        >
           <Link
             href={`/dashboard/forensic-audit${tenantId ? `?tenantId=${tenantId}` : ''}`}
-            className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 text-sm transition-colors"
+            className="inline-flex items-center gap-2 text-white/40 hover:text-white/70 text-[10px] uppercase tracking-[0.3em] transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Forensic Audit
+            Forensic Audit
           </Link>
           {data && !loading && (
             <button
               onClick={() => loadReconciliation()}
-              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 rounded-lg border border-gray-700 transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white/70 border-[0.5px] border-white/[0.06] hover:border-white/[0.1] rounded-sm transition-colors"
+              style={{ background: 'rgba(255,255,255,0.01)' }}
             >
-              <RefreshIcon />
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
               Refresh
             </button>
           )}
-        </div>
+        </motion.div>
 
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight">Reconciliation Analysis</h1>
-          <p className="text-gray-400 mt-2 text-lg">
-            Identify unreconciled items, suggested matches, and potential duplicates across all accounts
+        {/* ── Header ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: EASING.outExpo }}
+          className="mb-12 text-center"
+        >
+          <h1 className="text-5xl font-extralight tracking-tight text-white">
+            Reconciliation Analysis
+          </h1>
+          <p className="text-white/30 mt-3 text-sm tracking-wide">
+            Unreconciled items, suggested matches, and potential duplicates across all accounts
           </p>
-        </div>
+        </motion.div>
 
-        {/* Loading */}
+        {/* ── Loading ── */}
         {loading && (
-          <div className="mt-12 text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-2 border-blue-500 border-t-transparent" />
-            <p className="mt-4 text-gray-400 text-lg">Analysing reconciliation status...</p>
-            <p className="mt-1 text-gray-600 text-sm">Scanning bank transactions, invoices, and matching patterns</p>
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-20 flex flex-col items-center gap-6"
+          >
+            <BreathingOrb colour={SPECTRAL.cyan} isActive size="md" />
+            <div className="text-center">
+              <p className="text-white/50 text-sm">Analysing reconciliation status</p>
+              <p className="text-white/20 text-[10px] uppercase tracking-[0.3em] mt-2">
+                Scanning bank transactions, invoices, and matching patterns
+              </p>
+            </div>
+          </motion.div>
         )}
 
-        {/* Error */}
+        {/* ── Error ── */}
         {error && (
-          <div className="mt-8 p-6 bg-red-900/20 border border-red-500/40 rounded-xl">
-            <div className="flex items-start gap-3">
-              <AlertTriangleIcon />
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: EASING.outExpo }}
+            className="mt-8 p-5 border-[0.5px] rounded-sm"
+            style={{
+              borderColor: `${SPECTRAL.red}30`,
+              backgroundColor: `${SPECTRAL.red}08`,
+            }}
+          >
+            <div className="flex items-start gap-4">
+              <BreathingOrb colour={SPECTRAL.red} isActive size="sm" />
               <div>
-                <h3 className="text-red-400 font-semibold">Analysis Error</h3>
-                <p className="text-red-400/80 mt-1">{error}</p>
+                <h3 className="text-sm font-medium" style={{ color: SPECTRAL.red }}>Analysis Error</h3>
+                <p className="text-white/50 mt-1 text-sm">{error}</p>
               </div>
             </div>
-          </div>
+          </motion.div>
         )}
 
-        {/* Data loaded */}
+        {/* ── Data Loaded ── */}
         {data && !loading && (
           <>
-            {/* Overview Bar */}
-            <div className="mb-6 p-5 bg-gradient-to-r from-gray-900 to-gray-900/50 border border-gray-800 rounded-xl">
-              <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12">
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Issues Found</p>
-                  <p className="text-3xl font-bold text-white">{totalIssues.toLocaleString()}</p>
-                </div>
-                <div className="hidden sm:block h-12 w-px bg-gray-800" />
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Exposure</p>
-                  <p className="text-3xl font-bold text-red-400">{formatCurrency(totalExposure)}</p>
-                </div>
-                <div className="hidden sm:block h-12 w-px bg-gray-800" />
-                <div className="text-center">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">Transactions Scanned</p>
-                  <p className="text-3xl font-bold text-gray-300">
-                    {(data.totalBankTransactions + data.totalInvoices).toLocaleString()}
-                  </p>
-                </div>
+            {/* ── Data Strip: Overview Metrics ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1, ease: EASING.outExpo }}
+              className="mb-10 flex flex-wrap items-center justify-center gap-8 px-6 py-4 border-[0.5px] border-white/[0.06] rounded-sm"
+              style={{ background: 'rgba(255,255,255,0.01)' }}
+            >
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">Issues Found</span>
+                <span className="font-mono text-2xl font-medium text-white/90 tabular-nums">
+                  {totalIssues.toLocaleString()}
+                </span>
               </div>
-              <div className="text-center text-xs text-gray-600 mt-3 pt-3 border-t border-gray-800/50">
-                <p>Bank: {data.totalBankTransactions.toLocaleString()} | Invoices: {data.totalInvoices.toLocaleString()} | Analysed {new Date(data.analysedAt).toLocaleString('en-AU')}</p>
+              <div className="h-6 w-px bg-white/10" />
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">Total Exposure</span>
+                <span className="font-mono text-2xl font-medium tabular-nums" style={{ color: SPECTRAL.red }}>
+                  {formatCurrency(totalExposure)}
+                </span>
               </div>
-            </div>
+              <div className="h-6 w-px bg-white/10" />
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">Scanned</span>
+                <span className="font-mono text-2xl font-medium text-white/70 tabular-nums">
+                  {(data.totalBankTransactions + data.totalInvoices).toLocaleString()}
+                </span>
+              </div>
+              <div className="h-6 w-px bg-white/10" />
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">Bank</span>
+                <span className="font-mono text-lg text-white/50 tabular-nums">
+                  {data.totalBankTransactions.toLocaleString()}
+                </span>
+              </div>
+              <div className="h-6 w-px bg-white/10" />
+              <div className="flex items-baseline gap-2">
+                <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">Invoices</span>
+                <span className="font-mono text-lg text-white/50 tabular-nums">
+                  {data.totalInvoices.toLocaleString()}
+                </span>
+              </div>
+            </motion.div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <SummaryCard
-                icon={<AlertTriangleIcon />}
-                label="Unreconciled"
-                count={data.unreconciledCount}
-                amount={data.unreconciledAmount}
-                colour="amber"
-                subtitle="Bank transactions pending reconciliation"
-                isActive={activeTab === 'unreconciled'}
-                onClick={() => setActiveTab('unreconciled')}
-              />
-              <SummaryCard
-                icon={<LinkIcon />}
-                label="Suggested Matches"
-                count={data.matchCount}
-                amount={data.matchAmount}
-                colour="blue"
-                subtitle="Potential bank-to-invoice matches"
-                isActive={activeTab === 'matches'}
-                onClick={() => setActiveTab('matches')}
-              />
-              <SummaryCard
-                icon={<CopyIcon />}
-                label="Duplicates"
-                count={data.duplicateCount}
-                amount={data.duplicateExposure}
-                colour="red"
-                amountLabel="Exposure"
-                subtitle="Potential duplicate entries detected"
-                isActive={activeTab === 'duplicates'}
-                onClick={() => setActiveTab('duplicates')}
-              />
-              <SummaryCard
-                icon={<FileSearchIcon />}
-                label="Missing Entries"
-                count={data.missingCount}
-                amount={data.missingAmount}
-                colour="purple"
-                subtitle="Paid invoices without bank entries"
-                isActive={activeTab === 'missing'}
-                onClick={() => setActiveTab('missing')}
-              />
-            </div>
+            {/* ── Category Indicators ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2, ease: EASING.outExpo }}
+              className="mb-10 flex flex-wrap items-stretch justify-center gap-4"
+            >
+              {[
+                { key: 'unreconciled' as TabType, label: 'Unreconciled', count: data.unreconciledCount, amount: data.unreconciledAmount, colour: SPECTRAL.amber, subtitle: 'Pending reconciliation' },
+                { key: 'matches' as TabType, label: 'Suggested Matches', count: data.matchCount, amount: data.matchAmount, colour: SPECTRAL.cyan, subtitle: 'Potential matches found' },
+                { key: 'duplicates' as TabType, label: 'Duplicates', count: data.duplicateCount, amount: data.duplicateExposure, colour: SPECTRAL.red, subtitle: 'Duplicate exposure' },
+                { key: 'missing' as TabType, label: 'Missing Entries', count: data.missingCount, amount: data.missingAmount, colour: SPECTRAL.magenta, subtitle: 'Missing bank entries' },
+              ].map((cat, idx) => {
+                const isActive = activeTab === cat.key
+                return (
+                  <motion.button
+                    key={cat.key}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 + idx * 0.08, duration: 0.5, ease: EASING.outExpo }}
+                    onClick={() => setActiveTab(cat.key)}
+                    className="flex-1 min-w-[200px] max-w-[260px] p-5 rounded-sm border-[0.5px] text-left transition-all cursor-pointer"
+                    style={{
+                      borderColor: isActive ? `${cat.colour}40` : 'rgba(255,255,255,0.06)',
+                      backgroundColor: isActive ? `${cat.colour}08` : 'rgba(255,255,255,0.01)',
+                      boxShadow: isActive ? `0 0 40px ${cat.colour}15` : 'none',
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div className="flex items-center gap-3 mb-3">
+                      <BreathingOrb colour={cat.colour} isActive={cat.count > 0} size="xs" />
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-white/40">{cat.label}</span>
+                    </div>
+                    <div className="font-mono text-3xl font-medium tabular-nums" style={{ color: cat.colour }}>
+                      {cat.count.toLocaleString()}
+                    </div>
+                    <div className="font-mono text-sm text-white/40 mt-1 tabular-nums">
+                      {formatCurrency(cat.amount)}
+                    </div>
+                    <p className="text-[10px] text-white/20 mt-2 tracking-wide">{cat.subtitle}</p>
+                  </motion.button>
+                )
+              })}
+            </motion.div>
 
-            {/* Financial Year Breakdown */}
+            {/* ── Financial Year Breakdown ── */}
             {Object.keys(data.byFinancialYear).length > 0 && (
-              <div className="mb-8">
-                <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 text-center">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.3, ease: EASING.outExpo }}
+                className="mb-10"
+              >
+                <p className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-4 text-center">
                   Breakdown by Financial Year
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
                   {Object.entries(data.byFinancialYear)
                     .sort(([a], [b]) => b.localeCompare(a))
-                    .map(([fy, yr]) => {
+                    .map(([fy, yr], idx) => {
                       const yearTotal = yr.unreconciledCount + yr.suggestedMatches + yr.duplicates + yr.missingEntries
                       return (
-                        <div
+                        <motion.div
                           key={fy}
-                          className="p-4 bg-gray-900/80 border border-gray-800 rounded-xl hover:border-gray-700 transition-colors text-center"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.3 + idx * 0.05, duration: 0.4, ease: EASING.outExpo }}
+                          className="p-4 border-[0.5px] border-white/[0.06] rounded-sm min-w-[200px]"
+                          style={{ background: 'rgba(255,255,255,0.01)' }}
                         >
-                          <div className="flex items-center justify-center gap-3 mb-3">
-                            <span className="text-white font-semibold text-lg">{fy}</span>
-                            <span className="text-xs text-gray-500 bg-gray-800 px-2 py-1 rounded-full">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-white/90 font-medium">{fy}</span>
+                            <span className="text-[10px] text-white/30 font-mono tabular-nums">
                               {yearTotal} issues
                             </span>
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex items-center justify-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-amber-500" />
-                              <span className="text-xs text-gray-400">
-                                {yr.unreconciledCount} unreconciled
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-blue-500" />
-                              <span className="text-xs text-gray-400">
-                                {yr.suggestedMatches} matches
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-red-500" />
-                              <span className="text-xs text-gray-400">
-                                {yr.duplicates} duplicates
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-center gap-2">
-                              <span className="w-2 h-2 rounded-full bg-purple-500" />
-                              <span className="text-xs text-gray-400">
-                                {yr.missingEntries} missing
-                              </span>
-                            </div>
+                          <div className="flex flex-wrap gap-3">
+                            {[
+                              { count: yr.unreconciledCount, label: 'unrec.', colour: SPECTRAL.amber },
+                              { count: yr.suggestedMatches, label: 'match', colour: SPECTRAL.cyan },
+                              { count: yr.duplicates, label: 'dupl.', colour: SPECTRAL.red },
+                              { count: yr.missingEntries, label: 'miss.', colour: SPECTRAL.magenta },
+                            ].map((item) => (
+                              <div key={item.label} className="flex items-center gap-1.5">
+                                <div
+                                  className="w-1.5 h-1.5 rounded-full"
+                                  style={{ backgroundColor: item.colour }}
+                                />
+                                <span className="text-[10px] text-white/30 font-mono tabular-nums">
+                                  {item.count}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                           {yr.unreconciledAmount > 0 && (
-                            <p className="mt-2 text-xs text-amber-400/80">
-                              Unreconciled: {formatCurrency(yr.unreconciledAmount)}
+                            <p className="mt-2 text-xs font-mono tabular-nums" style={{ color: `${SPECTRAL.amber}80` }}>
+                              {formatCurrency(yr.unreconciledAmount)}
                             </p>
                           )}
-                        </div>
+                        </motion.div>
                       )
                     })}
                 </div>
-              </div>
+              </motion.div>
             )}
 
-            {/* Tab Navigation */}
-            <div className="border-b border-gray-800 mb-0">
+            {/* ── Tab Navigation ── */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.35, ease: EASING.outExpo }}
+              className="border-b border-white/[0.06] mb-0"
+            >
               <div className="flex gap-0 justify-center">
                 {tabs.map((tab) => {
-                  const colourActiveMap: Record<string, string> = {
-                    amber: 'border-amber-500 text-amber-400',
-                    blue: 'border-blue-500 text-blue-400',
-                    red: 'border-red-500 text-red-400',
-                    purple: 'border-purple-500 text-purple-400',
-                  }
-                  const countBgMap: Record<string, string> = {
-                    amber: 'bg-amber-500/20 text-amber-400',
-                    blue: 'bg-blue-500/20 text-blue-400',
-                    red: 'bg-red-500/20 text-red-400',
-                    purple: 'bg-purple-500/20 text-purple-400',
-                  }
                   const isActive = activeTab === tab.key
+                  const colour = TAB_COLOURS[tab.key]
 
                   return (
                     <button
                       key={tab.key}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`relative px-5 py-3.5 text-sm font-medium transition-all ${
-                        isActive
-                          ? `${colourActiveMap[tab.colour]} border-b-2 bg-gray-900/50`
-                          : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent hover:bg-gray-900/30'
-                      }`}
+                      className="relative px-6 py-4 text-[11px] uppercase tracking-[0.15em] font-medium transition-all"
+                      style={{
+                        color: isActive ? colour : 'rgba(255,255,255,0.3)',
+                        borderBottom: isActive ? `1px solid ${colour}` : '1px solid transparent',
+                        background: isActive ? `${colour}05` : 'transparent',
+                      }}
                     >
                       {tab.label}
-                      <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${
-                        isActive ? countBgMap[tab.colour] : 'bg-gray-800 text-gray-500'
-                      }`}>
+                      <span
+                        className="ml-2 px-2 py-0.5 rounded-sm text-[10px] font-mono font-bold tabular-nums"
+                        style={{
+                          backgroundColor: isActive ? `${colour}15` : 'rgba(255,255,255,0.03)',
+                          color: isActive ? colour : 'rgba(255,255,255,0.3)',
+                        }}
+                      >
                         {tab.count.toLocaleString()}
                       </span>
                     </button>
                   )
                 })}
               </div>
+            </motion.div>
+
+            {/* ── Tab Content ── */}
+            <div
+              className="border-x border-b border-white/[0.06] rounded-b-sm p-6 min-h-[300px]"
+              style={{ background: 'rgba(255,255,255,0.01)' }}
+            >
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3, ease: EASING.smooth }}
+                >
+                  {activeTab === 'unreconciled' && <UnreconciledTab items={data.unreconciledItems} />}
+                  {activeTab === 'matches' && <MatchesTab matches={data.suggestedMatches} />}
+                  {activeTab === 'duplicates' && <DuplicatesTab duplicates={data.duplicates} />}
+                  {activeTab === 'missing' && <MissingTab entries={data.missingEntries} />}
+                </motion.div>
+              </AnimatePresence>
             </div>
 
-            {/* Tab Content */}
-            <div className="bg-gray-900/30 border-x border-b border-gray-800 rounded-b-xl p-5 min-h-[300px]">
-              {activeTab === 'unreconciled' && (
-                <UnreconciledTab items={data.unreconciledItems} />
-              )}
-              {activeTab === 'matches' && (
-                <MatchesTab matches={data.suggestedMatches} />
-              )}
-              {activeTab === 'duplicates' && (
-                <DuplicatesTab duplicates={data.duplicates} />
-              )}
-              {activeTab === 'missing' && (
-                <MissingTab entries={data.missingEntries} />
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="mt-6 text-center text-xs text-gray-600">
-              <p>
-                Analysis is read-only. No data is modified in Xero. | Last analysed: {new Date(data.analysedAt).toLocaleString('en-AU')}
+            {/* ── Footer ── */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="mt-8 text-center"
+            >
+              <p className="text-[10px] uppercase tracking-[0.3em] text-white/20">
+                Read-only analysis &mdash; No data modified in Xero &mdash; Last analysed {new Date(data.analysedAt).toLocaleString('en-AU')}
               </p>
-            </div>
+            </motion.div>
           </>
         )}
       </div>
     </div>
-  )
-}
-
-// ─── Summary Card ────────────────────────────────────────────────────
-
-function SummaryCard({
-  icon,
-  label,
-  count,
-  amount,
-  colour,
-  amountLabel = 'Amount',
-  subtitle,
-  isActive,
-  onClick,
-}: {
-  icon: React.ReactNode
-  label: string
-  count: number
-  amount: number
-  colour: 'amber' | 'blue' | 'red' | 'purple'
-  amountLabel?: string
-  subtitle: string
-  isActive: boolean
-  onClick: () => void
-}) {
-  const styles = {
-    amber: {
-      border: isActive ? 'border-amber-500' : 'border-amber-500/30',
-      bg: 'bg-amber-900/10',
-      icon: 'text-amber-400',
-      count: 'text-amber-400',
-      amount: 'text-amber-300/80',
-      glow: isActive ? 'shadow-amber-500/10 shadow-lg' : '',
-    },
-    blue: {
-      border: isActive ? 'border-blue-500' : 'border-blue-500/30',
-      bg: 'bg-blue-900/10',
-      icon: 'text-blue-400',
-      count: 'text-blue-400',
-      amount: 'text-blue-300/80',
-      glow: isActive ? 'shadow-blue-500/10 shadow-lg' : '',
-    },
-    red: {
-      border: isActive ? 'border-red-500' : 'border-red-500/30',
-      bg: 'bg-red-900/10',
-      icon: 'text-red-400',
-      count: 'text-red-400',
-      amount: 'text-red-300/80',
-      glow: isActive ? 'shadow-red-500/10 shadow-lg' : '',
-    },
-    purple: {
-      border: isActive ? 'border-purple-500' : 'border-purple-500/30',
-      bg: 'bg-purple-900/10',
-      icon: 'text-purple-400',
-      count: 'text-purple-400',
-      amount: 'text-purple-300/80',
-      glow: isActive ? 'shadow-purple-500/10 shadow-lg' : '',
-    },
-  }
-
-  const s = styles[colour]
-
-  return (
-    <button
-      onClick={onClick}
-      className={`p-5 rounded-xl border ${s.border} ${s.bg} ${s.glow} text-center transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer`}
-    >
-      <div className="flex items-center justify-center gap-3 mb-3">
-        <div className={s.icon}>{icon}</div>
-        {count > 0 && (
-          <span className="relative flex h-3 w-3">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-              colour === 'amber' ? 'bg-amber-400' :
-              colour === 'blue' ? 'bg-blue-400' :
-              colour === 'red' ? 'bg-red-400' : 'bg-purple-400'
-            }`} />
-            <span className={`relative inline-flex rounded-full h-3 w-3 ${
-              colour === 'amber' ? 'bg-amber-500' :
-              colour === 'blue' ? 'bg-blue-500' :
-              colour === 'red' ? 'bg-red-500' : 'bg-purple-500'
-            }`} />
-          </span>
-        )}
-      </div>
-      <p className="text-sm text-gray-400 font-medium">{label}</p>
-      <p className={`text-3xl font-bold ${s.count} mt-1`}>{count.toLocaleString()}</p>
-      <p className={`text-sm ${s.amount} font-mono mt-1`}>
-        {amountLabel}: {formatCurrency(amount)}
-      </p>
-      <p className="text-xs text-gray-600 mt-2">{subtitle}</p>
-    </button>
   )
 }
 
@@ -642,7 +625,6 @@ function usePagination<T>(items: T[], pageSize: number = PAGE_SIZE) {
     [items, page, pageSize]
   )
   const showing = { from: page * pageSize + 1, to: Math.min((page + 1) * pageSize, items.length), total: items.length }
-
   return { paginated, page, setPage, totalPages, showing }
 }
 
@@ -654,29 +636,47 @@ function PaginationBar({ page, setPage, totalPages, showing }: {
 }) {
   if (totalPages <= 1) return null
   return (
-    <div className="flex flex-col items-center gap-3 mt-4 pt-4 border-t border-gray-800">
+    <div className="flex flex-col items-center gap-3 mt-6 pt-4 border-t border-white/[0.06]">
       <div className="flex items-center gap-2">
         <button
           onClick={() => setPage(Math.max(0, page - 1))}
           disabled={page === 0}
-          className="px-3 py-1.5 text-sm rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] border-[0.5px] border-white/[0.06] rounded-sm text-white/40 hover:text-white/70 hover:border-white/[0.1] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          style={{ background: 'rgba(255,255,255,0.01)' }}
         >
           Previous
         </button>
-        <span className="px-3 py-1.5 text-sm text-gray-500">
+        <span className="px-3 py-2 text-sm text-white/30 font-mono tabular-nums">
           {page + 1} / {totalPages}
         </span>
         <button
           onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
           disabled={page >= totalPages - 1}
-          className="px-3 py-1.5 text-sm rounded-lg bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] border-[0.5px] border-white/[0.06] rounded-sm text-white/40 hover:text-white/70 hover:border-white/[0.1] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          style={{ background: 'rgba(255,255,255,0.01)' }}
         >
           Next
         </button>
       </div>
-      <p className="text-sm text-gray-500">
-        Showing {showing.from}-{showing.to} of {showing.total.toLocaleString()}
+      <p className="text-[10px] text-white/20 font-mono tabular-nums tracking-wider">
+        Showing {showing.from}&ndash;{showing.to} of {showing.total.toLocaleString()}
       </p>
+    </div>
+  )
+}
+
+// ─── Empty State ─────────────────────────────────────────────────────
+
+function EmptyState({ colour, title, description }: {
+  colour: string
+  title: string
+  description: string
+}) {
+  return (
+    <div className="py-20 flex flex-col items-center gap-4">
+      <BreathingOrb colour={colour} isActive={false} size="md" />
+      <h3 className="text-lg font-light text-white/70">{title}</h3>
+      <p className="text-white/30 text-sm">{description}</p>
     </div>
   )
 }
@@ -687,17 +687,7 @@ function UnreconciledTab({ items }: { items: UnreconciledItem[] }) {
   const { paginated, page, setPage, totalPages, showing } = usePagination(items)
 
   if (items.length === 0) {
-    return (
-      <div className="py-16 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-900/20 border border-green-500/30 mb-4">
-          <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h3 className="text-lg font-semibold text-green-400 mb-1">All Reconciled</h3>
-        <p className="text-gray-500">All bank transactions have been reconciled successfully.</p>
-      </div>
-    )
+    return <EmptyState colour={SPECTRAL.emerald} title="All Reconciled" description="All bank transactions have been reconciled successfully." />
   }
 
   return (
@@ -705,56 +695,66 @@ function UnreconciledTab({ items }: { items: UnreconciledItem[] }) {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-gray-500 text-xs uppercase tracking-wider border-b border-gray-800">
-              <th className="py-3 px-4 text-left font-medium">Date</th>
-              <th className="py-3 px-4 text-left font-medium">Contact</th>
-              <th className="py-3 px-4 text-left font-medium">Description</th>
-              <th className="py-3 px-4 text-left font-medium">Account</th>
-              <th className="py-3 px-4 text-left font-medium">FY</th>
-              <th className="py-3 px-4 text-right font-medium">Amount</th>
-              <th className="py-3 px-4 text-center font-medium">Age</th>
-              <th className="py-3 px-4 text-center font-medium">Xero</th>
+            <tr className="border-b border-white/[0.06]">
+              {['Date', 'Contact', 'Description', 'Account', 'FY', 'Amount', 'Age', 'Xero'].map((h, i) => (
+                <th
+                  key={h}
+                  className={`py-3 px-4 text-[10px] uppercase tracking-[0.2em] text-white/30 font-normal ${
+                    h === 'Amount' ? 'text-right' : h === 'Age' || h === 'Xero' ? 'text-center' : 'text-left'
+                  }`}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {paginated.map((item) => {
+            {paginated.map((item, idx) => {
               const xeroUrl = getXeroUrl(item.transactionId, item.transactionType)
               return (
-                <tr
+                <motion.tr
                   key={item.transactionId}
-                  className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.02, duration: 0.3, ease: EASING.outExpo }}
+                  className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors"
                 >
-                  <td className="py-3 px-4 text-gray-300 whitespace-nowrap">
+                  <td className="py-3 px-4 text-white/50 whitespace-nowrap font-mono text-xs tabular-nums">
                     {formatDate(item.transactionDate)}
                   </td>
-                  <td className="py-3 px-4 font-medium text-white max-w-[200px] truncate">
-                    {item.contactName || <span className="text-gray-600 italic">Unknown</span>}
+                  <td className="py-3 px-4 text-white/90 font-medium max-w-[200px] truncate">
+                    {item.contactName || <span className="text-white/20 italic">Unknown</span>}
                   </td>
-                  <td className="py-3 px-4 text-gray-400 max-w-[250px] truncate">
-                    {item.description || '-'}
+                  <td className="py-3 px-4 text-white/40 max-w-[250px] truncate">
+                    {item.description || '\u2014'}
                   </td>
                   <td className="py-3 px-4">
                     {item.accountCode ? (
-                      <span className="text-xs px-2 py-0.5 bg-gray-800 rounded text-gray-400 font-mono">
+                      <span className="text-[10px] px-2 py-0.5 border-[0.5px] border-white/[0.06] rounded-sm text-white/40 font-mono">
                         {item.accountCode}
                       </span>
                     ) : (
-                      <span className="text-gray-600">-</span>
+                      <span className="text-white/20">&mdash;</span>
                     )}
                   </td>
-                  <td className="py-3 px-4 text-gray-500 text-xs whitespace-nowrap">{item.financialYear}</td>
-                  <td className="py-3 px-4 text-right font-mono text-amber-400 font-medium whitespace-nowrap">
+                  <td className="py-3 px-4 text-white/30 text-xs font-mono whitespace-nowrap">{item.financialYear}</td>
+                  <td className="py-3 px-4 text-right font-mono font-medium whitespace-nowrap tabular-nums" style={{ color: SPECTRAL.amber }}>
                     {formatCurrencyFull(Math.abs(item.amount))}
                   </td>
                   <td className="py-3 px-4 text-center">
                     <span
-                      className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${
-                        item.daysPending > 90
-                          ? 'bg-red-900/40 text-red-400 border border-red-500/30'
-                          : item.daysPending > 30
-                            ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30'
-                            : 'bg-gray-800 text-gray-400 border border-gray-700'
-                      }`}
+                      className="inline-block px-2 py-0.5 rounded-sm text-[10px] font-mono font-medium border-[0.5px] tabular-nums"
+                      style={{
+                        borderColor: item.daysPending > 90
+                          ? `${SPECTRAL.red}30` : item.daysPending > 30
+                          ? `${SPECTRAL.amber}30` : 'rgba(255,255,255,0.06)',
+                        color: item.daysPending > 90
+                          ? SPECTRAL.red : item.daysPending > 30
+                          ? SPECTRAL.amber : 'rgba(255,255,255,0.4)',
+                        backgroundColor: item.daysPending > 90
+                          ? `${SPECTRAL.red}08` : item.daysPending > 30
+                          ? `${SPECTRAL.amber}08` : 'transparent',
+                      }}
                     >
                       {item.daysPending}d
                     </span>
@@ -765,16 +765,17 @@ function UnreconciledTab({ items }: { items: UnreconciledItem[] }) {
                         href={xeroUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-blue-500/10 text-blue-400 hover:text-blue-300 transition-colors"
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-sm hover:bg-white/[0.04] transition-colors"
+                        style={{ color: SPECTRAL.cyan }}
                         title="Open in Xero"
                       >
                         <ExternalLinkIcon />
                       </a>
                     ) : (
-                      <span className="text-gray-700">-</span>
+                      <span className="text-white/10">&mdash;</span>
                     )}
                   </td>
-                </tr>
+                </motion.tr>
               )
             })}
           </tbody>
@@ -791,15 +792,7 @@ function MatchesTab({ matches }: { matches: SuggestedMatch[] }) {
   const { paginated, page, setPage, totalPages, showing } = usePagination(matches, 10)
 
   if (matches.length === 0) {
-    return (
-      <div className="py-16 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-800 border border-gray-700 mb-4">
-          <LinkIcon />
-        </div>
-        <h3 className="text-lg font-semibold text-gray-300 mb-1">No Matches Found</h3>
-        <p className="text-gray-500">No potential bank-to-invoice matches were identified.</p>
-      </div>
-    )
+    return <EmptyState colour={SPECTRAL.cyan} title="No Matches Found" description="No potential bank-to-invoice matches were identified." />
   }
 
   return (
@@ -807,85 +800,102 @@ function MatchesTab({ matches }: { matches: SuggestedMatch[] }) {
       {paginated.map((match, idx) => {
         const bankUrl = getXeroUrl(match.bankTransaction.transactionId, match.bankTransaction.transactionType)
         const invoiceUrl = getXeroUrl(match.matchedTransaction.transactionId, match.matchedTransaction.transactionType)
+        const scoreColour = match.matchScore >= 80 ? SPECTRAL.emerald : match.matchScore >= 60 ? SPECTRAL.amber : SPECTRAL.grey
 
         return (
-          <div key={idx} className="p-5 bg-gray-900/50 border border-gray-800 rounded-xl hover:border-gray-700 transition-colors">
-            {/* Score + Reasons Header */}
-            <div className="flex flex-col items-center gap-2 mb-4">
-              <div className="flex items-center gap-3 flex-wrap justify-center">
-                <span
-                  className={`px-3 py-1.5 rounded-lg text-sm font-bold ${
-                    match.matchScore >= 80
-                      ? 'bg-green-900/40 text-green-400 border border-green-500/30'
-                      : match.matchScore >= 60
-                        ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30'
-                        : 'bg-gray-800 text-gray-400 border border-gray-700'
-                  }`}
-                >
-                  {match.matchScore}% Match
-                </span>
-                <div className="flex gap-1.5 flex-wrap justify-center">
-                  {match.matchReasons.map((r) => (
-                    <span key={r} className="px-2 py-0.5 text-xs bg-gray-800 border border-gray-700 rounded-full text-gray-400">
-                      {r.replace(/_/g, ' ')}
-                    </span>
-                  ))}
-                </div>
+          <motion.div
+            key={idx}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: idx * 0.05, duration: 0.5, ease: EASING.outExpo }}
+            className="p-5 border-[0.5px] border-white/[0.06] rounded-sm hover:border-white/[0.1] transition-colors"
+            style={{ background: 'rgba(255,255,255,0.01)' }}
+          >
+            {/* Score Header */}
+            <div className="flex items-center justify-center gap-4 mb-5">
+              <span
+                className="px-3 py-1.5 rounded-sm text-sm font-mono font-bold border-[0.5px] tabular-nums"
+                style={{
+                  borderColor: `${scoreColour}30`,
+                  color: scoreColour,
+                  backgroundColor: `${scoreColour}08`,
+                }}
+              >
+                {match.matchScore}% Match
+              </span>
+              <div className="flex gap-1.5 flex-wrap justify-center">
+                {match.matchReasons.map((r) => (
+                  <span key={r} className="px-2 py-0.5 text-[10px] border-[0.5px] border-white/[0.06] rounded-sm text-white/30 uppercase tracking-wider">
+                    {r.replace(/_/g, ' ')}
+                  </span>
+                ))}
               </div>
               {match.amountDifference > 0 && (
-                <span className="text-xs text-gray-500">
-                  Diff: {formatCurrencyFull(match.amountDifference)} | {match.dateDifference}d apart
+                <span className="text-[10px] text-white/20 font-mono tabular-nums">
+                  Diff: {formatCurrencyFull(match.amountDifference)} | {match.dateDifference}d
                 </span>
               )}
             </div>
 
-            {/* Two-column match cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Bank Transaction */}
-              <div className="p-4 bg-gray-800/40 rounded-lg border border-blue-500/20">
+            {/* 60/40 asymmetrical match comparison */}
+            <div className="flex gap-4">
+              {/* Bank Transaction - 60% */}
+              <div
+                className="flex-[3] p-4 border-[0.5px] rounded-sm"
+                style={{ borderColor: `${SPECTRAL.cyan}15`, background: `${SPECTRAL.cyan}03` }}
+              >
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-blue-400 font-semibold uppercase tracking-wider">Bank Transaction</p>
+                  <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: `${SPECTRAL.cyan}80` }}>
+                    Bank Transaction
+                  </p>
                   {bankUrl && (
                     <a href={bankUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 transition-colors">
-                      <ExternalLinkIcon className="w-3.5 h-3.5" />
+                      className="hover:opacity-70 transition-opacity" style={{ color: SPECTRAL.cyan }}>
+                      <ExternalLinkIcon />
                     </a>
                   )}
                 </div>
-                <p className="font-medium text-white">{match.bankTransaction.contactName || 'Unknown'}</p>
-                <p className="text-sm text-gray-400 truncate mt-0.5">
-                  {match.bankTransaction.description || '-'}
+                <p className="text-white/90 font-medium">{match.bankTransaction.contactName || 'Unknown'}</p>
+                <p className="text-white/40 text-sm truncate mt-0.5">
+                  {match.bankTransaction.description || '\u2014'}
                 </p>
-                <div className="flex justify-between mt-3 pt-2 border-t border-gray-700/50">
-                  <span className="text-gray-500 text-sm">{formatDate(match.bankTransaction.transactionDate)}</span>
-                  <span className="font-mono font-bold text-blue-400">{formatCurrencyFull(Math.abs(match.bankTransaction.amount))}</span>
+                <div className="flex justify-between mt-3 pt-2 border-t border-white/[0.04]">
+                  <span className="text-white/30 text-xs font-mono tabular-nums">{formatDate(match.bankTransaction.transactionDate)}</span>
+                  <span className="font-mono font-bold tabular-nums" style={{ color: SPECTRAL.cyan }}>
+                    {formatCurrencyFull(Math.abs(match.bankTransaction.amount))}
+                  </span>
                 </div>
               </div>
 
-              {/* Matched Invoice */}
-              <div className="p-4 bg-gray-800/40 rounded-lg border border-green-500/20">
+              {/* Matched Invoice - 40% */}
+              <div
+                className="flex-[2] p-4 border-[0.5px] rounded-sm"
+                style={{ borderColor: `${SPECTRAL.emerald}15`, background: `${SPECTRAL.emerald}03` }}
+              >
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs text-green-400 font-semibold uppercase tracking-wider">
+                  <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: `${SPECTRAL.emerald}80` }}>
                     {match.matchedTransaction.transactionType === 'ACCPAY' ? 'Supplier Invoice' : 'Customer Invoice'}
                   </p>
                   {invoiceUrl && (
                     <a href={invoiceUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-green-400 hover:text-green-300 transition-colors">
-                      <ExternalLinkIcon className="w-3.5 h-3.5" />
+                      className="hover:opacity-70 transition-opacity" style={{ color: SPECTRAL.emerald }}>
+                      <ExternalLinkIcon />
                     </a>
                   )}
                 </div>
-                <p className="font-medium text-white">{match.matchedTransaction.contactName || 'Unknown'}</p>
-                <p className="text-sm text-gray-400 truncate mt-0.5">
-                  {match.matchedTransaction.reference || match.matchedTransaction.description || '-'}
+                <p className="text-white/90 font-medium">{match.matchedTransaction.contactName || 'Unknown'}</p>
+                <p className="text-white/40 text-sm truncate mt-0.5">
+                  {match.matchedTransaction.reference || match.matchedTransaction.description || '\u2014'}
                 </p>
-                <div className="flex justify-between mt-3 pt-2 border-t border-gray-700/50">
-                  <span className="text-gray-500 text-sm">{formatDate(match.matchedTransaction.transactionDate)}</span>
-                  <span className="font-mono font-bold text-green-400">{formatCurrencyFull(Math.abs(match.matchedTransaction.amount))}</span>
+                <div className="flex justify-between mt-3 pt-2 border-t border-white/[0.04]">
+                  <span className="text-white/30 text-xs font-mono tabular-nums">{formatDate(match.matchedTransaction.transactionDate)}</span>
+                  <span className="font-mono font-bold tabular-nums" style={{ color: SPECTRAL.emerald }}>
+                    {formatCurrencyFull(Math.abs(match.matchedTransaction.amount))}
+                  </span>
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         )
       })}
       <PaginationBar page={page} setPage={setPage} totalPages={totalPages} showing={showing} />
@@ -899,131 +909,148 @@ function DuplicatesTab({ duplicates }: { duplicates: DuplicateGroup[] }) {
   const { paginated, page, setPage, totalPages, showing } = usePagination(duplicates, 15)
 
   if (duplicates.length === 0) {
-    return (
-      <div className="py-16 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-900/20 border border-green-500/30 mb-4">
-          <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h3 className="text-lg font-semibold text-green-400 mb-1">No Duplicates Found</h3>
-        <p className="text-gray-500">No duplicate transactions were detected in your accounts.</p>
-      </div>
-    )
+    return <EmptyState colour={SPECTRAL.emerald} title="No Duplicates Found" description="No duplicate transactions were detected in your accounts." />
   }
 
-  // Summary counts
   const exactCount = duplicates.filter((d) => d.duplicateType === 'exact').length
   const probableCount = duplicates.filter((d) => d.duplicateType === 'probable').length
   const possibleCount = duplicates.filter((d) => d.duplicateType === 'possible').length
 
   return (
     <div>
-      {/* Duplicate Summary */}
-      <div className="flex justify-center gap-6 mb-5">
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-sm bg-red-500" />
-          <span className="text-sm text-gray-400">Exact: <span className="text-white font-medium">{exactCount}</span></span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-sm bg-amber-500" />
-          <span className="text-sm text-gray-400">Probable: <span className="text-white font-medium">{probableCount}</span></span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-sm bg-gray-500" />
-          <span className="text-sm text-gray-400">Possible: <span className="text-white font-medium">{possibleCount}</span></span>
-        </div>
+      {/* Duplicate Summary Data Strip */}
+      <div className="flex items-center justify-center gap-6 mb-6 px-4 py-3 border-[0.5px] border-white/[0.06] rounded-sm"
+        style={{ background: 'rgba(255,255,255,0.01)' }}
+      >
+        {[
+          { label: 'Exact', count: exactCount, colour: SPECTRAL.red },
+          { label: 'Probable', count: probableCount, colour: SPECTRAL.amber },
+          { label: 'Possible', count: possibleCount, colour: SPECTRAL.grey },
+        ].map((item, i) => (
+          <div key={item.label} className="flex items-center gap-3">
+            {i > 0 && <div className="h-4 w-px bg-white/10" />}
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.colour }} />
+              <span className="text-[10px] uppercase tracking-[0.2em] text-white/30">{item.label}</span>
+              <span className="font-mono text-sm font-medium tabular-nums" style={{ color: item.colour }}>
+                {item.count}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="space-y-3">
-        {paginated.map((group, idx) => (
-          <div key={idx} className="p-4 bg-gray-900/50 border border-gray-800 rounded-xl hover:border-gray-700 transition-colors">
-            <div className="flex flex-col items-center gap-2 mb-3">
-              <div className="flex items-center gap-3 flex-wrap justify-center">
+        {paginated.map((group, idx) => {
+          const typeColour = group.duplicateType === 'exact' ? SPECTRAL.red
+            : group.duplicateType === 'probable' ? SPECTRAL.amber : SPECTRAL.grey
+
+          return (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: idx * 0.04, duration: 0.5, ease: EASING.outExpo }}
+              className="p-5 border-[0.5px] border-white/[0.06] rounded-sm hover:border-white/[0.1] transition-colors"
+              style={{ background: 'rgba(255,255,255,0.01)' }}
+            >
+              {/* Group Header */}
+              <div className="flex items-center justify-center gap-4 mb-4 flex-wrap">
                 <span
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
-                    group.duplicateType === 'exact'
-                      ? 'bg-red-900/40 text-red-400 border border-red-500/30'
-                      : group.duplicateType === 'probable'
-                        ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30'
-                        : 'bg-gray-800 text-gray-400 border border-gray-700'
-                  }`}
+                  className="px-2.5 py-1 rounded-sm text-[10px] font-bold uppercase tracking-[0.15em] border-[0.5px]"
+                  style={{
+                    borderColor: `${typeColour}30`,
+                    color: typeColour,
+                    backgroundColor: `${typeColour}08`,
+                  }}
                 >
                   {group.duplicateType}
                 </span>
-                <span className="text-sm text-gray-500">
+                <span className="text-[10px] text-white/30 font-mono tabular-nums">
                   {group.confidence}% confidence
                 </span>
                 <div className="flex gap-1.5 flex-wrap justify-center">
                   {group.matchReasons.map((r) => (
-                    <span key={r} className="text-xs px-2 py-0.5 bg-gray-800 border border-gray-700 rounded-full text-gray-500">
+                    <span key={r} className="text-[10px] px-2 py-0.5 border-[0.5px] border-white/[0.06] rounded-sm text-white/20 uppercase tracking-wider">
                       {r.replace(/_/g, ' ')}
                     </span>
                   ))}
                 </div>
+                {group.totalExposure > 0 && (
+                  <span className="font-mono font-bold text-sm tabular-nums" style={{ color: SPECTRAL.red }}>
+                    Exposure: {formatCurrency(group.totalExposure)}
+                  </span>
+                )}
               </div>
-              {group.totalExposure > 0 && (
-                <span className="text-red-400 font-bold font-mono text-sm">
-                  Exposure: {formatCurrency(group.totalExposure)}
-                </span>
-              )}
-            </div>
 
-            <div className="space-y-1.5">
-              {group.transactions.map((tx, txIdx) => {
-                const xeroUrl = getXeroUrl(tx.transactionId, tx.transactionType)
-                return (
-                  <div
-                    key={tx.transactionId}
-                    className={`flex items-center justify-between p-3 rounded-lg ${
-                      txIdx === 0 ? 'bg-gray-800/60' : 'bg-red-900/10 border border-red-500/10'
-                    }`}
-                  >
-                    <div className="flex items-center gap-4 min-w-0">
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-                        txIdx === 0 ? 'bg-gray-700 text-gray-400' : 'bg-red-900/30 text-red-400'
-                      }`}>
-                        {txIdx === 0 ? 'Original' : `Copy ${txIdx}`}
-                      </span>
-                      <span className="font-medium text-white truncate">
-                        {tx.contactName || 'Unknown'}
-                      </span>
-                      <span className="text-gray-500 text-sm whitespace-nowrap">
-                        {formatDate(tx.transactionDate)}
-                      </span>
-                      {tx.description && (
-                        <span className="text-gray-600 text-xs truncate max-w-[200px]">
-                          {tx.description}
-                        </span>
-                      )}
-                      {tx.reference && (
-                        <span className="text-gray-600 text-xs font-mono">
-                          Ref: {tx.reference}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span className={`font-mono font-medium ${txIdx === 0 ? 'text-gray-300' : 'text-red-400'}`}>
-                        {formatCurrencyFull(Math.abs(tx.amount))}
-                      </span>
-                      {xeroUrl && (
-                        <a
-                          href={xeroUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg hover:bg-blue-500/10 text-blue-400 hover:text-blue-300 transition-colors"
-                          title="Open in Xero"
+              {/* Transaction rows */}
+              <div className="space-y-1.5">
+                {group.transactions.map((tx, txIdx) => {
+                  const xeroUrl = getXeroUrl(tx.transactionId, tx.transactionType)
+                  return (
+                    <div
+                      key={tx.transactionId}
+                      className="flex items-center justify-between p-3 rounded-sm border-[0.5px]"
+                      style={{
+                        borderColor: txIdx === 0 ? 'rgba(255,255,255,0.06)' : `${SPECTRAL.red}15`,
+                        backgroundColor: txIdx === 0 ? 'rgba(255,255,255,0.02)' : `${SPECTRAL.red}05`,
+                      }}
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <span
+                          className="text-[10px] font-medium font-mono px-2 py-0.5 rounded-sm border-[0.5px]"
+                          style={{
+                            borderColor: txIdx === 0 ? 'rgba(255,255,255,0.06)' : `${SPECTRAL.red}20`,
+                            color: txIdx === 0 ? 'rgba(255,255,255,0.4)' : SPECTRAL.red,
+                            backgroundColor: txIdx === 0 ? 'rgba(255,255,255,0.02)' : `${SPECTRAL.red}08`,
+                          }}
                         >
-                          <ExternalLinkIcon className="w-3.5 h-3.5" />
-                        </a>
-                      )}
+                          {txIdx === 0 ? 'ORIG' : `COPY ${txIdx}`}
+                        </span>
+                        <span className="text-white/90 font-medium truncate">
+                          {tx.contactName || 'Unknown'}
+                        </span>
+                        <span className="text-white/30 text-xs font-mono whitespace-nowrap tabular-nums">
+                          {formatDate(tx.transactionDate)}
+                        </span>
+                        {tx.description && (
+                          <span className="text-white/20 text-xs truncate max-w-[200px]">
+                            {tx.description}
+                          </span>
+                        )}
+                        {tx.reference && (
+                          <span className="text-white/20 text-[10px] font-mono">
+                            Ref: {tx.reference}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span
+                          className="font-mono font-medium tabular-nums"
+                          style={{ color: txIdx === 0 ? 'rgba(255,255,255,0.7)' : SPECTRAL.red }}
+                        >
+                          {formatCurrencyFull(Math.abs(tx.amount))}
+                        </span>
+                        {xeroUrl && (
+                          <a
+                            href={xeroUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center w-6 h-6 rounded-sm hover:bg-white/[0.04] transition-colors"
+                            style={{ color: SPECTRAL.cyan }}
+                            title="Open in Xero"
+                          >
+                            <ExternalLinkIcon />
+                          </a>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        ))}
+                  )
+                })}
+              </div>
+            </motion.div>
+          )
+        })}
       </div>
       <PaginationBar page={page} setPage={setPage} totalPages={totalPages} showing={showing} />
     </div>
@@ -1036,100 +1063,110 @@ function MissingTab({ entries }: { entries: MissingEntry[] }) {
   const { paginated, page, setPage, totalPages, showing } = usePagination(entries)
 
   if (entries.length === 0) {
-    return (
-      <div className="py-16 text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-900/20 border border-green-500/30 mb-4">
-          <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-        </div>
-        <h3 className="text-lg font-semibold text-green-400 mb-1">All Entries Present</h3>
-        <p className="text-gray-500">All paid invoices have corresponding bank entries.</p>
-      </div>
-    )
+    return <EmptyState colour={SPECTRAL.emerald} title="All Entries Present" description="All paid invoices have corresponding bank entries." />
   }
 
-  // Summary stats
   const paymentCount = entries.filter((e) => e.expectedType === 'bank_payment').length
   const receiptCount = entries.filter((e) => e.expectedType === 'bank_receipt').length
 
   return (
     <div>
-      {/* Summary */}
-      <div className="flex justify-center gap-6 mb-5">
+      {/* Missing Summary Data Strip */}
+      <div className="flex items-center justify-center gap-6 mb-6 px-4 py-3 border-[0.5px] border-white/[0.06] rounded-sm"
+        style={{ background: 'rgba(255,255,255,0.01)' }}
+      >
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-sm bg-red-500" />
-          <span className="text-sm text-gray-400">Missing Payments: <span className="text-white font-medium">{paymentCount}</span></span>
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: SPECTRAL.red }} />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-white/30">Missing Payments</span>
+          <span className="font-mono text-sm font-medium tabular-nums" style={{ color: SPECTRAL.red }}>
+            {paymentCount}
+          </span>
         </div>
+        <div className="h-4 w-px bg-white/10" />
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded-sm bg-green-500" />
-          <span className="text-sm text-gray-400">Missing Receipts: <span className="text-white font-medium">{receiptCount}</span></span>
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: SPECTRAL.emerald }} />
+          <span className="text-[10px] uppercase tracking-[0.2em] text-white/30">Missing Receipts</span>
+          <span className="font-mono text-sm font-medium tabular-nums" style={{ color: SPECTRAL.emerald }}>
+            {receiptCount}
+          </span>
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-gray-500 text-xs uppercase tracking-wider border-b border-gray-800">
-              <th className="py-3 px-4 text-left font-medium">Invoice Date</th>
-              <th className="py-3 px-4 text-left font-medium">Contact</th>
-              <th className="py-3 px-4 text-left font-medium">Description</th>
-              <th className="py-3 px-4 text-left font-medium">Reference</th>
-              <th className="py-3 px-4 text-center font-medium">Expected</th>
-              <th className="py-3 px-4 text-right font-medium">Amount</th>
-              <th className="py-3 px-4 text-center font-medium">Age</th>
-              <th className="py-3 px-4 text-center font-medium">Xero</th>
+            <tr className="border-b border-white/[0.06]">
+              {['Invoice Date', 'Contact', 'Description', 'Reference', 'Expected', 'Amount', 'Age', 'Xero'].map((h) => (
+                <th
+                  key={h}
+                  className={`py-3 px-4 text-[10px] uppercase tracking-[0.2em] text-white/30 font-normal ${
+                    h === 'Amount' ? 'text-right' : h === 'Age' || h === 'Xero' || h === 'Expected' ? 'text-center' : 'text-left'
+                  }`}
+                >
+                  {h}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {paginated.map((entry, idx) => {
               const xeroUrl = getXeroUrl(entry.invoice.transactionId, entry.invoice.transactionType)
+              const isPayment = entry.expectedType === 'bank_payment'
               return (
-                <tr
+                <motion.tr
                   key={idx}
-                  className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.02, duration: 0.3, ease: EASING.outExpo }}
+                  className="border-b border-white/[0.03] hover:bg-white/[0.02] transition-colors"
                 >
-                  <td className="py-3 px-4 text-gray-300 whitespace-nowrap">
+                  <td className="py-3 px-4 text-white/50 whitespace-nowrap font-mono text-xs tabular-nums">
                     {formatDate(entry.invoice.transactionDate)}
                   </td>
-                  <td className="py-3 px-4 font-medium text-white max-w-[200px] truncate">
-                    {entry.invoice.contactName || <span className="text-gray-600 italic">Unknown</span>}
+                  <td className="py-3 px-4 text-white/90 font-medium max-w-[200px] truncate">
+                    {entry.invoice.contactName || <span className="text-white/20 italic">Unknown</span>}
                   </td>
-                  <td className="py-3 px-4 text-gray-400 max-w-[200px] truncate">
-                    {entry.invoice.description || '-'}
+                  <td className="py-3 px-4 text-white/40 max-w-[200px] truncate">
+                    {entry.invoice.description || '\u2014'}
                   </td>
                   <td className="py-3 px-4">
                     {entry.invoice.reference ? (
-                      <span className="text-xs font-mono text-gray-400 bg-gray-800 px-2 py-0.5 rounded">
+                      <span className="text-[10px] font-mono text-white/40 border-[0.5px] border-white/[0.06] px-2 py-0.5 rounded-sm">
                         {entry.invoice.reference}
                       </span>
                     ) : (
-                      <span className="text-gray-600">-</span>
+                      <span className="text-white/20">&mdash;</span>
                     )}
                   </td>
                   <td className="py-3 px-4 text-center">
                     <span
-                      className={`inline-block text-xs px-2.5 py-1 rounded-full font-medium ${
-                        entry.expectedType === 'bank_payment'
-                          ? 'bg-red-900/30 text-red-400 border border-red-500/20'
-                          : 'bg-green-900/30 text-green-400 border border-green-500/20'
-                      }`}
+                      className="inline-block text-[10px] px-2.5 py-1 rounded-sm font-medium font-mono uppercase tracking-wider border-[0.5px]"
+                      style={{
+                        borderColor: isPayment ? `${SPECTRAL.red}20` : `${SPECTRAL.emerald}20`,
+                        color: isPayment ? SPECTRAL.red : SPECTRAL.emerald,
+                        backgroundColor: isPayment ? `${SPECTRAL.red}08` : `${SPECTRAL.emerald}08`,
+                      }}
                     >
-                      {entry.expectedType === 'bank_payment' ? 'Payment' : 'Receipt'}
+                      {isPayment ? 'Payment' : 'Receipt'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-right font-mono text-purple-400 font-medium whitespace-nowrap">
+                  <td className="py-3 px-4 text-right font-mono font-medium whitespace-nowrap tabular-nums" style={{ color: SPECTRAL.magenta }}>
                     {formatCurrencyFull(Math.abs(entry.invoice.amount))}
                   </td>
                   <td className="py-3 px-4 text-center">
                     <span
-                      className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${
-                        entry.daysSinceInvoice > 180
-                          ? 'bg-red-900/40 text-red-400 border border-red-500/30'
-                          : entry.daysSinceInvoice > 90
-                            ? 'bg-amber-900/40 text-amber-400 border border-amber-500/30'
-                            : 'bg-gray-800 text-gray-400 border border-gray-700'
-                      }`}
+                      className="inline-block px-2 py-0.5 rounded-sm text-[10px] font-mono font-medium border-[0.5px] tabular-nums"
+                      style={{
+                        borderColor: entry.daysSinceInvoice > 180
+                          ? `${SPECTRAL.red}30` : entry.daysSinceInvoice > 90
+                          ? `${SPECTRAL.amber}30` : 'rgba(255,255,255,0.06)',
+                        color: entry.daysSinceInvoice > 180
+                          ? SPECTRAL.red : entry.daysSinceInvoice > 90
+                          ? SPECTRAL.amber : 'rgba(255,255,255,0.4)',
+                        backgroundColor: entry.daysSinceInvoice > 180
+                          ? `${SPECTRAL.red}08` : entry.daysSinceInvoice > 90
+                          ? `${SPECTRAL.amber}08` : 'transparent',
+                      }}
                     >
                       {entry.daysSinceInvoice}d
                     </span>
@@ -1140,16 +1177,17 @@ function MissingTab({ entries }: { entries: MissingEntry[] }) {
                         href={xeroUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-blue-500/10 text-blue-400 hover:text-blue-300 transition-colors"
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-sm hover:bg-white/[0.04] transition-colors"
+                        style={{ color: SPECTRAL.cyan }}
                         title="Open in Xero"
                       >
                         <ExternalLinkIcon />
                       </a>
                     ) : (
-                      <span className="text-gray-700">-</span>
+                      <span className="text-white/10">&mdash;</span>
                     )}
                   </td>
-                </tr>
+                </motion.tr>
               )
             })}
           </tbody>
