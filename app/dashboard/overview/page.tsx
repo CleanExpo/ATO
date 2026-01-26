@@ -283,7 +283,7 @@ export default function TaxOverviewPage() {
       <aside className="sidebar-wide">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-white" />
             </div>
             <div>

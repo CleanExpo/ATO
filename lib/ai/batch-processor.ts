@@ -254,6 +254,12 @@ async function storeAnalysisResults(
             transaction_id: analysis.transactionId,
             financial_year: financialYear,
 
+            // Transaction metadata (for aggregations and display)
+            transaction_amount: txn.total || 0,
+            transaction_date: txn.date || null,
+            transaction_description: buildDescription(txn),
+            supplier_name: txn.contact?.name || null,
+
             // Categories
             primary_category: analysis.categories.primary,
             secondary_categories: analysis.categories.secondary,

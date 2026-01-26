@@ -150,8 +150,11 @@ Analyze this transaction and provide a structured JSON response with:
 - Financial Year: {financialYear}
 
 **Important Rules:**
-- Be conservative: Only mark R&D criteria as "met" if clearly evident
-- Confidence scores should reflect certainty (60-70% = uncertain, 80-90% = confident, 90-100% = very confident)
+- For R&D assessment, be thorough and consider the FULL context: software development, engineering, scientific research, prototyping, testing, and technical consulting are COMMON R&D activities under Division 355. Mark isRndCandidate=true for ANY transaction that COULD involve R&D - it's better to flag potential candidates for human review than to miss genuine R&D.
+- Consider the business industry context when assessing R&D - technology companies, engineering firms, and research organisations routinely have R&D-eligible expenditure.
+- The four-element test should assess PROBABILITY not absolute certainty. If there is reasonable evidence suggesting an element may be met, mark it as met with an appropriate confidence level.
+- Transactions involving software development, cloud infrastructure for development, technical contractors, engineering services, laboratory supplies, prototyping materials, or research tools should be flagged as R&D candidates.
+- Confidence scores should reflect certainty (60-70% = possible candidate, 70-80% = probable candidate, 80-90% = strong candidate, 90-100% = very strong candidate)
 - Evidence must be specific quotes or references from the transaction description
 - For deductions, assume Section 8-1 unless specific legislation applies
 - Flag entertainment expenses (meals, events) as requiring scrutiny

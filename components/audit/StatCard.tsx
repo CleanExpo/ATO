@@ -19,31 +19,13 @@ interface StatCardProps {
   size?: 'sm' | 'md' | 'lg'
 }
 
-const colorClasses = {
-  blue: {
-    border: 'border-blue-500',
-    text: 'text-blue-600',
-  },
-  green: {
-    border: 'border-green-500',
-    text: 'text-green-600',
-  },
-  orange: {
-    border: 'border-orange-500',
-    text: 'text-orange-600',
-  },
-  red: {
-    border: 'border-red-500',
-    text: 'text-red-600',
-  },
-  purple: {
-    border: 'border-purple-500',
-    text: 'text-purple-600',
-  },
-  gray: {
-    border: 'border-gray-500',
-    text: 'text-gray-600',
-  },
+const colorStyles: Record<string, { border: string; text: string }> = {
+  blue: { border: '#00F5FF', text: '#00F5FF' },
+  green: { border: '#00FF88', text: '#00FF88' },
+  orange: { border: '#FFB800', text: '#FFB800' },
+  red: { border: '#FF4444', text: '#FF4444' },
+  purple: { border: '#8855FF', text: '#8855FF' },
+  gray: { border: 'rgba(255,255,255,0.2)', text: 'var(--text-secondary)' },
 }
 
 const sizeClasses = {
@@ -61,31 +43,33 @@ export default function StatCard({
   color = 'blue',
   size = 'md',
 }: StatCardProps) {
-  const colors = colorClasses[color]
+  const colors = colorStyles[color]
 
   return (
-    <div className={`bg-white rounded-lg shadow border-l-4 ${colors.border} p-6`}>
+    <div
+      className="glass-card p-6"
+      style={{ borderLeft: `2px solid ${colors.border}` }}
+    >
       {icon && <div className="text-3xl mb-2">{icon}</div>}
 
-      <h3 className="text-sm font-medium text-gray-500 mb-2">{label}</h3>
+      <h3 className="text-sm font-medium text-[var(--text-muted)] mb-2">{label}</h3>
 
       <div className="flex items-baseline gap-2">
-        <p className={`${sizeClasses[size]} font-bold text-gray-900`}>
+        <p className={`${sizeClasses[size]} font-bold text-[var(--text-primary)]`}>
           {typeof value === 'number' ? value.toLocaleString() : value}
         </p>
 
         {trend && (
           <span
-            className={`text-sm font-medium ${
-              trend.isPositive ? 'text-green-600' : 'text-red-600'
-            }`}
+            className="text-sm font-medium"
+            style={{ color: trend.isPositive ? '#00FF88' : '#FF4444' }}
           >
             {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%
           </span>
         )}
       </div>
 
-      {subtext && <p className="text-xs text-gray-500 mt-2">{subtext}</p>}
+      {subtext && <p className="text-xs text-[var(--text-muted)] mt-2">{subtext}</p>}
     </div>
   )
 }

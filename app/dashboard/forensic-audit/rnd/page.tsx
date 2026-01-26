@@ -167,11 +167,11 @@ export default function RndDetailPage() {
     const status = calculateRegistrationStatus(project.financialYears || [])
 
     if (status === 'deadline_passed') {
-      recommendations.push('⚠️ Registration deadline has passed')
+      recommendations.push('Registration deadline has passed')
       recommendations.push('Check if late registration is possible')
       recommendations.push('Consider amendment for previous year if applicable')
     } else if (status === 'deadline_approaching') {
-      recommendations.push('🔴 URGENT: Registration deadline approaching')
+      recommendations.push('URGENT: Registration deadline approaching')
       recommendations.push('Register R&D activities with AusIndustry immediately')
     } else {
       recommendations.push('Register R&D activities with AusIndustry before deadline')
@@ -213,6 +213,12 @@ export default function RndDetailPage() {
     )
   }
 
+  const statusStyles: Record<string, { bg: string; border: string; accent: string }> = {
+    deadline_passed: { bg: 'rgba(255, 68, 68, 0.06)', border: 'rgba(255, 68, 68, 0.3)', accent: '#FF4444' },
+    deadline_approaching: { bg: 'rgba(255, 136, 0, 0.06)', border: 'rgba(255, 136, 0, 0.3)', accent: '#FF8800' },
+    not_registered: { bg: 'rgba(136, 85, 255, 0.06)', border: 'rgba(136, 85, 255, 0.3)', accent: '#8855FF' }
+  }
+
   return (
     <div className="min-h-screen p-8">
       <div className="max-w-7xl mx-auto">
@@ -227,59 +233,59 @@ export default function RndDetailPage() {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Total Projects</h3>
-            <p className="text-3xl font-bold text-gray-900">{data.totalProjects}</p>
+          <div className="glass-card p-6" style={{ borderLeft: '2px solid #8855FF' }}>
+            <h3 className="text-sm font-medium text-[var(--text-muted)] mb-2">Total Projects</h3>
+            <p className="text-3xl font-bold text-[var(--text-primary)]">{data.totalProjects}</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-purple-500">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Eligible Expenditure</h3>
-            <p className="text-3xl font-bold text-gray-900">
+          <div className="glass-card p-6" style={{ borderLeft: '2px solid #8855FF' }}>
+            <h3 className="text-sm font-medium text-[var(--text-muted)] mb-2">Eligible Expenditure</h3>
+            <p className="text-3xl font-bold text-[var(--text-primary)]">
               ${data.totalEligibleExpenditure.toLocaleString('en-AU')}
             </p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-green-500">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Estimated Offset (43.5%)</h3>
-            <p className="text-3xl font-bold text-green-600">
+          <div className="glass-card p-6" style={{ borderLeft: '2px solid #00FF88' }}>
+            <h3 className="text-sm font-medium text-[var(--text-muted)] mb-2">Estimated Offset (43.5%)</h3>
+            <p className="text-3xl font-bold" style={{ color: '#00FF88' }}>
               ${data.totalEstimatedOffset.toLocaleString('en-AU')}
             </p>
           </div>
 
-          <div className="bg-white rounded-lg shadow p-6 border-l-4 border-blue-500">
-            <h3 className="text-sm font-medium text-gray-500 mb-2">Average Confidence</h3>
-            <p className="text-3xl font-bold text-gray-900">{data.averageConfidence}%</p>
+          <div className="glass-card p-6" style={{ borderLeft: '2px solid var(--accent-primary)' }}>
+            <h3 className="text-sm font-medium text-[var(--text-muted)] mb-2">Average Confidence</h3>
+            <p className="text-3xl font-bold text-[var(--text-primary)]">{data.averageConfidence}%</p>
           </div>
         </div>
 
         {/* Division 355 Four-Element Test */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-          <h2 className="text-lg font-bold text-blue-900 mb-4">Division 355 Four-Element Test</h2>
-          <p className="text-sm text-blue-800 mb-4">
+        <div className="glass-card p-6 mb-8" style={{ background: 'rgba(0, 245, 255, 0.04)', border: '0.5px solid rgba(0, 245, 255, 0.15)' }}>
+          <h2 className="text-lg font-bold mb-4" style={{ color: 'var(--accent-primary)' }}>Division 355 Four-Element Test</h2>
+          <p className="text-sm text-[var(--text-secondary)] mb-4">
             All identified projects meet the following R&D eligibility criteria:
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white rounded p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">1. Outcome Unknown</h3>
-              <p className="text-sm text-gray-700">
+            <div className="glass-card p-4">
+              <h3 className="font-semibold mb-2" style={{ color: 'var(--accent-primary)' }}>1. Outcome Unknown</h3>
+              <p className="text-sm text-[var(--text-secondary)]">
                 The outcome of the activity could not be determined in advance on the basis of current knowledge
               </p>
             </div>
-            <div className="bg-white rounded p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">2. Systematic Approach</h3>
-              <p className="text-sm text-gray-700">
+            <div className="glass-card p-4">
+              <h3 className="font-semibold mb-2" style={{ color: 'var(--accent-primary)' }}>2. Systematic Approach</h3>
+              <p className="text-sm text-[var(--text-secondary)]">
                 Activities followed a systematic progression of work based on principles of science
               </p>
             </div>
-            <div className="bg-white rounded p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">3. New Knowledge</h3>
-              <p className="text-sm text-gray-700">
+            <div className="glass-card p-4">
+              <h3 className="font-semibold mb-2" style={{ color: 'var(--accent-primary)' }}>3. New Knowledge</h3>
+              <p className="text-sm text-[var(--text-secondary)]">
                 Generated new knowledge about a scientific or technical uncertainty
               </p>
             </div>
-            <div className="bg-white rounded p-4">
-              <h3 className="font-semibold text-blue-900 mb-2">4. Scientific Method</h3>
-              <p className="text-sm text-gray-700">
+            <div className="glass-card p-4">
+              <h3 className="font-semibold mb-2" style={{ color: 'var(--accent-primary)' }}>4. Scientific Method</h3>
+              <p className="text-sm text-[var(--text-secondary)]">
                 Used principles of established science, engineering, or computer science
               </p>
             </div>
@@ -287,95 +293,93 @@ export default function RndDetailPage() {
         </div>
 
         {/* Projects List */}
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">R&D Projects</h2>
+        <div className="glass-card p-6 mb-8">
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-6">R&D Projects</h2>
 
           <div className="space-y-6">
-            {data.projects.map((project, index) => (
-              <div
-                key={index}
-                className={`border-l-4 ${
-                  project.registrationStatus === 'deadline_passed'
-                    ? 'border-red-500 bg-red-50'
-                    : project.registrationStatus === 'deadline_approaching'
-                    ? 'border-orange-500 bg-orange-50'
-                    : 'border-purple-500 bg-purple-50'
-                } p-6 rounded-r cursor-pointer hover:shadow-md transition`}
-                onClick={() => setSelectedProject(selectedProject?.projectName === project.projectName ? null : project)}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-gray-900 mb-1">{project.projectName}</h3>
-                    <p className="text-sm text-gray-600 mb-2">{project.projectDescription}</p>
-                    <div className="flex gap-4 text-sm text-gray-700">
-                      <span>Years: {project.financialYears.join(', ')}</span>
-                      <span>•</span>
-                      <span>{project.transactionCount} transactions</span>
-                      <span>•</span>
-                      <span>Confidence: {project.overallConfidence}%</span>
+            {data.projects.map((project, index) => {
+              const pStyle = statusStyles[project.registrationStatus]
+              return (
+                <div
+                  key={index}
+                  className="p-6 rounded-sm cursor-pointer transition-all hover:brightness-110"
+                  style={{ background: pStyle.bg, borderLeft: `2px solid ${pStyle.accent}`, border: `0.5px solid ${pStyle.border}`, borderLeftWidth: '2px' }}
+                  onClick={() => setSelectedProject(selectedProject?.projectName === project.projectName ? null : project)}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">{project.projectName}</h3>
+                      <p className="text-sm text-[var(--text-secondary)] mb-2">{project.projectDescription}</p>
+                      <div className="flex gap-4 text-sm text-[var(--text-muted)]">
+                        <span>Years: {project.financialYears.join(', ')}</span>
+                        <span>•</span>
+                        <span>{project.transactionCount} transactions</span>
+                        <span>•</span>
+                        <span>Confidence: {project.overallConfidence}%</span>
+                      </div>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-sm text-[var(--text-muted)] mb-1">Estimated Offset</p>
+                      <p className="text-2xl font-bold" style={{ color: '#00FF88' }}>
+                        ${project.estimatedOffset.toLocaleString('en-AU')}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="text-sm text-gray-500 mb-1">Estimated Offset</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      ${project.estimatedOffset.toLocaleString('en-AU')}
-                    </p>
-                  </div>
+
+                  {selectedProject?.projectName === project.projectName && (
+                    <div className="mt-4 pt-4" style={{ borderTop: '0.5px solid var(--border-light)' }}>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                          <p className="text-xs text-[var(--text-muted)] mb-1">Total Expenditure</p>
+                          <p className="font-semibold text-[var(--text-primary)]">${project.totalExpenditure.toLocaleString('en-AU')}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-[var(--text-muted)] mb-1">Eligible Expenditure</p>
+                          <p className="font-semibold text-[var(--text-primary)]">${project.eligibleExpenditure.toLocaleString('en-AU')}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-[var(--text-muted)] mb-1">Registration Deadline</p>
+                          <p className="font-semibold text-[var(--text-primary)]">
+                            {new Date(project.registrationDeadline).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="glass-card p-4">
+                        <h4 className="font-semibold text-[var(--text-primary)] mb-2">Recommendations:</h4>
+                        <ul className="space-y-2">
+                          {project.recommendations.map((rec, idx) => (
+                            <li key={idx} className="text-sm text-[var(--text-secondary)] flex items-start">
+                              <span className="mr-2">•</span>
+                              <span>{rec}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {selectedProject?.projectName === project.projectName && (
-                  <div className="mt-4 pt-4 border-t border-gray-200">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Total Expenditure</p>
-                        <p className="font-semibold">${project.totalExpenditure.toLocaleString('en-AU')}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Eligible Expenditure</p>
-                        <p className="font-semibold">${project.eligibleExpenditure.toLocaleString('en-AU')}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">Registration Deadline</p>
-                        <p className="font-semibold">
-                          {new Date(project.registrationDeadline).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="bg-white rounded p-4">
-                      <h4 className="font-semibold text-gray-900 mb-2">Recommendations:</h4>
-                      <ul className="space-y-2">
-                        {project.recommendations.map((rec, idx) => (
-                          <li key={idx} className="text-sm text-gray-700 flex items-start">
-                            <span className="mr-2">•</span>
-                            <span>{rec}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
         {/* Transaction Breakdown */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Transaction Breakdown</h2>
+        <div className="glass-card p-6">
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-4">Transaction Breakdown</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="border border-gray-200 rounded p-4">
-              <h3 className="font-semibold text-gray-700 mb-2">Core R&D Activities</h3>
-              <p className="text-3xl font-bold text-purple-600">{data.coreRndTransactions}</p>
-              <p className="text-sm text-gray-600 mt-1">
+            <div className="glass-card p-4" style={{ borderLeft: '2px solid #8855FF' }}>
+              <h3 className="font-semibold text-[var(--text-secondary)] mb-2">Core R&D Activities</h3>
+              <p className="text-3xl font-bold" style={{ color: '#8855FF' }}>{data.coreRndTransactions}</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 Direct experimentation and hypothesis testing activities
               </p>
             </div>
 
-            <div className="border border-gray-200 rounded p-4">
-              <h3 className="font-semibold text-gray-700 mb-2">Supporting R&D Activities</h3>
-              <p className="text-3xl font-bold text-blue-600">{data.supportingRndTransactions}</p>
-              <p className="text-sm text-gray-600 mt-1">
+            <div className="glass-card p-4" style={{ borderLeft: '2px solid var(--accent-primary)' }}>
+              <h3 className="font-semibold text-[var(--text-secondary)] mb-2">Supporting R&D Activities</h3>
+              <p className="text-3xl font-bold" style={{ color: 'var(--accent-primary)' }}>{data.supportingRndTransactions}</p>
+              <p className="text-sm text-[var(--text-muted)] mt-1">
                 Activities directly related to core R&D (must have nexus)
               </p>
             </div>

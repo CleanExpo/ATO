@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Group by primary_category (project type)
-    type Candidate = { primary_category?: string; amount?: number; financial_year?: string; rnd_confidence?: number; description?: string; supplier?: string }
+    type Candidate = { primary_category?: string; transaction_amount?: number; financial_year?: string; rnd_confidence?: number; transaction_description?: string; supplier_name?: string }
     const projectMap = new Map<string, { id: string; name: string; transactions: Candidate[]; totalSpend: number; years: Set<string> }>()
 
     candidates.forEach((c: Candidate) => {
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
       const project = projectMap.get(category)!
       project.transactions.push(c)
-      project.totalSpend += Math.abs(c.amount || 0)
+      project.totalSpend += Math.abs(c.transaction_amount || 0)
       if (c.financial_year) {
         project.years.add(c.financial_year)
       }
@@ -85,12 +85,12 @@ export async function GET(request: NextRequest) {
       financialYears: Array.from(p.years).sort(),
       eligibleActivities: p.transactions
         .slice(0, 5)
-        .map((t: Candidate) => t.description || t.supplier || 'No description')
+        .map((t: Candidate) => t.transaction_description || t.supplier_name || 'No description')
         .filter((desc: string, index: number, self: string[]) => self.indexOf(desc) === index)
     }))
 
     // Calculate totals
-    const totalExpenditure = candidates.reduce((sum: number, c: Candidate) => sum + Math.abs(c.amount || 0), 0)
+    const totalExpenditure = candidates.reduce((sum: number, c: Candidate) => sum + Math.abs(c.transaction_amount || 0), 0)
     const offsetRate = 0.435 // 43.5% R&D offset for companies with turnover < $20M
     const totalOffset = totalExpenditure * offsetRate
 
