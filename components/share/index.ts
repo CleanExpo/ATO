@@ -7,3 +7,4 @@
 export { CreateShareModal } from './CreateShareModal';
 export { ShareLinkCard } from './ShareLinkCard';
 export { ShareLinkManager } from './ShareLinkManager';
+export { AccountantReportView } from './AccountantReportView';
