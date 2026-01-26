@@ -43,30 +43,37 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Get transaction amounts from cache
+    // Get transaction amounts from cache in batches (Supabase URL length limit)
     const transactionIds = nullRecords!.map(r => r.transaction_id)
+    const BATCH_SIZE = 25
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cacheMap = new Map<string, any>()
 
-    const { data: cached, error: cacheError } = await supabase
-      .from('historical_transactions_cache')
-      .select('transaction_id, total_amount, transaction_date, contact_name, raw_data')
-      .eq('tenant_id', tenantId)
-      .in('transaction_id', transactionIds)
+    for (let i = 0; i < transactionIds.length; i += BATCH_SIZE) {
+      const batch = transactionIds.slice(i, i + BATCH_SIZE)
+      const { data: cached, error: cacheError } = await supabase
+        .from('historical_transactions_cache')
+        .select('transaction_id, total_amount, transaction_date, contact_name, raw_data')
+        .eq('tenant_id', tenantId)
+        .in('transaction_id', batch)
 
-    if (cacheError) {
-      console.error('Error fetching cached transactions:', cacheError)
-      return NextResponse.json({ error: cacheError.message }, { status: 500 })
+      if (cacheError) {
+        console.error(`Error fetching cache batch ${i / BATCH_SIZE}:`, cacheError)
+        continue
+      }
+
+      if (cached) {
+        cached.forEach(c => cacheMap.set(c.transaction_id, c))
+      }
     }
 
-    if (!cached || cached.length === 0) {
+    if (cacheMap.size === 0) {
       return NextResponse.json({
         status: 'no_cache',
         message: 'No cached transactions found to backfill from',
         updated: 0
       })
     }
-
-    // Build lookup map
-    const cacheMap = new Map(cached.map(c => [c.transaction_id, c]))
 
     // Update each record
     let updated = 0
@@ -111,7 +118,7 @@ export async function POST(request: NextRequest) {
       status: 'complete',
       message: `Backfilled ${updated} records with transaction amounts`,
       nullRecordsBefore: nullCount,
-      cachedTransactionsFound: cached.length,
+      cachedTransactionsFound: cacheMap.size,
       updated,
       errors
     })
