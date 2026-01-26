@@ -311,7 +311,7 @@ export default function DataQualityPage() {
                 </div>
                 <div className="text-center p-3 bg-[var(--bg-tertiary)] rounded-lg">
                   <div className="text-2xl font-bold text-[var(--text-primary)]">
-                    {Math.round(((scanStatus.transactionsScanned - scanStatus.issuesFound) / scanStatus.transactionsScanned) * 100)}%
+                    {scanStatus.transactionsScanned ? Math.round(((scanStatus.transactionsScanned - (scanStatus.issuesFound ?? 0)) / scanStatus.transactionsScanned) * 100) : 0}%
                   </div>
                   <div className="text-xs text-[var(--text-muted)]">Accuracy</div>
                 </div>
@@ -444,7 +444,7 @@ function TechnicalView({ data }: { data: DataQualityScanResult }) {
           <div>
             <p className="text-sm text-[var(--text-muted)] mb-1">Transactions Scanned</p>
             <p className="text-2xl font-bold text-[var(--text-primary)]">
-              {data.transactionsScanned.toLocaleString()}
+              {(data.transactionsScanned ?? 0).toLocaleString()}
             </p>
           </div>
           <div>
@@ -501,7 +501,7 @@ function TechnicalView({ data }: { data: DataQualityScanResult }) {
         <ul className="space-y-3 text-[var(--text-secondary)]">
           <li>• <strong>{data.issuesAutoCorrected}</strong> auto-corrections applied (confidence ≥90%)</li>
           <li>• <strong>{data.issuesPendingReview}</strong> flagged for accountant review (70-89% confidence)</li>
-          <li>• Total Financial Impact: <strong style={{ color: 'var(--color-success)' }}>${data.totalImpactAmount.toLocaleString()}</strong></li>
+          <li>• Total Financial Impact: <strong style={{ color: 'var(--color-success)' }}>${(data.totalImpactAmount ?? 0).toLocaleString()}</strong></li>
           <li>• Recommended: Review medium-confidence items before finalizing</li>
         </ul>
       </div>

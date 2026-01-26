@@ -556,7 +556,7 @@ export default function TaxOverviewPage() {
                       <p className="text-sm text-[var(--text-secondary)] mb-3">{rec.description}</p>
                       <div className="flex items-center gap-4">
                         <div className="text-emerald-400 font-semibold">
-                          Potential Saving: ${rec.potentialSaving.toLocaleString()}
+                          Potential Saving: ${(rec.potentialSaving ?? 0).toLocaleString()}
                         </div>
                         <button className="text-sm text-sky-400 hover:text-sky-300 flex items-center gap-1">
                           {rec.action} <ArrowRight className="w-3 h-3" />
@@ -583,7 +583,7 @@ export default function TaxOverviewPage() {
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-emerald-400 flex-shrink-0" />
               <p className="text-[var(--text-secondary)]">
-                Claim <span className="font-bold text-emerald-400">${overview.rndOffsetAvailable.toLocaleString()}</span> in R&D tax offsets
+                Claim <span className="font-bold text-emerald-400">${(overview.rndOffsetAvailable ?? 0).toLocaleString()}</span> in R&D tax offsets
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -596,7 +596,7 @@ export default function TaxOverviewPage() {
               <div className="flex items-center gap-3">
                 <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0" />
                 <p className="text-[var(--text-secondary)]">
-                  <span className="font-bold text-red-400">Urgent:</span> Review Division 7A compliance to avoid ${overview.div7aRisk.toLocaleString()} deemed dividend tax
+                  <span className="font-bold text-red-400">Urgent:</span> Review Division 7A compliance to avoid ${(overview.div7aRisk ?? 0).toLocaleString()} deemed dividend tax
                 </p>
               </div>
             )}
