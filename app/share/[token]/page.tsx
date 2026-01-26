@@ -5,12 +5,14 @@
  *
  * Public page for accountants to access shared reports.
  * Validates token and displays report data.
+ * Supports feedback submission and threading.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { AccountantReportView } from '@/components/share/AccountantReportView';
 import type { AccessShareLinkResponse, ShareLinkError } from '@/lib/types/shared-reports';
+import type { FeedbackThread } from '@/lib/types/share-feedback';
 
 type PageState =
   | { status: 'loading' }
@@ -25,6 +27,20 @@ export default function SharePage() {
   const [state, setState] = useState<PageState>({ status: 'loading' });
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [feedbackThreads, setFeedbackThreads] = useState<FeedbackThread[]>([]);
+
+  // Fetch feedback for the report
+  const fetchFeedback = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/share/${token}/feedback`);
+      if (response.ok) {
+        const data = await response.json();
+        setFeedbackThreads(data.threads || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch feedback:', err);
+    }
+  }, [token]);
 
   const fetchReport = async (passwordAttempt?: string) => {
     setState({ status: 'loading' });
@@ -64,6 +80,13 @@ export default function SharePage() {
   useEffect(() => {
     fetchReport();
   }, [token]);
+
+  // Fetch feedback when report is loaded
+  useEffect(() => {
+    if (state.status === 'success') {
+      fetchFeedback();
+    }
+  }, [state.status, fetchFeedback]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,5 +236,12 @@ export default function SharePage() {
   }
 
   // Success state - show report
-  return <AccountantReportView data={state.data} />;
+  return (
+    <AccountantReportView
+      data={state.data}
+      token={token}
+      feedbackThreads={feedbackThreads}
+      onFeedbackSubmit={fetchFeedback}
+    />
+  );
 }
