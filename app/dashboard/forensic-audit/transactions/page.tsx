@@ -7,11 +7,29 @@
 
 'use client'
 
-import { Suspense, useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { MobileNav } from '@/components/ui/MobileNav'
+
+// ─── Debounce Hook ───────────────────────────────────────────────────
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -190,6 +208,7 @@ export default function TransactionsPageWrapper() {
 function TransactionsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const isInitialised = useRef(false)
 
   // State
   const [loading, setLoading] = useState(true)
@@ -199,20 +218,64 @@ function TransactionsPage() {
   const [error, setError] = useState<string | null>(null)
   const [tenantId, setTenantId] = useState<string | null>(null)
 
-  // Filters
-  const [financialYear, setFinancialYear] = useState<string>('')
-  const [category, setCategory] = useState<string>('')
-  const [isRndCandidate, setIsRndCandidate] = useState<string>('')
-  const [minConfidence, setMinConfidence] = useState<number>(0)
-  const [searchQuery, setSearchQuery] = useState<string>('')
+  // Filters - initialise from URL params
+  const [financialYear, setFinancialYear] = useState<string>(() => searchParams.get('fy') || '')
+  const [category, setCategory] = useState<string>(() => searchParams.get('category') || '')
+  const [isRndCandidate, setIsRndCandidate] = useState<string>(() => searchParams.get('rnd') || '')
+  const [minConfidence, setMinConfidence] = useState<number>(() => {
+    const conf = searchParams.get('conf')
+    return conf ? parseInt(conf, 10) : 0
+  })
+  const [searchQuery, setSearchQuery] = useState<string>(() => searchParams.get('q') || '')
 
-  // Sorting
-  const [sortField, setSortField] = useState<SortField>('transaction_date')
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  // Debounced search query for API calls
+  const debouncedSearchQuery = useDebounce(searchQuery, 300)
 
-  // Pagination
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(50)
+  // Sorting - initialise from URL params
+  const [sortField, setSortField] = useState<SortField>(() => {
+    const sort = searchParams.get('sort')
+    return (sort as SortField) || 'transaction_date'
+  })
+  const [sortDirection, setSortDirection] = useState<SortDirection>(() => {
+    const dir = searchParams.get('dir')
+    return (dir as SortDirection) || 'desc'
+  })
+
+  // Pagination - initialise from URL params
+  const [page, setPage] = useState(() => {
+    const p = searchParams.get('page')
+    return p ? parseInt(p, 10) : 1
+  })
+  const [pageSize, setPageSize] = useState(() => {
+    const ps = searchParams.get('pageSize')
+    return ps ? parseInt(ps, 10) : 50
+  })
+
+  // Sync filters to URL for shareable links
+  useEffect(() => {
+    if (!tenantId) return
+    // Skip the first render to avoid overwriting URL on initial load
+    if (!isInitialised.current) {
+      isInitialised.current = true
+      return
+    }
+
+    const params = new URLSearchParams()
+    params.set('tenantId', tenantId)
+
+    if (financialYear) params.set('fy', financialYear)
+    if (category) params.set('category', category)
+    if (isRndCandidate) params.set('rnd', isRndCandidate)
+    if (minConfidence > 0) params.set('conf', minConfidence.toString())
+    if (debouncedSearchQuery) params.set('q', debouncedSearchQuery)
+    if (sortField !== 'transaction_date') params.set('sort', sortField)
+    if (sortDirection !== 'desc') params.set('dir', sortDirection)
+    if (page > 1) params.set('page', page.toString())
+    if (pageSize !== 50) params.set('pageSize', pageSize.toString())
+
+    const newUrl = `/dashboard/forensic-audit/transactions?${params.toString()}`
+    router.replace(newUrl, { scroll: false })
+  }, [tenantId, financialYear, category, isRndCandidate, minConfidence, debouncedSearchQuery, sortField, sortDirection, page, pageSize, router])
 
   // Get tenant ID on mount
   useEffect(() => {
@@ -256,7 +319,9 @@ function TransactionsPage() {
       if (category) params.set('primaryCategory', category)
       if (minConfidence > 0) params.set('minConfidence', minConfidence.toString())
 
-      const response = await fetch(`/api/audit/analysis-results?${params}`)
+      const response = await fetch(`/api/audit/analysis-results?${params}`, {
+        cache: 'no-store'
+      })
       const data = await response.json()
 
       if (!response.ok) {
@@ -296,9 +361,9 @@ function TransactionsPage() {
         }
       })
 
-      // Client-side search filter
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase()
+      // Client-side search filter (using debounced value)
+      if (debouncedSearchQuery.trim()) {
+        const query = debouncedSearchQuery.toLowerCase()
         sorted = sorted.filter(txn =>
           (txn.supplier_name || '').toLowerCase().includes(query) ||
           (txn.transaction_description || '').toLowerCase().includes(query)
@@ -314,7 +379,7 @@ function TransactionsPage() {
     } finally {
       setLoading(false)
     }
-  }, [tenantId, page, pageSize, financialYear, isRndCandidate, category, minConfidence, sortField, sortDirection, searchQuery])
+  }, [tenantId, page, pageSize, financialYear, isRndCandidate, category, minConfidence, sortField, sortDirection, debouncedSearchQuery])
 
   useEffect(() => {
     if (tenantId) {
@@ -539,7 +604,7 @@ function TransactionsPage() {
           </div>
 
           {/* Active filters summary */}
-          {(financialYear || category || isRndCandidate || minConfidence > 0 || searchQuery) && (
+          {(financialYear || category || isRndCandidate || minConfidence > 0 || debouncedSearchQuery) && (
             <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between">
               <p className="text-[10px] text-white/40">
                 Showing {transactions.length.toLocaleString()} of {pagination?.total.toLocaleString() || 0} transactions
