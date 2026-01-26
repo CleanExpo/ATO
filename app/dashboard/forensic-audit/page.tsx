@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Zap,
@@ -32,7 +32,15 @@ interface ProgressData {
   error?: string
 }
 
-export default function ForensicAuditPage() {
+export default function ForensicAuditPageWrapper() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Loading...</p></div>}>
+      <ForensicAuditPage />
+    </Suspense>
+  )
+}
+
+function ForensicAuditPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [tenantId, setTenantId] = useState<string | null>(null)
@@ -427,6 +435,22 @@ export default function ForensicAuditPage() {
             <span className="text-xs tracking-[0.15em] uppercase font-mono" style={{ color: 'var(--color-success)' }}>
               Analysis Complete
             </span>
+          </div>
+          <div className="mt-6 flex gap-4 justify-center flex-wrap">
+            <button
+              onClick={() => router.push(`/dashboard/forensic-audit/recommendations${tenantId ? `?tenantId=${tenantId}` : ''}`)}
+              className="btn btn-secondary"
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}
+            >
+              Recommendations
+            </button>
+            <button
+              onClick={() => router.push(`/dashboard/forensic-audit/reconciliation${tenantId ? `?tenantId=${tenantId}` : ''}`)}
+              className="btn btn-secondary"
+              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}
+            >
+              Reconciliation
+            </button>
           </div>
         </div>
       )}

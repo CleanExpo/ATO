@@ -8,7 +8,7 @@ export async function GET() {
 
     const clientId = process.env.XERO_CLIENT_ID!
     const redirectUri = 'http://localhost:3000/api/auth/xero/callback' // Same as main app
-    const scope = 'openid profile email accounting.settings.read accounting.transactions.read accounting.reports.read accounting.contacts.read offline_access'
+    const scope = 'openid profile email accounting.settings.read accounting.transactions.read accounting.reports.read accounting.contacts.read accounting.attachments files offline_access'
 
     const authUrl = new URL('https://login.xero.com/identity/connect/authorize')
     authUrl.searchParams.set('response_type', 'code')

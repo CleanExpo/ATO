@@ -2,7 +2,8 @@ import { XeroClient, TokenSet } from 'xero-node'
 import { serverConfig, sharedConfig } from '@/lib/config/env'
 import { withRetry } from '@/lib/xero/retry'
 
-// Xero OAuth 2.0 Scopes - READ ONLY
+// Xero OAuth 2.0 Scopes
+// Read: accounting data | Write: files & attachments only
 export const XERO_SCOPES = [
     'offline_access',
     'openid',
@@ -12,6 +13,8 @@ export const XERO_SCOPES = [
     'accounting.transactions.read',
     'accounting.reports.read',
     'accounting.contacts.read',
+    'accounting.attachments',       // Attach findings to transactions
+    'files',                        // Upload reports to Xero Files
 ].join(' ')
 
 // Create Xero client instance

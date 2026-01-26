@@ -11,7 +11,7 @@
 
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Beaker, TrendingDown, Building2, AlertCircle, CheckCircle, Clock } from 'lucide-react'
@@ -71,7 +71,15 @@ interface DashboardData {
   currentYear?: string
 }
 
-export default function ForensicAuditDashboardEnhanced() {
+export default function ForensicAuditDashboardEnhancedPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>}>
+      <ForensicAuditDashboardEnhanced />
+    </Suspense>
+  )
+}
+
+function ForensicAuditDashboardEnhanced() {
   const _router = useRouter()
   const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
