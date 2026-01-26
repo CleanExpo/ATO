@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { MobileNav } from '@/components/ui/MobileNav'
 import ExpandableRecommendationCard from '@/components/forensic-audit/ExpandableRecommendationCard'
 import { ExportModal, ExportOptions } from '@/components/forensic-audit/ExportModal'
+import { CreateShareModal } from '@/components/share'
 import { exportWithFormat, quickExportExcel, quickExportAccountantPackage } from '@/lib/api/export-client'
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -148,6 +149,9 @@ function RecommendationsPage() {
   const [isQuickExporting, setIsQuickExporting] = useState(false)
   const [exportToast, setExportToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [organizationName, setOrganizationName] = useState('')
+
+  // Share state
+  const [showShareModal, setShowShareModal] = useState(false)
 
   // Fetch organization name
   useEffect(() => {
@@ -633,6 +637,41 @@ function RecommendationsPage() {
             Custom Export
           </button>
 
+          <div className="h-4 w-px bg-white/10" />
+
+          {/* Share Report */}
+          <button
+            onClick={() => setShowShareModal(true)}
+            disabled={!tenantId}
+            className="px-4 py-2 rounded-sm text-[10px] uppercase tracking-[0.15em] font-medium border-[0.5px] flex items-center gap-2 disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:brightness-110"
+            style={{
+              borderColor: `${SPECTRAL.magenta}30`,
+              color: SPECTRAL.magenta,
+              backgroundColor: `${SPECTRAL.magenta}08`,
+            }}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            Share Report
+          </button>
+
+          {/* Manage Shared Links */}
+          <Link
+            href="/dashboard/forensic-audit/shared-links"
+            className="px-4 py-2 rounded-sm text-[10px] uppercase tracking-[0.15em] font-medium border-[0.5px] flex items-center gap-2 transition-all hover:brightness-110"
+            style={{
+              borderColor: 'rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.5)',
+              backgroundColor: 'rgba(255,255,255,0.02)',
+            }}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            Manage Links
+          </Link>
+
           {/* Action Result */}
           {xeroActionResult && (
             <div
@@ -726,6 +765,21 @@ function RecommendationsPage() {
         onExport={handleExport}
         defaultOrganizationName={organizationName}
       />
+
+      {/* ── Share Modal ── */}
+      {tenantId && (
+        <CreateShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          tenantId={tenantId}
+          defaultReportType="full"
+          defaultTitle={`${organizationName} - Full Forensic Audit Report`}
+          onSuccess={() => {
+            setExportToast({ type: 'success', message: 'Share link created! You can now share this link with your accountant.' })
+            setTimeout(() => setExportToast(null), 5000)
+          }}
+        />
+      )}
 
       {/* ── Toast Notification ── */}
       <AnimatePresence>
