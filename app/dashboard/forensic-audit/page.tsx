@@ -7,8 +7,9 @@
 
 'use client'
 
-import { Suspense, useEffect, useState, useCallback } from 'react'
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap,
   Cpu,
@@ -18,6 +19,8 @@ import {
 } from 'lucide-react'
 import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
 import { MobileNav } from '@/components/ui/MobileNav'
+import { AnalysisProgressPanel } from '@/components/forensic-audit/AnalysisProgressPanel'
+import { useAnalysisProgress } from '@/lib/hooks/useAnalysisProgress'
 
 type Stage = 'idle' | 'syncing' | 'analyzing' | 'complete' | 'error'
 
@@ -54,6 +57,15 @@ function ForensicAuditPage() {
     totalBenefit: 0
   })
   const [isPolling, setIsPolling] = useState(false)
+  const [isProgressMinimized, setIsProgressMinimized] = useState(false)
+  const [showCompletionToast, setShowCompletionToast] = useState(false)
+  const prevStageRef = useRef<Stage>('idle')
+
+  // Enhanced progress tracking hook
+  const enhancedProgress = useAnalysisProgress(tenantId, {
+    pollingIntervalActive: 2000,
+    pollingIntervalIdle: 10000,
+  })
 
   // Fetch tenant ID on mount or URL change
   useEffect(() => {
@@ -133,6 +145,43 @@ function ForensicAuditPage() {
     const interval = setInterval(checkCurrentStatus, 5000)
     return () => clearInterval(interval)
   }, [isPolling, tenantId, checkCurrentStatus])
+
+  // Sync enhanced progress with legacy state and detect completion
+  useEffect(() => {
+    // Update legacy progress from enhanced hook
+    if (enhancedProgress.stage !== 'idle') {
+      setProgress(p => ({
+        ...p,
+        stage: enhancedProgress.stage,
+        analysisProgress: enhancedProgress.overallProgress,
+        syncProgress: enhancedProgress.syncProgress,
+        transactionsAnalyzed: enhancedProgress.stats.totalAnalyzed,
+      }))
+    }
+
+    // Show completion toast when transitioning to complete
+    if (enhancedProgress.stage === 'complete' && prevStageRef.current === 'analyzing') {
+      setShowCompletionToast(true)
+      // Try to show browser notification
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('Analysis Complete', {
+          body: `Found ${enhancedProgress.stats.rndCandidates} R&D candidates`,
+          icon: '/favicon.ico',
+        })
+      }
+      // Auto-hide toast after 10 seconds
+      setTimeout(() => setShowCompletionToast(false), 10000)
+    }
+
+    prevStageRef.current = enhancedProgress.stage
+  }, [enhancedProgress])
+
+  // Request notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
 
   async function handleStart() {
     if (!tenantId) return
@@ -412,18 +461,47 @@ function ForensicAuditPage() {
 
       </div>
 
-      {/* Status Readout */}
-      {progress.stage !== 'idle' && progress.stage !== 'complete' && (
-        <div className="mt-16 relative z-10 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl" style={{ border: '1px solid var(--border-medium)', background: 'var(--accent-primary-dim)' }}>
-            <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--accent-primary)' }} />
-            <span className="text-xs tracking-[0.15em] uppercase font-mono" style={{ color: 'var(--accent-primary)' }}>
-              {progress.stage === 'syncing' ? 'Data Stream Active' : 'Neural Processing'}
+      {/* Enhanced Analysis Progress Panel */}
+      {(progress.stage === 'syncing' || progress.stage === 'analyzing') && (
+        <div className="mt-16 relative z-10 flex justify-center">
+          <AnimatePresence mode="wait">
+            <AnalysisProgressPanel
+              key={isProgressMinimized ? 'minimized' : 'expanded'}
+              stage={enhancedProgress.stage}
+              overallProgress={enhancedProgress.overallProgress}
+              syncProgress={enhancedProgress.syncProgress}
+              batch={enhancedProgress.batch}
+              timeEstimate={enhancedProgress.timeEstimate}
+              stats={enhancedProgress.stats}
+              recentBatches={enhancedProgress.recentBatches}
+              error={enhancedProgress.error}
+              onMinimize={() => setIsProgressMinimized(!isProgressMinimized)}
+              isMinimized={isProgressMinimized}
+            />
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Stall Warning */}
+      {enhancedProgress.isStalled && (
+        <div className="mt-4 relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg" style={{ border: '1px solid rgba(251, 191, 36, 0.3)', background: 'rgba(251, 191, 36, 0.1)' }}>
+            <AlertCircle className="w-4 h-4" style={{ color: '#FBB24' }} />
+            <span className="text-xs" style={{ color: '#FBB724' }}>
+              Analysis appears stalled - no progress for 2+ minutes
             </span>
           </div>
-          <p className="text-xs mt-4 tracking-wide" style={{ color: 'var(--text-muted)' }}>
-            Process runs in background. Safe to navigate away.
-          </p>
+        </div>
+      )}
+
+      {/* Rate Limit Warning */}
+      {enhancedProgress.isRateLimited && (
+        <div className="mt-4 relative z-10 text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg" style={{ border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(59, 130, 246, 0.1)' }}>
+            <span className="text-xs" style={{ color: '#3B82F6' }}>
+              Waiting for rate limit reset...
+            </span>
+          </div>
         </div>
       )}
 
@@ -481,6 +559,41 @@ function ForensicAuditPage() {
 
       {/* Mobile Navigation */}
       <MobileNav />
+
+      {/* Completion Toast */}
+      <AnimatePresence>
+        {showCompletionToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-xl backdrop-blur-xl"
+            style={{
+              border: '1px solid rgba(16, 185, 129, 0.4)',
+              background: 'rgba(16, 185, 129, 0.15)',
+            }}
+          >
+            <div className="flex items-center gap-4">
+              <CheckCircle2 className="w-6 h-6" style={{ color: '#10B981' }} />
+              <div>
+                <p className="font-medium" style={{ color: '#10B981' }}>Analysis Complete</p>
+                <p className="text-sm text-white/60">
+                  Found {enhancedProgress.stats.rndCandidates} R&D candidates, {' '}
+                  ${Math.round(enhancedProgress.stats.totalDeductions / 1000)}k in deductions
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCompletionToast(false)}
+                className="ml-4 text-white/40 hover:text-white/70 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
