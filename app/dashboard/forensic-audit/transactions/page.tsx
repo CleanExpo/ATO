@@ -13,6 +13,8 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { TransactionDetailRow } from '@/components/forensic-audit/TransactionDetailRow'
+import { ExportModal, ExportOptions } from '@/components/forensic-audit/ExportModal'
+import { exportWithFormat, quickExportExcel, quickExportAccountantPackage } from '@/lib/api/export-client'
 
 // ─── Debounce Hook ───────────────────────────────────────────────────
 
@@ -283,6 +285,74 @@ function TransactionsPage() {
     setSelectedIds(new Set())
   }
 
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [isQuickExporting, setIsQuickExporting] = useState(false)
+  const [exportToast, setExportToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [organizationName, setOrganizationName] = useState('')
+
+  // Fetch organization name
+  useEffect(() => {
+    async function fetchOrgName() {
+      if (!tenantId) return
+      try {
+        const response = await fetch('/api/xero/organizations')
+        const data = await response.json()
+        const org = data.connections?.find((c: any) => c.tenant_id === tenantId)
+        if (org) {
+          setOrganizationName(org.organisation_name || org.tenant_name || '')
+        }
+      } catch (err) {
+        console.error('Failed to fetch org name:', err)
+      }
+    }
+    fetchOrgName()
+  }, [tenantId])
+
+  // Handle export
+  async function handleExport(options: ExportOptions) {
+    if (!tenantId) return
+
+    const result = await exportWithFormat(tenantId, options)
+    if (result.success) {
+      setExportToast({ type: 'success', message: `Downloaded ${result.filename}` })
+    } else {
+      setExportToast({ type: 'error', message: result.error || 'Export failed' })
+    }
+
+    // Clear toast after 5 seconds
+    setTimeout(() => setExportToast(null), 5000)
+  }
+
+  // Quick export handlers
+  async function handleQuickExportExcel() {
+    if (!tenantId || !organizationName) return
+    setIsQuickExporting(true)
+    setExportToast({ type: 'success', message: 'Generating Excel report...' })
+    const result = await quickExportExcel(tenantId, organizationName, '')
+    setIsQuickExporting(false)
+    if (result.success) {
+      setExportToast({ type: 'success', message: `Downloaded ${result.filename}` })
+    } else {
+      setExportToast({ type: 'error', message: result.error || 'Export failed' })
+    }
+    setTimeout(() => setExportToast(null), 5000)
+  }
+
+  async function handleQuickExportPackage() {
+    if (!tenantId || !organizationName) return
+    setIsQuickExporting(true)
+    setExportToast({ type: 'success', message: 'Generating accountant package...' })
+    const result = await quickExportAccountantPackage(tenantId, organizationName, '')
+    setIsQuickExporting(false)
+    if (result.success) {
+      setExportToast({ type: 'success', message: `Downloaded ${result.filename}` })
+    } else {
+      setExportToast({ type: 'error', message: result.error || 'Export failed' })
+    }
+    setTimeout(() => setExportToast(null), 5000)
+  }
+
   // Sync filters to URL for shareable links
   useEffect(() => {
     if (!tenantId) return
@@ -514,6 +584,60 @@ function TransactionsPage() {
           </p>
         </motion.div>
 
+        {/* ── Quick Export Bar ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.08, ease: EASING.outExpo }}
+          className="mb-6 flex flex-wrap items-center justify-end gap-3"
+        >
+          <button
+            onClick={handleQuickExportExcel}
+            disabled={isQuickExporting || !tenantId}
+            className="px-4 py-2 rounded-sm text-[10px] uppercase tracking-[0.15em] font-medium border-[0.5px] flex items-center gap-2 transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              borderColor: 'rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.6)',
+              backgroundColor: 'rgba(255,255,255,0.02)',
+            }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Quick Excel
+          </button>
+          <button
+            onClick={handleQuickExportPackage}
+            disabled={isQuickExporting || !tenantId}
+            className="px-4 py-2 rounded-sm text-[10px] uppercase tracking-[0.15em] font-medium border-[0.5px] flex items-center gap-2 transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              borderColor: `${SPECTRAL.emerald}30`,
+              color: SPECTRAL.emerald,
+              backgroundColor: `${SPECTRAL.emerald}10`,
+            }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+            Accountant Package
+          </button>
+          <button
+            onClick={() => setShowExportModal(true)}
+            disabled={!tenantId}
+            className="px-4 py-2 rounded-sm text-[10px] uppercase tracking-[0.15em] font-medium border-[0.5px] flex items-center gap-2 transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              borderColor: `${SPECTRAL.cyan}30`,
+              color: SPECTRAL.cyan,
+              backgroundColor: `${SPECTRAL.cyan}10`,
+            }}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            Custom Export
+          </button>
+        </motion.div>
+
         {/* ── Summary Stats ── */}
         {summary && (
           <motion.div
@@ -688,6 +812,7 @@ function TransactionsPage() {
                 </button>
               </div>
               <button
+                onClick={() => setShowExportModal(true)}
                 className="px-4 py-2 rounded-sm text-[10px] uppercase tracking-[0.15em] font-medium border-[0.5px] flex items-center gap-2 transition-all hover:brightness-110"
                 style={{
                   borderColor: `${SPECTRAL.emerald}40`,
@@ -880,6 +1005,62 @@ function TransactionsPage() {
           </p>
         </motion.div>
       </div>
+
+      {/* ── Export Modal ── */}
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        tenantId={tenantId || ''}
+        onExport={handleExport}
+        selectedTransactionIds={Array.from(selectedIds)}
+        currentFilters={
+          financialYear || category || isRndCandidate || minConfidence > 0
+            ? {
+                financialYear: financialYear || undefined,
+                isRndCandidate: isRndCandidate === 'true' ? true : isRndCandidate === 'false' ? false : undefined,
+                primaryCategory: category || undefined,
+                minConfidence: minConfidence > 0 ? minConfidence : undefined,
+              }
+            : undefined
+        }
+        defaultOrganizationName={organizationName}
+      />
+
+      {/* ── Toast Notification ── */}
+      <AnimatePresence>
+        {exportToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 20, x: '-50%' }}
+            transition={{ duration: 0.3, ease: EASING.outExpo }}
+            className="fixed bottom-6 left-1/2 z-50 px-6 py-3 rounded-sm border-[0.5px] backdrop-blur-xl flex items-center gap-3"
+            style={{
+              borderColor: exportToast.type === 'success' ? `${SPECTRAL.emerald}40` : `${SPECTRAL.red}40`,
+              backgroundColor: exportToast.type === 'success' ? `${SPECTRAL.emerald}15` : `${SPECTRAL.red}15`,
+            }}
+          >
+            {exportToast.type === 'success' ? (
+              <svg className="w-5 h-5" style={{ color: SPECTRAL.emerald }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" style={{ color: SPECTRAL.red }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            )}
+            <span className="text-sm text-white/80">{exportToast.message}</span>
+            <button
+              onClick={() => setExportToast(null)}
+              className="ml-2 text-white/40 hover:text-white/70 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
