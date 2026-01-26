@@ -83,11 +83,25 @@ export async function POST(request: NextRequest) {
       const cachedTx = cacheMap.get(record.transaction_id)
       if (!cachedTx) continue
 
-      // Extract description from raw_data
+      // Extract data from raw_data as fallback when columns are NULL
       const rawData = cachedTx.raw_data as Record<string, unknown> | null
+
+      // Amount: prefer column, fallback to raw_data.total
+      const amount = cachedTx.total_amount
+        ?? (rawData?.total != null ? parseFloat(String(rawData.total)) : null)
+
+      // Date: prefer column, fallback to raw_data.date
+      const txnDate = cachedTx.transaction_date
+        ?? (rawData?.date ? String(rawData.date) : null)
+
+      // Contact: prefer column, fallback to raw_data.contact.name
+      const rawContact = rawData?.contact as Record<string, unknown> | undefined
+      const contact = cachedTx.contact_name
+        ?? (rawContact?.name ? String(rawContact.name) : null)
+
+      // Description: try lineItems first, then reference
       let description = ''
       if (rawData) {
-        // Try lineItems first, then reference
         const lineItems = rawData.lineItems as Array<{ description?: string }> | undefined
         if (lineItems?.[0]?.description) {
           description = lineItems[0].description
@@ -96,12 +110,14 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      if (amount == null) continue // Skip if no amount available
+
       const { error: updateError } = await supabase
         .from('forensic_analysis_results')
         .update({
-          transaction_amount: cachedTx.total_amount,
-          transaction_date: cachedTx.transaction_date,
-          supplier_name: cachedTx.contact_name,
+          transaction_amount: amount,
+          transaction_date: txnDate,
+          supplier_name: contact,
           transaction_description: description || null
         })
         .eq('id', record.id)
