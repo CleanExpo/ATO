@@ -82,7 +82,7 @@ export interface RndProjectAnalysis {
   financialYears: string[]
   totalExpenditure: number
   eligibleExpenditure: number
-  estimatedOffset: number // 43.5% of eligible expenditure
+  estimatedOffset: number // 43.5% of eligible expenditure (s 355-100 ITAA 1997)
   meetsEligibility: boolean
   eligibilityCriteria: FourElementTest
   overallConfidence: number // Average confidence across all elements
@@ -92,6 +92,22 @@ export interface RndProjectAnalysis {
   registrationStatus: 'not_registered' | 'deadline_approaching' | 'deadline_passed'
   documentationRequired: string[]
   recommendations: string[]
+  evidence: string[] // Supporting evidence from forensic analysis results
+  evidenceSufficient: boolean // Whether minimum evidence threshold is met
+}
+
+/**
+ * Borderline/excluded R&D project that did not meet eligibility thresholds.
+ * Included in output so users can review near-misses and provide additional
+ * documentation to potentially qualify under Division 355 ITAA 1997.
+ */
+export interface BorderlineProject {
+  projectName: string
+  confidence: number
+  transactionCount: number
+  totalAmount: number
+  reason: string
+  failedElements: string[] // Which four-element test criteria were not met
 }
 
 export interface RndSummary {
@@ -105,6 +121,10 @@ export interface RndSummary {
   coreRndTransactions: number
   supportingRndTransactions: number
   projects: RndProjectAnalysis[]
+  /** Projects excluded due to insufficient evidence or failed eligibility (Division 355 s 355-25) */
+  excludedProjects: BorderlineProject[]
+  /** Summary note about excluded projects for user review */
+  excludedProjectsNote: string
 }
 
 /**
@@ -152,6 +172,8 @@ export async function analyzeRndOpportunities(
       coreRndTransactions: 0,
       supportingRndTransactions: 0,
       projects: [],
+      excludedProjects: [],
+      excludedProjectsNote: '',
     }
   }
 
@@ -161,20 +183,28 @@ export async function analyzeRndOpportunities(
   const rndOffsetRate = await getRndOffsetRate()
   console.log(`Using R&D offset rate: ${(rndOffsetRate * 100).toFixed(1)}%`)
 
-  // Group transactions into projects
-  const projects = groupIntoProjects(rndCandidates, rndOffsetRate)
+  // Group transactions into projects (returns both eligible and excluded)
+  const { eligible, excluded } = groupIntoProjects(rndCandidates, rndOffsetRate)
 
-  // Calculate summary statistics
-  const summary = calculateRndSummary(projects, rndOffsetRate)
+  // Calculate summary statistics (includes excluded projects for user visibility)
+  const summary = calculateRndSummary(eligible, excluded, rndOffsetRate)
 
   return summary
 }
 
 /**
- * Group R&D candidate transactions into logical projects
- * Uses category and supplier patterns to identify related work
+ * Group R&D candidate transactions into logical projects.
+ * Uses category and supplier patterns to identify related work.
+ *
+ * Returns both eligible projects and excluded (borderline) projects.
+ * Excluded projects are NOT silently dropped - they are returned so users
+ * can review near-misses and provide additional documentation.
+ * Division 355 ITAA 1997 (s 355-25, s 355-30)
  */
-function groupIntoProjects(transactions: any[], rndOffsetRate: number): RndProjectAnalysis[] {
+function groupIntoProjects(
+  transactions: any[],
+  rndOffsetRate: number
+): { eligible: RndProjectAnalysis[]; excluded: BorderlineProject[] } {
   const projectMap = new Map<string, any[]>()
 
   // Group by primary category and supplier patterns
@@ -192,19 +222,63 @@ function groupIntoProjects(transactions: any[], rndOffsetRate: number): RndProje
   })
 
   // Convert grouped transactions into project analyses
-  const projects: RndProjectAnalysis[] = []
+  const eligible: RndProjectAnalysis[] = []
+  const excluded: BorderlineProject[] = []
 
   projectMap.forEach((txs, projectKey) => {
     const project = analyzeProject(projectKey, txs, rndOffsetRate)
+
     if (project.meetsEligibility && project.overallConfidence >= MIN_CONFIDENCE_FOR_RECOMMENDATION) {
-      projects.push(project)
+      eligible.push(project)
+    } else {
+      // Build exclusion reason and track failed elements (Fix 5c)
+      const failedElements: string[] = []
+      if (!project.eligibilityCriteria.outcomeUnknown.met) {
+        failedElements.push('outcomeUnknown')
+      }
+      if (!project.eligibilityCriteria.systematicApproach.met) {
+        failedElements.push('systematicApproach')
+      }
+      if (!project.eligibilityCriteria.newKnowledge.met) {
+        failedElements.push('newKnowledge')
+      }
+      if (!project.eligibilityCriteria.scientificMethod.met) {
+        failedElements.push('scientificMethod')
+      }
+
+      const reasons: string[] = []
+      if (failedElements.length > 0) {
+        reasons.push(
+          `Failed four-element test: ${failedElements.join(', ')} not met (s 355-25 ITAA 1997)`
+        )
+      }
+      if (project.overallConfidence < MIN_CONFIDENCE_FOR_RECOMMENDATION) {
+        reasons.push(
+          `Confidence ${project.overallConfidence}% below ${MIN_CONFIDENCE_FOR_RECOMMENDATION}% threshold`
+        )
+      }
+      if (!project.evidenceSufficient) {
+        reasons.push('Insufficient supporting evidence for R&D claim')
+      }
+
+      excluded.push({
+        projectName: project.projectName,
+        confidence: project.overallConfidence,
+        transactionCount: project.transactionCount,
+        totalAmount: project.totalExpenditure,
+        reason: reasons.join('; '),
+        failedElements,
+      })
     }
   })
 
-  // Sort by estimated offset (descending)
-  projects.sort((a, b) => b.estimatedOffset - a.estimatedOffset)
+  // Sort eligible by estimated offset (descending)
+  eligible.sort((a, b) => b.estimatedOffset - a.estimatedOffset)
 
-  return projects
+  // Sort excluded by total amount (descending) so highest-value near-misses appear first
+  excluded.sort((a, b) => b.totalAmount - a.totalAmount)
+
+  return { eligible, excluded }
 }
 
 /**
@@ -247,11 +321,70 @@ function analyzeProject(projectName: string, transactions: any[], rndOffsetRate:
     }
   })
 
+  // Collect supporting evidence from forensic analysis results (Fix 5b)
+  // Division 355 ITAA 1997: Evidence must substantiate each R&D activity claim
+  const projectEvidence: string[] = []
+  transactions.forEach((tx) => {
+    // Extract from supporting_evidence JSONB/text field in forensic_analysis_results
+    if (tx.supporting_evidence) {
+      if (typeof tx.supporting_evidence === 'string') {
+        // Single string evidence entry
+        if (tx.supporting_evidence.trim().length > 0) {
+          projectEvidence.push(
+            `[${tx.transaction_id}] ${tx.supporting_evidence.trim()}`
+          )
+        }
+      } else if (Array.isArray(tx.supporting_evidence)) {
+        // Array of evidence items
+        tx.supporting_evidence.forEach((ev: string) => {
+          if (typeof ev === 'string' && ev.trim().length > 0) {
+            projectEvidence.push(`[${tx.transaction_id}] ${ev.trim()}`)
+          }
+        })
+      } else if (typeof tx.supporting_evidence === 'object') {
+        // JSONB object - extract relevant fields
+        const evidenceObj = tx.supporting_evidence as Record<string, unknown>
+        const evidenceEntries = Object.entries(evidenceObj)
+          .filter(([, v]) => v && typeof v === 'string' && (v as string).trim().length > 0)
+          .map(([k, v]) => `[${tx.transaction_id}] ${k}: ${(v as string).trim()}`)
+        projectEvidence.push(...evidenceEntries)
+      }
+    }
+
+    // Also include rnd_reasoning as fallback evidence if no supporting_evidence
+    if (projectEvidence.length === 0 && tx.rnd_reasoning && typeof tx.rnd_reasoning === 'string') {
+      projectEvidence.push(`[${tx.transaction_id}] ${tx.rnd_reasoning}`)
+    }
+  })
+
+  // Deduplicate evidence
+  const uniqueEvidence = Array.from(new Set(projectEvidence))
+
   // Calculate overall eligibility criteria (aggregate across all transactions)
   const aggregatedCriteria = aggregateFourElementTest(transactions)
 
+  // Inject collected evidence into the aggregated criteria elements
+  // This ensures per-element evidence is populated from forensic analysis
+  const elementNames: Array<keyof FourElementTest> = [
+    'outcomeUnknown', 'systematicApproach', 'newKnowledge', 'scientificMethod'
+  ]
+  elementNames.forEach((elementName) => {
+    if (aggregatedCriteria[elementName].evidence.length === 0 && uniqueEvidence.length > 0) {
+      // Populate from project-level evidence when element-level evidence is empty
+      aggregatedCriteria[elementName].evidence = uniqueEvidence.slice(0, 10) // Cap at 10 items per element
+    }
+  })
+
   // Calculate average confidence
-  const avgConfidence = transactions.reduce((sum, tx) => sum + (tx.rnd_confidence || 0), 0) / transactions.length
+  let avgConfidence = transactions.reduce((sum, tx) => sum + (tx.rnd_confidence || 0), 0) / transactions.length
+
+  // Evidence sufficiency check (Division 355 s 355-25):
+  // Cannot claim high confidence without substantive evidence
+  const MIN_EVIDENCE_FOR_HIGH_CONFIDENCE = 3
+  if (uniqueEvidence.length < MIN_EVIDENCE_FOR_HIGH_CONFIDENCE) {
+    // Cap confidence to prevent overstatement when evidence is insufficient
+    avgConfidence = Math.min(avgConfidence, 50) // Force 'low' confidence band
+  }
 
   // Calculate R&D offset (using current ATO rate)
   const estimatedOffset = eligibleExpenditure * rndOffsetRate
@@ -275,6 +408,13 @@ function analyzeProject(projectName: string, transactions: any[], rndOffsetRate:
     supportingRndExpenditure,
     transactions.length
   )
+
+  // Add evidence insufficiency flag to documentation requirements
+  if (uniqueEvidence.length < MIN_EVIDENCE_FOR_HIGH_CONFIDENCE) {
+    documentationRequired.unshift(
+      '⚠️ Insufficient evidence - professional review required before claiming (Division 355 ITAA 1997)'
+    )
+  }
 
   // Generate recommendations
   const recommendations = generateRecommendations(
@@ -309,6 +449,8 @@ function analyzeProject(projectName: string, transactions: any[], rndOffsetRate:
     registrationStatus,
     documentationRequired,
     recommendations,
+    evidence: uniqueEvidence,
+    evidenceSufficient: uniqueEvidence.length >= MIN_EVIDENCE_FOR_HIGH_CONFIDENCE,
   }
 }
 
@@ -349,29 +491,62 @@ function parseFourElementTest(tx: any): FourElementTest {
 /**
  * Aggregate four-element test across multiple transactions
  * All four elements must be consistently met across the project
+ *
+ * Division 355 ITAA 1997 (s 355-25 core R&D, s 355-30 supporting R&D):
+ * Elements are weighted by dollar value, not transaction count, to prevent
+ * many small irrelevant transactions from outvoting significant expenditure.
  */
 function aggregateFourElementTest(transactions: any[]): FourElementTest {
   const allTests = transactions.map(parseFourElementTest)
+  const amounts = transactions.map((tx) => Math.abs(parseFloat(tx.transaction_amount) || 0))
 
   return {
-    outcomeUnknown: aggregateElement(allTests.map((t) => t.outcomeUnknown)),
-    systematicApproach: aggregateElement(allTests.map((t) => t.systematicApproach)),
-    newKnowledge: aggregateElement(allTests.map((t) => t.newKnowledge)),
-    scientificMethod: aggregateElement(allTests.map((t) => t.scientificMethod)),
+    outcomeUnknown: aggregateElement(allTests.map((t) => t.outcomeUnknown), amounts),
+    systematicApproach: aggregateElement(allTests.map((t) => t.systematicApproach), amounts),
+    newKnowledge: aggregateElement(allTests.map((t) => t.newKnowledge), amounts),
+    scientificMethod: aggregateElement(allTests.map((t) => t.scientificMethod), amounts),
   }
 }
 
 /**
- * Aggregate a single element across multiple transactions
+ * Aggregate a single element across multiple transactions, weighted by dollar value.
+ *
+ * The element is considered "met" if at least 70% of the total dollar value
+ * (not transaction count) passes the element. This ensures large expenditure
+ * items are weighted proportionally to their significance.
+ *
+ * Example: 10 x $100 transactions (pass) + 1 x $50,000 (fail)
+ *   - By count: 91% pass (MISLEADING)
+ *   - By value: 1.9% pass (CORRECT - the dominant expenditure fails)
  */
-function aggregateElement(elements: Array<{ met: boolean; confidence: number; evidence: string[] }>) {
-  const metCount = elements.filter((e) => e.met).length
-  const avgConfidence = elements.reduce((sum, e) => sum + e.confidence, 0) / elements.length
+function aggregateElement(
+  elements: Array<{ met: boolean; confidence: number; evidence: string[] }>,
+  amounts: number[]
+) {
+  const totalAmount = amounts.reduce((sum, a) => sum + a, 0)
   const allEvidence = elements.flatMap((e) => e.evidence)
 
+  // Weight by dollar value: sum amounts where the element is met
+  let passingAmount = 0
+  let weightedConfidenceSum = 0
+
+  elements.forEach((e, i) => {
+    const txAmount = amounts[i] || 0
+    if (e.met) {
+      passingAmount += txAmount
+    }
+    weightedConfidenceSum += e.confidence * txAmount
+  })
+
+  // Value-weighted pass rate (Division 355 s 355-25: eligibility by expenditure significance)
+  const passRate = totalAmount > 0 ? passingAmount / totalAmount : 0
+  const weightedConfidence = totalAmount > 0
+    ? weightedConfidenceSum / totalAmount
+    : elements.reduce((sum, e) => sum + e.confidence, 0) / (elements.length || 1)
+
   return {
-    met: metCount > elements.length * 0.7, // At least 70% of transactions meet this element
-    confidence: Math.round(avgConfidence),
+    met: passRate >= 0.7, // At least 70% of dollar value meets this element
+    confidence: Math.round(weightedConfidence),
     evidence: Array.from(new Set(allEvidence)), // Deduplicate evidence
   }
 }
@@ -516,9 +691,15 @@ function generateProjectDescription(
 }
 
 /**
- * Calculate overall R&D summary across all projects
+ * Calculate overall R&D summary across all projects.
+ * Includes excluded/borderline projects for user visibility (Fix 5c).
+ * Excluded projects are NOT included in eligible expenditure totals.
  */
-function calculateRndSummary(projects: RndProjectAnalysis[], rndOffsetRate: number): RndSummary {
+function calculateRndSummary(
+  projects: RndProjectAnalysis[],
+  excludedProjects: BorderlineProject[],
+  rndOffsetRate: number
+): RndSummary {
   let totalEligibleExpenditure = 0
   let totalEstimatedOffset = 0
   let totalConfidence = 0
@@ -556,6 +737,12 @@ function calculateRndSummary(projects: RndProjectAnalysis[], rndOffsetRate: numb
 
   const averageConfidence = projects.length > 0 ? Math.round(totalConfidence / projects.length) : 0
 
+  // Generate summary note for excluded projects (Division 355 s 355-25 ITAA 1997)
+  const excludedNote = excludedProjects.length > 0
+    ? `${excludedProjects.length} project(s) excluded due to insufficient evidence or failed eligibility criteria. ` +
+      `Review these projects - additional documentation may qualify them for R&D Tax Incentive under Division 355 ITAA 1997.`
+    : ''
+
   return {
     totalProjects: projects.length,
     totalEligibleExpenditure,
@@ -567,6 +754,8 @@ function calculateRndSummary(projects: RndProjectAnalysis[], rndOffsetRate: numb
     coreRndTransactions,
     supportingRndTransactions,
     projects,
+    excludedProjects,
+    excludedProjectsNote: excludedNote,
   }
 }
 

@@ -16,7 +16,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 // Match scoring weights
 const MATCH_WEIGHTS = {
   exactAmount: 40,
-  nearAmount: 20,       // within 1% tolerance
+  nearAmount: 20,       // within scaled tolerance (0.5%-2%)
   sameContact: 25,
   dateProximity: 15,     // within 7 days
   referenceMatch: 20,    // reference/description overlap
@@ -24,7 +24,19 @@ const MATCH_WEIGHTS = {
 
 const DUPLICATE_DATE_TOLERANCE_DAYS = 3
 const MATCH_DATE_TOLERANCE_DAYS = 7
-const AMOUNT_TOLERANCE_PERCENT = 0.01 // 1%
+/**
+ * Scaled amount tolerance: smaller amounts get more tolerance (rounding),
+ * larger amounts get tighter tolerance (should match closely).
+ *   < $1,000:    2% tolerance
+ *   $1,000-$50k: 1% tolerance
+ *   > $50,000:   0.5% tolerance
+ */
+function getAmountTolerancePercent(amount: number): number {
+  const absAmount = Math.abs(amount)
+  if (absAmount < 1000) return 0.02    // 2% for small amounts
+  if (absAmount <= 50000) return 0.01  // 1% for standard amounts
+  return 0.005                          // 0.5% for large amounts
+}
 const MIN_MATCH_SCORE = 50
 
 // Xero bank transaction types (getBankTransactions returns these, NOT 'BANK')
@@ -208,11 +220,51 @@ export async function analyzeReconciliation(
     return createEmptyReconciliation(tenantId)
   }
 
-  // Run all analyses
-  const unreconciledItems = findUnreconciledItems(bankTransactions)
-  const suggestedMatches = findSuggestedMatches(bankTransactions, invoices)
-  const duplicates = findDuplicates([...bankTransactions, ...invoices])
-  const missingEntries = findMissingEntries(invoices, bankTransactions)
+  // Run all analyses - on error, default to "needs review" not "all clear"
+  let unreconciledItems: UnreconciledItem[]
+  try {
+    unreconciledItems = findUnreconciledItems(bankTransactions)
+  } catch (error) {
+    console.error('[reconciliation] findUnreconciledItems failed:', error)
+    // On error, flag ALL bank transactions as needing review
+    unreconciledItems = bankTransactions.map((tx) => ({
+      transactionId: tx.transaction_id,
+      transactionType: tx.transaction_type,
+      transactionDate: tx.transaction_date,
+      contactName: tx.contact_name,
+      description: null,
+      amount: parseFloat(String(tx.total_amount)) || 0,
+      accountCode: null,
+      financialYear: tx.financial_year,
+      daysPending: 0,
+      status: 'ERROR - Reconciliation failed due to processing error. Manual review required.',
+    }))
+  }
+
+  let suggestedMatches: SuggestedMatch[]
+  try {
+    suggestedMatches = findSuggestedMatches(bankTransactions, invoices)
+  } catch (error) {
+    console.error('[reconciliation] findSuggestedMatches failed:', error)
+    suggestedMatches = []
+  }
+
+  let duplicates: DuplicateGroup[]
+  try {
+    duplicates = findDuplicates([...bankTransactions, ...invoices])
+  } catch (error) {
+    console.error('[reconciliation] findDuplicates failed:', error)
+    duplicates = []
+  }
+
+  let missingEntries: MissingEntry[]
+  try {
+    missingEntries = findMissingEntries(invoices, bankTransactions)
+  } catch (error) {
+    console.error('[reconciliation] findMissingEntries failed:', error)
+    missingEntries = []
+  }
+
   const byAccount = buildAccountBreakdown(unreconciledItems, duplicates, suggestedMatches)
   const byFinancialYear = buildYearBreakdown(
     unreconciledItems,
@@ -259,9 +311,20 @@ function findUnreconciledItems(bankTransactions: CachedTransaction[]): Unreconci
   return bankTransactions
     .filter((tx) => {
       const rawData = tx.raw_data as RawTransactionData
+
+      // If raw_data is missing or corrupt, flag for review (don't assume reconciled)
+      if (!rawData) return true
+
       // Bank transactions use isReconciled flag; invoices use status
-      if (rawData?.isReconciled === false) return true
-      if (rawData?.status === 'DRAFT' || rawData?.status === 'SUBMITTED') return true
+      if (rawData.isReconciled === false) return true
+      if (rawData.status === 'DRAFT' || rawData.status === 'SUBMITTED') return true
+
+      // If isReconciled is not explicitly set to true, flag for review
+      // (missing reconciliation data should not be treated as reconciled)
+      if (typeof rawData.isReconciled === 'undefined' && typeof rawData.status === 'undefined') {
+        return true
+      }
+
       return false
     })
     .map((tx) => {
@@ -270,6 +333,20 @@ function findUnreconciledItems(bankTransactions: CachedTransaction[]): Unreconci
       const daysPending = Math.floor(
         (now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24)
       )
+
+      // Determine status: prioritise surfacing unknowns over hiding them
+      let status: string
+      if (!rawData) {
+        status = 'UNKNOWN'
+      } else if (rawData.isReconciled === false) {
+        status = 'UNRECONCILED'
+      } else if (rawData.status === 'DRAFT' || rawData.status === 'SUBMITTED') {
+        status = rawData.status
+      } else if (typeof rawData.isReconciled === 'undefined' && typeof rawData.status === 'undefined') {
+        status = 'UNKNOWN'
+      } else {
+        status = rawData.status || 'UNKNOWN'
+      }
 
       return {
         transactionId: tx.transaction_id,
@@ -281,7 +358,7 @@ function findUnreconciledItems(bankTransactions: CachedTransaction[]): Unreconci
         accountCode: extractAccountCode(rawData),
         financialYear: tx.financial_year,
         daysPending,
-        status: rawData?.isReconciled === false ? 'UNRECONCILED' : (rawData?.status || 'UNKNOWN'),
+        status,
       }
     })
     .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
@@ -347,19 +424,17 @@ function scoreMatch(
   if (amountDiff === 0) {
     score += MATCH_WEIGHTS.exactAmount
     reasons.push('exact_amount')
-  } else if (bankAmount > 0 && amountDiff / bankAmount <= AMOUNT_TOLERANCE_PERCENT) {
+  } else if (bankAmount > 0 && amountDiff / bankAmount <= getAmountTolerancePercent(bankAmount)) {
     score += MATCH_WEIGHTS.nearAmount
     reasons.push('near_amount')
   }
 
-  // Contact matching
-  if (
-    bankTx.contact_name &&
-    invoice.contact_name &&
-    normaliseString(bankTx.contact_name) === normaliseString(invoice.contact_name)
-  ) {
-    score += MATCH_WEIGHTS.sameContact
-    reasons.push('same_contact')
+  // Contact matching (normalised abbreviations + fuzzy fallback)
+  if (bankTx.contact_name && invoice.contact_name) {
+    if (contactNamesMatch(bankTx.contact_name, invoice.contact_name)) {
+      score += MATCH_WEIGHTS.sameContact
+      reasons.push('same_contact')
+    }
   }
 
   // Date proximity
@@ -439,12 +514,8 @@ function isDuplicate(a: CachedTransaction, b: CachedTransaction): boolean {
   )
   if (daysDiff > DUPLICATE_DATE_TOLERANCE_DAYS) return false
 
-  // Must have same contact or same type
-  if (
-    a.contact_name &&
-    b.contact_name &&
-    normaliseString(a.contact_name) === normaliseString(b.contact_name)
-  ) {
+  // Must have same contact or same type (fuzzy name matching)
+  if (a.contact_name && b.contact_name && contactNamesMatch(a.contact_name, b.contact_name)) {
     return true
   }
 
@@ -467,7 +538,7 @@ function classifyDuplicate(
     dupes.every(
       (d) =>
         d.contact_name &&
-        normaliseString(d.contact_name) === normaliseString(dupes[0].contact_name!)
+        contactNamesMatch(d.contact_name, dupes[0].contact_name!)
     )
   const allSameRef =
     dupes[0].reference && dupes.every((d) => d.reference === dupes[0].reference)
@@ -495,14 +566,13 @@ function findMissingEntries(
   const missing: MissingEntry[] = []
   const now = new Date()
 
-  // Build a set of bank amounts+contacts for quick lookup
-  const bankSignatures = new Set(
-    bankTransactions.map((tx) => {
-      const amount = Math.abs(parseFloat(String(tx.total_amount)) || 0)
-      const contact = normaliseString(tx.contact_name || '')
-      return `${amount}|${contact}`
-    })
-  )
+  // Build a list of bank amount+contact pairs for matching
+  // Uses normalised contact names and fuzzy matching for lookup
+  const bankEntries = bankTransactions.map((tx) => ({
+    amount: Math.abs(parseFloat(String(tx.total_amount)) || 0),
+    contact: normaliseContactName(tx.contact_name || ''),
+    contactRaw: tx.contact_name || '',
+  }))
 
   for (const invoice of invoices) {
     const rawData = invoice.raw_data as RawTransactionData
@@ -512,11 +582,18 @@ function findMissingEntries(
     if (status !== 'PAID' && status !== 'AUTHORISED') continue
 
     const amount = Math.abs(parseFloat(String(invoice.total_amount)) || 0)
-    const contact = normaliseString(invoice.contact_name || '')
-    const signature = `${amount}|${contact}`
 
-    // Check if there's a corresponding bank transaction
-    if (!bankSignatures.has(signature)) {
+    // Check if there's a corresponding bank transaction using fuzzy contact matching
+    const hasMatch = bankEntries.some((bank) => {
+      if (bank.amount !== amount) return false
+      // If both have contacts, use fuzzy matching; if both empty, match
+      const invoiceContact = invoice.contact_name || ''
+      if (!invoiceContact && !bank.contactRaw) return true
+      if (!invoiceContact || !bank.contactRaw) return false
+      return contactNamesMatch(invoiceContact, bank.contactRaw)
+    })
+
+    if (!hasMatch) {
       const invoiceDate = new Date(invoice.transaction_date)
       const daysSince = Math.floor(
         (now.getTime() - invoiceDate.getTime()) / (1000 * 60 * 60 * 24)
@@ -737,6 +814,99 @@ function extractAccountCode(rawData: RawTransactionData | null): string | null {
 
 function normaliseString(s: string): string {
   return s.toLowerCase().trim().replace(/\s+/g, ' ')
+}
+
+/**
+ * Normalise a contact/supplier name by handling common Australian
+ * business abbreviation variations before comparison.
+ */
+function normaliseContactName(name: string): string {
+  let n = name.toLowerCase().trim()
+
+  // Normalise common Australian business suffixes
+  n = n.replace(/\bp(?:ty)?\.?\s*l(?:td|imited)?\.?\b/gi, 'pty ltd')
+  n = n.replace(/\bp\s*\/\s*l\b/gi, 'pty ltd')
+  n = n.replace(/\b&\s/g, ' and ')
+
+  // Remove trailing punctuation (periods, commas)
+  n = n.replace(/[.,;:]+$/, '')
+
+  // Collapse multiple spaces
+  n = n.replace(/\s+/g, ' ').trim()
+
+  return n
+}
+
+/**
+ * Compute the Levenshtein edit distance between two strings.
+ * Uses a standard dynamic programming approach with O(min(m,n)) space.
+ */
+function levenshteinDistance(a: string, b: string): number {
+  // Ensure a is the shorter string for space optimisation
+  if (a.length > b.length) {
+    const tmp = a
+    a = b
+    b = tmp
+  }
+
+  const m = a.length
+  const n = b.length
+
+  // Previous and current row of distances
+  let prev = new Array<number>(m + 1)
+  let curr = new Array<number>(m + 1)
+
+  // Initialise the base row
+  for (let i = 0; i <= m; i++) {
+    prev[i] = i
+  }
+
+  for (let j = 1; j <= n; j++) {
+    curr[0] = j
+    for (let i = 1; i <= m; i++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1
+      curr[i] = Math.min(
+        curr[i - 1] + 1,      // insertion
+        prev[i] + 1,          // deletion
+        prev[i - 1] + cost    // substitution
+      )
+    }
+    // Swap rows
+    const swap = prev
+    prev = curr
+    curr = swap
+  }
+
+  return prev[m]
+}
+
+/**
+ * Compute string similarity using Levenshtein distance.
+ * Returns a value between 0 (completely different) and 1 (identical).
+ */
+function stringSimilarity(a: string, b: string): number {
+  const maxLen = Math.max(a.length, b.length)
+  if (maxLen === 0) return 1 // Both empty strings are identical
+  const distance = levenshteinDistance(a, b)
+  return 1 - distance / maxLen
+}
+
+const FUZZY_MATCH_THRESHOLD = 0.80 // 80% similarity required
+
+/**
+ * Match two contact names using normalised comparison with fuzzy fallback.
+ * First normalises common business abbreviations, then tries exact match,
+ * then falls back to Levenshtein similarity (>= 80%).
+ */
+function contactNamesMatch(nameA: string, nameB: string): boolean {
+  const normA = normaliseContactName(nameA)
+  const normB = normaliseContactName(nameB)
+
+  // Exact match after abbreviation normalisation
+  if (normA === normB) return true
+
+  // Fuzzy match fallback using Levenshtein similarity
+  return stringSimilarity(normA, normB) >= FUZZY_MATCH_THRESHOLD
 }
 
 function roundTo2(n: number): number {

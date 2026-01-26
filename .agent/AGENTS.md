@@ -152,6 +152,14 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 - **Fuel Cost**: 50-200 PTS
 - **Trigger**: `/xero-setup` workflow
 
+### 17. Senior Product Manager 🛡️
+- **Path**: `.agent/agents/senior_product_manager/AGENT.md`
+- **Description**: Multi-disciplinary tax system integrity officer. CTA Accountant, Tax Lawyer, Senior Engineer with Government tax fraud expertise. Drives complete system overhaul and compliance verification.
+- **Priority**: CRITICAL
+- **Bound Skills**: `australian_tax_law_research`, `tax_compliance_verification`, `tax_fraud_detection`
+- **Fuel Cost**: 100-500 PTS
+- **Trigger**: `/system-overhaul` workflow
+
 ## Available Skills
 
 | Skill | Path | Purpose |
@@ -165,6 +173,8 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 | `google_slides_storyboard` | `.agent/skills/google_slides_storyboard/SKILL.md` | Presentation automation |
 | `image_generation` | `.agent/skills/image_generation/SKILL.md` | Visual asset creation |
 | `video_generation` | `.agent/skills/video_generation/SKILL.md` | Motion graphics creation |
+| `tax_compliance_verification` | `.agent/skills/tax_compliance_verification/SKILL.md` | Tax calculation and rate verification |
+| `tax_fraud_detection` | `.agent/skills/tax_fraud_detection/SKILL.md` | Part IVA anti-avoidance and fraud detection |
 
 ## Agent Modes
 
@@ -201,6 +211,7 @@ All agents operate using the three-mode discipline:
 | `/business-transition` | Business closure, pivot, loss carry-forward, ATO negotiation |
 | `/send-to-accountant` | Generate reports and email directly to accountant |
 | `/content-orchestrator` | Generate reports and presentations |
+| `/system-overhaul` | Complete tax system integrity overhaul and verification |
 
 ## Key Deliverables
 

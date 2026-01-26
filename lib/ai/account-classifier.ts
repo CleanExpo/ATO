@@ -207,13 +207,13 @@ export async function classifyTransaction(
     } catch (error) {
         console.error('Error classifying transaction:', error);
 
-        // Return safe default on error
+        // Return error state - never default to "correct" on failure
         return {
-            isCorrect: true,  // Default to correct if AI fails
+            isCorrect: false,
             confidence: 0,
-            reasoning: `Classification failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            reasoning: `Classification failed due to AI processing error. Manual review required. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
             impactType: 'none',
-            severity: 'low',
+            severity: 'medium',
             examples: []
         };
     }
@@ -248,13 +248,13 @@ export async function classifyTransactionBatch(
         } catch (error) {
             console.error(`Failed to classify transaction ${transaction.transactionId}:`, error);
 
-            // Store error result
+            // Store error result - never default to "correct" on failure
             results.set(transaction.transactionId, {
-                isCorrect: true,
+                isCorrect: false,
                 confidence: 0,
-                reasoning: `Failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+                reasoning: `Classification failed due to AI processing error. Manual review required. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
                 impactType: 'none',
-                severity: 'low',
+                severity: 'medium',
                 examples: []
             });
         }

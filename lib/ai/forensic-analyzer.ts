@@ -150,12 +150,34 @@ Analyze this transaction and provide a structured JSON response with:
 - Financial Year: {financialYear}
 
 **Important Rules:**
-- For R&D assessment, be thorough and consider the FULL context: software development, engineering, scientific research, prototyping, testing, and technical consulting are COMMON R&D activities under Division 355. Mark isRndCandidate=true for ANY transaction that COULD involve R&D - it's better to flag potential candidates for human review than to miss genuine R&D.
-- Consider the business industry context when assessing R&D - technology companies, engineering firms, and research organisations routinely have R&D-eligible expenditure.
-- The four-element test should assess PROBABILITY not absolute certainty. If there is reasonable evidence suggesting an element may be met, mark it as met with an appropriate confidence level.
-- Transactions involving software development, cloud infrastructure for development, technical contractors, engineering services, laboratory supplies, prototyping materials, or research tools should be flagged as R&D candidates.
+- For R&D assessment, mark isRndCandidate=true ONLY when the transaction description or context contains specific evidence of:
+  * Technical uncertainty that could not be determined in advance
+  * Systematic investigation or experimentation
+  * Generation of new knowledge not available in the public domain
+  * Activities based on principles of established science
+
+  Do NOT flag as R&D: routine software development, standard IT operations, cloud hosting/infrastructure, general consulting, or any activity where the outcome was known or determinable in advance.
+
+  The R&D Tax Incentive (Division 355 ITAA 1997) requires genuine technical uncertainty and systematic investigation. Routine activities do not qualify.
+
+- The four-element test must be assessed with rigour. Only mark an element as met if there is clear, specific evidence in the transaction description. Low-confidence assumptions do not satisfy the test.
 - Confidence scores should reflect certainty (60-70% = possible candidate, 70-80% = probable candidate, 80-90% = strong candidate, 90-100% = very strong candidate)
-- Evidence must be specific quotes or references from the transaction description
+
+- **Special Tax Categories** - When classifying, apply these specific rules:
+  * Entertainment/meals: Flag with note "50% deductible under FBTAA 1986, s 32-5"
+  * Vehicle/motor vehicle: Flag with note "Deductible via cents per km (85c/km max 5,000km) or logbook method"
+  * Home office: Flag with note "Deductible via fixed rate (67c/hour) or actual cost method"
+  * Gifts and donations: Flag with note "Deductible only if recipient has DGR status, minimum $2"
+  * Training/self-education: Flag with note "Must relate to current income-earning activity"
+  * Superannuation: Flag with note "Check contribution caps and employer obligations"
+  * FBT-liable benefits: Flag with note "May trigger Fringe Benefits Tax at 47%"
+
+- For each finding, you MUST:
+  1. Cite the specific legislative provision that makes this expense deductible or non-deductible (e.g., 's 8-1 ITAA 1997 - general deduction', 's 355-25 ITAA 1997 - core R&D activity')
+  2. Quote the specific words or phrases from the transaction description that triggered your classification
+  3. Explain WHY this transaction falls under that provision
+
+- Evidence must be specific quotes or references from the transaction description with legislative context
 - For deductions, assume Section 8-1 unless specific legislation applies
 - Flag entertainment expenses (meals, events) as requiring scrutiny
 

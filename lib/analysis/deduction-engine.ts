@@ -13,12 +13,53 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
+import Decimal from 'decimal.js'
 
 // Deduction thresholds and rates
 // NOTE: These are fallback values - actual values fetched from ATO.gov.au
 const FALLBACK_INSTANT_WRITEOFF_THRESHOLD = 20000 // $20,000 (2024-25 fallback)
 const FALLBACK_HOME_OFFICE_RATE_PER_HOUR = 0.67 // 67c per hour (2024-25 fallback)
 const MIN_CONFIDENCE_FOR_CLAIM = 60 // Minimum confidence to recommend claiming
+
+// Corporate tax rates - s 23AA and s 23 ITAA 1997
+const CORPORATE_TAX_RATE_BASE = new Decimal('0.25') // 25% base rate entity (turnover < $50M) - s 23AA ITAA 1997
+const CORPORATE_TAX_RATE_STANDARD = new Decimal('0.30') // 30% standard corporate rate - s 23 ITAA 1997
+
+// Small business turnover threshold for instant asset write-off - s 328-180 ITAA 1997
+const SMALL_BUSINESS_TURNOVER_THRESHOLD = 10_000_000 // $10M
+
+// Partial deductibility factors
+const ENTERTAINMENT_DEDUCTIBILITY_FACTOR = new Decimal('0.50') // 50% deductible - FBTAA 1986, s 32-5
+
+/**
+ * Entity type for tax rate determination
+ * - 'base_rate_entity': Turnover < $50M, pays 25% tax (s 23AA ITAA 1997)
+ * - 'standard_company': Turnover >= $50M, pays 30% tax (s 23 ITAA 1997)
+ * - 'trust': Tax saving depends on beneficiary marginal rates
+ * - 'unknown': Defaults to 30% (conservative)
+ */
+export type EntityType = 'base_rate_entity' | 'standard_company' | 'trust' | 'unknown'
+
+/**
+ * Deduction status - all identified deductions are 'potential' until verified
+ * against lodged tax returns. This system analyses Xero transactions and AI
+ * analysis results but has no access to actual ATO lodgement data.
+ */
+export type DeductionStatus = 'potential'
+
+/**
+ * Options for deduction analysis
+ */
+export interface DeductionAnalysisOptions {
+  /** Entity type for tax rate determination. Defaults to 'unknown' (30% rate). */
+  entityType?: EntityType
+  /** Whether entity qualifies as base rate entity (turnover < $50M). Defaults to false. */
+  isBaseRateEntity?: boolean
+  /** Whether entity is a small business (turnover < $10M) for instant asset write-off. Defaults to false. */
+  isSmallBusiness?: boolean
+  /** Annual turnover (used to auto-determine entity type if not specified) */
+  annualTurnover?: number
+}
 
 // Cache for tax rates (refreshed per function invocation)
 let cachedRates: {
@@ -75,6 +116,10 @@ export type DeductionCategory =
   | 'Capital Allowance (Division 40)'
   | 'Interest Expenses'
   | 'Bad Debts'
+  | 'Entertainment & Meals'
+  | 'Clothing & Uniforms'
+  | 'Phone & Internet'
+  | 'Gifts & Donations'
   | 'Other Deductible Expenses'
   | 'Non-Deductible (Private/Domestic)'
 
@@ -92,23 +137,56 @@ export interface DeductionTransaction {
   confidence: number
   reasoning: string
   restrictions: string[]
+  /**
+   * All identified deductions are 'potential' - this system analyses Xero data
+   * and AI results but cannot confirm whether expenses were included in prior
+   * lodged tax returns. Verify against lodged returns before claiming.
+   */
+  status: DeductionStatus
+  /** Partial deductibility factor applied (1.0 = fully deductible, 0.5 = 50%, etc.) */
+  partialDeductibilityFactor?: number
+  /** Notes about partial deductibility rules or claiming methods */
+  deductibilityNotes?: string[]
+  /** Whether this is an asset eligible for instant write-off vs depreciation */
+  assetWriteOffEligible?: boolean
+  /** Asset treatment note (instant write-off or depreciation) */
+  assetTreatmentNote?: string
 }
 
 export interface DeductionOpportunity {
   category: DeductionCategory
   financialYear: string
   totalAmount: number
+  /**
+   * @deprecated Retained for backward compatibility. Always 0 - this system cannot
+   * determine whether deductions were included in lodged tax returns.
+   */
   claimedAmount: number
+  /**
+   * Total potentially deductible amount. All amounts are 'potential' and must be
+   * verified against lodged tax returns before claiming.
+   */
   unclaimedAmount: number
   transactionCount: number
   transactions: DeductionTransaction[]
   legislativeReference: string
   confidence: number
   recommendations: string[]
-  estimatedTaxSaving: number // At 25% corporate tax rate
+  /**
+   * Estimated tax saving calculated using the applicable corporate tax rate.
+   * Default: 30% (s 23 ITAA 1997). For base rate entities: 25% (s 23AA ITAA 1997).
+   * For trusts: depends on beneficiary marginal rates.
+   */
+  estimatedTaxSaving: number
+  /** The tax rate used for estimatedTaxSaving calculation */
+  appliedTaxRate: number
+  /** Note about how tax saving was calculated */
+  taxRateNote: string
   requiresDocumentation: boolean
   documentationRequired: string[]
   fbtImplications: boolean
+  /** Verification note - always present to remind users to check lodged returns */
+  verificationNote: string
 }
 
 export interface DeductionSummary {
@@ -124,16 +202,241 @@ export interface DeductionSummary {
 }
 
 /**
- * Analyze all deduction opportunities for a tenant
+ * Determine the applicable corporate tax rate based on entity type.
+ *
+ * - Base rate entity (turnover < $50M): 25% - s 23AA ITAA 1997
+ * - Standard company (turnover >= $50M): 30% - s 23 ITAA 1997
+ * - Trust: depends on beneficiary marginal rates (defaults to 30% as conservative estimate)
+ * - Unknown: defaults to 30% (conservative) - s 23 ITAA 1997
+ */
+export function determineTaxRate(options?: DeductionAnalysisOptions): {
+  rate: Decimal
+  rateNumber: number
+  note: string
+} {
+  const entityType = options?.entityType ?? 'unknown'
+  const isBaseRate = options?.isBaseRateEntity ?? false
+
+  // Auto-determine from turnover if available
+  if (options?.annualTurnover !== undefined && entityType === 'unknown') {
+    if (options.annualTurnover < 50_000_000) {
+      return {
+        rate: CORPORATE_TAX_RATE_BASE,
+        rateNumber: 0.25,
+        note: 'Base rate entity (turnover < $50M) - 25% tax rate (s 23AA ITAA 1997)',
+      }
+    }
+    return {
+      rate: CORPORATE_TAX_RATE_STANDARD,
+      rateNumber: 0.30,
+      note: 'Standard corporate rate (turnover >= $50M) - 30% tax rate (s 23 ITAA 1997)',
+    }
+  }
+
+  if (entityType === 'base_rate_entity' || isBaseRate) {
+    return {
+      rate: CORPORATE_TAX_RATE_BASE,
+      rateNumber: 0.25,
+      note: 'Base rate entity - 25% tax rate (s 23AA ITAA 1997)',
+    }
+  }
+
+  if (entityType === 'trust') {
+    return {
+      rate: CORPORATE_TAX_RATE_STANDARD,
+      rateNumber: 0.30,
+      note: 'Trust entity - tax saving depends on beneficiary marginal rates. Using 30% as conservative estimate.',
+    }
+  }
+
+  // Default to 30% standard rate (conservative) for unknown or standard_company
+  return {
+    rate: CORPORATE_TAX_RATE_STANDARD,
+    rateNumber: 0.30,
+    note: entityType === 'standard_company'
+      ? 'Standard corporate rate - 30% tax rate (s 23 ITAA 1997)'
+      : 'Entity type unknown - defaulting to 30% standard corporate rate (s 23 ITAA 1997). Specify entityType for accurate calculation.',
+  }
+}
+
+/**
+ * Determine whether an entity qualifies as small business for
+ * instant asset write-off purposes (turnover < $10M).
+ */
+function isSmallBusinessEntity(options?: DeductionAnalysisOptions): boolean {
+  if (options?.isSmallBusiness !== undefined) return options.isSmallBusiness
+  if (options?.annualTurnover !== undefined) {
+    return options.annualTurnover < SMALL_BUSINESS_TURNOVER_THRESHOLD
+  }
+  return false // Conservative default - don't assume small business
+}
+
+/**
+ * Apply partial deductibility rules based on expense category.
+ * Returns the adjusted deductible amount and any notes about claiming rules.
+ *
+ * Categories with special rules:
+ * - Entertainment/meals: 50% deductible (FBTAA 1986, s 32-5)
+ * - Home office: fixed rate method (67c/hour) or actual cost method (PCG 2023/1)
+ * - Vehicle: cents per km (85c/km, max 5,000km - TD 2024/3) or logbook method
+ * - Phone/internet: apportion business use percentage
+ * - Clothing: only deductible if occupation-specific or registered uniform
+ * - Self-education/training: must connect to current income-earning activity (s 8-1 ITAA 1997)
+ * - Gifts/donations: must be to DGR and exceed $2
+ */
+function applyPartialDeductibilityRules(
+  category: DeductionCategory,
+  amount: number,
+  description: string
+): {
+  adjustedAmount: number
+  factor: number
+  notes: string[]
+} {
+  const notes: string[] = []
+  let factor = 1.0
+
+  switch (category) {
+    case 'Entertainment & Meals':
+      // Entertainment expenses: 50% deductible - FBTAA 1986, s 32-5
+      factor = ENTERTAINMENT_DEDUCTIBILITY_FACTOR.toNumber()
+      notes.push(
+        'Entertainment/meal expenses are 50% deductible (FBTAA 1986, s 32-5). ' +
+        'The remaining 50% is subject to FBT or non-deductible.'
+      )
+      break
+
+    case 'Home Office':
+      notes.push(
+        'Claim using fixed rate method (67c/hour - PCG 2023/1) or actual cost method. ' +
+        'The fixed rate method covers electricity, phone, internet, stationery, and depreciation of equipment. ' +
+        'Maintain a record of hours worked from home.'
+      )
+      break
+
+    case 'Vehicle Expenses':
+      notes.push(
+        'Claim using cents per km method (85c/km, max 5,000 business km - TD 2024/3) or logbook method. ' +
+        'Logbook method requires a 12-week continuous logbook showing business vs private use.'
+      )
+      break
+
+    case 'Phone & Internet':
+      notes.push(
+        'Apportion business use percentage. Keep records of business vs personal use ' +
+        '(e.g., itemised phone bills or a 4-week representative diary).'
+      )
+      break
+
+    case 'Clothing & Uniforms':
+      notes.push(
+        'Only deductible if occupation-specific protective clothing or a registered uniform ' +
+        '(registered with AusIndustry). Conventional clothing is not deductible even if worn for work.'
+      )
+      break
+
+    case 'Training & Education':
+      notes.push(
+        'Must have sufficient connection to current income-earning activity (s 8-1 ITAA 1997). ' +
+        'Not deductible if it relates to a new profession or is too general in nature.'
+      )
+      break
+
+    case 'Gifts & Donations':
+      notes.push(
+        'Deductible only if recipient has Deductible Gift Recipient (DGR) status and the gift exceeds $2. ' +
+        'Verify DGR status on the ABN Lookup (abr.business.gov.au).'
+      )
+      break
+
+    default:
+      // No partial deductibility rule applies
+      break
+  }
+
+  // Also check description for entertainment-like expenses in other categories
+  if (category !== 'Entertainment & Meals' && category !== 'Non-Deductible (Private/Domestic)') {
+    const descLower = (description || '').toLowerCase()
+    if (
+      descLower.includes('entertainment') ||
+      descLower.includes('dining') ||
+      descLower.includes('restaurant') ||
+      descLower.includes('catering')
+    ) {
+      factor = ENTERTAINMENT_DEDUCTIBILITY_FACTOR.toNumber()
+      notes.push(
+        'This expense appears to be entertainment-related. Entertainment expenses are 50% deductible ' +
+        '(FBTAA 1986, s 32-5). Review to confirm entertainment classification.'
+      )
+    }
+  }
+
+  const adjustedAmount = new Decimal(amount).times(new Decimal(factor)).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber()
+
+  return { adjustedAmount, factor, notes }
+}
+
+/**
+ * Apply instant asset write-off vs depreciation rules for capital assets.
+ *
+ * - Asset < $20,000 AND small business (turnover < $10M): instant write-off (s 328-180 ITAA 1997)
+ * - Asset >= $20,000 OR not small business: depreciate under Division 40 ITAA 1997
+ * - Small business depreciation pool: 15% first year, 30% subsequent (s 328-185 ITAA 1997)
+ */
+function applyAssetWriteOffRules(
+  amount: number,
+  isSmallBusiness: boolean,
+  thresholdOverride?: number
+): {
+  eligible: boolean
+  note: string
+} {
+  const threshold = thresholdOverride ?? FALLBACK_INSTANT_WRITEOFF_THRESHOLD
+
+  if (amount < threshold && isSmallBusiness) {
+    return {
+      eligible: true,
+      note:
+        `Eligible for instant asset write-off (cost $${amount.toLocaleString('en-AU')} < $${threshold.toLocaleString('en-AU')} threshold, ` +
+        `small business entity). Claim immediate deduction under s 328-180 ITAA 1997. ` +
+        `Asset must be first used or installed ready for use in the relevant income year.`,
+    }
+  }
+
+  if (amount >= threshold) {
+    return {
+      eligible: false,
+      note:
+        `Asset cost $${amount.toLocaleString('en-AU')} exceeds instant write-off threshold ($${threshold.toLocaleString('en-AU')}). ` +
+        `Must be depreciated under Division 40 ITAA 1997 using effective life or diminishing value method. ` +
+        (isSmallBusiness
+          ? `Small business entities may add to general depreciation pool: 15% first year, 30% subsequent years (s 328-185 ITAA 1997).`
+          : `Capital assets cannot be claimed as immediate deductions unless eligible for instant asset write-off.`),
+    }
+  }
+
+  // Not small business but under threshold
+  return {
+    eligible: false,
+    note:
+      `Entity does not qualify as small business (turnover >= $10M). Asset must be depreciated under ` +
+      `Division 40 ITAA 1997 regardless of cost. Capital assets cannot be claimed as immediate deductions ` +
+      `unless eligible for instant asset write-off.`,
+  }
+}
+
+/**
+ * Analyse all deduction opportunities for a tenant
  */
 export async function analyzeDeductionOpportunities(
   tenantId: string,
   startYear?: string,
-  endYear?: string
+  endYear?: string,
+  options?: DeductionAnalysisOptions
 ): Promise<DeductionSummary> {
   const supabase = await createServiceClient()
 
-  // Fetch all analyzed transactions with deduction eligibility
+  // Fetch all analysed transactions with deduction eligibility
   let query = supabase
     .from('forensic_analysis_results')
     .select('*')
@@ -158,10 +461,14 @@ export async function analyzeDeductionOpportunities(
     return createEmptySummary()
   }
 
-  console.log(`Analyzing ${transactions.length} transactions for deduction opportunities`)
+  console.log(`Analysing ${transactions.length} transactions for deduction opportunities`)
+
+  // Determine tax rate and small business status
+  const taxRateInfo = determineTaxRate(options)
+  const smallBusiness = isSmallBusinessEntity(options)
 
   // Group transactions by category and financial year
-  const opportunities = groupByDeductionCategory(transactions)
+  const opportunities = groupByDeductionCategory(transactions, taxRateInfo, smallBusiness)
 
   // Calculate summary statistics
   const summary = calculateDeductionSummary(opportunities)
@@ -172,7 +479,11 @@ export async function analyzeDeductionOpportunities(
 /**
  * Group transactions by deduction category and financial year
  */
-function groupByDeductionCategory(transactions: any[]): DeductionOpportunity[] {
+function groupByDeductionCategory(
+  transactions: any[],
+  taxRateInfo: { rate: Decimal; rateNumber: number; note: string },
+  isSmallBusiness: boolean
+): DeductionOpportunity[] {
   const categoryYearMap = new Map<string, any[]>()
 
   transactions.forEach((tx) => {
@@ -190,48 +501,82 @@ function groupByDeductionCategory(transactions: any[]): DeductionOpportunity[] {
 
   categoryYearMap.forEach((txs, key) => {
     const [category, year] = key.split('|')
-    const opportunity = analyzeDeductionCategory(category as DeductionCategory, year, txs)
+    const opportunity = analyzeDeductionCategory(
+      category as DeductionCategory,
+      year,
+      txs,
+      taxRateInfo,
+      isSmallBusiness
+    )
 
-    // Only include if there are unclaimed deductions
+    // Only include if there are potential deductions
     if (opportunity.unclaimedAmount > 0) {
       opportunities.push(opportunity)
     }
   })
 
-  // Sort by unclaimed amount (descending)
+  // Sort by potential deduction amount (descending)
   opportunities.sort((a, b) => b.unclaimedAmount - a.unclaimedAmount)
 
   return opportunities
 }
 
 /**
- * Analyze a specific deduction category for a financial year
+ * Analyse a specific deduction category for a financial year.
+ *
+ * Fix 3a: All deductions are classified as status: 'potential'. This system analyses
+ *   Xero transactions and AI results but has NO access to lodged tax return data.
+ *   High AI confidence means the expense is likely deductible, NOT that it was claimed.
+ *
+ * Fix 3b: Tax rate is dynamic based on entity type (25% or 30%).
+ *
+ * Fix 3c: Partial deductibility rules applied per category.
+ *
+ * Fix 3d: Capital assets assessed for instant write-off vs depreciation.
  */
 function analyzeDeductionCategory(
   category: DeductionCategory,
   financialYear: string,
-  transactions: any[]
+  transactions: any[],
+  taxRateInfo: { rate: Decimal; rateNumber: number; note: string },
+  isSmallBusiness: boolean
 ): DeductionOpportunity {
   let totalAmount = 0
-  let claimedAmount = 0
-  let unclaimedAmount = 0
+  // claimedAmount is always 0 - we cannot determine whether deductions were
+  // included in lodged tax returns (Fix 3a)
+  const claimedAmount = 0
+  let potentialDeductibleAmount = 0
   let totalConfidence = 0
+
+  const isCapitalCategory =
+    category === 'Capital Allowance (Division 40)' || category === 'Instant Asset Write-Off'
 
   const deductionTransactions: DeductionTransaction[] = transactions.map((tx) => {
     const amount = Math.abs(parseFloat(tx.transaction_amount) || 0)
     totalAmount += amount
 
     const isFullyDeductible = tx.is_fully_deductible || false
-    const deductibleAmount = parseFloat(tx.claimable_amount) || (isFullyDeductible ? amount : 0)
-    const nonDeductibleAmount = amount - deductibleAmount
+    let rawDeductibleAmount = parseFloat(tx.claimable_amount) || (isFullyDeductible ? amount : 0)
+    const description = tx.transaction_description || ''
 
-    // Assume claimed if confidence is high and marked as deductible
-    // (In reality, would need to check actual tax return data)
-    const wasClaimed = isFullyDeductible && tx.deduction_confidence >= 80
-    if (wasClaimed) {
-      claimedAmount += deductibleAmount
-    } else if (isFullyDeductible) {
-      unclaimedAmount += deductibleAmount
+    // Fix 3c: Apply partial deductibility rules based on category
+    const partialRules = applyPartialDeductibilityRules(category, rawDeductibleAmount, description)
+    const adjustedDeductibleAmount = partialRules.adjustedAmount
+    const nonDeductibleAmount = amount - adjustedDeductibleAmount
+
+    // Fix 3d: Apply asset write-off vs depreciation rules for capital assets
+    let assetWriteOffEligible: boolean | undefined
+    let assetTreatmentNote: string | undefined
+    if (isCapitalCategory) {
+      const assetRules = applyAssetWriteOffRules(amount, isSmallBusiness)
+      assetWriteOffEligible = assetRules.eligible
+      assetTreatmentNote = assetRules.note
+    }
+
+    // Fix 3a: All deductions are 'potential' - confidence reflects how likely
+    // the expense is deductible, NOT whether it was already claimed
+    if (isFullyDeductible || adjustedDeductibleAmount > 0) {
+      potentialDeductibleAmount += adjustedDeductibleAmount
     }
 
     totalConfidence += tx.deduction_confidence || 0
@@ -239,40 +584,52 @@ function analyzeDeductionCategory(
     return {
       transactionId: tx.transaction_id,
       transactionDate: tx.transaction_date,
-      description: tx.transaction_description,
+      description,
       amount,
       supplier: tx.supplier_name,
       category,
-      isFullyDeductible,
-      deductibleAmount,
+      isFullyDeductible: partialRules.factor === 1.0 && isFullyDeductible,
+      deductibleAmount: adjustedDeductibleAmount,
       nonDeductibleAmount,
       deductionType: tx.deduction_type || 'Section 8-1',
       confidence: tx.deduction_confidence || 0,
       reasoning: tx.deduction_reasoning || '',
       restrictions: tx.deduction_restrictions || [],
+      // Fix 3a: Always 'potential' - cannot confirm against lodged returns
+      status: 'potential' as DeductionStatus,
+      // Fix 3c: Partial deductibility factor and notes
+      partialDeductibilityFactor: partialRules.factor,
+      deductibilityNotes: partialRules.notes.length > 0 ? partialRules.notes : undefined,
+      // Fix 3d: Asset treatment
+      assetWriteOffEligible,
+      assetTreatmentNote,
     }
   })
 
   const averageConfidence = transactions.length > 0 ? Math.round(totalConfidence / transactions.length) : 0
 
-  // Calculate estimated tax saving (25% corporate rate for small business)
-  const estimatedTaxSaving = unclaimedAmount * 0.25
+  // Fix 3b: Calculate estimated tax saving using dynamic tax rate
+  const estimatedTaxSaving = new Decimal(potentialDeductibleAmount)
+    .times(taxRateInfo.rate)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber()
 
   // Get legislative reference
   const legislativeReference = getLegislativeReference(category)
 
-  // Generate recommendations
+  // Generate recommendations (updated for Fix 3a - no claimed/unclaimed distinction)
   const recommendations = generateDeductionRecommendations(
     category,
-    unclaimedAmount,
+    potentialDeductibleAmount,
     claimedAmount,
     transactions.length,
-    averageConfidence
+    averageConfidence,
+    taxRateInfo
   )
 
   // Determine documentation requirements
-  const requiresDocumentation = unclaimedAmount > 1000 // Require docs for >$1k
-  const documentationRequired = generateDeductionDocumentation(category, unclaimedAmount, transactions.length)
+  const requiresDocumentation = potentialDeductibleAmount > 1000 // Require docs for >$1k
+  const documentationRequired = generateDeductionDocumentation(category, potentialDeductibleAmount, transactions.length)
 
   // Check FBT implications
   const fbtImplications = checkFbtImplications(category)
@@ -281,17 +638,22 @@ function analyzeDeductionCategory(
     category,
     financialYear,
     totalAmount,
-    claimedAmount,
-    unclaimedAmount,
+    claimedAmount, // Always 0 - retained for backward compatibility (Fix 3a)
+    unclaimedAmount: potentialDeductibleAmount,
     transactionCount: transactions.length,
     transactions: deductionTransactions,
     legislativeReference,
     confidence: averageConfidence,
     recommendations,
     estimatedTaxSaving,
+    appliedTaxRate: taxRateInfo.rateNumber,
+    taxRateNote: taxRateInfo.note,
     requiresDocumentation,
     documentationRequired,
     fbtImplications,
+    verificationNote:
+      'Verify against lodged tax return before claiming. This analysis identifies potentially ' +
+      'deductible expenses from Xero data but cannot confirm whether they were included in prior returns.',
   }
 }
 
@@ -303,6 +665,16 @@ function mapToDeductionCategory(aiCategory: string | null): DeductionCategory {
 
   const category = aiCategory.toLowerCase()
 
+  // Entertainment & Meals - 50% deductible (FBTAA 1986, s 32-5)
+  if (
+    category.includes('entertainment') ||
+    category.includes('meal') ||
+    category.includes('dining') ||
+    category.includes('restaurant') ||
+    category.includes('catering')
+  ) {
+    return 'Entertainment & Meals'
+  }
   if (category.includes('software') || category.includes('subscription') || category.includes('saas')) {
     return 'Software & Subscriptions'
   }
@@ -333,11 +705,19 @@ function mapToDeductionCategory(aiCategory: string | null): DeductionCategory {
   if (category.includes('repair') || category.includes('maintenance')) {
     return 'Repairs & Maintenance'
   }
+  // Phone & Internet - apportion business use
+  if (category.includes('phone') || category.includes('mobile') || category.includes('telecommunication')) {
+    return 'Phone & Internet'
+  }
   if (category.includes('utilities') || category.includes('electricity') || category.includes('internet')) {
     return 'Utilities'
   }
   if (category.includes('training') || category.includes('education') || category.includes('course')) {
     return 'Training & Education'
+  }
+  // Clothing & Uniforms - only occupation-specific
+  if (category.includes('clothing') || category.includes('uniform') || category.includes('workwear')) {
+    return 'Clothing & Uniforms'
   }
   if (category.includes('asset') || category.includes('equipment') || category.includes('depreciation')) {
     return 'Capital Allowance (Division 40)'
@@ -347,6 +727,10 @@ function mapToDeductionCategory(aiCategory: string | null): DeductionCategory {
   }
   if (category.includes('bad debt')) {
     return 'Bad Debts'
+  }
+  // Gifts & Donations - must be to DGR, exceed $2
+  if (category.includes('gift') || category.includes('donation') || category.includes('charity')) {
+    return 'Gifts & Donations'
   }
   if (category.includes('private') || category.includes('domestic') || category.includes('personal')) {
     return 'Non-Deductible (Private/Domestic)'
@@ -361,9 +745,9 @@ function mapToDeductionCategory(aiCategory: string | null): DeductionCategory {
 function getLegislativeReference(category: DeductionCategory): string {
   switch (category) {
     case 'Instant Asset Write-Off':
-      return 'Section 40-82 ITAA 1997 (Simplified depreciation - instant asset write-off)'
+      return 'Section 328-180 ITAA 1997 (Simplified depreciation - instant asset write-off for small business entities)'
     case 'Capital Allowance (Division 40)':
-      return 'Division 40 ITAA 1997 (Capital allowances)'
+      return 'Division 40 ITAA 1997 (Capital allowances and depreciation)'
     case 'Professional Fees':
     case 'Marketing & Advertising':
     case 'Office Expenses':
@@ -371,13 +755,12 @@ function getLegislativeReference(category: DeductionCategory): string {
     case 'Travel Expenses':
     case 'Repairs & Maintenance':
     case 'Utilities':
-    case 'Training & Education':
     case 'Other Deductible Expenses':
       return 'Section 8-1 ITAA 1997 (General deductions)'
     case 'Vehicle Expenses':
-      return 'Section 8-1 ITAA 1997 (General deductions - business use portion)'
+      return 'Section 8-1 ITAA 1997 (General deductions - business use portion; TD 2024/3 cents per km rate)'
     case 'Home Office':
-      return 'Section 8-1 ITAA 1997 (Home office expenses - business use portion)'
+      return 'Section 8-1 ITAA 1997 (Home office expenses - PCG 2023/1 fixed rate or actual cost method)'
     case 'Insurance':
       return 'Section 8-1 ITAA 1997 (Business insurance premiums)'
     case 'Bank Fees':
@@ -386,6 +769,16 @@ function getLegislativeReference(category: DeductionCategory): string {
       return 'Section 8-1 ITAA 1997 (Interest on business loans)'
     case 'Bad Debts':
       return 'Section 8-1 & Section 25-35 ITAA 1997 (Bad debts)'
+    case 'Entertainment & Meals':
+      return 'FBTAA 1986, s 32-5 ITAA 1997 (Entertainment expenses - 50% deductible)'
+    case 'Clothing & Uniforms':
+      return 'Section 8-1 ITAA 1997 (Occupation-specific clothing and registered uniforms only)'
+    case 'Phone & Internet':
+      return 'Section 8-1 ITAA 1997 (Telecommunications - business use portion)'
+    case 'Gifts & Donations':
+      return 'Division 30 ITAA 1997 (Gifts to Deductible Gift Recipients exceeding $2)'
+    case 'Training & Education':
+      return 'Section 8-1 ITAA 1997 (Self-education connected to current income-earning activity)'
     case 'Non-Deductible (Private/Domestic)':
       return 'Section 8-1(2)(b) ITAA 1997 (Private or domestic expenses - not deductible)'
     default:
@@ -394,57 +787,103 @@ function getLegislativeReference(category: DeductionCategory): string {
 }
 
 /**
- * Generate recommendations for deduction category
+ * Generate recommendations for deduction category.
+ *
+ * Fix 3a: Recommendations no longer assume expenses were/weren't claimed.
+ * All deductions are 'potential' and must be verified against lodged returns.
+ *
+ * Fix 3b: Uses dynamic tax rate instead of hardcoded 25%.
  */
 function generateDeductionRecommendations(
   category: DeductionCategory,
-  unclaimedAmount: number,
-  claimedAmount: number,
+  potentialAmount: number,
+  _claimedAmount: number,
   transactionCount: number,
-  confidence: number
+  confidence: number,
+  taxRateInfo?: { rate: Decimal; rateNumber: number; note: string }
 ): string[] {
   const recommendations: string[] = []
 
   if (category === 'Non-Deductible (Private/Domestic)') {
-    recommendations.push('❌ Private or domestic expenses are not deductible')
+    recommendations.push('Private or domestic expenses are not deductible (s 8-1(2)(b) ITAA 1997)')
     recommendations.push('Ensure these expenses are not claimed in tax return')
     return recommendations
   }
 
-  if (unclaimedAmount === 0) {
-    recommendations.push('✅ All eligible expenses appear to be claimed')
+  if (potentialAmount === 0) {
+    recommendations.push('No potentially deductible expenses identified in this category')
     return recommendations
   }
 
   if (confidence < MIN_CONFIDENCE_FOR_CLAIM) {
-    recommendations.push(`⚠️ Low confidence (${confidence}%) - review with accountant before claiming`)
+    recommendations.push(`Low confidence (${confidence}%) - review with accountant before claiming`)
   }
 
-  recommendations.push(`💰 Unclaimed deductions: $${unclaimedAmount.toFixed(2)} across ${transactionCount} transactions`)
-  recommendations.push(`💵 Estimated tax saving: $${(unclaimedAmount * 0.25).toFixed(2)} at 25% corporate rate`)
+  // Fix 3b: Calculate tax saving with dynamic rate
+  const taxRate = taxRateInfo?.rate ?? CORPORATE_TAX_RATE_STANDARD
+  const taxRatePercent = taxRate.times(100).toNumber()
+  const taxSaving = new Decimal(potentialAmount).times(taxRate).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber()
+
+  recommendations.push(
+    `Potentially deductible: $${potentialAmount.toFixed(2)} across ${transactionCount} transactions`
+  )
+  recommendations.push(
+    `Estimated tax saving: $${taxSaving.toFixed(2)} at ${taxRatePercent}% corporate rate` +
+    (taxRateInfo ? ` (${taxRateInfo.note})` : '')
+  )
+
+  // Fix 3a: Always include verification reminder
+  recommendations.push(
+    'Verify against lodged tax returns - this analysis identifies potentially deductible expenses ' +
+    'but cannot confirm whether they were included in prior returns'
+  )
 
   if (category === 'Instant Asset Write-Off') {
-    recommendations.push(`📋 Lodge amended return to claim instant asset write-off`)
-    recommendations.push('Ensure assets are under $20,000 and first used/installed ready for use')
+    recommendations.push('Lodge amended return to claim instant asset write-off if not previously claimed')
+    recommendations.push(
+      'Ensure assets are under $20,000 (s 328-180 ITAA 1997) and first used/installed ready for use'
+    )
     recommendations.push('Retain invoices and proof of payment')
   } else if (category === 'Capital Allowance (Division 40)') {
+    recommendations.push(
+      'Determine whether asset qualifies for instant write-off or must be depreciated (Division 40 ITAA 1997)'
+    )
     recommendations.push('Calculate depreciation using effective life or diminishing value method')
     recommendations.push('Lodge amended return if depreciation was not claimed')
   } else if (category === 'Home Office') {
-    recommendations.push('Use either 67c per hour method or actual cost method (whichever is higher)')
+    recommendations.push('Use either 67c per hour method (PCG 2023/1) or actual cost method (whichever is higher)')
     recommendations.push('Maintain diary or timesheet showing hours worked from home')
   } else if (category === 'Vehicle Expenses') {
-    recommendations.push('Use cents per km method (85c/km for 2024-25) or logbook method')
+    recommendations.push('Use cents per km method (85c/km for 2024-25 - TD 2024/3) or logbook method')
     recommendations.push('Maintain logbook for 12 continuous weeks if using logbook method')
+  } else if (category === 'Entertainment & Meals') {
+    recommendations.push('Entertainment expenses are only 50% deductible (FBTAA 1986, s 32-5)')
+    recommendations.push('Consider whether FBT applies if provided to employees')
+  } else if (category === 'Clothing & Uniforms') {
+    recommendations.push(
+      'Only deductible if occupation-specific protective clothing or a registered uniform. ' +
+      'Conventional clothing is not deductible.'
+    )
+  } else if (category === 'Phone & Internet') {
+    recommendations.push('Apportion business use percentage based on records or representative diary')
+  } else if (category === 'Gifts & Donations') {
+    recommendations.push(
+      'Deductible only if recipient has DGR status and amount exceeds $2 (Division 30 ITAA 1997)'
+    )
+  } else if (category === 'Training & Education') {
+    recommendations.push(
+      'Must have sufficient connection to current income-earning activity (s 8-1 ITAA 1997)'
+    )
   } else {
-    recommendations.push('Lodge amended return to claim missed deductions')
+    recommendations.push('Lodge amended return to claim if not previously claimed')
     recommendations.push('Ensure expenses have business purpose (nexus to income generation)')
   }
 
   recommendations.push('Retain all invoices, receipts, and proof of payment (5 years)')
 
-  if (unclaimedAmount > 10000) {
-    recommendations.push('⚠️ High-value claim - ensure comprehensive documentation is available')
+  if (potentialAmount > 10000) {
+    recommendations.push('High-value potential claim - ensure comprehensive documentation is available')
+    recommendations.push('Professional review recommended before lodging amended return')
   }
 
   return recommendations
@@ -508,6 +947,7 @@ function checkFbtImplications(category: DeductionCategory): boolean {
     'Travel Expenses',
     'Training & Education',
     'Home Office', // Can have FBT if provided by employer
+    'Entertainment & Meals', // Subject to FBT or 50% deductibility rule (FBTAA 1986)
   ]
   return fbtCategories.includes(category)
 }
@@ -552,16 +992,25 @@ function calculateDeductionSummary(opportunities: DeductionOpportunity[]): Deduc
 }
 
 /**
- * Identify instant asset write-off opportunities (≤ current threshold from ATO)
+ * Identify instant asset write-off opportunities (s 328-180 ITAA 1997).
+ *
+ * Assets must be:
+ * - Under the current threshold (default $20,000)
+ * - Owned by a small business entity (turnover < $10M)
+ * - First used or installed ready for use in the relevant income year
  */
-export async function identifyInstantWriteOffs(tenantId: string): Promise<DeductionOpportunity[]> {
-  const summary = await analyzeDeductionOpportunities(tenantId)
+export async function identifyInstantWriteOffs(
+  tenantId: string,
+  options?: DeductionAnalysisOptions
+): Promise<DeductionOpportunity[]> {
+  const summary = await analyzeDeductionOpportunities(tenantId, undefined, undefined, options)
   const { instantWriteOffThreshold } = await getDeductionThresholds()
+  const smallBusiness = isSmallBusinessEntity(options)
 
   return summary.opportunities.filter((opp) => {
     return (
-      opp.category === 'Capital Allowance (Division 40)' &&
-      opp.transactions.some((tx) => tx.amount <= instantWriteOffThreshold)
+      (opp.category === 'Capital Allowance (Division 40)' || opp.category === 'Instant Asset Write-Off') &&
+      opp.transactions.some((tx) => tx.amount < instantWriteOffThreshold && smallBusiness)
     )
   })
 }

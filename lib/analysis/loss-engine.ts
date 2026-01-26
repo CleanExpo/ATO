@@ -11,14 +11,144 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import Decimal from 'decimal.js'
 
-// Tax rates
-const CORPORATE_TAX_RATE_SMALL = 0.25 // 25% for small business
-const _CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% for other companies (reserved for future use)
+// Tax rates - s 23AA and s 23 ITAA 1997
+const CORPORATE_TAX_RATE_SMALL = 0.25 // 25% base rate entity (turnover < $50M) - s 23AA ITAA 1997
+const CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% standard corporate rate - s 23 ITAA 1997
+
+// Entity types for tax rate determination
+export type EntityType = 'company' | 'trust' | 'partnership' | 'individual' | 'unknown'
 
 // COT/SBT thresholds
 const _COT_OWNERSHIP_THRESHOLD = 0.50 // 50% ownership continuity required (reserved for future use)
 const _SBT_LOOKBACK_YEARS = 3 // Look back 3 years to determine "same business" (reserved for future use)
+
+/**
+ * Calculate the end date of a financial year from its FY string.
+ * e.g., 'FY2020-21' → 30 June 2021, '2020-21' → 30 June 2021
+ */
+function getFYEndDate(financialYear: string): Date | null {
+  // Extract the end year from formats like 'FY2020-21', '2020-21', 'FY2020-2021'
+  const match = financialYear.match(/(\d{4})-(\d{2,4})/)
+  if (!match) return null
+
+  const startYearStr = match[1]
+  const endYearStr = match[2]
+
+  let endYear: number
+  if (endYearStr.length === 2) {
+    // e.g., '2020-21' → end year is 2021
+    const century = startYearStr.substring(0, 2)
+    endYear = parseInt(`${century}${endYearStr}`, 10)
+  } else {
+    endYear = parseInt(endYearStr, 10)
+  }
+
+  // Australian FY ends 30 June
+  return new Date(endYear, 5, 30) // Month is 0-indexed, so 5 = June
+}
+
+/**
+ * Check if a financial year is outside the amendment period.
+ * Taxation Administration Act 1953, s 170:
+ * - Individuals/small businesses: 2 years from date of assessment
+ * - Companies/trusts: 4 years from date of assessment
+ *
+ * Assessment is typically issued shortly after the return due date,
+ * which is generally within a few months after FY end. We use FY end
+ * date as a conservative approximation.
+ */
+function checkAmendmentPeriod(
+  financialYear: string,
+  entityType: EntityType = 'unknown'
+): string | undefined {
+  const fyEndDate = getFYEndDate(financialYear)
+  if (!fyEndDate) return undefined
+
+  // Determine amendment period length based on entity type
+  // Taxation Administration Act 1953, s 170
+  // - Individuals/small businesses: 2 years
+  // - Companies/trusts/other: 4 years
+  let amendmentYears: number
+  switch (entityType) {
+    case 'individual':
+      amendmentYears = 2
+      break
+    case 'company':
+    case 'trust':
+    case 'partnership':
+      amendmentYears = 4
+      break
+    case 'unknown':
+    default:
+      amendmentYears = 4 // Conservative: use longer period when unknown
+      break
+  }
+
+  const amendmentExpiryDate = new Date(fyEndDate)
+  amendmentExpiryDate.setFullYear(amendmentExpiryDate.getFullYear() + amendmentYears)
+
+  const now = new Date()
+
+  if (now > amendmentExpiryDate) {
+    const expiryStr = amendmentExpiryDate.toISOString().split('T')[0]
+    return (
+      `Loss from ${financialYear} may be outside the ${amendmentYears}-year amendment period ` +
+      `(expired approx. ${expiryStr}). Verify ability to amend with tax agent. ` +
+      `Taxation Administration Act 1953, s 170.`
+    )
+  }
+
+  return undefined
+}
+
+/**
+ * Determine the applicable corporate tax rate based on entity type.
+ * s 23AA ITAA 1997 - Base rate entity (turnover < $50M): 25%
+ * s 23 ITAA 1997 - Standard corporate rate: 30%
+ * Trusts: tax benefit depends on beneficiary marginal rates (no fixed rate)
+ */
+function getApplicableTaxRate(
+  entityType: EntityType = 'unknown',
+  isBaseRateEntity: boolean = false
+): { rate: number; note: string } {
+  switch (entityType) {
+    case 'company':
+      if (isBaseRateEntity) {
+        return {
+          rate: CORPORATE_TAX_RATE_SMALL,
+          note: 'Base rate entity (turnover < $50M) - 25% rate per s 23AA ITAA 1997',
+        }
+      }
+      return {
+        rate: CORPORATE_TAX_RATE_STANDARD,
+        note: 'Standard corporate rate - 30% per s 23 ITAA 1997',
+      }
+    case 'trust':
+      return {
+        rate: CORPORATE_TAX_RATE_STANDARD, // Conservative estimate
+        note: 'Trust: tax benefit depends on beneficiary marginal rates. 30% used as conservative estimate. Professional review required.',
+      }
+    case 'partnership':
+      return {
+        rate: CORPORATE_TAX_RATE_STANDARD, // Conservative estimate
+        note: 'Partnership: tax benefit depends on partner marginal rates. 30% used as conservative estimate.',
+      }
+    case 'individual':
+      return {
+        rate: CORPORATE_TAX_RATE_STANDARD, // Conservative estimate using top marginal-ish rate
+        note: 'Individual: actual benefit depends on marginal tax rate. 30% used as conservative estimate.',
+      }
+    case 'unknown':
+    default:
+      // Default to the higher/more conservative rate when entity type is unknown
+      return {
+        rate: CORPORATE_TAX_RATE_STANDARD,
+        note: 'Entity type unknown - defaulting to 30% standard corporate rate (conservative). Verify entity type for accurate calculation.',
+      }
+  }
+}
 
 export interface LossPosition {
   financialYear: string
@@ -28,18 +158,20 @@ export interface LossPosition {
   lossesUtilized: number // Losses used to offset profit
   lossesExpired: number // Losses that expired (failed COT/SBT)
   closingLossBalance: number // Carried forward to next year
-  taxableIncome: number // After loss utilization
+  taxableIncome: number // After loss utilisation
+  amendmentPeriodWarning?: string // Warning if FY is outside amendment period
 }
 
 export interface CotSbtAnalysis {
-  cotSatisfied: boolean
+  cotSatisfied: boolean | 'unknown'
   cotConfidence: number
   cotNotes: string[]
-  sbtRequired: boolean
-  sbtSatisfied: boolean
+  sbtRequired: boolean | 'unknown'
+  sbtSatisfied: boolean | 'unknown'
   sbtConfidence: number
   sbtNotes: string[]
   isEligibleForCarryforward: boolean
+  professionalReviewRequired: boolean
   riskLevel: 'low' | 'medium' | 'high'
 }
 
@@ -79,19 +211,24 @@ export interface LossSummary {
 export async function analyzeLossPosition(
   tenantId: string,
   startYear?: string,
-  endYear?: string
+  endYear?: string,
+  entityType: EntityType = 'unknown',
+  isBaseRateEntity: boolean = false
 ): Promise<LossSummary> {
   const supabase = await createServiceClient()
 
   // Fetch P&L data from cache (would need to implement P&L fetching in historical-fetcher)
   // For now, we'll infer from transaction data
-  const lossPositions = await fetchLossPositions(supabase, tenantId, startYear, endYear)
+  const lossPositions = await fetchLossPositions(supabase, tenantId, startYear, endYear, entityType)
 
   if (lossPositions.length === 0) {
     return createEmptyLossSummary()
   }
 
-  console.log(`Analyzing loss positions for ${lossPositions.length} financial years`)
+  console.log(`Analysing loss positions for ${lossPositions.length} financial years (entity: ${entityType})`)
+
+  // Determine applicable tax rate based on entity type
+  const taxRateInfo = getApplicableTaxRate(entityType, isBaseRateEntity)
 
   // Analyze each year's loss position
   const lossAnalyses: LossAnalysis[] = []
@@ -100,7 +237,7 @@ export async function analyzeLossPosition(
     const currentYear = lossPositions[i]
     const previousYears = lossPositions.slice(0, i)
 
-    const analysis = analyzeSingleYearLoss(currentYear, previousYears)
+    const analysis = analyzeSingleYearLoss(currentYear, previousYears, taxRateInfo)
     lossAnalyses.push(analysis)
   }
 
@@ -118,7 +255,8 @@ async function fetchLossPositions(
   supabase: any,
   tenantId: string,
   startYear?: string,
-  endYear?: string
+  endYear?: string,
+  entityType: EntityType = 'unknown'
 ): Promise<LossPosition[]> {
   // In a complete implementation, this would query historical_transactions_cache
   // and calculate profit/loss per year from transaction totals
@@ -168,18 +306,37 @@ async function fetchLossPositions(
   sortedYears.forEach((year) => {
     const transactions = yearMap.get(year) || []
 
-    // Calculate income and expenses
+    // Calculate income and expenses by transaction type
+    // s 8-1 ITAA 1997 - General deductions; assessable income vs allowable deductions
     let income = 0
     let expenses = 0
 
     transactions.forEach((tx: any) => {
-      const amount = Math.abs(parseFloat(tx.Total) || 0)
+      const rawAmount = parseFloat(tx.Total) || 0
+      const absAmount = Math.abs(rawAmount)
       const type = tx.Type
 
       if (type === 'ACCREC') {
-        income += amount
-      } else if (type === 'ACCPAY' || type === 'BANK') {
-        expenses += amount
+        // Accounts Receivable invoices → Revenue (positive)
+        income += absAmount
+      } else if (type === 'ACCREC-CREDIT') {
+        // Accounts Receivable credit notes → Revenue reduction (negative)
+        expenses += absAmount // Reduces net income effectively
+      } else if (type === 'ACCPAY') {
+        // Accounts Payable bills → Expenses
+        expenses += absAmount
+      } else if (type === 'ACCPAY-CREDIT') {
+        // Accounts Payable credit notes → Expense reduction
+        income += absAmount // Reduces net expenses effectively
+      } else if (type === 'BANK') {
+        // Bank transactions: classify by amount sign
+        // Positive amounts (money in) → Revenue/income
+        // Negative amounts (money out) → Expenses
+        if (rawAmount > 0) {
+          income += rawAmount
+        } else if (rawAmount < 0) {
+          expenses += Math.abs(rawAmount)
+        }
       }
     })
 
@@ -193,15 +350,25 @@ async function fetchLossPositions(
     const closingLossBalance = availableLosses - lossesUtilized
     const taxableIncome = currentYearProfit - lossesUtilized
 
+    // Division 36 ITAA 1997 - Tax losses carried forward indefinitely if COT/SBT met
+    // However, check amendment period for ability to amend prior returns
+    const amendmentWarning = currentYearLoss > 0
+      ? checkAmendmentPeriod(year, entityType)
+      : undefined
+
+    // Tax losses do not expire in Australia (Division 36 ITAA 1997) provided
+    // COT/SBT tests are satisfied. lossesExpired remains 0 as expiry depends
+    // on COT/SBT analysis which is performed separately.
     lossPositions.push({
       financialYear: year,
       openingLossBalance: runningLossBalance,
       currentYearLoss,
       currentYearProfit,
       lossesUtilized,
-      lossesExpired: 0, // Would need COT/SBT analysis to determine
+      lossesExpired: 0, // Losses don't expire per Division 36; COT/SBT failure handled in analysis
       closingLossBalance,
       taxableIncome,
+      amendmentPeriodWarning: amendmentWarning,
     })
 
     runningLossBalance = closingLossBalance
@@ -213,18 +380,26 @@ async function fetchLossPositions(
 /**
  * Analyze a single year's loss position
  */
-function analyzeSingleYearLoss(currentYear: LossPosition, previousYears: LossPosition[]): LossAnalysis {
+function analyzeSingleYearLoss(
+  currentYear: LossPosition,
+  previousYears: LossPosition[],
+  taxRateInfo: { rate: number; note: string } = { rate: CORPORATE_TAX_RATE_STANDARD, note: 'Default 30% rate' }
+): LossAnalysis {
   // Perform COT/SBT analysis
   const cotSbtAnalysis = analyzeCotSbt(currentYear, previousYears)
 
-  // Calculate future tax value of carried forward losses
-  const futureTaxValue = currentYear.closingLossBalance * CORPORATE_TAX_RATE_SMALL
+  // Calculate future tax value of carried forward losses using Decimal for precision
+  // s 23AA / s 23 ITAA 1997 - Rate depends on entity type
+  const futureTaxValue = new Decimal(currentYear.closingLossBalance)
+    .times(new Decimal(taxRateInfo.rate))
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber()
 
-  // Optimize loss utilization
-  const optimization = optimizeLossUtilization(currentYear, cotSbtAnalysis)
+  // Optimise loss utilisation
+  const optimization = optimizeLossUtilization(currentYear, cotSbtAnalysis, taxRateInfo)
 
   // Generate recommendations
-  const recommendations = generateLossRecommendations(currentYear, cotSbtAnalysis, optimization)
+  const recommendations = generateLossRecommendations(currentYear, cotSbtAnalysis, optimization, taxRateInfo)
 
   return {
     financialYear: currentYear.financialYear,
@@ -249,7 +424,8 @@ function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]
   // 2. Verify 50%+ continuity of ownership
   // 3. If COT fails, check if SBT is satisfied
 
-  // For now, provide a conservative analysis
+  // Division 165 ITAA 1997 - COT requires share register verification
+  // Division 166 ITAA 1997 - SBT applies if COT fails
   const hasLossesToCarryForward = currentYear.closingLossBalance > 0
 
   if (!hasLossesToCarryForward) {
@@ -262,44 +438,42 @@ function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]
       sbtConfidence: 100,
       sbtNotes: [],
       isEligibleForCarryforward: true,
+      professionalReviewRequired: false,
       riskLevel: 'low',
     }
   }
 
-  // Conservative assumption: COT satisfied unless evidence otherwise
-  // Real implementation would check:
-  // - Share register changes
-  // - Shareholder transactions
-  // - Entity restructures
-  const cotSatisfied = true
-  const cotConfidence = 70 // Conservative confidence without actual ownership data
+  // COT cannot be determined without share register data
+  // s 165-12 ITAA 1997 - Continuity of ownership test requires
+  // verification that majority ownership (50%+) has not changed
+  const cotSatisfied: boolean | 'unknown' = 'unknown'
+  const cotConfidence = 50 // Reflects genuine uncertainty without ownership data
   const cotNotes = [
-    'COT requires 50%+ continuity of ownership',
+    'Continuity of Ownership Test requires share register verification. Professional review required.',
+    's 165-12 ITAA 1997 - COT requires 50%+ continuity of ownership throughout the ownership test period',
+    'Share register data not available - COT status cannot be determined automatically',
     'Verify shareholding has not changed since loss was incurred',
-    'Review share register for any transfers or new issues',
+    'Review share register for any transfers, new issues, or redemptions',
   ]
 
-  // SBT only required if COT fails
-  const sbtRequired = !cotSatisfied
-  const sbtSatisfied = true // Conservative assumption
-  const sbtConfidence = sbtRequired ? 60 : 100
-  const sbtNotes = sbtRequired
-    ? [
-        'SBT requires carrying on the "same business" throughout test period',
-        'Compare current business activities to previous years',
-        'New business activities may fail SBT',
-      ]
-    : []
+  // SBT status also unknown without business activity comparison data
+  // s 165-13 ITAA 1997 - Same Business Test (SBT) applies as fallback if COT fails
+  const sbtRequired: boolean | 'unknown' = 'unknown' // Cannot determine if COT is unknown
+  const sbtSatisfied: boolean | 'unknown' = 'unknown'
+  const sbtConfidence = 50 // No business activity data to compare across years
+  const sbtNotes = [
+    'Same Business Test requires comparison of business activities across financial years. Professional review required.',
+    's 165-13 ITAA 1997 - SBT requires the company to carry on the same business throughout the test period',
+    'No industry code or business activity data available for automated comparison',
+    'New business activities or significant changes may cause SBT failure',
+  ]
 
-  const isEligibleForCarryforward = cotSatisfied || (sbtRequired && sbtSatisfied)
+  // Without confirmed COT or SBT, eligibility is assumed but flagged for review
+  // Division 36 ITAA 1997 - Tax losses carried forward indefinitely if COT/SBT met
+  const isEligibleForCarryforward = true // Assumed eligible, but must be verified
 
-  // Determine risk level
-  let riskLevel: 'low' | 'medium' | 'high' = 'low'
-  if (!cotSatisfied && !sbtSatisfied) {
-    riskLevel = 'high'
-  } else if (!cotSatisfied || cotConfidence < 70) {
-    riskLevel = 'medium'
-  }
+  // Risk level is always medium or high when COT/SBT is unknown
+  const riskLevel: 'low' | 'medium' | 'high' = 'medium'
 
   return {
     cotSatisfied,
@@ -310,6 +484,7 @@ function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]
     sbtConfidence,
     sbtNotes,
     isEligibleForCarryforward,
+    professionalReviewRequired: true, // Always required when losses exist and COT/SBT unknown
     riskLevel,
   }
 }
@@ -319,7 +494,8 @@ function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]
  */
 function optimizeLossUtilization(
   currentYear: LossPosition,
-  cotSbtAnalysis: CotSbtAnalysis
+  cotSbtAnalysis: CotSbtAnalysis,
+  taxRateInfo: { rate: number; note: string } = { rate: CORPORATE_TAX_RATE_STANDARD, note: 'Default 30% rate' }
 ): {
   currentStrategy: string
   recommendedStrategy: string
@@ -329,8 +505,8 @@ function optimizeLossUtilization(
   const hasProfit = currentYear.currentYearProfit > 0
   const hasLosses = currentYear.openingLossBalance > 0 || currentYear.currentYearLoss > 0
 
-  // Current strategy: automatic utilization
-  const currentStrategy = hasProfit && hasLosses ? 'Automatic loss offset against current year profit' : 'No loss utilization (no profit)'
+  // Current strategy: automatic utilisation
+  const currentStrategy = hasProfit && hasLosses ? 'Automatic loss offset against current year profit' : 'No loss utilisation (no profit)'
 
   // Recommended strategy
   let recommendedStrategy = currentStrategy
@@ -338,13 +514,16 @@ function optimizeLossUtilization(
   let reasoning = 'Current strategy is optimal'
 
   if (hasProfit && hasLosses && cotSbtAnalysis.isEligibleForCarryforward) {
-    // Check if deferring loss utilization would be beneficial
+    // Check if deferring loss utilisation would be beneficial
     // (e.g., if expecting higher tax rate in future, or if R&D offset available)
 
-    // For now, recommend full utilization
-    recommendedStrategy = 'Utilize all available losses against current year profit'
-    additionalBenefit = currentYear.lossesUtilized * CORPORATE_TAX_RATE_SMALL
-    reasoning = `Save $${additionalBenefit.toFixed(2)} in tax by offsetting losses against profit`
+    // Recommend full utilisation using entity-appropriate tax rate
+    recommendedStrategy = 'Utilise all available losses against current year profit'
+    additionalBenefit = new Decimal(currentYear.lossesUtilized)
+      .times(new Decimal(taxRateInfo.rate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toNumber()
+    reasoning = `Save $${additionalBenefit.toFixed(2)} in tax by offsetting losses against profit (${taxRateInfo.note})`
   } else if (hasLosses && !cotSbtAnalysis.isEligibleForCarryforward) {
     recommendedStrategy = 'Losses may not be eligible for carry-forward - verify COT/SBT compliance'
     additionalBenefit = 0
@@ -365,7 +544,8 @@ function optimizeLossUtilization(
 function generateLossRecommendations(
   currentYear: LossPosition,
   cotSbtAnalysis: CotSbtAnalysis,
-  optimization: { currentStrategy: string; recommendedStrategy: string; additionalBenefit: number; reasoning: string }
+  optimization: { currentStrategy: string; recommendedStrategy: string; additionalBenefit: number; reasoning: string },
+  taxRateInfo: { rate: number; note: string } = { rate: CORPORATE_TAX_RATE_STANDARD, note: 'Default 30% rate' }
 ): string[] {
   const recommendations: string[] = []
 
@@ -382,28 +562,40 @@ function generateLossRecommendations(
     recommendations.push('Review shareholder register for ownership continuity')
   }
 
-  // Loss utilization
+  // Loss utilisation
   if (currentYear.closingLossBalance > 0) {
-    const futureValue = currentYear.closingLossBalance * CORPORATE_TAX_RATE_SMALL
-    recommendations.push(`💰 Carried forward losses: $${currentYear.closingLossBalance.toFixed(2)}`)
-    recommendations.push(`💵 Future tax value: $${futureValue.toFixed(2)} (at 25% corporate rate)`)
-    recommendations.push('Plan to utilize losses against future profits')
+    const futureValue = new Decimal(currentYear.closingLossBalance)
+      .times(new Decimal(taxRateInfo.rate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toNumber()
+    const ratePercent = Math.round(taxRateInfo.rate * 100)
+    recommendations.push(`Carried forward losses: $${currentYear.closingLossBalance.toFixed(2)}`)
+    recommendations.push(`Future tax value: $${futureValue.toFixed(2)} (at ${ratePercent}% rate - ${taxRateInfo.note})`)
+    recommendations.push('Plan to utilise losses against future profits')
   }
 
   if (currentYear.lossesUtilized > 0) {
-    const taxSaved = currentYear.lossesUtilized * CORPORATE_TAX_RATE_SMALL
-    recommendations.push(`✅ Utilized $${currentYear.lossesUtilized.toFixed(2)} in losses this year`)
-    recommendations.push(`💵 Tax saved: $${taxSaved.toFixed(2)}`)
+    const taxSaved = new Decimal(currentYear.lossesUtilized)
+      .times(new Decimal(taxRateInfo.rate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toNumber()
+    recommendations.push(`Utilised $${currentYear.lossesUtilized.toFixed(2)} in losses this year`)
+    recommendations.push(`Tax saved: $${taxSaved.toFixed(2)}`)
   }
 
   // COT/SBT specific recommendations
-  if (cotSbtAnalysis.cotSatisfied) {
+  if (cotSbtAnalysis.cotSatisfied === 'unknown') {
+    recommendations.push('⚠️ COT status unknown - share register verification required (s 165-12 ITAA 1997)')
+    recommendations.push('Professional review required to confirm continuity of ownership')
+  } else if (cotSbtAnalysis.cotSatisfied) {
     recommendations.push('✅ COT satisfied - ownership continuity maintained')
   } else {
     recommendations.push('❌ COT not satisfied - check SBT compliance')
   }
 
-  if (cotSbtAnalysis.sbtRequired) {
+  if (cotSbtAnalysis.sbtSatisfied === 'unknown') {
+    recommendations.push('⚠️ SBT status unknown - business activity comparison required (s 165-13 ITAA 1997)')
+  } else if (cotSbtAnalysis.sbtRequired === true) {
     if (cotSbtAnalysis.sbtSatisfied) {
       recommendations.push('✅ SBT satisfied - same business maintained')
     } else {
@@ -411,14 +603,24 @@ function generateLossRecommendations(
     }
   }
 
-  // Optimization recommendations
+  // Professional review flag
+  if (cotSbtAnalysis.professionalReviewRequired) {
+    recommendations.push('🔴 PROFESSIONAL REVIEW REQUIRED: Loss carry-forward eligibility must be verified by a qualified tax agent')
+  }
+
+  // Amendment period warning - Taxation Administration Act 1953, s 170
+  if (currentYear.amendmentPeriodWarning) {
+    recommendations.push(`⚠️ AMENDMENT PERIOD: ${currentYear.amendmentPeriodWarning}`)
+  }
+
+  // Optimisation recommendations
   if (optimization.additionalBenefit > 0) {
-    recommendations.push(`💡 ${optimization.recommendedStrategy}`)
-    recommendations.push(`💰 Potential benefit: $${optimization.additionalBenefit.toFixed(2)}`)
+    recommendations.push(`${optimization.recommendedStrategy}`)
+    recommendations.push(`Potential benefit: $${optimization.additionalBenefit.toFixed(2)}`)
   }
 
   // Documentation
-  recommendations.push('📋 Maintain loss schedule in Company Tax Return (Schedule 5)')
+  recommendations.push('Maintain loss schedule in Company Tax Return (Schedule 5)')
   recommendations.push('Retain shareholder register and share transaction records')
   recommendations.push('Document business activities year-over-year for SBT compliance')
 
@@ -506,7 +708,11 @@ function createEmptyLossSummary(): LossSummary {
 /**
  * Calculate tax value of unutilized losses
  */
-export async function calculateUnutilizedLossValue(tenantId: string): Promise<number> {
-  const summary = await analyzeLossPosition(tenantId)
+export async function calculateUnutilizedLossValue(
+  tenantId: string,
+  entityType: EntityType = 'unknown',
+  isBaseRateEntity: boolean = false
+): Promise<number> {
+  const summary = await analyzeLossPosition(tenantId, undefined, undefined, entityType, isBaseRateEntity)
   return summary.totalFutureTaxValue
 }
