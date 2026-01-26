@@ -20,8 +20,10 @@ import {
   ShareLinkStatus,
   ListShareLinksResponse,
 } from '@/lib/types/shared-reports';
+import type { UnreadFeedbackResponse, UnreadFeedbackCount } from '@/lib/types/share-feedback';
 import { ShareLinkCard } from './ShareLinkCard';
 import { CreateShareModal } from './CreateShareModal';
+import { FeedbackBadge } from './FeedbackBadge';
 
 interface ShareLinkManagerProps {
   tenantId: string;
@@ -37,6 +39,25 @@ export function ShareLinkManager({ tenantId }: ShareLinkManagerProps) {
   const [filter, setFilter] = useState<FilterStatus>('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [copiedToast, setCopiedToast] = useState<string | null>(null);
+  const [feedbackCounts, setFeedbackCounts] = useState<Map<string, UnreadFeedbackCount>>(new Map());
+  const [totalUnreadFeedback, setTotalUnreadFeedback] = useState(0);
+
+  const fetchFeedbackCounts = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/share/feedback/unread?tenantId=${tenantId}`);
+      if (response.ok) {
+        const data: UnreadFeedbackResponse = await response.json();
+        const countsMap = new Map<string, UnreadFeedbackCount>();
+        for (const count of data.counts) {
+          countsMap.set(count.shareId, count);
+        }
+        setFeedbackCounts(countsMap);
+        setTotalUnreadFeedback(data.totalUnread);
+      }
+    } catch (err) {
+      console.error('Failed to fetch feedback counts:', err);
+    }
+  }, [tenantId]);
 
   const fetchLinks = useCallback(async () => {
     setIsLoading(true);
@@ -58,7 +79,8 @@ export function ShareLinkManager({ tenantId }: ShareLinkManagerProps) {
 
   useEffect(() => {
     fetchLinks();
-  }, [fetchLinks]);
+    fetchFeedbackCounts();
+  }, [fetchLinks, fetchFeedbackCounts]);
 
   const handleRevoke = async (link: ShareLinkListItem) => {
     try {
@@ -123,21 +145,31 @@ export function ShareLinkManager({ tenantId }: ShareLinkManagerProps) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-6 gap-4">
         {[
           { label: 'Total Links', value: stats.total, color: 'violet' },
           { label: 'Active', value: stats.active, color: 'green' },
           { label: 'Expired', value: stats.expired, color: 'amber' },
           { label: 'Revoked', value: stats.revoked, color: 'red' },
           { label: 'Total Views', value: stats.totalAccess, color: 'blue' },
+          { label: 'Unread Feedback', value: totalUnreadFeedback, color: 'violet', highlight: totalUnreadFeedback > 0 },
         ].map(stat => (
           <div
             key={stat.label}
-            className="bg-[#0a0a0a] border border-white/10 rounded-lg p-4"
+            className={`bg-[#0a0a0a] border rounded-lg p-4 ${
+              'highlight' in stat && stat.highlight
+                ? 'border-violet-500/50 bg-violet-500/5'
+                : 'border-white/10'
+            }`}
           >
             <div className="text-xs text-white/40 mb-1">{stat.label}</div>
-            <div className={`text-2xl font-medium text-${stat.color}-400`}>
-              {stat.value}
+            <div className="flex items-center gap-2">
+              <span className={`text-2xl font-medium text-${stat.color}-400`}>
+                {stat.value}
+              </span>
+              {'highlight' in stat && stat.highlight && (
+                <FeedbackBadge count={stat.value} size="sm" animate={false} />
+              )}
             </div>
           </div>
         ))}
@@ -227,6 +259,7 @@ export function ShareLinkManager({ tenantId }: ShareLinkManagerProps) {
                 link={link}
                 onRevoke={handleRevoke}
                 onCopy={handleCopy}
+                feedbackInfo={feedbackCounts.get(link.id)}
               />
             ))}
           </AnimatePresence>
