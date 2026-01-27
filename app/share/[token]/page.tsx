@@ -13,6 +13,7 @@ import { useParams } from 'next/navigation';
 import { AccountantReportView } from '@/components/share/AccountantReportView';
 import type { AccessShareLinkResponse, ShareLinkError } from '@/lib/types/shared-reports';
 import type { FeedbackThread } from '@/lib/types/share-feedback';
+import type { RecommendationStatus, StatusHistory } from '@/lib/types/recommendation-status';
 
 type PageState =
   | { status: 'loading' }
@@ -28,6 +29,54 @@ export default function SharePage() {
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackThreads, setFeedbackThreads] = useState<FeedbackThread[]>([]);
+  const [statusMap, setStatusMap] = useState<Map<string, StatusHistory>>(new Map());
+
+  // Fetch status for all recommendations
+  const fetchStatus = useCallback(async (recommendationIds: string[]) => {
+    const newMap = new Map<string, StatusHistory>();
+    for (const recId of recommendationIds) {
+      try {
+        const response = await fetch(`/api/share/${token}/status?recommendationId=${recId}`);
+        if (response.ok) {
+          const data = await response.json();
+          newMap.set(recId, data);
+        }
+      } catch (err) {
+        console.error(`Failed to fetch status for ${recId}:`, err);
+      }
+    }
+    setStatusMap(newMap);
+  }, [token]);
+
+  // Handle status change
+  const handleStatusChange = useCallback(async (recommendationId: string, status: RecommendationStatus, notes?: string) => {
+    try {
+      const response = await fetch(`/api/share/${token}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recommendationId,
+          status,
+          updatedByName: 'Accountant',
+          notes,
+        }),
+      });
+      if (response.ok) {
+        // Refresh status for this recommendation
+        const statusResponse = await fetch(`/api/share/${token}/status?recommendationId=${recommendationId}`);
+        if (statusResponse.ok) {
+          const data = await statusResponse.json();
+          setStatusMap(prev => {
+            const newMap = new Map(prev);
+            newMap.set(recommendationId, data);
+            return newMap;
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    }
+  }, [token]);
 
   // Fetch feedback for the report
   const fetchFeedback = useCallback(async () => {
@@ -81,12 +130,17 @@ export default function SharePage() {
     fetchReport();
   }, [token]);
 
-  // Fetch feedback when report is loaded
+  // Fetch feedback and status when report is loaded
   useEffect(() => {
     if (state.status === 'success') {
       fetchFeedback();
+      // Fetch status for recommendations if available
+      const recommendations = state.data.data.recommendations;
+      if (recommendations && recommendations.length > 0) {
+        fetchStatus(recommendations.map(r => r.id));
+      }
     }
-  }, [state.status, fetchFeedback]);
+  }, [state.status, fetchFeedback, fetchStatus]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,6 +296,8 @@ export default function SharePage() {
       token={token}
       feedbackThreads={feedbackThreads}
       onFeedbackSubmit={fetchFeedback}
+      statusMap={statusMap}
+      onStatusChange={handleStatusChange}
     />
   );
 }

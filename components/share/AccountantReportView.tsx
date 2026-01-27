@@ -4,17 +4,28 @@
  * AccountantReportView
  *
  * Read-only view of a shared report for accountants.
- * Includes executive summary, findings, recommendations, and export options.
+ * Includes executive summary, findings, recommendations, feedback, and export options.
  *
  * Scientific Luxury design system.
  */
 
 import { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { AccessShareLinkResponse, ReportFinding, Recommendation } from '@/lib/types/shared-reports';
+import type { FeedbackThread as FeedbackThreadType, FeedbackWithReplies } from '@/lib/types/share-feedback';
+import type { RecommendationStatus, StatusHistory } from '@/lib/types/recommendation-status';
+import { FeedbackThread } from './FeedbackThread';
+import { FeedbackForm } from './FeedbackForm';
+import { FeedbackBadge } from './FeedbackBadge';
+import { StatusBadge, StatusSelector } from '@/components/status';
 
 interface AccountantReportViewProps {
   data: AccessShareLinkResponse;
+  token: string;
+  feedbackThreads?: FeedbackThreadType[];
+  onFeedbackSubmit?: () => void;
+  statusMap?: Map<string, StatusHistory>;
+  onStatusChange?: (recommendationId: string, status: RecommendationStatus, notes?: string) => Promise<void>;
 }
 
 const PRIORITY_COLORS = {
@@ -29,12 +40,31 @@ const CONFIDENCE_COLORS = {
   low: 'text-red-400',
 };
 
-export function AccountantReportView({ data }: AccountantReportViewProps) {
-  const [activeTab, setActiveTab] = useState<'summary' | 'findings' | 'recommendations'>('summary');
+export function AccountantReportView({
+  data,
+  token,
+  feedbackThreads = [],
+  onFeedbackSubmit,
+  statusMap = new Map(),
+  onStatusChange,
+}: AccountantReportViewProps) {
+  const [activeTab, setActiveTab] = useState<'summary' | 'findings' | 'recommendations' | 'feedback'>('summary');
   const printRef = useRef<HTMLDivElement>(null);
 
   const { title, description, organisationName, generatedAt, expiresAt, data: reportData } = data;
   const { executiveSummary, findings, recommendations, metadata } = reportData;
+
+  // Get feedback for a specific finding
+  const getFeedbackForFinding = (findingId: string): FeedbackWithReplies[] => {
+    const thread = feedbackThreads.find(t => t.findingId === findingId);
+    return thread?.feedback || [];
+  };
+
+  // Get general feedback (not tied to a finding)
+  const generalFeedback = feedbackThreads.find(t => t.findingId === null)?.feedback || [];
+
+  // Total feedback count
+  const totalFeedbackCount = feedbackThreads.reduce((sum, t) => sum + t.totalCount, 0);
 
   const handlePrint = () => {
     window.print();
@@ -91,11 +121,11 @@ export function AccountantReportView({ data }: AccountantReportViewProps) {
 
       {/* Tabs */}
       <div className="flex gap-2 print:hidden">
-        {(['summary', 'findings', 'recommendations'] as const).map((tab) => (
+        {(['summary', 'findings', 'recommendations', 'feedback'] as const).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${
               activeTab === tab
                 ? 'bg-violet-600 text-white'
                 : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
@@ -103,9 +133,12 @@ export function AccountantReportView({ data }: AccountantReportViewProps) {
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
             {tab === 'findings' && findings.length > 0 && (
-              <span className="ml-2 px-1.5 py-0.5 bg-white/20 rounded text-xs">
+              <span className="px-1.5 py-0.5 bg-white/20 rounded text-xs">
                 {findings.length}
               </span>
+            )}
+            {tab === 'feedback' && totalFeedbackCount > 0 && (
+              <FeedbackBadge count={totalFeedbackCount} size="sm" animate={false} />
             )}
           </button>
         ))}
@@ -184,7 +217,13 @@ export function AccountantReportView({ data }: AccountantReportViewProps) {
           ) : (
             <div className="space-y-4">
               {findings.map((finding) => (
-                <FindingCard key={finding.id} finding={finding} />
+                <FindingCard
+                  key={finding.id}
+                  finding={finding}
+                  token={token}
+                  feedback={getFeedbackForFinding(finding.id)}
+                  onFeedbackSubmit={onFeedbackSubmit}
+                />
               ))}
             </div>
           )}
@@ -204,9 +243,47 @@ export function AccountantReportView({ data }: AccountantReportViewProps) {
 
           <div className="space-y-4">
             {recommendations.map((rec) => (
-              <RecommendationCard key={rec.id} recommendation={rec} />
+              <RecommendationCard
+                key={rec.id}
+                recommendation={rec}
+                token={token}
+                statusInfo={statusMap.get(rec.id)}
+                onStatusChange={onStatusChange}
+              />
             ))}
           </div>
+        </motion.div>
+      )}
+
+      {/* Feedback Tab */}
+      {activeTab === 'feedback' && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
+        >
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-6">
+            <h3 className="text-lg font-medium text-white mb-4">Leave General Feedback</h3>
+            <p className="text-sm text-white/50 mb-4">
+              Share your questions, comments, or concerns about this report. Your feedback will be sent to the report owner.
+            </p>
+            <FeedbackForm
+              token={token}
+              onSubmit={async () => onFeedbackSubmit?.()}
+            />
+          </div>
+
+          {generalFeedback.length > 0 && (
+            <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-6">
+              <h3 className="text-lg font-medium text-white mb-4">Previous Feedback</h3>
+              <FeedbackThread
+                feedback={generalFeedback}
+                token={token}
+                onNewFeedback={onFeedbackSubmit}
+                showAddForm={false}
+              />
+            </div>
+          )}
         </motion.div>
       )}
 
@@ -252,7 +329,18 @@ function MetricCard({
   );
 }
 
-function FindingCard({ finding }: { finding: ReportFinding }) {
+function FindingCard({
+  finding,
+  token,
+  feedback,
+  onFeedbackSubmit,
+}: {
+  finding: ReportFinding;
+  token: string;
+  feedback: FeedbackWithReplies[];
+  onFeedbackSubmit?: () => void;
+}) {
+  const [showFeedback, setShowFeedback] = useState(false);
   const priorityStyle = PRIORITY_COLORS[finding.priority];
   const confidenceColor = CONFIDENCE_COLORS[finding.confidence];
 
@@ -264,8 +352,13 @@ function FindingCard({ finding }: { finding: ReportFinding }) {
             <h4 className="font-medium text-white print:text-black">{finding.title}</h4>
             <p className="text-sm text-white/50 print:text-gray-500 mt-1">{finding.category}</p>
           </div>
-          <div className={`px-2 py-1 text-xs font-medium rounded ${priorityStyle.bg} ${priorityStyle.border} ${priorityStyle.text} border print:bg-opacity-100`}>
-            {finding.priority.toUpperCase()}
+          <div className="flex items-center gap-2">
+            {feedback.length > 0 && (
+              <FeedbackBadge count={feedback.length} size="sm" />
+            )}
+            <div className={`px-2 py-1 text-xs font-medium rounded ${priorityStyle.bg} ${priorityStyle.border} ${priorityStyle.text} border print:bg-opacity-100`}>
+              {finding.priority.toUpperCase()}
+            </div>
           </div>
         </div>
       </div>
@@ -293,16 +386,78 @@ function FindingCard({ finding }: { finding: ReportFinding }) {
           <div className="text-xs text-white/40 print:text-gray-400 mb-1">Action Required</div>
           <div className="text-sm text-white/80 print:text-gray-700">{finding.actionRequired}</div>
         </div>
+
+        {/* Feedback Section */}
+        <div className="pt-3 border-t border-white/5 print:hidden">
+          <button
+            onClick={() => setShowFeedback(!showFeedback)}
+            className="flex items-center gap-2 text-sm text-white/50 hover:text-white/70 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            {showFeedback ? 'Hide' : 'Leave'} Feedback
+            {feedback.length > 0 && !showFeedback && ` (${feedback.length})`}
+          </button>
+
+          <AnimatePresence>
+            {showFeedback && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-4"
+              >
+                <FeedbackThread
+                  feedback={feedback}
+                  token={token}
+                  findingId={finding.id}
+                  onNewFeedback={onFeedbackSubmit}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
 }
 
-function RecommendationCard({ recommendation }: { recommendation: Recommendation }) {
+interface RecommendationCardProps {
+  recommendation: Recommendation;
+  token: string;
+  statusInfo?: StatusHistory;
+  onStatusChange?: (recommendationId: string, status: RecommendationStatus, notes?: string) => Promise<void>;
+}
+
+function RecommendationCard({ recommendation, token, statusInfo, onStatusChange }: RecommendationCardProps) {
+  const handleStatusChange = async (status: RecommendationStatus, notes?: string) => {
+    if (onStatusChange) {
+      await onStatusChange(recommendation.id, status, notes);
+    }
+  };
+
   return (
     <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-4 print:border-gray-300">
       <div className="flex items-start justify-between gap-3 mb-3">
-        <h4 className="font-medium text-white print:text-black">{recommendation.title}</h4>
+        <div className="flex items-center gap-2">
+          <h4 className="font-medium text-white print:text-black">{recommendation.title}</h4>
+          {statusInfo && onStatusChange ? (
+            <StatusSelector
+              currentStatus={statusInfo.currentStatus}
+              updaterType="accountant"
+              onStatusChange={handleStatusChange}
+              compact
+            />
+          ) : statusInfo ? (
+            <StatusBadge
+              status={statusInfo.currentStatus}
+              size="sm"
+              lastUpdatedAt={statusInfo.lastUpdatedAt}
+              lastUpdatedBy={statusInfo.lastUpdatedBy}
+            />
+          ) : null}
+        </div>
         <div className="text-green-400 font-medium whitespace-nowrap">
           {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(recommendation.estimatedBenefit)}
         </div>
