@@ -14,10 +14,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { AccessShareLinkResponse, ReportFinding, Recommendation } from '@/lib/types/shared-reports';
 import type { FeedbackThread as FeedbackThreadType, FeedbackWithReplies } from '@/lib/types/share-feedback';
 import type { RecommendationStatus, StatusHistory } from '@/lib/types/recommendation-status';
+import type { DocumentWithUrl, RecommendationDocument } from '@/lib/types/recommendation-documents';
+import { getDocumentSuggestions } from '@/lib/types/recommendation-documents';
 import { FeedbackThread } from './FeedbackThread';
 import { FeedbackForm } from './FeedbackForm';
 import { FeedbackBadge } from './FeedbackBadge';
 import { StatusBadge, StatusSelector } from '@/components/status';
+import { DocumentList, DocumentUpload, DocumentCountBadge } from '@/components/documents';
 
 interface AccountantReportViewProps {
   data: AccessShareLinkResponse;
@@ -26,6 +29,9 @@ interface AccountantReportViewProps {
   onFeedbackSubmit?: () => void;
   statusMap?: Map<string, StatusHistory>;
   onStatusChange?: (recommendationId: string, status: RecommendationStatus, notes?: string) => Promise<void>;
+  documentsMap?: Map<string, DocumentWithUrl[]>;
+  onDocumentUpload?: (recommendationId: string, file: File, description?: string) => Promise<RecommendationDocument>;
+  onDocumentRefresh?: (recommendationId: string) => void;
 }
 
 const PRIORITY_COLORS = {
@@ -47,6 +53,9 @@ export function AccountantReportView({
   onFeedbackSubmit,
   statusMap = new Map(),
   onStatusChange,
+  documentsMap = new Map(),
+  onDocumentUpload,
+  onDocumentRefresh,
 }: AccountantReportViewProps) {
   const [activeTab, setActiveTab] = useState<'summary' | 'findings' | 'recommendations' | 'feedback'>('summary');
   const printRef = useRef<HTMLDivElement>(null);
@@ -249,6 +258,9 @@ export function AccountantReportView({
                 token={token}
                 statusInfo={statusMap.get(rec.id)}
                 onStatusChange={onStatusChange}
+                documents={documentsMap.get(rec.id)}
+                onDocumentUpload={onDocumentUpload}
+                onDocumentRefresh={onDocumentRefresh}
               />
             ))}
           </div>
@@ -428,19 +440,45 @@ interface RecommendationCardProps {
   token: string;
   statusInfo?: StatusHistory;
   onStatusChange?: (recommendationId: string, status: RecommendationStatus, notes?: string) => Promise<void>;
+  documents?: DocumentWithUrl[];
+  onDocumentUpload?: (recommendationId: string, file: File, description?: string) => Promise<RecommendationDocument>;
+  onDocumentRefresh?: (recommendationId: string) => void;
 }
 
-function RecommendationCard({ recommendation, token, statusInfo, onStatusChange }: RecommendationCardProps) {
+function RecommendationCard({
+  recommendation,
+  token,
+  statusInfo,
+  onStatusChange,
+  documents = [],
+  onDocumentUpload,
+  onDocumentRefresh,
+}: RecommendationCardProps) {
+  const [showDocuments, setShowDocuments] = useState(false);
+
   const handleStatusChange = async (status: RecommendationStatus, notes?: string) => {
     if (onStatusChange) {
       await onStatusChange(recommendation.id, status, notes);
     }
   };
 
+  const handleUpload = async (file: File, description?: string): Promise<RecommendationDocument> => {
+    if (!onDocumentUpload) throw new Error('Upload not available');
+    const doc = await onDocumentUpload(recommendation.id, file, description);
+    onDocumentRefresh?.(recommendation.id);
+    return doc;
+  };
+
+  // Determine tax area for suggestions
+  const taxArea = recommendation.title?.toLowerCase().includes('r&d') ? 'rnd' :
+                  recommendation.title?.toLowerCase().includes('div') ? 'div7a' :
+                  recommendation.title?.toLowerCase().includes('loss') ? 'loss' :
+                  'deduction';
+
   return (
     <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-4 print:border-gray-300">
       <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <h4 className="font-medium text-white print:text-black">{recommendation.title}</h4>
           {statusInfo && onStatusChange ? (
             <StatusSelector
@@ -457,6 +495,9 @@ function RecommendationCard({ recommendation, token, statusInfo, onStatusChange 
               lastUpdatedBy={statusInfo.lastUpdatedBy}
             />
           ) : null}
+          {documents.length > 0 && (
+            <DocumentCountBadge count={documents.length} />
+          )}
         </div>
         <div className="text-green-400 font-medium whitespace-nowrap">
           {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(recommendation.estimatedBenefit)}
@@ -470,6 +511,58 @@ function RecommendationCard({ recommendation, token, statusInfo, onStatusChange 
             <li key={index}>{step}</li>
           ))}
         </ol>
+      </div>
+
+      {/* Documents Section */}
+      <div className="mt-4 pt-4 border-t border-white/5 print:hidden">
+        <button
+          onClick={() => setShowDocuments(!showDocuments)}
+          className="flex items-center gap-2 text-sm text-white/50 hover:text-white/70 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          {showDocuments ? 'Hide' : 'View'} Documents
+          {documents.length > 0 && !showDocuments && ` (${documents.length})`}
+        </button>
+
+        <AnimatePresence>
+          {showDocuments && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-4 space-y-4"
+            >
+              {/* Existing Documents */}
+              {documents.length > 0 && (
+                <DocumentList
+                  documents={documents}
+                  compact={documents.length <= 2}
+                />
+              )}
+
+              {/* Upload Section */}
+              {onDocumentUpload && (
+                <div className="pt-4 border-t border-white/5">
+                  <p className="text-xs text-white/40 mb-3">
+                    Upload supporting documentation for this recommendation
+                  </p>
+                  <DocumentUpload
+                    recommendationId={recommendation.id}
+                    onUpload={handleUpload}
+                    suggestedTypes={getDocumentSuggestions(taxArea)}
+                  />
+                </div>
+              )}
+
+              {/* Empty state */}
+              {documents.length === 0 && !onDocumentUpload && (
+                <p className="text-sm text-white/30 text-center py-4">No documents attached</p>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

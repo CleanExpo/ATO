@@ -14,6 +14,7 @@ import { AccountantReportView } from '@/components/share/AccountantReportView';
 import type { AccessShareLinkResponse, ShareLinkError } from '@/lib/types/shared-reports';
 import type { FeedbackThread } from '@/lib/types/share-feedback';
 import type { RecommendationStatus, StatusHistory } from '@/lib/types/recommendation-status';
+import type { DocumentWithUrl, RecommendationDocument } from '@/lib/types/recommendation-documents';
 
 type PageState =
   | { status: 'loading' }
@@ -30,6 +31,69 @@ export default function SharePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackThreads, setFeedbackThreads] = useState<FeedbackThread[]>([]);
   const [statusMap, setStatusMap] = useState<Map<string, StatusHistory>>(new Map());
+  const [documentsMap, setDocumentsMap] = useState<Map<string, DocumentWithUrl[]>>(new Map());
+
+  // Fetch documents for all recommendations
+  const fetchDocuments = useCallback(async (recommendationIds: string[]) => {
+    const newMap = new Map<string, DocumentWithUrl[]>();
+    for (const recId of recommendationIds) {
+      try {
+        const response = await fetch(`/api/share/${token}/documents?recommendationId=${recId}`);
+        if (response.ok) {
+          const data = await response.json();
+          newMap.set(recId, data.documents || []);
+        }
+      } catch (err) {
+        console.error(`Failed to fetch documents for ${recId}:`, err);
+      }
+    }
+    setDocumentsMap(newMap);
+  }, [token]);
+
+  // Fetch documents for a single recommendation
+  const fetchDocumentsForRecommendation = useCallback(async (recommendationId: string) => {
+    try {
+      const response = await fetch(`/api/share/${token}/documents?recommendationId=${recommendationId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDocumentsMap(prev => {
+          const newMap = new Map(prev);
+          newMap.set(recommendationId, data.documents || []);
+          return newMap;
+        });
+      }
+    } catch (err) {
+      console.error(`Failed to fetch documents for ${recommendationId}:`, err);
+    }
+  }, [token]);
+
+  // Handle document upload
+  const handleDocumentUpload = useCallback(async (
+    recommendationId: string,
+    file: File,
+    description?: string
+  ): Promise<RecommendationDocument> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('recommendationId', recommendationId);
+    formData.append('uploadedByName', 'Accountant');
+    if (description) {
+      formData.append('description', description);
+    }
+
+    const response = await fetch(`/api/share/${token}/documents`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Upload failed');
+    }
+
+    const data = await response.json();
+    return data.document;
+  }, [token]);
 
   // Fetch status for all recommendations
   const fetchStatus = useCallback(async (recommendationIds: string[]) => {
@@ -130,17 +194,19 @@ export default function SharePage() {
     fetchReport();
   }, [token]);
 
-  // Fetch feedback and status when report is loaded
+  // Fetch feedback, status, and documents when report is loaded
   useEffect(() => {
     if (state.status === 'success') {
       fetchFeedback();
-      // Fetch status for recommendations if available
+      // Fetch status and documents for recommendations if available
       const recommendations = state.data.data.recommendations;
       if (recommendations && recommendations.length > 0) {
-        fetchStatus(recommendations.map(r => r.id));
+        const recIds = recommendations.map(r => r.id);
+        fetchStatus(recIds);
+        fetchDocuments(recIds);
       }
     }
-  }, [state.status, fetchFeedback, fetchStatus]);
+  }, [state.status, fetchFeedback, fetchStatus, fetchDocuments]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,6 +364,9 @@ export default function SharePage() {
       onFeedbackSubmit={fetchFeedback}
       statusMap={statusMap}
       onStatusChange={handleStatusChange}
+      documentsMap={documentsMap}
+      onDocumentUpload={handleDocumentUpload}
+      onDocumentRefresh={fetchDocumentsForRecommendation}
     />
   );
 }
