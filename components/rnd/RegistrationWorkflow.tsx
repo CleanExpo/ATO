@@ -11,6 +11,7 @@
  */
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   type RndRegistrationStatus,
@@ -287,6 +288,32 @@ export function RegistrationWorkflow({
                               </li>
                             ))}
                           </ul>
+                        </div>
+                      )}
+
+                      {/* Evidence Wizard Link - Only show for prepare step */}
+                      {step.id === 'prepare' && (
+                        <div
+                          className="p-3 rounded-sm mb-4"
+                          style={{
+                            background: 'rgba(136, 85, 255, 0.08)',
+                            border: '0.5px solid rgba(136, 85, 255, 0.25)',
+                          }}
+                        >
+                          <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
+                            Use the Evidence Wizard to collect and organise your four-element test documentation:
+                          </p>
+                          <Link
+                            href={`/dashboard/forensic-audit/rnd/evidence?project=${encodeURIComponent(financialYear)}`}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded text-xs font-medium transition-all hover:brightness-110"
+                            style={{
+                              background: '#8855FF',
+                              color: '#FFFFFF',
+                            }}
+                          >
+                            <span>|=|</span>
+                            <span>Open Evidence Wizard</span>
+                          </Link>
                         </div>
                       )}
 

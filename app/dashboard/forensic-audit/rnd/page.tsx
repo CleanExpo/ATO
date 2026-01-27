@@ -558,6 +558,26 @@ export default function RndDetailPage() {
                           ))}
                         </ul>
                       </div>
+
+                      {/* Collect Evidence Button */}
+                      <div className="mt-4 flex items-center gap-3">
+                        <Link
+                          href={`/dashboard/forensic-audit/rnd/evidence?project=${encodeURIComponent(project.projectName)}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-sm text-sm font-medium transition-all hover:brightness-110"
+                          style={{
+                            background: 'rgba(136, 85, 255, 0.2)',
+                            border: '0.5px solid rgba(136, 85, 255, 0.4)',
+                            color: '#8855FF',
+                          }}
+                        >
+                          <span>|=|</span>
+                          <span>Collect Evidence</span>
+                        </Link>
+                        <span className="text-xs text-[var(--text-muted)]">
+                          Build your four-element test documentation
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
