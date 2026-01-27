@@ -76,11 +76,11 @@
 - [x] Document upload for verification (Plan 09-04 COMPLETED)
 
 ### Phase 10: R&D Registration Workflow
-**Status**: NOT STARTED
-- [ ] AusIndustry R&D registration guidance
-- [ ] Deadline tracking (10 months post-FY)
-- [ ] Evidence collection wizard
-- [ ] Claim preparation checklist
+**Status**: IN PROGRESS (1/3 plans complete)
+**Plans**: 10-01, 10-02, 10-03
+- [x] Deadline tracking & registration dashboard (Plan 10-01) ✓
+- [ ] Evidence collection wizard (Plan 10-02)
+- [ ] Claim preparation checklist (Plan 10-03)
 
 ---
 

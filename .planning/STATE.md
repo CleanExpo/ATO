@@ -4,7 +4,7 @@
 **Milestone 2: Enhanced User Experience**
 
 ## Current Phase
-**Phase 9: Accountant Collaboration Portal** - COMPLETED
+**Phase 10: R&D Registration Workflow** - IN PROGRESS
 
 ## Progress
 | Phase | Status | Completion |
@@ -18,33 +18,40 @@
 | 7. Accountant Reports | COMPLETED | 100% |
 | 8. Dashboard Enhancements | COMPLETED | 100% |
 | 9. Accountant Collaboration Portal | COMPLETED | 100% |
+| 10. R&D Registration Workflow | IN PROGRESS | 33% |
 
 ## Last Activity
 - **Date**: 27 January 2026
-- **Action**: Completed Phase 9 Plan 4: Document Upload
-- **Commits**: `907a433`, `a55f036`, `3e3b7b0`, `4fee74a`, `476db4d`
+- **Action**: Completed Plan 10-01: Deadline Tracking & Registration Dashboard
+- **Commits**: `182c7db`, `82a4002`, `774d80a`, `d32603f`, `16572f2`, `185bcea`
 - **Files Created**:
-  - `lib/supabase/migrations/20260127_recommendation_documents.sql`
-  - `lib/types/recommendation-documents.ts`
-  - `app/api/recommendations/[id]/documents/route.ts`
-  - `app/api/share/[token]/documents/route.ts`
-  - `components/documents/DocumentCard.tsx`
-  - `components/documents/DocumentList.tsx`
-  - `components/documents/DocumentUpload.tsx`
-  - `components/documents/index.ts`
+  - `lib/supabase/migrations/20260127_rnd_registration.sql`
+  - `lib/types/rnd-registration.ts`
+  - `app/api/rnd/registrations/route.ts`
+  - `app/api/rnd/registrations/[id]/route.ts`
+  - `app/api/rnd/deadlines/route.ts`
+  - `components/rnd/RegistrationStatusCard.tsx`
+  - `components/rnd/DeadlineTimeline.tsx`
+  - `components/rnd/RegistrationWorkflow.tsx`
+  - `components/rnd/DeadlineAlertBanner.tsx`
+  - `components/rnd/index.ts`
 - **Files Updated**:
-  - `components/forensic-audit/ExpandableRecommendationCard.tsx`
-  - `app/dashboard/forensic-audit/recommendations/page.tsx`
-  - `components/share/AccountantReportView.tsx`
-  - `app/share/[token]/page.tsx`
+  - `app/dashboard/forensic-audit/rnd/page.tsx`
 
-## Phase 9 Progress
+## Phase 9 Progress (COMPLETED)
 | Plan | Status |
 |------|--------|
 | 09-01 Secure Sharing Infrastructure | COMPLETED |
 | 09-02 Accountant Feedback Integration | COMPLETED |
 | 09-03 Status Tracking | COMPLETED |
 | 09-04 Document Upload | COMPLETED |
+
+## Phase 10 Progress
+| Plan | Description | Status |
+|------|-------------|--------|
+| 10-01 | Deadline Tracking & Registration Dashboard | COMPLETED |
+| 10-02 | Evidence Collection Wizard | PLANNED |
+| 10-03 | Claim Preparation Checklist | PLANNED |
 
 ## Key Metrics
 - Transactions Analysed: 10,488
@@ -99,6 +106,7 @@
 - Suggested document types per tax area
 
 ## Next Actions
-1. Begin Phase 10: R&D Registration Workflow
-2. Consider email notifications for collaboration events
-3. Send accountant package with share links for verification
+1. Execute Plan 10-01: Deadline Tracking & Registration Dashboard
+2. Execute Plan 10-02: Evidence Collection Wizard
+3. Execute Plan 10-03: Claim Preparation Checklist
+4. Consider email notifications for collaboration events
