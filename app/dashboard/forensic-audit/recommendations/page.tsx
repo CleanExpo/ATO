@@ -18,6 +18,7 @@ import { CreateShareModal } from '@/components/share'
 import { StatusSummaryCard } from '@/components/status'
 import { exportWithFormat, quickExportExcel, quickExportAccountantPackage } from '@/lib/api/export-client'
 import type { RecommendationStatus, StatusSummary, StatusHistory } from '@/lib/types/recommendation-status'
+import type { RecommendationDocument } from '@/lib/types/recommendation-documents'
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -234,6 +235,52 @@ function RecommendationsPage() {
     } catch (err) {
       console.error('Failed to update status:', err)
     }
+  }
+
+  // Handle document upload
+  async function handleDocumentUpload(recommendationId: string, file: File, description?: string): Promise<RecommendationDocument> {
+    if (!tenantId) throw new Error('No tenant ID')
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('tenantId', tenantId)
+    formData.append('uploadedByName', 'Owner')
+    if (description) {
+      formData.append('description', description)
+    }
+
+    const response = await fetch(`/api/recommendations/${recommendationId}/documents`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Upload failed')
+    }
+
+    const data = await response.json()
+    setExportToast({ type: 'success', message: `Document "${file.name}" uploaded successfully` })
+    setTimeout(() => setExportToast(null), 3000)
+    return data.document
+  }
+
+  // Handle document delete
+  async function handleDocumentDelete(recommendationId: string, documentId: string): Promise<void> {
+    if (!tenantId) return
+
+    const response = await fetch(
+      `/api/recommendations/${recommendationId}/documents?tenantId=${tenantId}&docId=${documentId}`,
+      { method: 'DELETE' }
+    )
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Delete failed')
+    }
+
+    setExportToast({ type: 'success', message: 'Document deleted' })
+    setTimeout(() => setExportToast(null), 3000)
   }
 
   // Handle export
@@ -815,6 +862,8 @@ function RecommendationsPage() {
                     lastUpdatedBy: statusMap.get(rec.id)!.lastUpdatedBy,
                   } : undefined}
                   onStatusChange={handleStatusChange}
+                  onDocumentUpload={handleDocumentUpload}
+                  onDocumentDelete={handleDocumentDelete}
                 />
               </motion.div>
             ))
