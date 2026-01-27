@@ -15,7 +15,9 @@ import { MobileNav } from '@/components/ui/MobileNav'
 import ExpandableRecommendationCard from '@/components/forensic-audit/ExpandableRecommendationCard'
 import { ExportModal, ExportOptions } from '@/components/forensic-audit/ExportModal'
 import { CreateShareModal } from '@/components/share'
+import { StatusSummaryCard } from '@/components/status'
 import { exportWithFormat, quickExportExcel, quickExportAccountantPackage } from '@/lib/api/export-client'
+import type { RecommendationStatus, StatusSummary, StatusHistory } from '@/lib/types/recommendation-status'
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -41,6 +43,7 @@ interface Recommendation {
 
 type FilterType = 'all' | 'critical' | 'high' | 'medium' | 'low'
 type TaxAreaFilter = 'all' | 'rnd' | 'deductions' | 'losses' | 'div7a'
+type StatusFilter = RecommendationStatus | 'all'
 
 // ─── Design Tokens ───────────────────────────────────────────────────
 
@@ -153,6 +156,11 @@ function RecommendationsPage() {
   // Share state
   const [showShareModal, setShowShareModal] = useState(false)
 
+  // Status state
+  const [statusMap, setStatusMap] = useState<Map<string, StatusHistory>>(new Map())
+  const [statusSummary, setStatusSummary] = useState<StatusSummary | null>(null)
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+
   // Fetch organization name
   useEffect(() => {
     async function fetchOrgName() {
@@ -170,6 +178,63 @@ function RecommendationsPage() {
     }
     fetchOrgName()
   }, [tenantId])
+
+  // Fetch status for all recommendations
+  async function fetchStatusData() {
+    if (!tenantId) return
+    try {
+      // Fetch summary
+      const summaryRes = await fetch(`/api/recommendations/status-summary?tenantId=${tenantId}`)
+      if (summaryRes.ok) {
+        const summaryData = await summaryRes.json()
+        setStatusSummary(summaryData.summary)
+      }
+
+      // Fetch individual statuses for each recommendation
+      const newStatusMap = new Map<string, StatusHistory>()
+      for (const rec of recommendations) {
+        const statusRes = await fetch(`/api/recommendations/${rec.id}/status?tenantId=${tenantId}`)
+        if (statusRes.ok) {
+          const statusData = await statusRes.json()
+          newStatusMap.set(rec.id, statusData)
+        }
+      }
+      setStatusMap(newStatusMap)
+    } catch (err) {
+      console.error('Failed to fetch status data:', err)
+    }
+  }
+
+  // Fetch status when recommendations load
+  useEffect(() => {
+    if (recommendations.length > 0 && tenantId) {
+      fetchStatusData()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recommendations.length, tenantId])
+
+  // Handle status change
+  async function handleStatusChange(recommendationId: string, status: RecommendationStatus, notes?: string) {
+    if (!tenantId) return
+    try {
+      const response = await fetch(`/api/recommendations/${recommendationId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          status,
+          updatedByName: 'Owner',
+          notes,
+        }),
+      })
+      if (response.ok) {
+        // Refresh status data
+        fetchStatusData()
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err)
+    }
+  }
 
   // Handle export
   async function handleExport(options: ExportOptions) {
@@ -247,7 +312,7 @@ function RecommendationsPage() {
   useEffect(() => {
     filterRecommendations()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priorityFilter, taxAreaFilter, recommendations])
+  }, [priorityFilter, taxAreaFilter, statusFilter, recommendations, statusMap])
 
   async function loadRecommendations() {
     if (!tenantId) return
@@ -272,6 +337,12 @@ function RecommendationsPage() {
     }
     if (taxAreaFilter !== 'all') {
       filtered = filtered.filter((rec) => rec.taxArea === taxAreaFilter)
+    }
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((rec) => {
+        const status = statusMap.get(rec.id)
+        return status?.currentStatus === statusFilter
+      })
     }
     setFilteredRecommendations(filtered)
   }
@@ -738,6 +809,12 @@ function RecommendationsPage() {
                     documentationRequired: rec.documentationRequired || [],
                   }}
                   tenantId={tenantId || ''}
+                  statusInfo={statusMap.get(rec.id) ? {
+                    currentStatus: statusMap.get(rec.id)!.currentStatus,
+                    lastUpdatedAt: statusMap.get(rec.id)!.lastUpdatedAt,
+                    lastUpdatedBy: statusMap.get(rec.id)!.lastUpdatedBy,
+                  } : undefined}
+                  onStatusChange={handleStatusChange}
                 />
               </motion.div>
             ))

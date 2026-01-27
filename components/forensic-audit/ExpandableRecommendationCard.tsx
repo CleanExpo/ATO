@@ -18,6 +18,8 @@
 
 import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { StatusBadge } from '@/components/status'
+import type { RecommendationStatus, StatusHistory } from '@/lib/types/recommendation-status'
 
 interface Transaction {
   transactionId: string
@@ -58,6 +60,12 @@ interface Recommendation {
 interface ExpandableRecommendationCardProps {
   recommendation: Recommendation
   tenantId: string
+  statusInfo?: {
+    currentStatus: RecommendationStatus
+    lastUpdatedAt?: string
+    lastUpdatedBy?: string
+  }
+  onStatusChange?: (recommendationId: string, status: RecommendationStatus, notes?: string) => Promise<void>
 }
 
 // ─── Design Tokens ───────────────────────────────────────────────────
@@ -166,6 +174,8 @@ function ExternalLinkIcon() {
 export default function ExpandableRecommendationCard({
   recommendation,
   tenantId,
+  statusInfo,
+  onStatusChange,
 }: ExpandableRecommendationCardProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -276,6 +286,15 @@ export default function ExpandableRecommendationCard({
                 >
                   {recommendation.transactionCount} txns
                 </span>
+              )}
+              {statusInfo && (
+                <StatusBadge
+                  status={statusInfo.currentStatus}
+                  size="sm"
+                  lastUpdatedAt={statusInfo.lastUpdatedAt}
+                  lastUpdatedBy={statusInfo.lastUpdatedBy}
+                  animate={false}
+                />
               )}
             </div>
 
