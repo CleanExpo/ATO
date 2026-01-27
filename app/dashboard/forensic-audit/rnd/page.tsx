@@ -1,15 +1,26 @@
 /**
  * R&D Tax Incentive Detail Page
  *
- * Shows all R&D projects identified with Division 355 analysis
+ * Shows all R&D projects identified with Division 355 analysis,
+ * registration status tracking, and deadline timeline.
  */
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { MobileNav } from '@/components/ui/MobileNav'
+import {
+  RegistrationStatusCard,
+  DeadlineTimeline,
+  RegistrationWorkflow,
+  DeadlineAlertBanner,
+} from '@/components/rnd'
+import {
+  type RndRegistrationStatus,
+  type DeadlineUrgency,
+} from '@/lib/types/rnd-registration'
 
 interface RndProject {
   projectName: string
@@ -36,6 +47,17 @@ interface RndSummary {
   projects: RndProject[]
 }
 
+interface DeadlineData {
+  financialYear: string
+  deadlineDate: string
+  daysUntilDeadline: number
+  urgencyLevel: DeadlineUrgency
+  registrationStatus: RndRegistrationStatus
+  eligibleExpenditure?: number
+  estimatedOffset?: number
+  ausindustryReference?: string
+}
+
 export default function RndDetailPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -43,6 +65,10 @@ export default function RndDetailPage() {
   const [selectedProject, setSelectedProject] = useState<RndProject | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tenantId, setTenantId] = useState<string | null>(null)
+  const [deadlines, setDeadlines] = useState<DeadlineData[]>([])
+  const [deadlinesLoading, setDeadlinesLoading] = useState(false)
+  const [selectedFY, setSelectedFY] = useState<string | null>(null)
+  const [showWorkflow, setShowWorkflow] = useState(false)
 
   // Get real tenant ID from Xero connection
   useEffect(() => {
@@ -69,9 +95,84 @@ export default function RndDetailPage() {
   useEffect(() => {
     if (tenantId) {
       loadRndData()
+      loadDeadlines()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
+
+  // Load registration deadlines from API
+  const loadDeadlines = useCallback(async () => {
+    if (!tenantId) return
+
+    try {
+      setDeadlinesLoading(true)
+      const res = await fetch(`/api/rnd/deadlines?tenantId=${tenantId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setDeadlines(data.deadlines || [])
+      }
+    } catch (err) {
+      console.error('Failed to load deadlines:', err)
+    } finally {
+      setDeadlinesLoading(false)
+    }
+  }, [tenantId])
+
+  // Handle starting registration for a FY
+  const handleStartRegistration = async (financialYear: string) => {
+    if (!tenantId) return
+
+    try {
+      // Create or update registration record
+      const res = await fetch('/api/rnd/registrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          financialYear,
+          registrationStatus: 'in_progress',
+        }),
+      })
+
+      if (res.ok) {
+        // Refresh deadlines
+        await loadDeadlines()
+        // Show workflow for this FY
+        setSelectedFY(financialYear)
+        setShowWorkflow(true)
+      }
+    } catch (err) {
+      console.error('Failed to start registration:', err)
+    }
+  }
+
+  // Handle updating registration status
+  const handleUpdateStatus = async (status: RndRegistrationStatus) => {
+    if (!tenantId || !selectedFY) return
+
+    try {
+      // Get the registration ID for this FY
+      const deadline = deadlines.find((d) => d.financialYear === selectedFY)
+      if (!deadline) return
+
+      // Update via POST (upsert)
+      const res = await fetch('/api/rnd/registrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          financialYear: selectedFY,
+          registrationStatus: status,
+        }),
+      })
+
+      if (res.ok) {
+        await loadDeadlines()
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err)
+    }
+  }
 
   async function loadRndData() {
     if (!tenantId) return
@@ -256,6 +357,107 @@ export default function RndDetailPage() {
             <h3 className="text-sm font-medium text-[var(--text-muted)] mb-2">Average Confidence</h3>
             <p className="text-3xl font-bold text-[var(--text-primary)]">{data.averageConfidence}%</p>
           </div>
+        </div>
+
+        {/* Deadline Alert Banner */}
+        {deadlines.length > 0 && (
+          <DeadlineAlertBanner
+            deadlines={deadlines}
+            onActionClick={(fy) => {
+              setSelectedFY(fy)
+              setShowWorkflow(true)
+            }}
+            className="mb-8"
+          />
+        )}
+
+        {/* Registration Status Section */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-6">Registration Status</h2>
+
+          {deadlinesLoading ? (
+            <div className="glass-card p-6 text-center">
+              <div className="loading-spinner mx-auto mb-2"></div>
+              <p className="text-sm text-[var(--text-muted)]">Loading registration status...</p>
+            </div>
+          ) : deadlines.length === 0 ? (
+            <div className="glass-card p-6 text-center">
+              <p className="text-[var(--text-secondary)]">
+                No R&D registration deadlines found. Complete a forensic analysis to identify R&D opportunities.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Deadline Timeline - Left column */}
+              <div className="lg:col-span-1">
+                <div className="glass-card p-4">
+                  <h3 className="text-sm font-medium text-[var(--text-muted)] mb-4">Deadline Timeline</h3>
+                  <DeadlineTimeline
+                    deadlines={deadlines}
+                    selectedYear={selectedFY ?? undefined}
+                    onSelectDeadline={(d) => setSelectedFY(d.financialYear)}
+                  />
+                </div>
+              </div>
+
+              {/* Registration Cards - Right columns */}
+              <div className="lg:col-span-2">
+                {selectedFY && showWorkflow ? (
+                  // Show workflow for selected FY
+                  <RegistrationWorkflow
+                    financialYear={selectedFY}
+                    currentStatus={
+                      deadlines.find((d) => d.financialYear === selectedFY)?.registrationStatus || 'not_started'
+                    }
+                    onUpdateStatus={handleUpdateStatus}
+                  />
+                ) : (
+                  // Show registration cards for urgent/approaching deadlines
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {deadlines
+                      .filter((d) => d.urgencyLevel !== 'completed' && d.urgencyLevel !== 'open')
+                      .slice(0, 4)
+                      .map((deadline) => (
+                        <RegistrationStatusCard
+                          key={deadline.financialYear}
+                          financialYear={deadline.financialYear}
+                          registrationStatus={deadline.registrationStatus}
+                          deadlineDate={deadline.deadlineDate}
+                          daysUntilDeadline={deadline.daysUntilDeadline}
+                          urgencyLevel={deadline.urgencyLevel}
+                          eligibleExpenditure={deadline.eligibleExpenditure}
+                          estimatedOffset={deadline.estimatedOffset}
+                          ausindustryReference={deadline.ausindustryReference}
+                          onStartRegistration={() => handleStartRegistration(deadline.financialYear)}
+                          onViewDetails={() => {
+                            setSelectedFY(deadline.financialYear)
+                            setShowWorkflow(true)
+                          }}
+                        />
+                      ))}
+                    {deadlines.filter((d) => d.urgencyLevel !== 'completed' && d.urgencyLevel !== 'open').length === 0 && (
+                      <div className="col-span-2 glass-card p-6 text-center">
+                        <p className="text-[var(--text-secondary)]">
+                          No urgent deadlines. Click a financial year in the timeline to manage its registration.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Back to cards button when viewing workflow */}
+                {showWorkflow && (
+                  <button
+                    onClick={() => setShowWorkflow(false)}
+                    className="mt-4 text-sm transition-colors hover:brightness-110"
+                    style={{ color: 'var(--accent-primary)' }}
+                  >
+                    ← Back to registration overview
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Division 355 Four-Element Test */}
