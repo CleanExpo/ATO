@@ -66,6 +66,11 @@
   --color-xero-light: rgba(19, 181, 234, 0.08);
   --color-xero-dim: rgba(19, 181, 234, 0.08);
 
+  /* MYOB Brand */
+  --color-myob: #008591;
+  --color-myob-light: rgba(0, 133, 145, 0.08);
+  --color-myob-dim: rgba(0, 133, 145, 0.08);
+
   /* Text Colors - White at varying opacity */
   --text-primary: rgba(255, 255, 255, 0.92);
   --text-secondary: rgba(255, 255, 255, 0.60);
@@ -144,6 +149,9 @@
   --void-absolute: var(--bg-base);
   --void-deep: var(--bg-subtle);
   --accent-xero: var(--color-xero);
+  --accent-xero-dim: var(--color-xero-dim);
+  --accent-myob: var(--color-myob);
+  --accent-myob-dim: var(--color-myob-dim);
   --accent-ai: var(--accent-primary);
   --signal-success: var(--color-success);
   --signal-critical: var(--color-error);
@@ -831,6 +839,16 @@ body {
 
 .btn-xero:hover {
   box-shadow: 0 0 50px rgba(19, 181, 234, 0.35);
+}
+
+.btn-myob {
+  background: var(--color-myob);
+  color: var(--text-inverse);
+  box-shadow: 0 0 30px rgba(0, 133, 145, 0.20);
+}
+
+.btn-myob:hover {
+  box-shadow: 0 0 50px rgba(0, 133, 145, 0.35);
 }
 
 .btn-success {

@@ -39,6 +39,7 @@ import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
 import { DataStrip, DataStripGroup } from '@/components/ui/DataStrip'
 import { HoloPanel, HoloPanelGrid } from '@/components/ui/HoloPanel'
 import { MobileNav } from '@/components/ui/MobileNav'
+import { PlatformConnections } from '@/components/dashboard/PlatformConnections'
 
 interface Connection {
   tenant_id: string
@@ -50,6 +51,31 @@ interface Connection {
   is_demo_company: boolean
   connected_at: string
   updated_at: string
+}
+
+interface MYOBConnection {
+  id: string
+  companyFileId: string
+  companyFileName: string
+  countryCode: string
+  currencyCode: string
+  connectedAt: string
+  lastSyncedAt: string | null
+  expiresAt: string
+  isExpired: boolean
+}
+
+type PlatformConnection = {
+  id: string
+  platform: 'xero' | 'myob'
+  name: string
+  type: string
+  country: string
+  currency: string
+  isDemo: boolean
+  isExpired?: boolean
+  tenantId?: string
+  companyFileId?: string
 }
 
 type TransactionsSummary = {
@@ -91,8 +117,9 @@ function DashboardContent() {
   const justConnected = searchParams.get('connected') === 'true'
 
   const [connections, setConnections] = useState<Connection[]>([])
+  const [myobConnections, setMyobConnections] = useState<MYOBConnection[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeConnection, setActiveConnection] = useState<Connection | null>(null)
+  const [activeConnection, setActiveConnection] = useState<PlatformConnection | null>(null)
   const [summary, setSummary] = useState<TransactionsSummary | null>(null)
   const [_summaryLoading, setSummaryLoading] = useState(false)
   const [summaryError, setSummaryError] = useState<string | null>(null)
@@ -161,12 +188,46 @@ function DashboardContent() {
 
   const fetchConnections = useCallback(async () => {
     try {
-      const data = await apiRequest<{ connections: Connection[] }>('/api/xero/organizations')
-      setConnections(data.connections || [])
-      if (data.connections?.length > 0) {
-        const connection = data.connections[0]
-        setActiveConnection(connection)
-        fetchSummary(connection.tenant_id)
+      // Fetch both Xero and MYOB connections in parallel
+      const [xeroData, myobData] = await Promise.all([
+        apiRequest<{ connections: Connection[] }>('/api/xero/organizations').catch(() => ({ connections: [] })),
+        apiRequest<{ connections: MYOBConnection[] }>('/api/myob/connections').catch(() => ({ connections: [] }))
+      ])
+
+      setConnections(xeroData.connections || [])
+      setMyobConnections(myobData.connections || [])
+
+      // Set active connection to first available (Xero first, then MYOB)
+      if (xeroData.connections?.length > 0) {
+        const xeroConn = xeroData.connections[0]
+        const platformConn: PlatformConnection = {
+          id: xeroConn.tenant_id,
+          platform: 'xero',
+          name: xeroConn.organisation_name || xeroConn.tenant_name,
+          type: xeroConn.organisation_type,
+          country: xeroConn.country_code,
+          currency: xeroConn.base_currency,
+          isDemo: xeroConn.is_demo_company,
+          tenantId: xeroConn.tenant_id,
+        }
+        setActiveConnection(platformConn)
+        fetchSummary(xeroConn.tenant_id)
+      } else if (myobData.connections?.length > 0) {
+        const myobConn = myobData.connections[0]
+        const platformConn: PlatformConnection = {
+          id: myobConn.id,
+          platform: 'myob',
+          name: myobConn.companyFileName,
+          type: 'Company File',
+          country: myobConn.countryCode,
+          currency: myobConn.currencyCode,
+          isDemo: false,
+          isExpired: myobConn.isExpired,
+          companyFileId: myobConn.companyFileId,
+        }
+        setActiveConnection(platformConn)
+        // MYOB data sync will come later, for now just set it
+        setSummary(null)
       } else {
         setActiveConnection(null)
         setSummary(null)
@@ -266,12 +327,18 @@ function DashboardContent() {
     return () => clearInterval(interval)
   }, [activeConnection, checkActiveOperations])
 
-  function handleSelectConnection(connection: Connection) {
+  function handleSelectConnection(connection: PlatformConnection) {
     setActiveConnection(connection)
-    fetchSummary(connection.tenant_id)
+    // Only fetch summary for Xero connections (MYOB sync coming later)
+    if (connection.platform === 'xero' && connection.tenantId) {
+      fetchSummary(connection.tenantId)
+    } else {
+      setSummary(null)
+    }
   }
 
-  const hasConnections = connections.length > 0
+  const hasConnections = connections.length > 0 || myobConnections.length > 0
+  const totalConnections = connections.length + myobConnections.length
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -416,21 +483,23 @@ function DashboardContent() {
                     </h1>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                    <Building2 className="w-4 h-4" style={{ color: 'var(--accent-xero)' }} />
+                    <Building2 className="w-4 h-4" style={{
+                      color: activeConnection?.platform === 'myob' ? 'var(--accent-myob)' : 'var(--accent-xero)'
+                    }} />
                     <span style={{
                       fontSize: '16px',
                       fontWeight: 600,
                       color: 'var(--text-primary)',
-                      background: 'var(--accent-xero-dim)',
+                      background: activeConnection?.platform === 'myob' ? 'var(--accent-myob-dim)' : 'var(--accent-xero-dim)',
                       padding: '4px 12px',
                       borderRadius: '8px',
                     }}>
                       {activeConnection
-                        ? activeConnection.organisation_name || activeConnection.tenant_name
+                        ? activeConnection.name
                         : 'Select an organisation'
                       }
                     </span>
-                    {activeConnection && !activeConnection.is_demo_company && (
+                    {activeConnection && !activeConnection.isDemo && (
                       <span style={{
                         fontSize: '11px',
                         fontWeight: 600,
@@ -455,7 +524,11 @@ function DashboardContent() {
                   )}
                   <Link href="/api/auth/xero" className="btn btn-xero">
                     <Plus className="w-4 h-4" />
-                    Add Organisation
+                    Connect Xero
+                  </Link>
+                  <Link href="/api/auth/myob/authorize" className="btn btn-myob">
+                    <Plus className="w-4 h-4" />
+                    Connect MYOB
                   </Link>
                 </div>
               </div>
@@ -625,14 +698,21 @@ function DashboardContent() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
                 >
-                  <span className="stat-card__label">Xero Connections</span>
+                  <span className="stat-card__label">Platform Connections</span>
                   <AnimatedCounter
-                    value={connections.length}
+                    value={totalConnections}
                     format="number"
                     decimals={0}
                     size="md"
                   />
-                  <span className="stat-card__trend stat-card__trend--up">Active</span>
+                  <span className="stat-card__trend stat-card__trend--up">
+                    {connections.length > 0 && myobConnections.length > 0
+                      ? 'Xero + MYOB'
+                      : connections.length > 0
+                      ? 'Xero'
+                      : 'MYOB'
+                    }
+                  </span>
                 </motion.div>
               </div>
             </motion.section>
@@ -725,103 +805,13 @@ function DashboardContent() {
               </div>
             </section>
 
-            {/* Connected Organizations - Enhanced clarity */}
-            <section style={{ marginTop: 'var(--space-xl)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                  <Database className="w-4 h-4" style={{ color: 'var(--accent-xero)' }} />
-                  <span style={{ fontWeight: 600, fontSize: '14px' }}>
-                    Your Xero Organisations ({connections.length})
-                  </span>
-                </div>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Click to switch • Data syncs separately for each
-                </span>
-              </div>
-
-              <div className="layout-stack">
-                {connections.map((conn) => {
-                  const isActive = activeConnection?.tenant_id === conn.tenant_id
-                  return (
-                    <motion.div
-                      key={conn.tenant_id}
-                      onClick={() => handleSelectConnection(conn)}
-                      className={`org-card ${isActive ? 'org-card--active' : ''}`}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      style={{
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                        border: isActive ? '2px solid var(--accent-xero)' : '1px solid var(--border-default)',
-                        background: isActive ? 'rgba(19, 181, 234, 0.05)' : 'transparent',
-                      }}
-                      whileHover={{ scale: 1.01, borderColor: 'var(--accent-xero)' }}
-                    >
-                      <div className="org-card__icon" style={{
-                        background: isActive ? 'var(--accent-xero)' : 'var(--accent-xero-dim)',
-                        color: isActive ? 'white' : 'var(--accent-xero)',
-                      }}>
-                        <Building2 className="w-5 h-5" />
-                      </div>
-                      <div className="org-card__info">
-                        <div className="org-card__name" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                          {conn.organisation_name || conn.tenant_name}
-                          {conn.is_demo_company && (
-                            <span style={{
-                              fontSize: '10px',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              background: 'var(--color-warning-dim)',
-                              color: 'var(--color-warning)',
-                              fontWeight: 600,
-                            }}>
-                              DEMO
-                            </span>
-                          )}
-                          {!conn.is_demo_company && (
-                            <span style={{
-                              fontSize: '10px',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              background: 'var(--color-success-dim)',
-                              color: 'var(--color-success)',
-                              fontWeight: 600,
-                            }}>
-                              LIVE
-                            </span>
-                          )}
-                        </div>
-                        <div className="org-card__meta">
-                          {conn.organisation_type} • {conn.country_code} • {conn.base_currency}
-                        </div>
-                      </div>
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 'var(--space-sm)',
-                      }}>
-                        {isActive && (
-                          <span style={{
-                            fontSize: '11px',
-                            color: 'var(--accent-xero)',
-                            fontWeight: 600,
-                          }}>
-                            Currently Viewing
-                          </span>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleSelectConnection(conn) }}
-                          className={isActive ? 'btn btn-primary' : 'btn btn-secondary'}
-                          style={{ padding: 'var(--space-xs) var(--space-md)' }}
-                        >
-                          {isActive ? 'Active' : 'Select'}
-                        </button>
-                      </div>
-                    </motion.div>
-                  )
-                })}
-              </div>
-            </section>
+            {/* Connected Platforms - Xero + MYOB */}
+            <PlatformConnections
+              xeroConnections={connections}
+              myobConnections={myobConnections}
+              activeConnectionId={activeConnection?.id || null}
+              onSelectConnection={handleSelectConnection}
+            />
           </>
         )}
       </main>
