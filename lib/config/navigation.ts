@@ -9,6 +9,7 @@ export type IconName =
   | 'LayoutDashboard'
   | 'Search'
   | 'FileSearch'
+  | 'Calendar'
   | 'Beaker'
   | 'TrendingDown'
   | 'Settings'
@@ -58,6 +59,15 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Audit',
     icon: 'FileSearch',
     matchPaths: ['/dashboard/forensic-audit', '/dashboard/audit', '/dashboard/data-quality'],
+    showInMobile: true,
+    showInDesktop: true,
+  },
+  {
+    href: '/dashboard/tax-reporting',
+    label: 'Tax Reporting',
+    shortLabel: 'Tax',
+    icon: 'Calendar',
+    matchPaths: ['/dashboard/tax-reporting'],
     showInMobile: true,
     showInDesktop: true,
   },
