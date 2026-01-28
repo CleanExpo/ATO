@@ -34,17 +34,24 @@ export {
   ValidationError,
 } from './adapter'
 
-// Export Xero adapter
+// Export adapters
 export { XeroAdapter } from './adapters/xero-adapter'
+export { MYOBAdapter } from './adapters/myob-adapter'
 
-// Register Xero adapter
+// Register adapters
 import { adapterRegistry } from './adapter'
 import { XeroAdapter } from './adapters/xero-adapter'
+import { MYOBAdapter } from './adapters/myob-adapter'
 import type { AuthCredentials } from './adapter'
 
 // Auto-register Xero adapter
 adapterRegistry.register('xero', async (credentials: AuthCredentials) => {
   return new XeroAdapter()
+})
+
+// Auto-register MYOB adapter
+adapterRegistry.register('myob', async (credentials: AuthCredentials) => {
+  return new MYOBAdapter()
 })
 
 /**
