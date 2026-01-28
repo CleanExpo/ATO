@@ -9,6 +9,7 @@
 
 import { motion } from 'framer-motion'
 import { Building2 } from 'lucide-react'
+import { PlatformSyncButton } from './PlatformSyncButton'
 
 interface XeroConnection {
   tenant_id: string
@@ -195,29 +196,45 @@ export function PlatformConnections({
                 </div>
               </div>
 
-              {/* Active Indicator & Button */}
+              {/* Active Indicator & Actions */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 'var(--space-sm)',
+                flexDirection: 'column',
               }}>
-                {isActive && (
-                  <span style={{
-                    fontSize: '11px',
-                    color: platformColor,
-                    fontWeight: 600,
-                  }}>
-                    Currently Viewing
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
+                  {isActive && (
+                    <span style={{
+                      fontSize: '11px',
+                      color: platformColor,
+                      fontWeight: 600,
+                    }}>
+                      Currently Viewing
+                    </span>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onSelectConnection(conn) }}
+                    className={isActive ? 'btn btn-primary' : 'btn btn-secondary'}
+                    style={{ padding: 'var(--space-xs) var(--space-md)' }}
+                    disabled={conn.isExpired}
+                  >
+                    {conn.isExpired ? 'Reconnect' : isActive ? 'Active' : 'Select'}
+                  </button>
+                </div>
+
+                {/* Sync Button */}
+                {!conn.isExpired && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <PlatformSyncButton
+                      platform={conn.platform}
+                      tenantId={conn.tenantId || conn.companyFileId || conn.id}
+                      companyFileId={conn.companyFileId}
+                      connectionName={conn.name}
+                      className="btn-sm"
+                    />
+                  </div>
                 )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); onSelectConnection(conn) }}
-                  className={isActive ? 'btn btn-primary' : 'btn btn-secondary'}
-                  style={{ padding: 'var(--space-xs) var(--space-md)' }}
-                  disabled={conn.isExpired}
-                >
-                  {conn.isExpired ? 'Reconnect' : isActive ? 'Active' : 'Select'}
-                </button>
               </div>
             </motion.div>
           )
