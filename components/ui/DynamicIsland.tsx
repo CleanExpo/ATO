@@ -12,6 +12,7 @@ import {
   Beaker,
   TrendingDown,
   Settings,
+  Users,
   Menu,
   X
 } from 'lucide-react'
@@ -31,6 +32,7 @@ const iconMap: Record<IconName, React.ComponentType<{ size?: number }>> = {
   Beaker,
   TrendingDown,
   Settings,
+  Users,
 }
 
 function NavIcon({ name, size = 16 }: { name: IconName; size?: number }) {

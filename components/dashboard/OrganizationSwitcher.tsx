@@ -8,9 +8,14 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useOrganization } from '@/lib/context/OrganizationContext'
-import { ChevronDown, Plus, Building2, Check } from 'lucide-react'
-import { getRoleBadgeColor, getRoleDisplayName } from '@/lib/types/multi-tenant'
+import { ChevronDown, Plus, Building2, Check, Settings, Users } from 'lucide-react'
+import {
+  getRoleBadgeColor,
+  getRoleDisplayName,
+  hasPermission,
+} from '@/lib/types/multi-tenant'
 
 export function OrganizationSwitcher() {
   const {
@@ -117,6 +122,28 @@ export function OrganizationSwitcher() {
                     )}
                   </button>
                 ))}
+              </div>
+
+              {/* Organization Management Links */}
+              <div className="p-2 border-t border-white/10 space-y-1">
+                {currentRole && hasPermission(currentRole, 'canManageSettings') && (
+                  <Link
+                    href="/dashboard/organization/settings"
+                    onClick={() => setIsOpen(false)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-lg transition-colors"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Organization Settings
+                  </Link>
+                )}
+                <Link
+                  href="/dashboard/organization/members"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-white/5 rounded-lg transition-colors"
+                >
+                  <Users className="w-4 h-4" />
+                  Team Members
+                </Link>
               </div>
 
               {/* Create New Organization */}

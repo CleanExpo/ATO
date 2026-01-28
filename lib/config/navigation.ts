@@ -13,6 +13,7 @@ export type IconName =
   | 'Beaker'
   | 'TrendingDown'
   | 'Settings'
+  | 'Users'
 
 export interface NavItemConfig {
   /** URL path */
@@ -94,7 +95,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     label: 'Settings',
     shortLabel: 'Settings',
     icon: 'Settings',
-    matchPaths: ['/dashboard/settings'],
+    matchPaths: ['/dashboard/settings', '/dashboard/organization/settings', '/dashboard/organization/members'],
     showInMobile: true,
     showInDesktop: true,
   },

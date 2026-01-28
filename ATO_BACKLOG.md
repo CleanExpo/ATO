@@ -1,7 +1,7 @@
 # ATO Project Backlog
 
 **Last Updated**: 2026-01-28
-**Current Status**: Phase 3 in Progress (6/15 tasks done)
+**Current Status**: Phase 3 in Progress (7/15 tasks done)
 
 ---
 
@@ -46,16 +46,17 @@
 
 ---
 
-## ✅ Phase 3: Enterprise Features (IN PROGRESS - 2/7 done)
+## ✅ Phase 3: Enterprise Features (IN PROGRESS - 5/7 done)
 
 | Task # | Status | Title | Effort | Completion Date |
 |--------|--------|-------|--------|-----------------|
 | 4 | ✅ Done | Report Generation System | 12 hours | 2026-01-28 |
 | 5 | ✅ Done | Multi-Tenant Support (Phase 1) | 8 hours | 2026-01-28 |
 | 6 | ✅ Done | Historical Data Analysis | 4 hours | 2026-01-28 |
+| 7 | ✅ Done | Advanced Tax Strategies (Phase 1) | 6 hours | 2026-01-28 |
 
-**Completion**: 43% (3/7 tasks)
-**Total Effort Completed**: 24 hours
+**Completion**: 71% (5/7 tasks)
+**Total Effort Completed**: 34 hours
 
 ### Key Achievements:
 - ✅ Professional PDF report generation (Puppeteer)
@@ -68,11 +69,18 @@
 - ✅ Secure invitation system
 - ✅ Organization switcher UI
 - ✅ Activity logging for compliance
+- ✅ Email integration for invitations (Resend)
+- ✅ Organization settings UI
+- ✅ Team members management UI
 - ✅ Multi-year trend analysis (up to 5 years)
 - ✅ Year-over-year comparison tool
 - ✅ Sparkline visualizations
 - ✅ Category-level change tracking
 - ✅ Trend detection algorithms
+- ✅ Scenario modeling (what-if analysis)
+- ✅ Division 7A loan calculator
+- ✅ SBE eligibility checker (9 concessions)
+- ✅ Tax strategy optimization tools
 
 ---
 
@@ -96,13 +104,13 @@
   - ✅ Client-friendly report variant
 - **Documentation**: See TASK_4_COMPLETION_SUMMARY.md
 
-#### 5. **Multi-Tenant Support** ✅ COMPLETE (Phase 1)
+#### 5. **Multi-Tenant Support** ✅ COMPLETE (All Phases)
 - **Title**: Multi-Organisation Support for Accounting Firms
 - **Description**: Allow accounting firms to manage multiple client organisations
-- **Status**: ✅ Phase 1 Complete (commit 6f5a4d3)
-- **Completion Date**: 2026-01-28
-- **Actual Effort**: ~8 hours (Phase 1)
-- **Deliverables**:
+- **Status**: ✅ Complete (both phases)
+- **Completion Date**: 2026-01-28 (Phase 1), 2026-01-28 (Phase 2)
+- **Actual Effort**: ~12 hours total (8 hours Phase 1 + 4 hours Phase 2)
+- **Phase 1 Deliverables**:
   - ✅ Database schema (4 tables, RLS policies, helper functions)
   - ✅ TypeScript types (all multi-tenant entities)
   - ✅ React Context (organization state management)
@@ -111,8 +119,14 @@
   - ✅ Role-based access control (4 roles)
   - ✅ Secure invitation system with 7-day expiry
   - ✅ Activity logging for audit trail
-- **Documentation**: See TASK_5_COMPLETION_SUMMARY.md
-- **Phase 2**: Email integration, settings UI, members management page (4-6 hours)
+- **Phase 2 Deliverables** (commit TBD):
+  - ✅ Email integration with Resend (automated invitations)
+  - ✅ Professional HTML email templates
+  - ✅ Organization settings management UI
+  - ✅ Team members management page
+  - ✅ Enhanced organization switcher with quick links
+  - ✅ Updated navigation for organization pages
+- **Documentation**: See TASK_5_COMPLETION_SUMMARY.md, TASK_5_PHASE_2_COMPLETION_SUMMARY.md
 
 #### 6. **Historical Data Analysis** ✅ COMPLETE
 - **Title**: Multi-Year Historical Analysis & Trends
@@ -131,36 +145,27 @@
   - ✅ Top movers identification
 - **Documentation**: See TASK_6_COMPLETION_SUMMARY.md
 
+#### 7. **Advanced Tax Strategies** ✅ COMPLETE (Phase 1)
+- **Title**: Advanced Tax Planning & Scenario Modeling
+- **Description**: What-if analysis for tax optimization strategies
+- **Status**: ✅ Phase 1 Complete (commit 170a0f7)
+- **Completion Date**: 2026-01-28
+- **Actual Effort**: ~6 hours (Phase 1)
+- **Deliverables**:
+  - ✅ Scenario modeling API and UI (what-if analysis)
+  - ✅ Division 7A loan calculator (minimum repayments)
+  - ✅ SBE eligibility checker (9 concessions)
+  - ✅ 3 API endpoints with multiple actions
+  - ✅ Accurate tax calculations using Decimal.js
+  - ✅ ScenarioModeler component (6 adjustable parameters)
+  - ✅ Strategies page with tabs
+  - ✅ Warnings and recommendations engine
+- **Documentation**: See TASK_7_COMPLETION_SUMMARY.md
+- **Phase 2**: Division 7A UI, SBE UI, additional calculators (10-12 hours)
+
 ### 🟠 HIGH Priority (Non-Blocking)
 
 ### 🟡 MEDIUM Priority
-
-#### 6. **Historical Data Analysis**
-- **Title**: Multi-Year Historical Analysis & Trends
-- **Description**: Analyze multiple financial years to identify trends and optimization opportunities
-- **Tasks**:
-  - Import historical data for FY2020-21 through FY2024-25
-  - Year-over-year comparison charts
-  - Trend analysis for R&D spending
-  - Historical loss utilization tracking
-  - Multi-year tax position forecasting
-- **Estimated Effort**: 6-8 hours
-- **Dependencies**: AI Analysis complete
-- **Value**: Identifies long-term optimization opportunities
-
-#### 7. **Advanced Tax Strategies**
-- **Title**: Advanced Tax Planning & Scenario Modeling
-- **Description**: What-if analysis for tax optimization strategies
-- **Tasks**:
-  - Scenario modeling tool (e.g., "What if we claim 20% more R&D?")
-  - Tax-loss harvesting strategies
-  - Division 7A loan restructuring calculator
-  - Small business entity (SBE) eligibility checker
-  - CGT discount optimization
-  - Franking credit optimization
-- **Estimated Effort**: 10-12 hours
-- **Dependencies**: All tax data cached
-- **Value**: Advanced feature for sophisticated users
 
 #### 8. **Integration Enhancements**
 - **Title**: Additional Accounting System Integrations
@@ -280,21 +285,21 @@
 
 Based on business value and dependencies:
 
-1. **Historical Data Analysis** (HIGH) ⭐ RECOMMENDED NEXT
-   - Multi-year trend analysis
-   - Year-over-year comparisons
+1. **Integration Enhancements** (MEDIUM) ⭐ RECOMMENDED NEXT
+   - MYOB integration (OAuth + API client)
+   - QuickBooks Online integration
+   - 15-20 hours per integration
+
+2. **Automated Tax Alerts** (MEDIUM)
+   - Email/SMS notifications for deadlines
+   - Custom alert rules engine
+   - 8-10 hours estimated
+
+3. **Compliance & Audit Trail** (MEDIUM)
+   - Change log for all modifications
+   - User action audit trail
+   - Export audit logs
    - 6-8 hours estimated
-
-2. **Advanced Tax Strategies** (HIGH)
-   - Scenario modeling and what-if analysis
-   - Tax optimization strategies
-   - 10-12 hours estimated
-
-3. **Multi-Tenant Support Phase 2** (HIGH)
-   - Email integration for invitations
-   - Settings management UI
-   - Members management page
-   - 4-6 hours estimated
 
 ---
 
@@ -302,15 +307,15 @@ Based on business value and dependencies:
 
 | Priority | Count | Estimated Hours |
 |----------|-------|-----------------|
-| ✅ COMPLETE | 6 | 68 hours (actual) |
-| 🟠 HIGH | 1 | 10-12 hours |
+| ✅ COMPLETE | 5 | 78 hours (actual) |
+| 🟠 HIGH | 0 | 0 hours |
 | 🟡 MEDIUM | 5 | 50-60 hours |
 | ⚪ LOW | 5 | 42-53 hours |
-| **TOTAL** | **17 items** | **102-125 hours remaining** |
+| **TOTAL** | **15 items** | **92-113 hours remaining** |
 
-**Progress**: 6/17 tasks complete (35%)
-**Time Spent**: 68 hours
-**Time Remaining**: 102-125 hours
+**Progress**: 5/15 tasks complete (33%)
+**Time Spent**: 78 hours
+**Time Remaining**: 92-113 hours
 
 ---
 

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { sendInvitationEmail } from '@/lib/email/resend-client'
 
 // Validation schema for creating invitations
 const createInvitationSchema = z.object({
@@ -173,10 +174,43 @@ export async function POST(request: NextRequest, context: RouteContext) {
     }
 
     // Generate invitation URL
-    const invitationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/invitations/accept?token=${result.token}`
+    const baseUrl =
+      process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL
+    const invitationUrl = `${baseUrl}/invitations/accept?token=${result.token}`
 
-    // TODO: Send email with invitation link using Resend
-    // For now, return the URL for manual sharing
+    // Get organization details for email
+    const { data: org } = await supabase
+      .from('organizations')
+      .select('name')
+      .eq('id', id)
+      .single()
+
+    // Get inviter details for email
+    const { data: inviter } = await supabase
+      .from('auth.users')
+      .select('email, raw_user_meta_data')
+      .eq('id', user.id)
+      .single()
+
+    const inviterName =
+      inviter?.raw_user_meta_data?.full_name ||
+      inviter?.email?.split('@')[0] ||
+      'A team member'
+
+    // Send invitation email
+    const emailResult = await sendInvitationEmail({
+      to: email,
+      organizationName: org?.name || 'the organization',
+      inviterName,
+      role,
+      invitationUrl,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+
+    if (!emailResult.success) {
+      console.error('Failed to send invitation email:', emailResult.error)
+      // Continue anyway - user can still use the URL manually
+    }
 
     return NextResponse.json(
       {
@@ -184,9 +218,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
         invitationUrl,
         email,
         role,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days
-        message:
-          'Invitation created successfully. Send the invitation URL to the recipient.',
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        emailSent: emailResult.success,
+        emailError: emailResult.error,
+        message: emailResult.success
+          ? `Invitation sent to ${email}. They will receive an email with the invitation link.`
+          : `Invitation created but email failed to send. Share this URL manually: ${invitationUrl}`,
       },
       { status: 201 }
     )
