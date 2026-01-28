@@ -1,11 +1,15 @@
 import type { ReactNode } from 'react'
+import { OrganizationProvider } from '@/lib/context/OrganizationContext'
 
 /**
  * Dashboard Layout
  *
- * Simple passthrough layout for dashboard pages.
- * Authentication has been removed for single-user operation.
+ * Wraps dashboard pages with multi-tenant organization context
  */
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-    return <>{children}</>
+  return (
+    <OrganizationProvider>
+      {children}
+    </OrganizationProvider>
+  )
 }
