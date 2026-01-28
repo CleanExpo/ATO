@@ -23,9 +23,11 @@ import { AnalysisProgressPanel } from '@/components/forensic-audit/AnalysisProgr
 import { useAnalysisProgress } from '@/lib/hooks/useAnalysisProgress'
 
 type Stage = 'idle' | 'syncing' | 'analyzing' | 'complete' | 'error'
+type Platform = 'xero' | 'myob' | 'quickbooks'
 
 interface ProgressData {
   stage: Stage
+  platform?: Platform
   syncProgress: number
   analysisProgress: number
   transactionsSynced: number
@@ -47,8 +49,10 @@ function ForensicAuditPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [tenantId, setTenantId] = useState<string | null>(null)
+  const [platform, setPlatform] = useState<Platform>('xero')
   const [progress, setProgress] = useState<ProgressData>({
     stage: 'idle',
+    platform: 'xero',
     syncProgress: 0,
     analysisProgress: 0,
     transactionsSynced: 0,
@@ -81,10 +85,15 @@ function ForensicAuditPage() {
   }, [tenantId])
 
   async function fetchTenantId() {
-    // Check URL parameter first
+    // Check URL parameters first
     const urlTenantId = searchParams.get('tenantId')
+    const urlPlatform = searchParams.get('platform') as Platform | null
+
     if (urlTenantId) {
       setTenantId(urlTenantId)
+      if (urlPlatform && ['xero', 'myob', 'quickbooks'].includes(urlPlatform)) {
+        setPlatform(urlPlatform)
+      }
       return
     }
 
@@ -93,6 +102,7 @@ function ForensicAuditPage() {
       const data = await response.json()
       if (data.connections && data.connections.length > 0) {
         setTenantId(data.connections[0].tenant_id)
+        setPlatform('xero')
       }
     } catch (err) {
       console.error('Failed to fetch tenant ID:', err)
@@ -126,6 +136,7 @@ function ForensicAuditPage() {
 
       setProgress({
         stage,
+        platform,
         syncProgress: syncData.progress || 0,
         analysisProgress: analysisData.progress || 0,
         transactionsSynced: syncData.transactionsSynced || 0,
@@ -468,6 +479,7 @@ function ForensicAuditPage() {
             <AnalysisProgressPanel
               key={isProgressMinimized ? 'minimized' : 'expanded'}
               stage={enhancedProgress.stage}
+              platform={platform}
               overallProgress={enhancedProgress.overallProgress}
               syncProgress={enhancedProgress.syncProgress}
               batch={enhancedProgress.batch}

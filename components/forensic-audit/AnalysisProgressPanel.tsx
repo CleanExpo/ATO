@@ -9,6 +9,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { PlatformBadge, type Platform } from '@/components/ui/PlatformBadge'
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ export interface BatchActivity {
 
 export interface AnalysisProgressPanelProps {
   stage: 'idle' | 'syncing' | 'analyzing' | 'complete' | 'error'
+  platform?: Platform
   overallProgress: number
   syncProgress?: number
   batch: BatchInfo | null
@@ -234,6 +236,7 @@ function BreathingOrb({ colour, size = 'sm' }: { colour: string; size?: 'xs' | '
 
 export function AnalysisProgressPanel({
   stage,
+  platform = 'xero',
   overallProgress,
   syncProgress,
   batch,
@@ -264,10 +267,16 @@ export function AnalysisProgressPanel({
     setElapsed(timeEstimate.elapsedMs)
   }, [timeEstimate.elapsedMs])
 
+  const platformLabel = {
+    xero: 'Xero',
+    myob: 'MYOB',
+    quickbooks: 'QuickBooks',
+  }[platform]
+
   const stageLabel = {
     idle: 'Ready',
-    syncing: 'Syncing Data',
-    analyzing: 'AI Analysis',
+    syncing: `Syncing ${platformLabel} Data`,
+    analyzing: `Analyzing ${platformLabel} Data`,
     complete: 'Complete',
     error: 'Error',
   }[stage]
@@ -297,9 +306,12 @@ export function AnalysisProgressPanel({
         <div className="flex items-center gap-3">
           <ProgressRing progress={overallProgress} size={48} strokeWidth={4} colour={stageColour} />
           <div>
-            <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: stageColour }}>
-              {stageLabel}
-            </p>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-[10px] uppercase tracking-[0.2em]" style={{ color: stageColour }}>
+                {stageLabel}
+              </p>
+              <PlatformBadge platform={platform} size="sm" />
+            </div>
             {timeEstimate.remainingMs && (
               <p className="text-xs text-white/40 mt-0.5">
                 ~{formatDuration(timeEstimate.remainingMs)} left
@@ -324,9 +336,12 @@ export function AnalysisProgressPanel({
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <BreathingOrb colour={stageColour} size="sm" />
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">Analysis Progress</p>
-            <p className="text-sm font-medium" style={{ color: stageColour }}>{stageLabel}</p>
+          <div className="flex items-center gap-2">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.3em] text-white/40">Analysis Progress</p>
+              <p className="text-sm font-medium" style={{ color: stageColour }}>{stageLabel}</p>
+            </div>
+            <PlatformBadge platform={platform} size="sm" showIcon />
           </div>
         </div>
         {onMinimize && (
@@ -380,7 +395,7 @@ export function AnalysisProgressPanel({
             </>
           )}
           {!batch && stage === 'syncing' && (
-            <p className="text-sm text-white/50">Syncing historical data...</p>
+            <p className="text-sm text-white/50">Syncing {platformLabel} historical data...</p>
           )}
         </div>
       </div>
