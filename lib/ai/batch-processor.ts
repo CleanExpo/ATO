@@ -17,6 +17,7 @@ import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type Trans
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { getAdapter } from '@/lib/integrations'
 import type { CanonicalTransaction } from '@/lib/integrations/types'
+import { triggerAlertGeneration } from '@/lib/alerts/alert-generator'
 
 // Types
 export interface AnalysisProgress {
@@ -254,6 +255,17 @@ export async function analyzeAllTransactions(
         console.log(`Invalidated ${invalidatedCount} cache entries for tenant ${tenantId}`)
 
         console.log(`[${platform.toUpperCase()}] Analysis complete: ${totalAnalyzed} transactions, $${totalCostAccumulated.toFixed(4)} cost`)
+
+        // Trigger tax alert generation
+        const financialYear = businessContext.financialYear || new Date().getFullYear().toString()
+        try {
+            console.log(`🔔 Triggering alert generation for FY ${financialYear}...`)
+            const alertCount = await triggerAlertGeneration(tenantId, financialYear, platform)
+            console.log(`✅ Generated ${alertCount} tax alerts`)
+        } catch (alertError) {
+            console.error('Error generating alerts (non-fatal):', alertError)
+            // Don't fail the entire analysis if alert generation fails
+        }
 
         return progress
 

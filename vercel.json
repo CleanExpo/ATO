@@ -12,6 +12,12 @@
   "env": {
     "NODE_ENV": "production"
   },
+  "crons": [
+    {
+      "path": "/api/alerts/cron",
+      "schedule": "0 8 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
