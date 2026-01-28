@@ -1,57 +1,99 @@
+/**
+ * Root Error Page
+ *
+ * Catches errors in the app directory and displays user-friendly error messages.
+ * Automatically reports errors to Sentry in production.
+ */
+
 'use client'
 
 import { useEffect } from 'react'
 import Link from 'next/link'
+import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
 
 export default function Error({
-    error,
-    reset,
+  error,
+  reset,
 }: {
-    error: Error & { digest?: string }
-    reset: () => void
+  error: Error & { digest?: string }
+  reset: () => void
 }) {
-    useEffect(() => {
-        // Log error to console in development
-        console.error('Root error boundary caught error:', error)
-    }, [error])
+  useEffect(() => {
+    // Log error to console in development
+    console.error('Root error boundary caught error:', error)
 
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-            <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8">
-                <div className="text-center">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                        Something went wrong
-                    </h1>
+    // Send to Sentry in production
+    if (process.env.NODE_ENV === 'production') {
+      import('@sentry/nextjs').then((Sentry) => {
+        Sentry.captureException(error, {
+          tags: {
+            errorBoundary: 'root',
+            digest: error.digest,
+          },
+        })
+      })
+    }
+  }, [error])
 
-                    <p className="text-gray-600 mb-6">
-                        An unexpected error occurred. Please try again or return to the homepage.
-                    </p>
+  return (
+    <div className="min-h-screen flex items-center justify-center p-8">
+      <div className="glass-card p-8 max-w-2xl w-full border-l-4 border-l-red-500 bg-red-500/5">
+        <div className="flex items-start gap-4 mb-6">
+          <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+            <AlertTriangle className="w-6 h-6 text-red-400" />
+          </div>
+          <div className="flex-1">
+            <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
+              Something went wrong
+            </h1>
+            <p className="text-[var(--text-secondary)] mb-4">
+              An unexpected error occurred while loading this page. We've been notified and will look into it.
+            </p>
 
-                    {process.env.NODE_ENV === 'development' && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded text-left">
-                            <p className="text-sm font-mono text-red-800 break-words">
-                                {error.message}
-                            </p>
-                        </div>
-                    )}
-
-                    <div className="flex flex-col gap-3">
-                        <button
-                            onClick={reset}
-                            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                        >
-                            Try Again
-                        </button>
-
-                        <Link
-                            href="/"
-                            className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-center"
-                        >
-                            Go Home
-                        </Link>
+            {process.env.NODE_ENV === 'development' && (
+              <details className="mb-4">
+                <summary className="cursor-pointer text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] mb-2">
+                  Show error details (development only)
+                </summary>
+                <div className="bg-black/20 rounded-lg p-4 font-mono text-xs text-red-400 overflow-auto max-h-64">
+                  <div className="mb-2 font-bold">{error.name}</div>
+                  <div className="mb-2">{error.message}</div>
+                  {error.digest && (
+                    <div className="text-[var(--text-muted)] mb-2">
+                      Error ID: {error.digest}
                     </div>
+                  )}
+                  {error.stack && (
+                    <pre className="text-[var(--text-muted)] whitespace-pre-wrap text-xs">
+                      {error.stack}
+                    </pre>
+                  )}
                 </div>
+              </details>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={reset}
+                className="btn btn-primary flex items-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Try again
+              </button>
+              <Link href="/dashboard" className="btn btn-secondary flex items-center gap-2">
+                <Home className="w-4 h-4" />
+                Go to Dashboard
+              </Link>
             </div>
+          </div>
         </div>
-    )
+
+        <div className="border-t border-[var(--border-default)] pt-4 text-sm text-[var(--text-muted)]">
+          <p>
+            If this problem persists, please contact support with the error ID shown above.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
 }

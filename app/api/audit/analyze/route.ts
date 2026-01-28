@@ -27,43 +27,41 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { analyzeAllTransactions, getAnalysisStatus } from '@/lib/ai/batch-processor'
 import { estimateAnalysisCost } from '@/lib/ai/forensic-analyzer'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
+import { validateRequestBody, validateRequestQuery } from '@/lib/api/validation-middleware'
+import { analyzeRequestSchema, tenantIdQuerySchema } from '@/lib/validation/schemas'
+import { retry } from '@/lib/api/retry'
 
 // Single-user mode: Skip auth and use tenantId directly
 const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
 
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json()
-        let tenantId: string
+        // Validate request body using Zod schema
+        const bodyValidation = await validateRequestBody(request, analyzeRequestSchema)
+        if (!bodyValidation.success) return bodyValidation.response
+
+        const { tenantId, businessName, industry, abn, batchSize } = bodyValidation.data
+
+        let validatedTenantId: string
 
         if (SINGLE_USER_MODE) {
-            // Single-user mode: Get tenantId from body
-            tenantId = body.tenantId
-            if (!tenantId) {
-                return createValidationError('tenantId is required')
-            }
+            // Single-user mode: Use validated tenantId from body
+            validatedTenantId = tenantId
         } else {
-            // Multi-user mode: Authenticate and validate tenant access (tenantId from body)
+            // Multi-user mode: Authenticate and validate tenant access
             const auth = await requireAuth(request, { tenantIdSource: 'body' })
             if (isErrorResponse(auth)) return auth
-            tenantId = auth.tenantId
+            validatedTenantId = auth.tenantId
         }
 
-        // Parse optional fields
-        const businessName = body.businessName
-        const industry = body.industry
-        const abn = body.abn
-        const batchSize = body.batchSize && typeof body.batchSize === 'number' ? body.batchSize : 50
+        console.log(`Starting AI analysis for tenant ${validatedTenantId}`)
 
-        // Validate batch size
-        if (batchSize < 1 || batchSize > 100) {
-            return createValidationError('batchSize must be between 1 and 100')
-        }
+        // Check if already analyzing (with retry for transient DB errors)
+        const currentStatus = await retry(
+            () => getAnalysisStatus(validatedTenantId),
+            { maxAttempts: 3, initialDelayMs: 500 }
+        )
 
-        console.log(`Starting AI analysis for tenant ${tenantId}`)
-
-        // Check if already analyzing
-        const currentStatus = await getAnalysisStatus(tenantId)
         if (currentStatus && currentStatus.status === 'analyzing') {
             return NextResponse.json({
                 status: 'analyzing',
@@ -75,8 +73,12 @@ export async function POST(request: NextRequest) {
             })
         }
 
-        // Check if cached data exists
-        const cachedCount = await getCachedTransactionCount(tenantId)
+        // Check if cached data exists (with retry for transient DB errors)
+        const cachedCount = await retry(
+            () => getCachedTransactionCount(validatedTenantId),
+            { maxAttempts: 3, initialDelayMs: 500 }
+        )
+
         if (cachedCount === 0) {
             return createValidationError('No cached transactions found. Run historical sync first.')
         }
@@ -91,14 +93,14 @@ export async function POST(request: NextRequest) {
         // In production, move to background job queue
 
         analyzeAllTransactions(
-            tenantId,
+            validatedTenantId,
             {
                 name: businessName,
                 industry,
                 abn,
             },
             {
-                batchSize,
+                batchSize: batchSize ?? 50, // Use validated batchSize with default
                 onProgress: (progress) => {
                     console.log(`Analysis progress: ${progress.progress.toFixed(1)}% (${progress.transactionsAnalyzed}/${progress.totalTransactions})`)
                 }
@@ -114,8 +116,8 @@ export async function POST(request: NextRequest) {
             transactionsAnalyzed: 0,
             totalTransactions: cachedCount,
             estimatedCostUSD: costEstimate.estimatedCostUSD,
-            message: `Started AI analysis of ${cachedCount} transactions. Estimated cost: $${costEstimate.estimatedCostUSD.toFixed(4)}. Poll /api/audit/analysis-status/${tenantId} for progress.`,
-            pollUrl: `/api/audit/analysis-status/${tenantId}`,
+            message: `Started AI analysis of ${cachedCount} transactions. Estimated cost: $${costEstimate.estimatedCostUSD.toFixed(4)}. Poll /api/audit/analysis-status/${validatedTenantId} for progress.`,
+            pollUrl: `/api/audit/analysis-status/${validatedTenantId}`,
             costBreakdown: {
                 inputTokens: costEstimate.inputTokens,
                 outputTokens: costEstimate.outputTokens,
@@ -133,21 +135,28 @@ export async function POST(request: NextRequest) {
 // Quick status check
 export async function GET(request: NextRequest) {
     try {
-        let tenantId: string
+        // Validate query parameters using Zod schema
+        const queryValidation = validateRequestQuery(request, tenantIdQuerySchema)
+        if (!queryValidation.success) return queryValidation.response
+
+        const { tenantId } = queryValidation.data
+        let validatedTenantId: string
 
         if (SINGLE_USER_MODE) {
-            // Single-user mode: Get tenantId from query
-            tenantId = request.nextUrl.searchParams.get('tenantId') || ''
-            if (!tenantId) {
-                return createValidationError('tenantId is required')
-            }
+            // Single-user mode: Use validated tenantId from query
+            validatedTenantId = tenantId
         } else {
             // Multi-user mode: Authenticate and validate tenant access
             const auth = await requireAuth(request)
             if (isErrorResponse(auth)) return auth
-            tenantId = auth.tenantId
+            validatedTenantId = auth.tenantId
         }
-        const status = await getAnalysisStatus(tenantId)
+
+        // Get analysis status (with retry for transient DB errors)
+        const status = await retry(
+            () => getAnalysisStatus(validatedTenantId),
+            { maxAttempts: 3, initialDelayMs: 500 }
+        )
 
         if (!status) {
             return NextResponse.json({
