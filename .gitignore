@@ -46,3 +46,5 @@ next-env.d.ts
 .vercel
 .env*.local
 # Trigger redeploy for new API key
+QUICK_ENV_SETUP.md
+add-env-vars.sh
