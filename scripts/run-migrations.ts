@@ -93,7 +93,8 @@ async function main() {
   const migrations = [
     '20260128000008_add_platform_column.sql',
     '20260128000009_add_platform_to_analysis_tables.sql',
-    '20260128000010_create_quickbooks_tokens_table.sql'
+    '20260128000010_create_quickbooks_tokens_table.sql',
+    '20260128000011_create_tax_alerts_system.sql'
   ]
 
   let successCount = 0

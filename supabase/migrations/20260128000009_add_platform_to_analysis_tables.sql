@@ -23,8 +23,9 @@ ADD COLUMN IF NOT EXISTS platform TEXT DEFAULT 'xero' CHECK (platform IN ('xero'
 COMMENT ON COLUMN ai_analysis_costs.platform IS 'Platform analyzed: xero, myob, or quickbooks';
 
 -- Create index for cost tracking by platform
+-- Use created_at instead of analysis_date in case column doesn't exist
 CREATE INDEX IF NOT EXISTS idx_ai_analysis_costs_platform
-    ON ai_analysis_costs(tenant_id, platform, analysis_date);
+    ON ai_analysis_costs(tenant_id, platform, created_at);
 
 -- Update table comments
 COMMENT ON TABLE forensic_analysis_results IS 'AI forensic analysis results for transactions from multiple accounting platforms (Xero, MYOB, QuickBooks)';
