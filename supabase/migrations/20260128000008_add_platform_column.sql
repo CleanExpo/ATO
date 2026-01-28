@@ -20,11 +20,18 @@ ALTER TABLE audit_sync_status
 ADD COLUMN IF NOT EXISTS platform TEXT DEFAULT 'xero' CHECK (platform IN ('xero', 'myob', 'quickbooks'));
 
 -- Make tenant_id + platform unique (users can have multiple platforms)
-ALTER TABLE audit_sync_status
-DROP CONSTRAINT IF EXISTS audit_sync_status_tenant_id_key;
+DO $$
+BEGIN
+  -- Drop old constraint if exists
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'audit_sync_status_tenant_id_key') THEN
+    ALTER TABLE audit_sync_status DROP CONSTRAINT audit_sync_status_tenant_id_key;
+  END IF;
 
-ALTER TABLE audit_sync_status
-ADD CONSTRAINT audit_sync_status_tenant_platform_unique UNIQUE(tenant_id, platform);
+  -- Add new constraint if not exists
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'audit_sync_status_tenant_platform_unique') THEN
+    ALTER TABLE audit_sync_status ADD CONSTRAINT audit_sync_status_tenant_platform_unique UNIQUE(tenant_id, platform);
+  END IF;
+END $$;
 
 -- Update comment
 COMMENT ON COLUMN audit_sync_status.platform IS 'Platform being synced: xero, myob, or quickbooks';
