@@ -11,12 +11,16 @@
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
+import { getCachedMYOBTransactions } from '@/lib/integrations/myob-historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type TransactionContext, type BusinessContext, type ForensicAnalysis } from './forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
+import { getAdapter } from '@/lib/integrations'
+import type { CanonicalTransaction } from '@/lib/integrations/types'
 
 // Types
 export interface AnalysisProgress {
     tenantId: string
+    platform?: 'xero' | 'myob' | 'quickbooks'
     status: 'idle' | 'analyzing' | 'complete' | 'error'
     progress: number // 0-100
     transactionsAnalyzed: number
@@ -29,11 +33,13 @@ export interface AnalysisProgress {
 
 export interface AnalysisOptions {
     batchSize?: number // Transactions per batch (default: 50)
+    platform?: 'xero' | 'myob' | 'quickbooks' // Platform to analyze
     onProgress?: (progress: AnalysisProgress) => void
 }
 
 /**
  * Analyze all cached transactions for a tenant
+ * Supports multiple platforms (Xero, MYOB, QuickBooks)
  */
 export async function analyzeAllTransactions(
     tenantId: string,
@@ -41,12 +47,15 @@ export async function analyzeAllTransactions(
     options: AnalysisOptions = {}
 ): Promise<AnalysisProgress> {
     const batchSize = options.batchSize || 50 // Process 50 at a time
+    const platform = options.platform || 'xero' // Default to Xero for backwards compatibility
+
     // Use service client to bypass RLS for server-side operations
     const supabase = await createServiceClient()
 
     // Initialize progress
     const progress: AnalysisProgress = {
         tenantId,
+        platform,
         status: 'analyzing',
         progress: 0,
         transactionsAnalyzed: 0,
@@ -57,13 +66,14 @@ export async function analyzeAllTransactions(
     }
 
     try {
-        console.log(`Starting AI analysis for tenant ${tenantId}`)
+        console.log(`[${platform.toUpperCase()}] Starting AI analysis for tenant ${tenantId}`)
 
-        // Get total count of cached transactions
+        // Get total count of cached transactions for this platform
         const { count, error: countError } = await supabase
             .from('historical_transactions_cache')
             .select('*', { count: 'exact', head: true })
             .eq('tenant_id', tenantId)
+            .eq('platform', platform)
 
         if (countError) {
             throw countError
@@ -79,23 +89,33 @@ export async function analyzeAllTransactions(
         const costEstimate = estimateAnalysisCost(totalTransactions)
         progress.estimatedCostUSD = costEstimate.estimatedCostUSD
 
-        console.log(`Total transactions: ${totalTransactions}, Batches: ${totalBatches}, Est. cost: $${costEstimate.estimatedCostUSD.toFixed(2)}`)
+        console.log(`[${platform.toUpperCase()}] Total transactions: ${totalTransactions}, Batches: ${totalBatches}, Est. cost: $${costEstimate.estimatedCostUSD.toFixed(2)}`)
 
         // Store initial progress
-        await updateAnalysisProgress(tenantId, progress)
+        await updateAnalysisProgress(tenantId, progress, platform)
         if (options.onProgress) {
             options.onProgress(progress)
         }
 
         // Get business context (if not fully provided)
         if (!businessContext.name) {
-            const { data: connection } = await supabase
-                .from('xero_connections')
-                .select('organisation_name, tenant_name')
-                .eq('tenant_id', tenantId)
-                .single()
+            if (platform === 'xero') {
+                const { data: connection } = await supabase
+                    .from('xero_connections')
+                    .select('organisation_name, tenant_name')
+                    .eq('tenant_id', tenantId)
+                    .single()
 
-            businessContext.name = connection?.organisation_name || connection?.tenant_name || 'Unknown Business'
+                businessContext.name = connection?.organisation_name || connection?.tenant_name || 'Unknown Business'
+            } else if (platform === 'myob') {
+                const { data: connection } = await supabase
+                    .from('myob_connections')
+                    .select('company_file_name')
+                    .eq('company_file_id', tenantId)
+                    .single()
+
+                businessContext.name = connection?.company_file_name || 'Unknown Business'
+            }
         }
 
         // Process in batches
@@ -105,10 +125,18 @@ export async function analyzeAllTransactions(
         for (let batch = 0; batch < totalBatches; batch++) {
             progress.currentBatch = batch + 1
 
-            console.log(`Processing batch ${batch + 1}/${totalBatches}...`)
+            console.log(`[${platform.toUpperCase()}] Processing batch ${batch + 1}/${totalBatches}...`)
 
-            // Fetch batch of cached transactions
-            const cachedTransactions = await getCachedTransactions(tenantId)
+            // Fetch batch of cached transactions (platform-specific)
+            let cachedTransactions: any[]
+            if (platform === 'xero') {
+                cachedTransactions = await getCachedTransactions(tenantId)
+            } else if (platform === 'myob') {
+                cachedTransactions = await getCachedMYOBTransactions(tenantId)
+            } else {
+                throw new Error(`Unsupported platform: ${platform}`)
+            }
+
             const startIndex = batch * batchSize
             const endIndex = Math.min(startIndex + batchSize, cachedTransactions.length)
             const batchTransactions = cachedTransactions.slice(startIndex, endIndex)
@@ -117,23 +145,46 @@ export async function analyzeAllTransactions(
                 break // No more transactions
             }
 
-            // Convert to analysis format
+            // Convert to analysis format using canonical schema
+            // This ensures platform-agnostic AI analysis
             const transactionContexts: TransactionContext[] = batchTransactions.map(txn => {
-                // Extract transaction ID based on type (Xero uses different ID fields)
-                const transactionId = (txn as any).bankTransactionID ||
-                                      (txn as any).invoiceID ||
-                                      (txn as any).transactionID ||
-                                      txn.transactionID ||
-                                      'unknown'
+                // For canonical transactions (already normalized by adapter)
+                if (platform === 'xero' || platform === 'myob') {
+                    // Extract transaction ID
+                    const transactionId = txn.transactionID ||
+                                          (txn as any).UID || // MYOB
+                                          (txn as any).bankTransactionID ||
+                                          (txn as any).invoiceID ||
+                                          'unknown'
 
+                    return {
+                        transactionID: transactionId,
+                        date: txn.date || txn.Date || '',
+                        description: buildDescriptionFromTransaction(txn, platform),
+                        amount: txn.total || txn.TotalAmount || 0,
+                        supplier: txn.contact?.name || txn.Contact?.Name,
+                        accountCode: txn.lineItems?.[0]?.accountCode || txn.Lines?.[0]?.Account?.DisplayID,
+                        lineItems: (txn.lineItems || txn.Lines || []).map((li: any) => ({
+                            description: li.description || li.Description,
+                            quantity: li.quantity || li.ShipQuantity || li.BillQuantity,
+                            unitAmount: li.unitAmount || li.UnitPrice,
+                            accountCode: li.accountCode || li.Account?.DisplayID,
+                        }))
+                    }
+                }
+
+                // Fallback for legacy format
                 return {
-                    transactionID: transactionId,
+                    transactionID: (txn as any).bankTransactionID ||
+                                   (txn as any).invoiceID ||
+                                   (txn as any).transactionID ||
+                                   'unknown',
                     date: txn.date || '',
                     description: buildDescription(txn),
                     amount: txn.total || 0,
                     supplier: txn.contact?.name,
                     accountCode: txn.lineItems?.[0]?.accountCode,
-                    lineItems: txn.lineItems?.map(li => ({
+                    lineItems: txn.lineItems?.map((li: any) => ({
                         description: li.description,
                         quantity: li.quantity,
                         unitAmount: li.unitAmount,
@@ -159,54 +210,54 @@ export async function analyzeAllTransactions(
             )
 
             // Store analyses in database
-            await storeAnalysisResults(tenantId, analyses, batchTransactions)
+            await storeAnalysisResults(tenantId, analyses, batchTransactions, platform)
 
             // Track cost
             const batchCost = estimateAnalysisCost(analyses.length).estimatedCostUSD
             totalCostAccumulated += batchCost
 
-            await trackAnalysisCost(tenantId, analyses.length, batchCost)
+            await trackAnalysisCost(tenantId, analyses.length, batchCost, platform)
 
             // Update progress
             totalAnalyzed += analyses.length
             progress.transactionsAnalyzed = totalAnalyzed
             progress.progress = (totalAnalyzed / totalTransactions) * 100
 
-            await updateAnalysisProgress(tenantId, progress)
+            await updateAnalysisProgress(tenantId, progress, platform)
             if (options.onProgress) {
                 options.onProgress(progress)
             }
 
-            console.log(`Batch complete: ${totalAnalyzed}/${totalTransactions} (${progress.progress.toFixed(1)}%)`)
+            console.log(`[${platform.toUpperCase()}] Batch complete: ${totalAnalyzed}/${totalTransactions} (${progress.progress.toFixed(1)}%)`)
         }
 
         // Mark complete
         progress.status = 'complete'
         progress.progress = 100
-        await updateAnalysisProgress(tenantId, progress)
+        await updateAnalysisProgress(tenantId, progress, platform)
 
         // Invalidate all cached data for this tenant (analysis results changed)
         const invalidatedCount = invalidateTenantCache(tenantId)
         console.log(`Invalidated ${invalidatedCount} cache entries for tenant ${tenantId}`)
 
-        console.log(`Analysis complete: ${totalAnalyzed} transactions, $${totalCostAccumulated.toFixed(4)} cost`)
+        console.log(`[${platform.toUpperCase()}] Analysis complete: ${totalAnalyzed} transactions, $${totalCostAccumulated.toFixed(4)} cost`)
 
         return progress
 
     } catch (error) {
-        console.error('Analysis failed:', error)
+        console.error(`[${platform.toUpperCase()}] Analysis failed:`, error)
 
         progress.status = 'error'
         progress.errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
-        await updateAnalysisProgress(tenantId, progress)
+        await updateAnalysisProgress(tenantId, progress, platform)
 
         throw error
     }
 }
 
 /**
- * Build descriptive text from transaction
+ * Build descriptive text from transaction (legacy)
  */
 function buildDescription(transaction: any): string {
     const parts: string[] = []
@@ -234,12 +285,63 @@ function buildDescription(transaction: any): string {
 }
 
 /**
+ * Build descriptive text from transaction (platform-aware)
+ */
+function buildDescriptionFromTransaction(transaction: any, platform: string): string {
+    const parts: string[] = []
+
+    if (platform === 'xero') {
+        if (transaction.reference) {
+            parts.push(transaction.reference)
+        }
+
+        if (transaction.contact?.name) {
+            parts.push(`from ${transaction.contact.name}`)
+        }
+
+        if (transaction.lineItems && transaction.lineItems.length > 0) {
+            const descriptions = transaction.lineItems
+                .map((li: any) => li.description)
+                .filter(Boolean)
+                .join('; ')
+
+            if (descriptions) {
+                parts.push(descriptions)
+            }
+        }
+    } else if (platform === 'myob') {
+        // MYOB format
+        if (transaction.Number) {
+            parts.push(transaction.Number)
+        }
+
+        if (transaction.Contact?.Name) {
+            parts.push(`from ${transaction.Contact.Name}`)
+        }
+
+        if (transaction.Lines && transaction.Lines.length > 0) {
+            const descriptions = transaction.Lines
+                .map((li: any) => li.Description)
+                .filter(Boolean)
+                .join('; ')
+
+            if (descriptions) {
+                parts.push(descriptions)
+            }
+        }
+    }
+
+    return parts.join(' - ') || 'No description'
+}
+
+/**
  * Store analysis results in database
  */
 async function storeAnalysisResults(
     tenantId: string,
     analyses: ForensicAnalysis[],
-    originalTransactions: any[]
+    originalTransactions: any[],
+    platform: string = 'xero'
 ): Promise<void> {
     // Use service client to bypass RLS for server-side operations
     const supabase = await createServiceClient()
@@ -247,18 +349,28 @@ async function storeAnalysisResults(
     // Map analyses to database schema
     const records = analyses.map((analysis, index) => {
         const txn = originalTransactions[index]
-        const financialYear = calculateFinancialYear(txn.date)
+
+        // Extract date based on platform
+        const txnDate = txn.date || txn.Date || null
+        const financialYear = txnDate ? calculateFinancialYear(txnDate) : 'Unknown'
+
+        // Extract amount based on platform
+        const txnAmount = txn.total || txn.TotalAmount || 0
+
+        // Extract supplier based on platform
+        const supplierName = txn.contact?.name || txn.Contact?.Name || null
 
         return {
             tenant_id: tenantId,
             transaction_id: analysis.transactionId,
             financial_year: financialYear,
+            platform: platform,
 
             // Transaction metadata (for aggregations and display)
-            transaction_amount: txn.total || 0,
-            transaction_date: txn.date || null,
-            transaction_description: buildDescription(txn),
-            supplier_name: txn.contact?.name || null,
+            transaction_amount: txnAmount,
+            transaction_date: txnDate,
+            transaction_description: buildDescriptionFromTransaction(txn, platform),
+            supplier_name: supplierName,
 
             // Categories
             primary_category: analysis.categories.primary,
@@ -333,7 +445,8 @@ async function storeAnalysisResults(
  */
 async function updateAnalysisProgress(
     tenantId: string,
-    progress: AnalysisProgress
+    progress: AnalysisProgress,
+    platform: string = 'xero'
 ): Promise<void> {
     // Use service client to bypass RLS for server-side operations
     const supabase = await createServiceClient()
@@ -344,17 +457,18 @@ async function updateAnalysisProgress(
         .from('audit_sync_status')
         .upsert({
             tenant_id: tenantId,
+            platform: platform,
             sync_status: progress.status === 'analyzing' ? 'syncing' : progress.status,
             transactions_synced: progress.transactionsAnalyzed,
             total_transactions: progress.totalTransactions,  // ✅ Fixed: was total_transactions_estimated
             error_message: progress.errorMessage,
             updated_at: new Date().toISOString(),
         }, {
-            onConflict: 'tenant_id',
+            onConflict: 'tenant_id,platform',  // Updated for multi-platform support
         })
 
     if (error) {
-        console.error('Error updating analysis progress:', error)
+        console.error('[' + platform.toUpperCase() + '] Error updating analysis progress:', error)
     }
 }
 
@@ -364,7 +478,8 @@ async function updateAnalysisProgress(
 async function trackAnalysisCost(
     tenantId: string,
     transactionCount: number,
-    costUSD: number
+    costUSD: number,
+    platform: string = 'xero'
 ): Promise<void> {
     // Use service client to bypass RLS for server-side operations
     const supabase = await createServiceClient()
@@ -376,6 +491,7 @@ async function trackAnalysisCost(
         .from('ai_analysis_costs')
         .insert({
             tenant_id: tenantId,
+            platform: platform,
             analysis_date: new Date().toISOString().split('T')[0],
             transactions_analyzed: transactionCount,
             api_calls_made: transactionCount, // 1 call per transaction
@@ -386,7 +502,7 @@ async function trackAnalysisCost(
         })
 
     if (error) {
-        console.error('Error tracking cost:', error)
+        console.error('[' + platform.toUpperCase() + '] Error tracking cost:', error)
     }
 }
 

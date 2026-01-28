@@ -6,6 +6,7 @@
  *
  * Body:
  * - tenantId: string (required)
+ * - platform?: 'xero' | 'myob' | 'quickbooks' (optional, default: 'xero')
  * - businessName?: string (optional - will fetch from DB if not provided)
  * - industry?: string (optional)
  * - abn?: string (optional)
@@ -40,9 +41,10 @@ export async function POST(request: NextRequest) {
         const bodyValidation = await validateRequestBody(request, analyzeRequestSchema)
         if (!bodyValidation.success) return bodyValidation.response
 
-        const { tenantId, businessName, industry, abn, batchSize } = bodyValidation.data
+        const { tenantId, platform, businessName, industry, abn, batchSize } = bodyValidation.data
 
         let validatedTenantId: string
+        const analysisPlatform = platform || 'xero' // Default to Xero
 
         if (SINGLE_USER_MODE) {
             // Single-user mode: Use validated tenantId from body
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
             validatedTenantId = auth.tenantId
         }
 
-        console.log(`Starting AI analysis for tenant ${validatedTenantId}`)
+        console.log(`[${analysisPlatform.toUpperCase()}] Starting AI analysis for tenant ${validatedTenantId}`)
 
         // Check if already analyzing (with retry for transient DB errors)
         const currentStatus = await retry(
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
 
         // Check if cached data exists (with retry for transient DB errors)
         const cachedCount = await retry(
-            () => getCachedTransactionCount(validatedTenantId),
+            () => getCachedTransactionCount(validatedTenantId, analysisPlatform),
             { maxAttempts: 3, initialDelayMs: 500 }
         )
 
@@ -100,13 +102,14 @@ export async function POST(request: NextRequest) {
                 abn,
             },
             {
+                platform: analysisPlatform,
                 batchSize: batchSize ?? 50, // Use validated batchSize with default
                 onProgress: (progress) => {
-                    console.log(`Analysis progress: ${progress.progress.toFixed(1)}% (${progress.transactionsAnalyzed}/${progress.totalTransactions})`)
+                    console.log(`[${analysisPlatform.toUpperCase()}] Analysis progress: ${progress.progress.toFixed(1)}% (${progress.transactionsAnalyzed}/${progress.totalTransactions})`)
                 }
             }
         ).catch(error => {
-            console.error('Analysis failed:', error)
+            console.error(`[${analysisPlatform.toUpperCase()}] Analysis failed:`, error)
         })
 
         // Return immediate response
@@ -185,9 +188,17 @@ export async function GET(request: NextRequest) {
     }
 }
 
-async function getCachedTransactionCount(tenantId: string): Promise<number> {
-    const transactions = await getCachedTransactions(tenantId)
-    return transactions.length
+async function getCachedTransactionCount(tenantId: string, platform: string = 'xero'): Promise<number> {
+    if (platform === 'xero') {
+        const transactions = await getCachedTransactions(tenantId)
+        return transactions.length
+    } else if (platform === 'myob') {
+        const { getCachedMYOBTransactions } = await import('@/lib/integrations/myob-historical-fetcher')
+        const transactions = await getCachedMYOBTransactions(tenantId)
+        return transactions.length
+    } else {
+        throw new Error(`Unsupported platform: ${platform}`)
+    }
 }
 
 function getStatusMessage(status: string, progress: number): string {
