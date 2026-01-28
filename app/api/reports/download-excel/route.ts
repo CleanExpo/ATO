@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateExcelWorkbook } from '@/lib/reports/excel-generator'
+import { generateExcelFromTenant } from '@/lib/reports/excel-generator'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
 export async function GET(request: NextRequest) {
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     console.log(`Generating Excel workbook for tenant: ${tenantId}`)
 
     // Generate real Excel workbook with ExcelJS (no 10K limit!)
-    const excelBuffer = await generateExcelWorkbook(tenantId)
+    const excelBuffer = await generateExcelFromTenant(tenantId)
 
     console.log(`Excel generated successfully: ${excelBuffer.length} bytes`)
 

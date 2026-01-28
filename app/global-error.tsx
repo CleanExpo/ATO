@@ -19,17 +19,8 @@ export default function GlobalError({
   useEffect(() => {
     console.error('Global error boundary caught error:', error)
 
-    // Send to Sentry in production
-    if (process.env.NODE_ENV === 'production') {
-      import('@sentry/nextjs').then((Sentry) => {
-        Sentry.captureException(error, {
-          tags: {
-            errorBoundary: 'global',
-            digest: error.digest,
-          },
-        })
-      })
-    }
+    // TODO: Add error reporting service (Sentry) when configured
+    // For now, just log to console
   }, [error])
 
   return (

@@ -79,7 +79,7 @@ export interface OrganizationInvitation {
   acceptedAt?: string
   acceptedBy?: string
   createdAt: string
-  updated At: string
+  updatedAt: string
 }
 
 export interface OrganizationActivityLog {

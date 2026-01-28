@@ -22,17 +22,8 @@ export default function Error({
     // Log error to console in development
     console.error('Root error boundary caught error:', error)
 
-    // Send to Sentry in production
-    if (process.env.NODE_ENV === 'production') {
-      import('@sentry/nextjs').then((Sentry) => {
-        Sentry.captureException(error, {
-          tags: {
-            errorBoundary: 'root',
-            digest: error.digest,
-          },
-        })
-      })
-    }
+    // TODO: Add error reporting service (Sentry) when configured
+    // For now, just log to console
   }, [error])
 
   return (

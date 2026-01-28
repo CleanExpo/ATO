@@ -75,6 +75,11 @@ export const tenantIdSchema = z
   .min(1, 'tenantId is required')
   .max(100, 'tenantId too long')
 
+// Alias for query parameters (backwards compatibility)
+export const tenantIdQuerySchema = z.object({
+  tenantId: tenantIdSchema
+})
+
 // =============================================================================
 // Xero Data Schemas
 // =============================================================================

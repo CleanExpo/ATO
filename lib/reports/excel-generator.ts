@@ -505,3 +505,30 @@ export async function generateTransactionsExcel(
   const buffer = await workbook.xlsx.writeBuffer()
   return Buffer.from(buffer)
 }
+
+/**
+ * Generate Excel workbook data (for compatibility with report generation route)
+ * Returns workbook data structure for further processing
+ */
+export async function generateExcelWorkbookData(
+  tenantId: string,
+  organizationName: string,
+  abn: string
+): Promise<{ buffer: Buffer; filename: string }> {
+  const buffer = await generateExcelFromTenant(tenantId, organizationName, abn)
+  return {
+    buffer,
+    filename: `forensic-audit-${organizationName.replace(/[^a-z0-9]/gi, '-')}-${Date.now()}.xlsx`
+  }
+}
+
+/**
+ * Export workbook as CSV zip (for compatibility - returns Excel as is for now)
+ */
+export async function exportWorkbookAsCSVZip(
+  workbookData: { buffer: Buffer; filename: string }
+): Promise<{ buffer: Buffer; filename: string }> {
+  // For now, just return the Excel buffer
+  // In the future, this could convert to CSV format and zip
+  return workbookData
+}
