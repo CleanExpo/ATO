@@ -11,7 +11,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
-    "db:migrate": "node scripts/apply-migration.mjs",
+    "db:migrate": "tsx scripts/run-migrations.ts",
     "agents:start": "tsx agents/cli.ts start",
     "agents:run": "tsx agents/cli.ts run",
     "agents:report": "tsx agents/cli.ts report",

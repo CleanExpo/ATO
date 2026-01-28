@@ -14,6 +14,10 @@
    - File: `supabase/migrations/20260128000009_add_platform_to_analysis_tables.sql`
    - Click "Run"
 
+4. Copy and paste **Migration 3** into the SQL editor:
+   - File: `supabase/migrations/20260128000010_create_quickbooks_tokens_table.sql`
+   - Click "Run"
+
 ### Option 2: Command Line (If you have psql)
 
 ```bash
@@ -23,6 +27,7 @@ export DATABASE_URL="postgresql://postgres:[password]@[host]:5432/postgres"
 # Run migrations
 psql $DATABASE_URL -f supabase/migrations/20260128000008_add_platform_column.sql
 psql $DATABASE_URL -f supabase/migrations/20260128000009_add_platform_to_analysis_tables.sql
+psql $DATABASE_URL -f supabase/migrations/20260128000010_create_quickbooks_tokens_table.sql
 ```
 
 ## What These Migrations Do
@@ -40,12 +45,19 @@ Adds `platform` column to:
 - `forensic_analysis_results` - tracks which platform each analysis result came from
 - `ai_analysis_costs` - tracks AI costs by platform
 
+### Migration 3: `20260128000010_create_quickbooks_tokens_table.sql`
+
+Creates `quickbooks_tokens` table for:
+- OAuth 2.0 token storage (access_token, refresh_token)
+- QuickBooks Company ID (realm_id)
+- RLS policies for tenant isolation
+
 ## Verification
 
 After running migrations, verify they worked:
 
 ```sql
--- Should return 4 rows (one for each table)
+-- Verify platform columns (should return 4 rows)
 SELECT
     table_name,
     column_name,
@@ -60,16 +72,27 @@ WHERE column_name = 'platform'
     'ai_analysis_costs'
   )
 ORDER BY table_name;
+
+-- Verify QuickBooks tokens table exists
+SELECT table_name
+FROM information_schema.tables
+WHERE table_name = 'quickbooks_tokens';
 ```
 
 Expected output:
 ```
+-- Platform columns:
 table_name                      | column_name | data_type | column_default
 --------------------------------|-------------|-----------|----------------
 ai_analysis_costs               | platform    | text      | 'xero'::text
 audit_sync_status               | platform    | text      | 'xero'::text
 forensic_analysis_results       | platform    | text      | 'xero'::text
 historical_transactions_cache   | platform    | text      | 'xero'::text
+
+-- QuickBooks table:
+table_name
+------------------
+quickbooks_tokens
 ```
 
 ## Troubleshooting

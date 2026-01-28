@@ -92,7 +92,8 @@ async function main() {
   // Migrations to run (in order)
   const migrations = [
     '20260128000008_add_platform_column.sql',
-    '20260128000009_add_platform_to_analysis_tables.sql'
+    '20260128000009_add_platform_to_analysis_tables.sql',
+    '20260128000010_create_quickbooks_tokens_table.sql'
   ]
 
   let successCount = 0
