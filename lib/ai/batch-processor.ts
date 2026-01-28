@@ -12,6 +12,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { getCachedMYOBTransactions } from '@/lib/integrations/myob-historical-fetcher'
+import { getCachedQuickBooksTransactions } from '@/lib/integrations/quickbooks-historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type TransactionContext, type BusinessContext, type ForensicAnalysis } from './forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { getAdapter } from '@/lib/integrations'
@@ -115,6 +116,15 @@ export async function analyzeAllTransactions(
                     .single()
 
                 businessContext.name = connection?.company_file_name || 'Unknown Business'
+            } else if (platform === 'quickbooks') {
+                // Get company name from QuickBooks API or tokens table
+                const { data: tokens } = await supabase
+                    .from('quickbooks_tokens')
+                    .select('realm_id')
+                    .eq('tenant_id', tenantId)
+                    .single()
+
+                businessContext.name = tokens?.realm_id ? `QuickBooks Company (${tokens.realm_id})` : 'Unknown Business'
             }
         }
 
@@ -133,6 +143,8 @@ export async function analyzeAllTransactions(
                 cachedTransactions = await getCachedTransactions(tenantId)
             } else if (platform === 'myob') {
                 cachedTransactions = await getCachedMYOBTransactions(tenantId)
+            } else if (platform === 'quickbooks') {
+                cachedTransactions = await getCachedQuickBooksTransactions(tenantId)
             } else {
                 throw new Error(`Unsupported platform: ${platform}`)
             }
@@ -149,26 +161,27 @@ export async function analyzeAllTransactions(
             // This ensures platform-agnostic AI analysis
             const transactionContexts: TransactionContext[] = batchTransactions.map(txn => {
                 // For canonical transactions (already normalized by adapter)
-                if (platform === 'xero' || platform === 'myob') {
+                if (platform === 'xero' || platform === 'myob' || platform === 'quickbooks') {
                     // Extract transaction ID
                     const transactionId = txn.transactionID ||
                                           (txn as any).UID || // MYOB
+                                          (txn as any).Id || // QuickBooks
                                           (txn as any).bankTransactionID ||
                                           (txn as any).invoiceID ||
                                           'unknown'
 
                     return {
                         transactionID: transactionId,
-                        date: txn.date || txn.Date || '',
+                        date: txn.date || txn.Date || txn.TxnDate || '',
                         description: buildDescriptionFromTransaction(txn, platform),
-                        amount: txn.total || txn.TotalAmount || 0,
-                        supplier: txn.contact?.name || txn.Contact?.Name,
-                        accountCode: txn.lineItems?.[0]?.accountCode || txn.Lines?.[0]?.Account?.DisplayID,
-                        lineItems: (txn.lineItems || txn.Lines || []).map((li: any) => ({
+                        amount: txn.total || txn.TotalAmount || txn.TotalAmt || 0,
+                        supplier: txn.contact?.name || txn.Contact?.Name || txn.VendorRef?.name || txn.CustomerRef?.name,
+                        accountCode: txn.lineItems?.[0]?.accountCode || txn.Lines?.[0]?.Account?.DisplayID || txn.Line?.[0]?.AccountBasedExpenseLineDetail?.AccountRef?.value,
+                        lineItems: (txn.lineItems || txn.Lines || txn.Line || []).map((li: any) => ({
                             description: li.description || li.Description,
                             quantity: li.quantity || li.ShipQuantity || li.BillQuantity,
-                            unitAmount: li.unitAmount || li.UnitPrice,
-                            accountCode: li.accountCode || li.Account?.DisplayID,
+                            unitAmount: li.unitAmount || li.UnitPrice || li.Amount,
+                            accountCode: li.accountCode || li.Account?.DisplayID || li.AccountBasedExpenseLineDetail?.AccountRef?.value,
                         }))
                     }
                 }
@@ -321,6 +334,37 @@ function buildDescriptionFromTransaction(transaction: any, platform: string): st
 
         if (transaction.Lines && transaction.Lines.length > 0) {
             const descriptions = transaction.Lines
+                .map((li: any) => li.Description)
+                .filter(Boolean)
+                .join('; ')
+
+            if (descriptions) {
+                parts.push(descriptions)
+            }
+        }
+    } else if (platform === 'quickbooks') {
+        // QuickBooks format
+        if (transaction.DocNumber) {
+            parts.push(`#${transaction.DocNumber}`)
+        }
+
+        // Check for vendor, customer, or entity reference
+        const entityName = transaction.VendorRef?.name ||
+                          transaction.CustomerRef?.name ||
+                          transaction.EntityRef?.name
+
+        if (entityName) {
+            parts.push(`from ${entityName}`)
+        }
+
+        // Add private note if available
+        if (transaction.PrivateNote) {
+            parts.push(transaction.PrivateNote)
+        }
+
+        // Add line descriptions
+        if (transaction.Line && transaction.Line.length > 0) {
+            const descriptions = transaction.Line
                 .map((li: any) => li.Description)
                 .filter(Boolean)
                 .join('; ')
