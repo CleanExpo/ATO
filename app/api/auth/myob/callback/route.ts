@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Store connection in database
-    const supabase = createServiceClient()
+    const supabase = await createServiceClient()
 
     const { error: dbError } = await supabase.from('myob_connections').upsert({
       user_id: state,

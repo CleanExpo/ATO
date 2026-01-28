@@ -18,10 +18,10 @@ import { createErrorResponse } from '@/lib/api/errors'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { companyFileId: string } }
+  { params }: { params: Promise<{ companyFileId: string }> }
 ) {
   try {
-    const { companyFileId } = params
+    const { companyFileId } = await params
 
     if (!companyFileId) {
       return NextResponse.json(

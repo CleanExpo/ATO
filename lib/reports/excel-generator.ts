@@ -429,8 +429,8 @@ async function createTransactionDetailSheet(
  */
 export async function generateExcelFromTenant(
   tenantId: string,
-  organizationName: string,
-  abn: string
+  organizationName: string = 'Organisation',
+  abn: string = ''
 ): Promise<Buffer> {
   console.log(`Generating Excel report for tenant ${tenantId}`)
 

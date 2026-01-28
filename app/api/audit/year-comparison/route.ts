@@ -21,6 +21,19 @@ interface YearComparison {
   trend: 'improved' | 'declined' | 'stable'
 }
 
+// Type for forensic analysis result row
+interface ForensicResultRow {
+  tenant_id: string
+  transaction_id: string
+  financial_year: string | null
+  is_rnd_candidate: boolean | null
+  primary_category: string | null
+  transaction_amount: number | null
+  claimable_amount: number | null
+  confidence_score: number | null
+  [key: string]: unknown
+}
+
 export async function GET(request: NextRequest) {
   let tenantId: string
   let supabase
@@ -76,8 +89,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate metrics for both years
-    const year1Metrics = calculateYearMetrics(year1Data)
-    const year2Metrics = calculateYearMetrics(year2Data)
+    const year1Metrics = calculateYearMetrics(year1Data as ForensicResultRow[])
+    const year2Metrics = calculateYearMetrics(year2Data as ForensicResultRow[])
 
     // Build comparison array
     const comparisons: YearComparison[] = [
@@ -127,10 +140,10 @@ export async function GET(request: NextRequest) {
 
     // Category analysis - what's new/changed
     const year1Categories = new Set(
-      year1Data.map((r) => r.primary_category).filter(Boolean)
+      (year1Data as ForensicResultRow[]).map((r: ForensicResultRow) => r.primary_category).filter(Boolean)
     )
     const year2Categories = new Set(
-      year2Data.map((r) => r.primary_category).filter(Boolean)
+      (year2Data as ForensicResultRow[]).map((r: ForensicResultRow) => r.primary_category).filter(Boolean)
     )
 
     const newCategories = Array.from(year2Categories).filter(
@@ -141,7 +154,7 @@ export async function GET(request: NextRequest) {
     )
 
     // Top movers - categories with biggest changes
-    const categoryChanges = calculateCategoryChanges(year1Data, year2Data)
+    const categoryChanges = calculateCategoryChanges(year1Data as ForensicResultRow[], year2Data as ForensicResultRow[])
 
     return NextResponse.json({
       year1: {
@@ -168,30 +181,30 @@ export async function GET(request: NextRequest) {
 /**
  * Calculate metrics for a year's data
  */
-function calculateYearMetrics(data: any[]) {
-  const rndCandidates = data.filter((r) => r.is_rnd_candidate)
+function calculateYearMetrics(data: ForensicResultRow[]) {
+  const rndCandidates = data.filter((r: ForensicResultRow) => r.is_rnd_candidate)
   const deductions = data.filter(
-    (r) => r.primary_category && r.primary_category !== 'Uncategorized'
+    (r: ForensicResultRow) => r.primary_category && r.primary_category !== 'Uncategorized'
   )
 
   return {
     totalTransactions: data.length,
     totalAmount: data.reduce(
-      (sum, r) => sum + Math.abs(r.transaction_amount || 0),
+      (sum: number, r: ForensicResultRow) => sum + Math.abs(r.transaction_amount || 0),
       0
     ),
     rndCandidates: rndCandidates.length,
     rndPotential: rndCandidates.reduce(
-      (sum, r) => sum + (r.claimable_amount || r.transaction_amount || 0),
+      (sum: number, r: ForensicResultRow) => sum + (r.claimable_amount || r.transaction_amount || 0),
       0
     ),
     deductionCount: deductions.length,
     deductionPotential: deductions.reduce(
-      (sum, r) => sum + Math.abs(r.transaction_amount || 0) * 0.25,
+      (sum: number, r: ForensicResultRow) => sum + Math.abs(r.transaction_amount || 0) * 0.25,
       0
     ),
     averageConfidence:
-      data.reduce((sum, r) => sum + (r.confidence_score || 0), 0) / data.length,
+      data.reduce((sum: number, r: ForensicResultRow) => sum + (r.confidence_score || 0), 0) / data.length,
   }
 }
 
@@ -233,12 +246,12 @@ function createComparison(
 /**
  * Calculate category-level changes
  */
-function calculateCategoryChanges(year1Data: any[], year2Data: any[]) {
+function calculateCategoryChanges(year1Data: ForensicResultRow[], year2Data: ForensicResultRow[]) {
   // Group by category for each year
   const year1ByCategory = new Map<string, number>()
   const year2ByCategory = new Map<string, number>()
 
-  year1Data.forEach((r) => {
+  year1Data.forEach((r: ForensicResultRow) => {
     const cat = r.primary_category || 'Uncategorized'
     year1ByCategory.set(
       cat,
@@ -246,7 +259,7 @@ function calculateCategoryChanges(year1Data: any[], year2Data: any[]) {
     )
   })
 
-  year2Data.forEach((r) => {
+  year2Data.forEach((r: ForensicResultRow) => {
     const cat = r.primary_category || 'Uncategorized'
     year2ByCategory.set(
       cat,

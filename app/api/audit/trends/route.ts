@@ -31,6 +31,19 @@ interface TrendData {
   trend: 'increasing' | 'decreasing' | 'stable'
 }
 
+// Type for forensic analysis result row
+interface ForensicResultRow {
+  tenant_id: string
+  transaction_id: string
+  financial_year: string | null
+  is_rnd_candidate: boolean | null
+  primary_category: string | null
+  transaction_amount: number | null
+  claimable_amount: number | null
+  confidence_score: number | null
+  [key: string]: unknown
+}
+
 export async function GET(request: NextRequest) {
   let tenantId: string
   let supabase
@@ -74,27 +87,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Group results by financial year
-    const byYear = new Map<string, any[]>()
-    results.forEach((result) => {
-      const year = result.financial_year || 'Unknown'
+    const byYear = new Map<string, ForensicResultRow[]>()
+    ;(results as ForensicResultRow[]).forEach((row) => {
+      const year = row.financial_year || 'Unknown'
       if (!byYear.has(year)) {
         byYear.set(year, [])
       }
-      byYear.get(year)!.push(result)
+      byYear.get(year)!.push(row)
     })
 
     // Calculate metrics for each year
     const yearlyMetrics: YearlyMetrics[] = []
 
     for (const [year, yearResults] of Array.from(byYear.entries()).sort()) {
-      const rndCandidates = yearResults.filter((r) => r.is_rnd_candidate)
+      const rndCandidates = yearResults.filter((r: ForensicResultRow) => r.is_rnd_candidate)
       const deductionCandidates = yearResults.filter(
-        (r) => r.primary_category && r.primary_category !== 'Uncategorized'
+        (r: ForensicResultRow) => r.primary_category && r.primary_category !== 'Uncategorized'
       )
 
       // Calculate category breakdown
       const categoryMap = new Map<string, { count: number; amount: number }>()
-      yearResults.forEach((r) => {
+      yearResults.forEach((r: ForensicResultRow) => {
         const cat = r.primary_category || 'Uncategorized'
         if (!categoryMap.has(cat)) {
           categoryMap.set(cat, { count: 0, amount: 0 })
@@ -113,21 +126,21 @@ export async function GET(request: NextRequest) {
         financialYear: year,
         totalTransactions: yearResults.length,
         totalAmount: yearResults.reduce(
-          (sum, r) => sum + Math.abs(r.transaction_amount || 0),
+          (sum: number, r: ForensicResultRow) => sum + Math.abs(r.transaction_amount || 0),
           0
         ),
         rndCandidates: rndCandidates.length,
         rndPotential: rndCandidates.reduce(
-          (sum, r) => sum + (r.claimable_amount || r.transaction_amount || 0),
+          (sum: number, r: ForensicResultRow) => sum + (r.claimable_amount || r.transaction_amount || 0),
           0
         ),
         deductionOpportunities: deductionCandidates.length,
         deductionPotential: deductionCandidates.reduce(
-          (sum, r) => sum + Math.abs(r.transaction_amount || 0) * 0.25, // Assume 25% tax rate
+          (sum: number, r: ForensicResultRow) => sum + Math.abs(r.transaction_amount || 0) * 0.25, // Assume 25% tax rate
           0
         ),
         averageConfidence:
-          yearResults.reduce((sum, r) => sum + (r.confidence_score || 0), 0) /
+          yearResults.reduce((sum: number, r: ForensicResultRow) => sum + (r.confidence_score || 0), 0) /
           yearResults.length,
         topCategories,
       })

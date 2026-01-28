@@ -21,9 +21,10 @@ import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: alertId } = await params
         const supabase = await createClient()
 
         // Check auth
@@ -32,8 +33,6 @@ export async function PATCH(
         if (authError || !user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
-
-        const alertId = params.id
 
         // Validate alert ID
         if (!alertId) {
@@ -124,9 +123,10 @@ export async function PATCH(
  */
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id: alertId } = await params
         const supabase = await createClient()
 
         // Check auth
@@ -135,8 +135,6 @@ export async function DELETE(
         if (authError || !user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
-
-        const alertId = params.id
 
         // Validate alert ID
         if (!alertId) {

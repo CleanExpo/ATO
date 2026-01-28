@@ -78,14 +78,15 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // Format response
-    const formattedMembers = members.map((member) => {
-      const userMeta = (member as any).users?.raw_user_meta_data || {}
+    const formattedMembers = members.map((member: unknown) => {
+      const m = member as { user_id: string; role: string; created_at: string; users?: { email?: string; raw_user_meta_data?: Record<string, unknown> } }
+      const userMeta = m.users?.raw_user_meta_data || {}
       return {
-        userId: member.user_id,
-        email: (member as any).users?.email || 'Unknown',
-        name: userMeta.full_name || userMeta.name || null,
-        role: member.role,
-        joinedAt: member.created_at,
+        userId: m.user_id,
+        email: m.users?.email || 'Unknown',
+        name: (userMeta as Record<string, unknown>).full_name || (userMeta as Record<string, unknown>).name || null,
+        role: m.role,
+        joinedAt: m.created_at,
         lastActiveAt: null, // TODO: Track last activity
       }
     })

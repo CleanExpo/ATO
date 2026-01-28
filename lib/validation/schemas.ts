@@ -113,6 +113,10 @@ export const xeroTransactionsQuerySchema = z.object({
  */
 export const analyzeRequestSchema = z.object({
   tenantId: tenantIdSchema,
+  platform: z.enum(['xero', 'myob', 'quickbooks']).optional(),
+  businessName: z.string().optional(),
+  industry: z.string().optional(),
+  abn: z.string().optional(),
   batchSize: z.coerce.number().int().min(1).max(100).default(50),
   financialYears: z.array(financialYearSchema).optional(),
   analysisTypes: z
