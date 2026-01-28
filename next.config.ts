@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   // Configuration options
@@ -46,26 +45,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-// Sentry configuration
-const sentryWebpackPluginOptions = {
-  // Suppress all logs in production
-  silent: true,
-
-  // Upload source maps in production only
-  hideSourceMaps: true,
-
-  // Automatically tree-shake Sentry logger statements
-  disableLogger: true,
-
-  // Organization and project from environment
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-
-  // Auth token from environment
-  authToken: process.env.SENTRY_AUTH_TOKEN,
-};
-
-// Export with Sentry wrapper in production, plain config otherwise
-export default process.env.NODE_ENV === "production"
-  ? withSentryConfig(nextConfig, sentryWebpackPluginOptions)
-  : nextConfig;
+export default nextConfig;
