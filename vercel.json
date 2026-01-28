@@ -16,6 +16,10 @@
     {
       "path": "/api/alerts/cron",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/slack/daily-summary",
+      "schedule": "0 18 * * *"
     }
   ],
   "headers": [

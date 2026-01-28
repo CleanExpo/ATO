@@ -18,6 +18,7 @@ import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { getAdapter } from '@/lib/integrations'
 import type { CanonicalTransaction } from '@/lib/integrations/types'
 import { triggerAlertGeneration } from '@/lib/alerts/alert-generator'
+import slack from '@/lib/slack/slack-notifier'
 
 // Types
 export interface AnalysisProgress {
@@ -67,8 +68,14 @@ export async function analyzeAllTransactions(
         estimatedCostUSD: 0,
     }
 
+    const analysisStartTime = Date.now()
+
     try {
         console.log(`[${platform.toUpperCase()}] Starting AI analysis for tenant ${tenantId}`)
+
+        // Get user email for Slack notifications
+        const { data: { user } } = await supabase.auth.admin.getUserById(tenantId)
+        const userEmail = user?.email || 'unknown@example.com'
 
         // Get total count of cached transactions for this platform
         const { count, error: countError } = await supabase
@@ -92,6 +99,13 @@ export async function analyzeAllTransactions(
         progress.estimatedCostUSD = costEstimate.estimatedCostUSD
 
         console.log(`[${platform.toUpperCase()}] Total transactions: ${totalTransactions}, Batches: ${totalBatches}, Est. cost: $${costEstimate.estimatedCostUSD.toFixed(2)}`)
+
+        // Notify Slack: Analysis started
+        try {
+            await slack.notifyAnalysisStarted(tenantId, userEmail, platform, totalTransactions)
+        } catch (error) {
+            console.error('Failed to send Slack notification (non-fatal):', error)
+        }
 
         // Store initial progress
         await updateAnalysisProgress(tenantId, progress, platform)
@@ -267,6 +281,56 @@ export async function analyzeAllTransactions(
             // Don't fail the entire analysis if alert generation fails
         }
 
+        // Calculate analysis statistics for Slack notification
+        const analysisTimeMinutes = (Date.now() - analysisStartTime) / (1000 * 60)
+
+        // Get R&D statistics
+        const { data: rndStats } = await supabase
+            .from('forensic_analysis_results')
+            .select('is_rnd_candidate, adjusted_benefit')
+            .eq('tenant_id', tenantId)
+            .eq('platform', platform)
+            .eq('financial_year', financialYear)
+            .eq('is_rnd_candidate', true)
+
+        const rndCandidates = rndStats?.length || 0
+        const potentialRndBenefit = rndStats?.reduce((sum, r) => sum + (r.adjusted_benefit || 0), 0) || 0
+
+        // Get deduction statistics
+        const { data: deductionStats } = await supabase
+            .from('forensic_analysis_results')
+            .select('amount, flags')
+            .eq('tenant_id', tenantId)
+            .eq('platform', platform)
+            .eq('financial_year', financialYear)
+
+        const deductionOpportunities = deductionStats?.filter(r =>
+            r.flags && Array.isArray(r.flags) && r.flags.some((flag: string) =>
+                flag.toLowerCase().includes('deduction') || flag.toLowerCase().includes('claim')
+            )
+        ).length || 0
+
+        const potentialDeductions = deductionStats?.filter(r =>
+            r.flags && Array.isArray(r.flags) && r.flags.some((flag: string) =>
+                flag.toLowerCase().includes('deduction') || flag.toLowerCase().includes('claim')
+            )
+        ).reduce((sum, r) => sum + Math.abs(r.amount), 0) || 0
+
+        // Notify Slack: Analysis complete
+        try {
+            await slack.notifyAnalysisComplete(tenantId, userEmail, platform, {
+                totalTransactions,
+                rndCandidates,
+                potentialRndBenefit,
+                deductionOpportunities,
+                potentialDeductions,
+                analysisTimeMinutes,
+                costUSD: totalCostAccumulated
+            })
+        } catch (error) {
+            console.error('Failed to send Slack notification (non-fatal):', error)
+        }
+
         return progress
 
     } catch (error) {
@@ -276,6 +340,24 @@ export async function analyzeAllTransactions(
         progress.errorMessage = error instanceof Error ? error.message : 'Unknown error'
 
         await updateAnalysisProgress(tenantId, progress, platform)
+
+        // Notify Slack about error
+        try {
+            const { data: { user } } = await supabase.auth.admin.getUserById(tenantId)
+            const userEmail = user?.email || 'unknown@example.com'
+
+            await slack.notifyError(
+                'AI Analysis Failed',
+                error instanceof Error ? error.message : 'Unknown error',
+                {
+                    userId: tenantId,
+                    endpoint: `/api/audit/analyze (${platform})`,
+                    stackTrace: error instanceof Error ? error.stack : undefined
+                }
+            )
+        } catch (slackError) {
+            console.error('Failed to send Slack error notification (non-fatal):', slackError)
+        }
 
         throw error
     }
