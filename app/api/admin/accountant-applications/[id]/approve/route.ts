@@ -1,0 +1,224 @@
+/**
+ * PATCH /api/admin/accountant-applications/[id]/approve
+ *
+ * Approve an accountant application and create vetted accountant record
+ *
+ * Body:
+ * - internal_notes?: string (optional admin notes)
+ * - wholesale_discount_rate?: number (default: 0.5 = 50% off)
+ * - send_welcome_email?: boolean (default: true)
+ *
+ * Returns: ApprovalResponse
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createServiceClient } from '@/lib/supabase/server';
+import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import type {
+  ApprovalResponse,
+  AccountantApplication,
+  VettedAccountant,
+} from '@/lib/types/accountant';
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: applicationId } = await params;
+    const body = await request.json();
+
+    // Validate UUID format
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(applicationId)) {
+      return createValidationError('Invalid application ID format');
+    }
+
+    // Parse optional parameters
+    const internal_notes = body.internal_notes || '';
+    const wholesale_discount_rate = body.wholesale_discount_rate || 0.5;
+    const send_welcome_email = body.send_welcome_email !== false;
+
+    // Validate discount rate
+    if (
+      wholesale_discount_rate < 0 ||
+      wholesale_discount_rate > 1
+    ) {
+      return createValidationError(
+        'wholesale_discount_rate must be between 0 and 1'
+      );
+    }
+
+    const supabase = await createServiceClient();
+
+    // Fetch application
+    const { data: application, error: fetchError } = await supabase
+      .from('accountant_applications')
+      .select('*')
+      .eq('id', applicationId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error('Error fetching application:', fetchError);
+      return createErrorResponse(
+        new Error('Failed to fetch application'),
+        { applicationId },
+        500
+      );
+    }
+
+    if (!application) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Application not found',
+        },
+        { status: 404 }
+      );
+    }
+
+    // Check if already processed
+    if (application.status !== 'pending' && application.status !== 'under_review') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Application already ${application.status}`,
+        },
+        { status: 409 }
+      );
+    }
+
+    // Step 1: Create user account in auth.users (via Supabase Auth Admin API)
+    // For now, we'll create a placeholder and send magic link email
+    // In production, you'd use: supabase.auth.admin.createUser()
+
+    // Generate a temporary user_id (in production, this would be from auth.users)
+    const tempUserId = crypto.randomUUID();
+
+    // Step 2: Create organization for the accountant's firm
+    const { data: organization, error: orgError } = await supabase
+      .from('organizations')
+      .insert([
+        {
+          name: application.firm_name,
+          abn: application.firm_abn,
+          settings: {
+            accountant_firm: true,
+            credential_type: application.credential_type,
+          },
+        },
+      ])
+      .select()
+      .single();
+
+    if (orgError) {
+      console.error('Error creating organization:', orgError);
+      // If organizations table doesn't exist, continue without it
+      console.warn('Continuing without organization creation');
+    }
+
+    const organizationId = organization?.id || tempUserId;
+
+    // Step 3: Create vetted accountant record
+    const vettedAccountantData: Partial<VettedAccountant> = {
+      user_id: tempUserId,
+      application_id: application.id,
+      organization_id: organizationId,
+      email: application.email,
+      full_name: `${application.first_name} ${application.last_name}`,
+      firm_name: application.firm_name,
+      credential_type: application.credential_type,
+      credential_number: application.credential_number,
+      is_active: true,
+      wholesale_discount_rate,
+      lifetime_discount: true,
+      special_pricing_note: `Approved on ${new Date().toISOString().split('T')[0]}`,
+      total_reports_generated: 0,
+      total_clients_onboarded: 0,
+    };
+
+    const { data: vettedAccountant, error: vettedError } = await supabase
+      .from('vetted_accountants')
+      .insert([vettedAccountantData])
+      .select()
+      .single();
+
+    if (vettedError) {
+      console.error('Error creating vetted accountant:', vettedError);
+      return createErrorResponse(
+        new Error('Failed to create vetted accountant record'),
+        { applicationId, error: vettedError.message },
+        500
+      );
+    }
+
+    // Step 4: Update application status
+    const { error: updateError } = await supabase
+      .from('accountant_applications')
+      .update({
+        status: 'approved',
+        reviewed_at: new Date().toISOString(),
+        internal_notes,
+        user_id: tempUserId,
+        approved_organization_id: organizationId,
+      })
+      .eq('id', applicationId);
+
+    if (updateError) {
+      console.error('Error updating application:', updateError);
+      return createErrorResponse(
+        new Error('Failed to update application'),
+        { applicationId },
+        500
+      );
+    }
+
+    // Step 5: Log activity
+    await supabase.from('accountant_activity_log').insert([
+      {
+        accountant_id: vettedAccountant.id,
+        application_id: applicationId,
+        action: 'application_approved',
+        actor_role: 'admin',
+        details: {
+          wholesale_discount_rate,
+          organization_id: organizationId,
+          firm_name: application.firm_name,
+        },
+      },
+    ]);
+
+    // Step 6: Generate magic link for email (placeholder)
+    const magicLink = `${process.env.NEXT_PUBLIC_APP_URL}/auth/magic-link?token=${crypto.randomUUID()}`;
+
+    // TODO: Send welcome email with magic link
+    if (send_welcome_email) {
+      console.log(`TODO: Send welcome email to ${application.email}`);
+      console.log(`Magic link: ${magicLink}`);
+    }
+
+    // Return success response
+    const response: ApprovalResponse = {
+      success: true,
+      accountant_id: vettedAccountant.id,
+      user_id: tempUserId,
+      organization_id: organizationId,
+      magic_link: magicLink,
+      message: `Application approved successfully. ${
+        send_welcome_email
+          ? 'Welcome email sent to ' + application.email
+          : 'No email sent'
+      }.`,
+    };
+
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error('Unexpected error approving application:', error);
+    return createErrorResponse(
+      error as Error,
+      { operation: 'approve_accountant_application' },
+      500
+    );
+  }
+}

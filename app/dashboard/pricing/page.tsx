@@ -7,6 +7,7 @@
 'use client'
 
 import React from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
     ShieldCheck,
@@ -21,46 +22,62 @@ import {
 } from 'lucide-react'
 import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
 
-const PricingCard = ({ title, price, description, features, buttonText, highlight = false, badge = '' }: any) => (
-    <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`glass-card p-8 flex flex-col items-start relative overflow-hidden group ${highlight ? 'border-sky-500/50 bg-sky-500/5 shadow-[0_0_50px_-12px_rgba(14,165,233,0.3)]' : 'border-white/10'}`}
-    >
-        {badge && (
-            <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-sky-500 text-[10px] font-black uppercase tracking-widest text-white">
-                {badge}
-            </div>
-        )}
-
-        <div className={`w-12 h-12 rounded-xl mb-6 flex items-center justify-center ${highlight ? 'bg-sky-500 text-white' : 'bg-white/5 text-sky-400'}`}>
-            {title === 'Business Owner' ? <Building2 className="w-6 h-6" /> : <Users className="w-6 h-6" />}
-        </div>
-
-        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-sky-400 mb-2">{title}</h3>
-        <div className="flex items-baseline gap-1 mb-4">
-            <span className="text-4xl font-black text-white tracking-tighter">${price}</span>
-            <span className="text-white/40 text-xs font-bold font-mono">/AUD</span>
-        </div>
-
-        <p className="text-sm text-white/60 mb-8 leading-relaxed">
-            {description}
-        </p>
-
-        <div className="space-y-4 mb-10 w-full">
-            {features.map((feature: string, i: number) => (
-                <div key={i} className="flex items-start gap-3">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                    <span className="text-xs text-white/70 font-medium leading-tight">{feature}</span>
-                </div>
-            ))}
-        </div>
-
-        <button className={`w-full py-4 rounded-xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all ${highlight ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+const PricingCard = ({ title, price, description, features, buttonText, highlight = false, badge = '', buttonLink = '' }: any) => {
+    const ButtonContent = () => (
+        <>
             {buttonText} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-        </button>
-    </motion.div>
-)
+        </>
+    );
+
+    const buttonClasses = `w-full py-4 rounded-xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all ${highlight ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-white/10 text-white hover:bg-white/20'}`;
+
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`glass-card p-8 flex flex-col items-start relative overflow-hidden group ${highlight ? 'border-sky-500/50 bg-sky-500/5 shadow-[0_0_50px_-12px_rgba(14,165,233,0.3)]' : 'border-white/10'}`}
+        >
+            {badge && (
+                <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-sky-500 text-[10px] font-black uppercase tracking-widest text-white">
+                    {badge}
+                </div>
+            )}
+
+            <div className={`w-12 h-12 rounded-xl mb-6 flex items-center justify-center ${highlight ? 'bg-sky-500 text-white' : 'bg-white/5 text-sky-400'}`}>
+                {title === 'Business Owner' ? <Building2 className="w-6 h-6" /> : <Users className="w-6 h-6" />}
+            </div>
+
+            <h3 className="text-sm font-black uppercase tracking-[0.2em] text-sky-400 mb-2">{title}</h3>
+            <div className="flex items-baseline gap-1 mb-4">
+                <span className="text-4xl font-black text-white tracking-tighter">${price}</span>
+                <span className="text-white/40 text-xs font-bold font-mono">/AUD</span>
+            </div>
+
+            <p className="text-sm text-white/60 mb-8 leading-relaxed">
+                {description}
+            </p>
+
+            <div className="space-y-4 mb-10 w-full">
+                {features.map((feature: string, i: number) => (
+                    <div key={i} className="flex items-start gap-3">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                        <span className="text-xs text-white/70 font-medium leading-tight">{feature}</span>
+                    </div>
+                ))}
+            </div>
+
+            {buttonLink ? (
+                <Link href={buttonLink} className={buttonClasses}>
+                    <ButtonContent />
+                </Link>
+            ) : (
+                <button className={buttonClasses}>
+                    <ButtonContent />
+                </button>
+            )}
+        </motion.div>
+    );
+}
 
 export default function PricingPage() {
     return (
@@ -105,7 +122,8 @@ export default function PricingPage() {
                         highlight={true}
                         badge="Partner Program"
                         description="Wholesale credits for professional entities. Provide elite tax health checks as a value-add for your clients."
-                        buttonText="Join Partner Fleet"
+                        buttonText="Apply for Accountant Pricing"
+                        buttonLink="/accountant/apply"
                         features={[
                             'Wholesale License Pricing (-50%)',
                             'Professional Audit Package Export',
