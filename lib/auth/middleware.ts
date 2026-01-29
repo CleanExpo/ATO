@@ -72,6 +72,21 @@ export function createAuthErrorResponse(
 export async function authMiddleware(
   _request: NextRequest
 ): Promise<AuthResult | NextResponse> {
+  // Single-user mode: Skip authentication entirely
+  if (process.env.SINGLE_USER_MODE === 'true') {
+    const { createServiceClient } = await import('@/lib/supabase/server')
+    const supabase = await createServiceClient()
+
+    return {
+      user: {
+        id: 'single-user',
+        email: 'single-user@local',
+        role: 'owner'
+      },
+      supabase
+    }
+  }
+
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
