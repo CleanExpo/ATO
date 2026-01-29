@@ -88,6 +88,9 @@ export async function GET(request: NextRequest) {
         const { data: { user } } = await supabase.auth.getUser()
         const userId = user?.id
 
+        // Track failed tenants for partial success handling
+        const failedTenants: Array<{name: string; reason: string}> = []
+
         for (const tenant of tenants) {
             console.log('Processing tenant:', tenant.tenantName)
 
@@ -121,21 +124,43 @@ export async function GET(request: NextRequest) {
                         .single()
 
                     if (orgError) {
-                        console.error('Error creating organization:', orgError)
-                    } else if (newOrg) {
-                        organizationId = newOrg.id
-                        console.log('Created new organization:', organizationId)
+                        console.error('[CRITICAL] Organization creation failed:', {
+                            tenant: tenant.tenantName,
+                            tenantId: tenant.tenantId,
+                            error: orgError.message,
+                            code: orgError.code,
+                            details: orgError.details,
+                            timestamp: new Date().toISOString()
+                        })
 
-                        // Grant user owner access to this organization (if user exists)
-                        if (userId) {
-                            await supabase.from('user_tenant_access').insert({
-                                user_id: userId,
-                                organization_id: organizationId,
-                                tenant_id: tenant.tenantId,
-                                role: 'owner',
-                            })
-                            console.log('Granted owner access to user')
-                        }
+                        failedTenants.push({
+                            name: tenant.tenantName,
+                            reason: orgError.message
+                        })
+                        continue // Skip this tenant
+                    }
+
+                    if (!newOrg || !newOrg.id) {
+                        console.error('[CRITICAL] Organization created but no ID returned')
+                        failedTenants.push({
+                            name: tenant.tenantName,
+                            reason: 'Organization ID missing after creation'
+                        })
+                        continue // Skip this tenant
+                    }
+
+                    organizationId = newOrg.id
+                    console.log('Created new organization:', organizationId)
+
+                    // Grant user owner access to this organization (if user exists)
+                    if (userId) {
+                        await supabase.from('user_tenant_access').insert({
+                            user_id: userId,
+                            organization_id: organizationId,
+                            tenant_id: tenant.tenantId,
+                            role: 'owner',
+                        })
+                        console.log('Granted owner access to user')
                     }
                 }
 
@@ -183,8 +208,29 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        // SUCCESS! Redirect to dashboard
-        const response = NextResponse.redirect(`${baseUrl}/dashboard?connected=true`)
+        // Check for partial failures
+        if (failedTenants.length > 0 && failedTenants.length === tenants.length) {
+            // ALL tenants failed
+            return buildErrorResponse(request, 'Failed to connect any organizations', 500, {
+                step: 'all_tenants_failed',
+                failedTenants,
+                count: failedTenants.length
+            })
+        }
+
+        // SUCCESS (full or partial)! Redirect to dashboard
+        const params = new URLSearchParams()
+
+        if (failedTenants.length === 0) {
+            params.set('connected', 'true')
+        } else {
+            // Partial success
+            params.set('connected', 'partial')
+            params.set('failed', failedTenants.map(t => t.name).join(', '))
+            params.set('error', `${failedTenants.length} organization(s) failed to connect`)
+        }
+
+        const response = NextResponse.redirect(`${baseUrl}/dashboard?${params}`)
         response.cookies.delete('xero_oauth_state')
         return response
 

@@ -20,10 +20,20 @@ export async function GET(_request: NextRequest) {
         xeroAuthUrl.searchParams.set('scope', 'openid profile email accounting.transactions.read accounting.reports.read accounting.contacts.read accounting.settings.read')
         xeroAuthUrl.searchParams.set('state', state)
 
+        // Force re-authentication to show all available organizations
+        // This prevents Xero from using cached session and only showing previously selected orgs
+        xeroAuthUrl.searchParams.set('prompt', 'login')     // Force Xero login screen
+        xeroAuthUrl.searchParams.set('max_age', '0')        // Don't use cached authentication
+
         // Return the state so client can store it
         return NextResponse.json({
             authUrl: xeroAuthUrl.toString(),
             state,
+            debug: {
+                forcedReauth: true,
+                prompt: 'login',
+                note: 'User will see all organizations in Xero selector'
+            }
         })
     } catch (error) {
         console.error('Failed to initiate Xero OAuth:', error)
