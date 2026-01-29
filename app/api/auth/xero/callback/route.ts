@@ -109,12 +109,11 @@ export async function GET(request: NextRequest) {
                     console.log('Found existing organization:', organizationId)
                 } else {
                     // Create new organization for this Xero tenant
-                    const { data: newOrg, error: orgError } = await supabase
+                    const { data: newOrg, error: orgError} = await supabase
                         .from('organizations')
                         .insert({
                             name: org?.name || tenant.tenantName || 'My Organisation',
                             xero_tenant_id: tenant.tenantId,
-                            xero_connected_at: new Date().toISOString(),
                             settings: {},
                             xero_connected: true,
                         })
@@ -174,7 +173,6 @@ export async function GET(request: NextRequest) {
                         .from('organizations')
                         .update({
                             xero_connected: true,
-                            xero_connected_at: new Date().toISOString(),
                             updated_at: new Date().toISOString(),
                         })
                         .eq('id', organizationId)
