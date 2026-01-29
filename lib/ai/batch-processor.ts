@@ -16,7 +16,7 @@ import { getCachedQuickBooksTransactions } from '@/lib/integrations/quickbooks-h
 import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type TransactionContext, type BusinessContext, type ForensicAnalysis } from './forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { getAdapter } from '@/lib/integrations'
-import type { CanonicalTransaction } from '@/lib/integrations/types'
+import type { CanonicalTransaction } from '@/lib/integrations/canonical-schema'
 import { triggerAlertGeneration } from '@/lib/alerts/alert-generator'
 import slack from '@/lib/slack/slack-notifier'
 

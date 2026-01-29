@@ -127,34 +127,36 @@ function ForensicAuditPage() {
   }, [enhancedProgress.syncProgress, enhancedProgress.stage, tenantId])
 
   return (
-    <div className="min-h-screen bg-[var(--bg-dashboard)] overflow-hidden relative">
-
+    <>
       {/* Ambient Visuals */}
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-sky-500/5 blur-[120px] rounded-full" />
         <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/5 blur-[100px] rounded-full" />
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10 flex flex-col items-center min-h-[calc(100vh-100px)]">
+      {/* Page Content - centered by parent layout */}
+      <div className="relative z-10 py-12 pt-20 space-y-20">
 
         {/* Header Block */}
-        <div className="text-center space-y-3 sm:space-y-4 mb-12 sm:mb-16 lg:mb-20 w-full">
+        <header className="text-center space-y-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] sm:text-[10px] font-black text-sky-400 uppercase tracking-widest"
+            className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-black text-sky-400 uppercase tracking-widest"
           >
             <ShieldCheck className="w-3 h-3" />
             Sovereign Forensic Protocol v8.1
           </motion.div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tighter px-4">Forensic Audit</h1>
-          <p className="text-white/40 max-w-xl mx-auto text-sm sm:text-base lg:text-lg font-medium px-4">
+          <h1 className="text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tighter">
+            Forensic Audit
+          </h1>
+          <p className="text-white/40 max-w-xl mx-auto text-base lg:text-lg font-medium">
             AI-driven ledger auditing for historical tax optimization and misclassification discovery.
           </p>
-        </div>
+        </header>
 
         {/* The Vertical Stream Pipeline */}
-        <div className="relative flex flex-col items-center w-full max-w-2xl">
+        <section className="relative flex flex-col items-center">
 
           {/* Connector Line */}
           <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[2px] bg-gradient-to-b from-sky-500/40 via-white/5 to-transparent shadow-[0_0_15px_rgba(14,165,233,0.3)]" />
@@ -194,7 +196,7 @@ function ForensicAuditPage() {
             actionLabel="View Results"
           />
 
-        </div>
+        </section>
 
         {/* Real-time Stats Panel */}
         <AnimatePresence>
@@ -203,7 +205,7 @@ function ForensicAuditPage() {
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 50 }}
-              className="mt-20 w-full max-w-4xl"
+              className="mt-12 w-full flex justify-center"
             >
               <AnalysisProgressPanel
                 stage={enhancedProgress.stage}
@@ -235,8 +237,8 @@ function ForensicAuditPage() {
           </motion.div>
         )}
 
-      </main>
-    </div>
+      </div>
+    </>
   )
 }
 

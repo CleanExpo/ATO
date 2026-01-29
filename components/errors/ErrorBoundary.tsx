@@ -48,7 +48,8 @@ export class ErrorBoundary extends Component<Props, State> {
     // Send to Sentry in production
     if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
       // Dynamically import Sentry to avoid loading it unnecessarily
-      import('@sentry/nextjs').then((Sentry) => {
+      // @ts-ignore - Sentry is optional and may not be installed
+      import('@sentry/nextjs').then((Sentry: any) => {
         Sentry.captureException(error, {
           contexts: {
             react: {
@@ -56,6 +57,8 @@ export class ErrorBoundary extends Component<Props, State> {
             },
           },
         })
+      }).catch(() => {
+        // Sentry not installed, skip error reporting
       })
     }
 

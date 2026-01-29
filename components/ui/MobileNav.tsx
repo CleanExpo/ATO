@@ -17,7 +17,14 @@ import {
   Beaker,
   FileSearch,
   TrendingDown,
-  Settings
+  Settings,
+  Calendar,
+  Users,
+  ShieldAlert,
+  BrainCircuit,
+  Terminal,
+  HelpCircle,
+  CreditCard
 } from 'lucide-react'
 import {
   getMobileNavItems,
@@ -30,9 +37,16 @@ const iconMap: Record<IconName, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
   Search,
   FileSearch,
+  Calendar,
   Beaker,
   TrendingDown,
   Settings,
+  Users,
+  ShieldAlert,
+  BrainCircuit,
+  Terminal,
+  HelpCircle,
+  CreditCard,
 }
 
 function NavIcon({ name }: { name: IconName }) {

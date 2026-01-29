@@ -195,9 +195,9 @@ export class XeroAdapter implements PlatformAdapter {
         undefined, // invoice numbers
         undefined, // contact IDs
         undefined, // statuses
-        1, // page
-        100, // page size
-        true // includeArchived
+        1 as any, // page
+        100 as any, // page size
+        true as any // includeArchived
       )
     )
 
@@ -221,9 +221,9 @@ export class XeroAdapter implements PlatformAdapter {
         undefined,
         undefined,
         undefined,
-        1,
-        100,
-        true
+        1 as any,
+        100 as any,
+        true as any
       )
     )
 
@@ -450,10 +450,10 @@ export class XeroAdapter implements PlatformAdapter {
     return accounts.map((acc) => ({
       code: acc.code || '',
       name: acc.name || '',
-      type: this.mapXeroAccountType(acc.type),
-      class: acc._class,
-      taxType: acc.taxType,
-      isActive: acc.status === 'ACTIVE',
+      type: this.mapXeroAccountType(acc.type ? String(acc.type) : undefined),
+      class: acc._class ? String(acc._class) : undefined,
+      taxType: acc.taxType ? String(acc.taxType) : undefined,
+      isActive: acc.status ? String(acc.status) === 'ACTIVE' : false,
       description: acc.description,
       metadata: {
         xeroAccountID: acc.accountID,
@@ -618,8 +618,8 @@ export class XeroAdapter implements PlatformAdapter {
       id: org.organisationID || '',
       name: org.name || '',
       taxNumber: org.taxNumber,
-      currency: org.baseCurrency || 'AUD',
-      country: org.countryCode || 'AU',
+      currency: org.baseCurrency ? String(org.baseCurrency) : 'AUD',
+      country: org.countryCode ? String(org.countryCode) : 'AU',
       fiscalYearEnd: org.financialYearEndMonth ? `${org.financialYearEndMonth}-${org.financialYearEndDay}` : undefined,
     }
   }

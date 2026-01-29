@@ -69,7 +69,7 @@ export default function AlertCard({
       }
     } catch (error) {
       console.error('Error updating alert:', error)
-      alert('Failed to update alert status')
+      window.alert('Failed to update alert status')
     } finally {
       setIsUpdating(false)
     }
@@ -95,7 +95,7 @@ export default function AlertCard({
       }
     } catch (error) {
       console.error('Error deleting alert:', error)
-      alert('Failed to delete alert')
+      window.alert('Failed to delete alert')
     } finally {
       setIsUpdating(false)
     }

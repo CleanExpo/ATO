@@ -55,8 +55,8 @@ async function runMigration(migrationFile: string) {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'apikey': supabaseServiceKey,
-              'Authorization': `Bearer ${supabaseServiceKey}`
+              'apikey': supabaseServiceKey!,
+              'Authorization': `Bearer ${supabaseServiceKey!}`
             },
             body: JSON.stringify({ query: statement })
           })

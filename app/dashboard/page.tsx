@@ -243,13 +243,13 @@ function DashboardContent() {
     if (!activeConnection) return
 
     try {
-      const dqResponse = await fetch(`/api/data-quality/scan?tenantId=${activeConnection.tenant_id}`)
+      const dqResponse = await fetch(`/api/data-quality/scan?tenantId=${activeConnection.tenantId}`)
       const dqData = await dqResponse.json()
 
-      const syncResponse = await fetch(`/api/audit/sync-status/${activeConnection.tenant_id}`)
+      const syncResponse = await fetch(`/api/audit/sync-status/${activeConnection.tenantId}`)
       const syncData = await syncResponse.json()
 
-      const analysisResponse = await fetch(`/api/audit/analysis-status/${activeConnection.tenant_id}`)
+      const analysisResponse = await fetch(`/api/audit/analysis-status/${activeConnection.tenantId}`)
       const analysisData = await analysisResponse.json()
 
       const operations: ActiveOperation[] = []

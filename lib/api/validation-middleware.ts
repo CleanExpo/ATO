@@ -106,13 +106,8 @@ export function validateRequestQuery<T extends z.ZodTypeAny>(
   schema: T
 ): ValidationResult<z.infer<T>> {
   try {
-    // Convert URLSearchParams to object
-    const params: Record<string, string> = {}
-    request.nextUrl.searchParams.forEach((value, key) => {
-      params[key] = value
-    })
-
-    const result = validateQueryParams(params, schema)
+    // Pass URLSearchParams directly to validateQueryParams
+    const result = validateQueryParams(request.nextUrl.searchParams, schema)
 
     return {
       success: true,

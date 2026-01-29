@@ -271,7 +271,7 @@ async function cacheMYOBTransactions(
 ): Promise<void> {
     if (transactions.length === 0) return
 
-    const supabase = createServiceClient()
+    const supabase = await createServiceClient()
 
     // Batch insert transactions
     const records = transactions.map(tx => ({
@@ -318,7 +318,7 @@ async function updateMYOBSyncStatus(
     companyFileId: string,
     syncStatus: MYOBSyncProgress
 ): Promise<void> {
-    const supabase = createServiceClient()
+    const supabase = await createServiceClient()
 
     const { error } = await supabase
         .from('audit_sync_status')

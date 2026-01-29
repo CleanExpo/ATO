@@ -191,6 +191,22 @@ export interface FinancialYear {
     isCurrent: boolean
 }
 
+/**
+ * Convert a date to Australian financial year format (FY2024-25)
+ * Australian FY runs from July 1 to June 30
+ */
+export function getFinancialYearFromDate(date: Date): string {
+    const year = date.getFullYear()
+    const month = date.getMonth() + 1 // 1-12
+
+    // If month is July-December, FY ends next year
+    // If month is January-June, FY ends this year
+    const fyEndYear = month >= 7 ? year + 1 : year
+    const fyStartYear = fyEndYear - 1
+
+    return `FY${fyStartYear}-${String(fyEndYear).slice(2)}`
+}
+
 // Get Australian financial years
 export function getFinancialYears(): FinancialYear[] {
     const currentYear = new Date().getFullYear()

@@ -357,18 +357,10 @@ export function AnalysisProgressPanel({
         )}
       </div>
 
-      {/* Main Progress Section */}
-      <div className="flex items-center gap-6 mb-6">
-        {/* Circular Progress */}
-        <ProgressRing
-          progress={stage === 'syncing' ? (syncProgress || 0) : overallProgress}
-          size={100}
-          strokeWidth={5}
-          colour={stageColour}
-        />
-
-        {/* Batch Info */}
-        <div className="flex-1">
+      {/* Main Progress Section - Stacked vertically */}
+      <div className="flex flex-col items-center gap-6 mb-6">
+        {/* Batch Info - Centered above ring */}
+        <div className="text-center">
           {batch && (
             <>
               <p className="text-xs text-white/40 mb-1">Current Batch</p>
@@ -381,7 +373,7 @@ export function AnalysisProgressPanel({
                 </p>
               )}
               {(batch.successCount > 0 || batch.failureCount > 0) && (
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center justify-center gap-2 mt-2">
                   <span className="text-xs" style={{ color: SPECTRAL.emerald }}>
                     {batch.successCount} ok
                   </span>
@@ -398,6 +390,14 @@ export function AnalysisProgressPanel({
             <p className="text-sm text-white/50">Syncing {platformLabel} historical data...</p>
           )}
         </div>
+
+        {/* Circular Progress - Centered below */}
+        <ProgressRing
+          progress={stage === 'syncing' ? (syncProgress || 0) : overallProgress}
+          size={120}
+          strokeWidth={6}
+          colour={stageColour}
+        />
       </div>
 
       {/* Time Estimates */}

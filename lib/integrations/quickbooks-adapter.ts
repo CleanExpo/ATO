@@ -144,7 +144,7 @@ function buildDescription(
   // Add line item descriptions
   const lineDescriptions = qbTxn.Line
     ?.map(line => line.Description)
-    .filter(Boolean)
+    .filter((desc): desc is string => Boolean(desc))
     .slice(0, 2) // Limit to first 2 line items
 
   if (lineDescriptions && lineDescriptions.length > 0) {

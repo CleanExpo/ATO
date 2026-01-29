@@ -32,7 +32,8 @@ export async function generateExcelReport(reportData: PDFReport): Promise<Buffer
   await createExecutiveSummarySheet(workbook, reportData)
   await createRndAnalysisSheet(workbook, reportData)
   await createDeductionsSheet(workbook, reportData)
-  await createLossesSheet(workbook, reportData)
+  // TODO: Implement createLossesSheet
+  // await createLossesSheet(workbook, reportData)
   await createRecommendationsSheet(workbook, reportData)
   await createTransactionDetailSheet(workbook, reportData)
 
@@ -224,6 +225,7 @@ async function createRndAnalysisSheet(
     rules: [
       {
         type: 'colorScale',
+        priority: 1,
         cfvo: [
           { type: 'num', value: 0 },
           { type: 'num', value: 0.5 },
@@ -372,12 +374,12 @@ async function createRecommendationsSheet(
   sheet.getColumn('confidence').numFmt = '0%'
   sheet.getColumn('deadline').numFmt = 'dd/mm/yyyy'
 
-  // Add data validation for priority
-  sheet.dataValidations.add('A2:A100', {
-    type: 'list',
-    allowBlank: false,
-    formulae: ['"CRITICAL,HIGH,MEDIUM,LOW"'],
-  })
+  // TODO: Add data validation for priority when supported
+  // sheet.dataValidations.add('A2:A100', {
+  //   type: 'list',
+  //   allowBlank: false,
+  //   formulae: ['"CRITICAL,HIGH,MEDIUM,LOW"'],
+  // })
 }
 
 /**
