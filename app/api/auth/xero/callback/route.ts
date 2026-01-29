@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
                 if (existingOrg) {
                     organizationId = existingOrg.id
                     console.log('Found existing organization:', organizationId)
-                } else if (userId) {
+                } else {
                     // Create new organization for this Xero tenant
                     const { data: newOrg, error: orgError } = await supabase
                         .from('organizations')
@@ -127,14 +127,16 @@ export async function GET(request: NextRequest) {
                         organizationId = newOrg.id
                         console.log('Created new organization:', organizationId)
 
-                        // Grant user owner access to this organization
-                        await supabase.from('user_tenant_access').insert({
-                            user_id: userId,
-                            organization_id: organizationId,
-                            tenant_id: tenant.tenantId,
-                            role: 'owner',
-                        })
-                        console.log('Granted owner access to user')
+                        // Grant user owner access to this organization (if user exists)
+                        if (userId) {
+                            await supabase.from('user_tenant_access').insert({
+                                user_id: userId,
+                                organization_id: organizationId,
+                                tenant_id: tenant.tenantId,
+                                role: 'owner',
+                            })
+                            console.log('Granted owner access to user')
+                        }
                     }
                 }
 
