@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@linear/sdk": "^72.0.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
     "@types/bcryptjs": "^2.4.6",

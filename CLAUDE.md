@@ -74,6 +74,7 @@ This platform deeply analyses Australian Business Taxation Laws, Regulations, an
 | Database | Supabase (PostgreSQL) |
 | Accounting | Xero OAuth 2.0 (READ-ONLY) |
 | AI Analysis | Google Gemini (gemini-2.0-flash-exp) |
+| Project Management | Linear (Issue tracking) |
 | Deployment | Vercel |
 
 ### Core Directories
@@ -114,6 +115,87 @@ D:\ATO\
 | trust-distribution-analyzer | HIGH | Section 100A and UPE compliance |
 | bad-debt-recovery-agent | HIGH | Section 25-35 bad debt deductions |
 | business-transition-agent | CRITICAL | Business cessation and pivots |
+
+### Idea Intake Workflow (Two-Claude Pattern)
+
+**NEW**: Autonomous idea intake system based on Matt Maher's "do-work" pattern.
+
+**Purpose**: Capture ideas without disrupting active work. One Claude instance captures, another validates and executes.
+
+#### Architecture
+
+```
+Capture Claude → Queue (Supabase) → Senior PM (Validate) → Linear → Work Claude (Execute)
+```
+
+#### Components
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| **Capture Skill** | `.agent/skills/idea-queue-capture/` | Fast idea capture (<2s) |
+| **Senior PM Enhanced** | `.agent/agents/senior_project_manager_enhanced/` | Validation + routing |
+| **Work Queue Processor** | `.agent/skills/work-queue-processor/` | Autonomous execution |
+| **Queue Manager** | `lib/queue/work-queue-manager.ts` | Queue operations |
+| **PM Validator** | `lib/queue/pm-validator.ts` | Validation logic |
+| **Linear Client** | `lib/linear/api-client.ts` | Linear integration |
+
+#### Environment Variables
+
+```bash
+# Linear Configuration (required)
+LINEAR_API_KEY=lin_api_...
+LINEAR_TEAM_ID=UNI
+LINEAR_PROJECT_ID=project-id-optional
+```
+
+#### Usage Pattern
+
+**Capture Instance** (for dropping ideas):
+```bash
+User: Fix the navigation header padding
+User: /capture-idea
+# Returns: ✅ Idea captured (Queue position #3)
+```
+
+**Work Instance** (for autonomous execution):
+```bash
+/process-queue --continuous
+# Runs until queue empty, processes items autonomously
+```
+
+#### Queue Lifecycle
+
+1. **pending** → Awaiting PM validation
+2. **validating** → Senior PM assessing
+3. **validated** → Approved, awaiting execution
+4. **processing** → Currently being executed
+5. **complete** → Successfully done
+6. **archived** → Completed and archived
+
+#### Integration with Linear
+
+- Creates Linear issues automatically during validation
+- Updates issue status as queue progresses
+- Detects duplicates (≥70% similarity)
+- Adds metadata: complexity, priority, assigned agent
+
+#### Key Features
+
+- ✅ **Context Isolation**: Fresh sub-agent per item (no pollution)
+- ✅ **Intelligent Routing**: Auto-routes to domain agents
+- ✅ **Duplicate Detection**: Searches Linear before creating issues
+- ✅ **Priority Scoring**: P0-P3 based on impact
+- ✅ **Fault Tolerant**: Continues on individual failures
+- ✅ **Observable**: Full audit trail + screenshots
+
+#### Performance
+
+- Capture: <2 seconds
+- Validation: ~20 seconds
+- Execution: 3-30 minutes (complexity-dependent)
+- Throughput: 10-25 items per 90 minutes
+
+See `.agent/workflows/idea-intake.md` for complete documentation.
 
 ---
 
@@ -486,6 +568,20 @@ import type { ForensicAnalysis, RndTransaction } from '@/lib/types';
 /deduction-scan              # Find unclaimed deductions
 /bad-debt-scan               # Bad debt recovery
 /loss-analysis               # Review carry-forward loss position
+
+# Idea Intake Workflow (Two-Claude Pattern)
+# Use in Capture Claude instance:
+/capture-idea                 # Capture current message as idea
+/capture-request <text>       # Capture specific text
+/list-queue                   # Show queue status
+
+# Use in Work Claude instance:
+/process-queue                # Process all validated items
+/process-queue --continuous   # Run until queue empty
+/pause-queue                  # Stop after current item
+
+# Use in Senior PM instance:
+/validate-queue               # Validate all pending items
 ```
 
 ### Financial Years in Scope

@@ -88,6 +88,11 @@ function validateServerConfig() {
       clientId: getRequiredEnv('XERO_CLIENT_ID'),
       clientSecret: getRequiredEnv('XERO_CLIENT_SECRET'),
     },
+    linear: {
+      apiKey: getRequiredEnv('LINEAR_API_KEY'),
+      teamId: getRequiredEnv('LINEAR_TEAM_ID'),
+      projectId: getOptionalEnv('LINEAR_PROJECT_ID', ''),
+    },
   };
 }
 
@@ -186,6 +191,10 @@ export function validateConfiguration(): {
       warnings.push('BUSINESS_ABN not set - reports will not include ABN');
     }
 
+    if (!serverConfig.linear.projectId) {
+      warnings.push('LINEAR_PROJECT_ID not set - issues will be created without project assignment');
+    }
+
     return { valid: true, errors, warnings };
   } catch (error) {
     if (error instanceof ConfigurationError) {
@@ -207,6 +216,7 @@ export function logConfigurationStatus(): void {
   console.log(`Base URL: ${sharedConfig.baseUrl}`);
   console.log(`Supabase URL: ${clientConfig.supabase.url}`);
   console.log(`Xero Client ID: ${serverConfig.xero.clientId.substring(0, 8)}...`);
+  console.log(`Linear Team ID: ${serverConfig.linear.teamId}`);
 
   const validation = validateConfiguration();
 

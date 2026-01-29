@@ -1,14 +1,15 @@
 /**
- * ATO Tax Optimizer - Landing Page
+ * ATO Tax Optimizer - Landing Page (Optimized)
  *
  * Scientific Luxury Design System.
- * Premium, minimal, product-ready.
+ * Premium, minimal, conversion-focused.
  */
 
 'use client'
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { CheckCircle, Shield, Lock, Award } from 'lucide-react'
 
 // ─── Design Tokens ───────────────────────────────────────────────────
 
@@ -25,8 +26,8 @@ const EASING = [0.19, 1, 0.22, 1] as const
 // ─── Breathing Orb ──────────────────────────────────────────────────
 
 function BreathingOrb({ colour, size = 'md' }: { colour: string; size?: 'sm' | 'md' | 'lg' }) {
-  const sizes = { sm: 'h-8 w-8', md: 'h-12 w-12', lg: 'h-16 w-16' }
-  const dots = { sm: 'h-2 w-2', md: 'h-3 w-3', lg: 'h-4 w-4' }
+  const sizes = { sm: 'h-10 w-10', md: 'h-14 w-14', lg: 'h-20 w-20' }
+  const dots = { sm: 'h-2.5 w-2.5', md: 'h-3.5 w-3.5', lg: 'h-5 w-5' }
   return (
     <motion.div
       className={`${sizes[size]} flex items-center justify-center rounded-full border-[0.5px]`}
@@ -53,14 +54,14 @@ export default function Home() {
     <div className="min-h-screen text-white" style={{ background: '#050505' }}>
 
       {/* ── Hero ── */}
-      <section className="pt-20 pb-32 px-6">
-        <div className="max-w-5xl mx-auto text-center">
+      <section className="pt-24 md:pt-32 pb-40 px-6">
+        <div className="max-w-6xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: EASING }}
           >
-            <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 mb-8">
+            <p className="text-[11px] uppercase tracking-[0.4em] text-white/40 mb-10 font-medium">
               AI-Powered Forensic Tax Analysis
             </p>
           </motion.div>
@@ -69,7 +70,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: EASING }}
-            className="text-7xl md:text-8xl font-extralight tracking-tight leading-[0.9] mb-8"
+            className="text-6xl md:text-7xl lg:text-8xl font-extralight tracking-tight leading-[0.95] mb-10"
           >
             <span className="text-white">Unlock Every</span>
             <br />
@@ -80,21 +81,21 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: EASING }}
-            className="text-lg text-white/40 max-w-xl mx-auto mb-12 font-light tracking-wide"
+            className="text-xl md:text-2xl text-white/60 max-w-3xl mx-auto mb-14 font-light leading-relaxed"
           >
-            Deep analysis of your Xero data to identify R&D refunds,
-            unclaimed deductions, and optimisation opportunities.
+            Deep AI analysis of your Xero data to identify R&D refunds,
+            unclaimed deductions, and tax optimisation opportunities worth <span className="text-white/90" style={{ color: SPECTRAL.emerald }}>$200K-$500K</span>.
           </motion.p>
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: EASING }}
-            className="flex items-center justify-center gap-4"
+            className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-12"
           >
             <Link
               href="/api/auth/xero"
-              className="px-8 py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-medium border-[0.5px] transition-all hover:shadow-2xl"
+              className="group px-10 py-5 rounded-sm text-[12px] uppercase tracking-[0.2em] font-semibold border-[0.5px] transition-all duration-300 hover:scale-105 w-full sm:w-auto"
               style={{
                 borderColor: `${SPECTRAL.cyan}50`,
                 color: '#050505',
@@ -102,29 +103,54 @@ export default function Home() {
                 boxShadow: `0 0 60px ${SPECTRAL.cyan}30`,
               }}
             >
-              Connect Xero Account
+              <span className="flex items-center justify-center gap-3">
+                Connect Xero Account
+                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </span>
             </Link>
             <Link
               href="/dashboard"
-              className="px-8 py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-medium border-[0.5px] border-white/[0.1] text-white/50 hover:text-white/80 hover:border-white/[0.2] transition-all"
-              style={{ background: 'rgba(255,255,255,0.02)' }}
+              className="px-10 py-5 rounded-sm text-[12px] uppercase tracking-[0.2em] font-medium border-[0.5px] border-white/[0.15] text-white/60 hover:text-white/90 hover:border-white/[0.3] transition-all duration-300 w-full sm:w-auto"
+              style={{ background: 'rgba(255,255,255,0.03)' }}
             >
               View Dashboard
             </Link>
+          </motion.div>
+
+          {/* Trust Indicators */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4, ease: EASING }}
+            className="flex flex-wrap items-center justify-center gap-8 text-[11px] text-white/30"
+          >
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4" style={{ color: SPECTRAL.emerald }} />
+              <span>Read-Only Access</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4" style={{ color: SPECTRAL.cyan }} />
+              <span>Bank-Grade Security</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Award className="w-4 h-4" style={{ color: SPECTRAL.amber }} />
+              <span>ATO Legislation Compliant</span>
+            </div>
           </motion.div>
         </div>
       </section>
 
       {/* ── Capabilities Data Strip ── */}
-      <section className="px-6 pb-32">
-        <div className="max-w-5xl mx-auto">
+      <section className="px-6 pb-40">
+        <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: EASING }}
-            className="flex flex-col md:flex-row items-stretch gap-0 border-[0.5px] border-white/[0.06] rounded-sm overflow-hidden"
-            style={{ background: 'rgba(255,255,255,0.01)' }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6"
           >
             {[
               {
@@ -145,65 +171,70 @@ export default function Home() {
                 detail: 'Misclassified expenses and unclaimed items',
                 colour: SPECTRAL.amber,
               },
-            ].map((cap, idx) => (
-              <div
+            ].map((cap) => (
+              <motion.div
                 key={cap.label}
-                className={`flex-1 p-8 ${idx < 2 ? 'md:border-r border-b md:border-b-0 border-white/[0.06]' : ''}`}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, ease: EASING }}
+                className="p-8 border-[0.5px] border-white/[0.08] rounded-sm hover:border-white/[0.15] transition-all duration-300"
+                style={{
+                  background: `rgba(255,255,255,0.02)`,
+                  boxShadow: `0 0 40px ${cap.colour}08`
+                }}
               >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cap.colour }} />
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">{cap.label}</span>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cap.colour }} />
+                  <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-medium">{cap.label}</span>
                 </div>
-                <p className="font-mono text-3xl font-medium tabular-nums mb-2" style={{ color: cap.colour }}>
+                <p className="font-mono text-4xl md:text-5xl font-medium tabular-nums mb-4" style={{ color: cap.colour }}>
                   {cap.value}
                 </p>
-                <p className="text-sm text-white/30">{cap.detail}</p>
-              </div>
+                <p className="text-base text-white/40 leading-relaxed">{cap.detail}</p>
+              </motion.div>
             ))}
           </motion.div>
         </div>
       </section>
 
       {/* ── Process Timeline ── */}
-      <section className="px-6 pb-32">
-        <div className="max-w-3xl mx-auto">
+      <section className="px-6 pb-40">
+        <div className="max-w-4xl mx-auto">
           <motion.p
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, ease: EASING }}
-            className="text-[10px] uppercase tracking-[0.4em] text-white/30 text-center mb-16"
+            className="text-[11px] uppercase tracking-[0.4em] text-white/40 text-center mb-20 font-medium"
           >
             How It Works
           </motion.p>
 
-          <div className="relative">
-            {/* Vertical spine */}
-            <div className="absolute left-6 top-6 bottom-6 w-px bg-white/[0.06]" />
-
+          <div className="space-y-12">
             {[
               {
                 step: '01',
                 title: 'Connect',
-                desc: 'Secure OAuth link to your Xero accounting data. Read-only access.',
+                desc: 'Secure OAuth link to your Xero accounting data. Read-only access ensures your data is never modified.',
                 colour: SPECTRAL.cyan,
               },
               {
                 step: '02',
                 title: 'Analyse',
-                desc: 'AI scans every transaction for R&D eligibility, deductions, and misclassifications.',
+                desc: 'Our AI scans every transaction across 5 years for R&D eligibility, deductions, and ledger misclassifications.',
                 colour: SPECTRAL.emerald,
               },
               {
                 step: '03',
                 title: 'Review',
-                desc: 'Prioritised recommendations with legislation references and confidence scores.',
+                desc: 'Receive prioritised recommendations with full ATO legislation references and confidence scores.',
                 colour: SPECTRAL.amber,
               },
               {
                 step: '04',
                 title: 'Optimise',
-                desc: 'Claim R&D offsets, recover losses, and maximise your tax position.',
+                desc: 'Claim R&D offsets, recover carry-forward losses, and maximise your tax position with professional guidance.',
                 colour: SPECTRAL.magenta,
               },
             ].map((item, idx) => (
@@ -212,21 +243,21 @@ export default function Home() {
                 initial={{ opacity: 0, x: -30 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: idx * 0.12, ease: EASING }}
-                className="relative flex items-start gap-8 mb-12 last:mb-0"
+                transition={{ duration: 0.6, delay: idx * 0.1, ease: EASING }}
+                className="flex items-start gap-8"
               >
-                {/* Orb on spine */}
-                <div className="relative z-10 flex-shrink-0">
+                {/* Orb */}
+                <div className="flex-shrink-0">
                   <div
-                    className="w-12 h-12 flex items-center justify-center rounded-full border-[0.5px]"
+                    className="w-16 h-16 flex items-center justify-center rounded-full border-[0.5px]"
                     style={{
                       borderColor: `${item.colour}40`,
                       backgroundColor: `${item.colour}08`,
-                      boxShadow: `0 0 30px ${item.colour}20`,
+                      boxShadow: `0 0 40px ${item.colour}20`,
                     }}
                   >
                     <motion.div
-                      className="w-2.5 h-2.5 rounded-full"
+                      className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: item.colour }}
                       animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.3 }}
@@ -235,12 +266,12 @@ export default function Home() {
                 </div>
 
                 {/* Content */}
-                <div className="pt-2">
-                  <div className="flex items-baseline gap-3 mb-2">
-                    <span className="text-[10px] font-mono text-white/20 tabular-nums">{item.step}</span>
-                    <h3 className="text-xl font-light text-white/90">{item.title}</h3>
+                <div className="flex-1 pt-2">
+                  <div className="flex items-baseline gap-4 mb-3">
+                    <span className="text-[12px] font-mono text-white/25 tabular-nums tracking-wider">{item.step}</span>
+                    <h3 className="text-2xl md:text-3xl font-light text-white/95">{item.title}</h3>
                   </div>
-                  <p className="text-sm text-white/30 leading-relaxed max-w-md">{item.desc}</p>
+                  <p className="text-base md:text-lg text-white/45 leading-relaxed">{item.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -249,40 +280,42 @@ export default function Home() {
       </section>
 
       {/* ── Pricing Section ── */}
-      <section id="pricing" className="px-6 pb-32">
-        <div className="max-w-5xl mx-auto">
+      <section id="pricing" className="px-6 pb-40">
+        <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: EASING }}
-            className="text-center mb-16"
+            className="text-center mb-20"
           >
-            <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 mb-4">Investment Strategy</p>
-            <h2 className="text-4xl md:text-5xl font-extralight tracking-tight text-white mb-6">Select Your Plan</h2>
-            <p className="text-sm text-white/30 max-w-xl mx-auto font-light tracking-wide">
-              Professional solutions for entities seeking high-fidelity tax optimization.
+            <p className="text-[11px] uppercase tracking-[0.4em] text-white/40 mb-6 font-medium">Investment Options</p>
+            <h2 className="text-5xl md:text-6xl font-extralight tracking-tight text-white mb-8">Select Your Plan</h2>
+            <p className="text-lg md:text-xl text-white/40 max-w-2xl mx-auto font-light leading-relaxed">
+              Professional solutions for Australian entities seeking high-fidelity tax optimisation.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Personal Use Card */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Business Owner Card */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8, ease: EASING }}
-              className="p-10 border-[0.5px] border-white/[0.06] rounded-sm flex flex-col justify-between"
-              style={{ background: 'rgba(255,255,255,0.01)' }}
+              className="p-10 md:p-12 border-[0.5px] border-white/[0.08] rounded-sm flex flex-col justify-between hover:border-white/[0.15] transition-all duration-300"
+              style={{ background: 'rgba(255,255,255,0.02)' }}
             >
               <div>
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: SPECTRAL.cyan }} />
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">Personal Use</span>
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SPECTRAL.cyan }} />
+                    <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-medium">Individual</span>
+                  </div>
                 </div>
-                <h3 className="text-3xl font-light text-white mb-4">Business Owner</h3>
-                <p className="text-sm text-white/30 mb-8 font-light leading-relaxed">
-                  For individual Australian entities seeking to recover historical R&D offsets and correct ledger misclassifications across 5 financial years.
+                <h3 className="text-3xl md:text-4xl font-light text-white mb-4">Business Owner</h3>
+                <p className="text-base text-white/40 mb-10 font-light leading-relaxed">
+                  For Australian entities seeking to recover historical R&D offsets and correct ledger misclassifications across 5 financial years.
                 </p>
                 <div className="space-y-4 mb-12">
                   {[
@@ -290,53 +323,57 @@ export default function Home() {
                     'R&D Eligibility Assessment (Div 355)',
                     'Division 7A Risk Monitoring',
                     'Unclaimed Deduction Discovery',
-                    'Professional PDF/Excel Reports'
+                    'Professional PDF/Excel Reports',
+                    'Legislation References Included'
                   ].map(feat => (
                     <div key={feat} className="flex items-center gap-3">
-                      <div className="w-1 h-1 rounded-full bg-white/10" />
-                      <span className="text-[11px] text-white/40">{feat}</span>
+                      <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: SPECTRAL.cyan }} />
+                      <span className="text-[13px] text-white/50">{feat}</span>
                     </div>
                   ))}
                 </div>
               </div>
               <div>
-                <div className="flex items-baseline gap-2 mb-8">
-                  <span className="text-4xl font-mono text-white">$995</span>
-                  <span className="text-[10px] uppercase tracking-widest text-white/20">/ One-Off Full Audit</span>
+                <div className="flex items-baseline gap-3 mb-10">
+                  <span className="text-5xl md:text-6xl font-mono text-white font-light">$995</span>
+                  <span className="text-[11px] uppercase tracking-wider text-white/30">One-Off Audit</span>
                 </div>
                 <Link
                   href="/api/auth/xero"
-                  className="block w-full text-center py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-medium border-[0.5px] border-white/[0.1] text-white/50 hover:text-white/80 hover:border-white/[0.2] transition-all"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
+                  className="block w-full text-center py-5 rounded-sm text-[12px] uppercase tracking-[0.2em] font-medium border-[0.5px] border-white/[0.15] text-white/60 hover:text-white/90 hover:border-white/[0.3] transition-all duration-300"
+                  style={{ background: 'rgba(255,255,255,0.04)' }}
                 >
                   Start Professional Audit
                 </Link>
               </div>
             </motion.div>
 
-            {/* Commercial Use Card */}
+            {/* Advisory Firms Card */}
             <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.8, ease: EASING }}
-              className="p-10 border-[0.5px] border-white/[0.1] rounded-sm flex flex-col justify-between relative overflow-hidden"
+              transition={{ duration: 0.8, delay: 0.1, ease: EASING }}
+              className="p-10 md:p-12 border-[0.5px] rounded-sm flex flex-col justify-between relative overflow-hidden"
               style={{
-                background: 'rgba(0, 245, 255, 0.03)',
-                boxShadow: `0 0 80px ${SPECTRAL.cyan}10`
+                borderColor: `${SPECTRAL.cyan}30`,
+                background: `linear-gradient(135deg, rgba(0, 245, 255, 0.05) 0%, rgba(0, 255, 136, 0.03) 100%)`,
+                boxShadow: `0 0 100px ${SPECTRAL.cyan}15`
               }}
             >
-              <div className="absolute top-0 right-0 p-4">
-                <div className="px-3 py-1 bg-sky-500 rounded-full text-[8px] font-black uppercase tracking-widest text-[#050505]">Pro Licensed</div>
+              <div className="absolute top-6 right-6">
+                <div className="px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest" style={{ background: SPECTRAL.cyan, color: '#050505' }}>
+                  Pro Licensed
+                </div>
               </div>
               <div>
                 <div className="flex items-center gap-3 mb-8">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: SPECTRAL.emerald }} />
-                  <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">Commercial Suite</span>
+                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SPECTRAL.emerald }} />
+                  <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-medium">Enterprise</span>
                 </div>
-                <h3 className="text-3xl font-light text-white mb-4">Advisory Firms</h3>
-                <p className="text-sm text-white/30 mb-8 font-light leading-relaxed">
-                  Enterprise-grade multi-tenant platform for Accountants, Financial Planners, and Bookkeepers managing high-volume client portfolios.
+                <h3 className="text-3xl md:text-4xl font-light text-white mb-4">Advisory Firms</h3>
+                <p className="text-base text-white/40 mb-10 font-light leading-relaxed">
+                  Enterprise multi-tenant platform for Accountants, Financial Planners, and Bookkeepers managing high-volume client portfolios.
                 </p>
                 <div className="space-y-4 mb-12">
                   {[
@@ -344,25 +381,27 @@ export default function Home() {
                     'Dedicated Advisor Dashboard',
                     'White-Label Report Generation',
                     'Priority Legislative Support',
-                    'Advanced API & Bulk-Sync'
+                    'Advanced API & Bulk-Sync',
+                    'Custom Integration Options'
                   ].map(feat => (
                     <div key={feat} className="flex items-center gap-3">
-                      <div className="w-1 h-1 rounded-full" style={{ backgroundColor: SPECTRAL.emerald }} />
-                      <span className="text-[11px] text-white/40">{feat}</span>
+                      <CheckCircle className="w-4 h-4 flex-shrink-0" style={{ color: SPECTRAL.emerald }} />
+                      <span className="text-[13px] text-white/50">{feat}</span>
                     </div>
                   ))}
                 </div>
               </div>
               <div>
-                <div className="flex items-baseline gap-2 mb-8">
-                  <span className="text-4xl font-mono text-white italic">POA</span>
-                  <span className="text-[10px] uppercase tracking-widest text-white/20">/ Volume-Based Licensing</span>
+                <div className="flex items-baseline gap-3 mb-10">
+                  <span className="text-5xl md:text-6xl font-mono text-white italic font-light">POA</span>
+                  <span className="text-[11px] uppercase tracking-wider text-white/30">Volume Licensing</span>
                 </div>
                 <button
-                  className="block w-full text-center py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-medium transition-all"
+                  className="block w-full text-center py-5 rounded-sm text-[12px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 hover:scale-105"
                   style={{
                     background: SPECTRAL.cyan,
-                    color: '#050505'
+                    color: '#050505',
+                    boxShadow: `0 0 40px ${SPECTRAL.cyan}30`
                   }}
                 >
                   Apply for Commercial License
@@ -370,45 +409,64 @@ export default function Home() {
               </div>
             </motion.div>
           </div>
+
+          {/* Money-Back Guarantee */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, delay: 0.2, ease: EASING }}
+            className="mt-12 p-8 border-[0.5px] border-white/[0.06] rounded-sm text-center"
+            style={{ background: 'rgba(255,255,255,0.01)' }}
+          >
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <Shield className="w-5 h-5" style={{ color: SPECTRAL.emerald }} />
+              <span className="text-sm text-white/60 font-medium">100% Money-Back Guarantee</span>
+            </div>
+            <p className="text-[13px] text-white/35">
+              If we don't identify at least $5,000 in potential tax benefits, we'll refund your audit fee in full.
+            </p>
+          </motion.div>
         </div>
       </section>
 
       {/* ── Trust Strip ── */}
-      <section className="px-6 pb-32">
-        <div className="max-w-5xl mx-auto">
+      <section className="px-6 pb-40">
+        <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: EASING }}
-            className="p-8 border-[0.5px] border-white/[0.06] rounded-sm"
-            style={{ background: 'rgba(255,255,255,0.01)' }}
+            className="p-10 md:p-12 border-[0.5px] border-white/[0.08] rounded-sm"
+            style={{ background: 'rgba(255,255,255,0.02)' }}
           >
-            <div className="flex items-center gap-4 mb-6">
-              <BreathingOrb colour={SPECTRAL.emerald} size="sm" />
-              <h3 className="text-xl font-light text-white/80">Read-Only Analysis</h3>
+            <div className="flex items-center gap-4 mb-8">
+              <BreathingOrb colour={SPECTRAL.emerald} size="md" />
+              <h3 className="text-2xl md:text-3xl font-light text-white/90">Read-Only Analysis</h3>
             </div>
-            <p className="text-sm text-white/30 mb-8 max-w-2xl">
-              Your data is never modified. We analyse and recommend &mdash; all changes
+            <p className="text-base md:text-lg text-white/40 mb-10 max-w-3xl leading-relaxed">
+              Your data is never modified. We analyse and recommend — all changes
               require your review and professional advice.
             </p>
-            <div className="flex flex-wrap gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
               {[
-                'No modifications to Xero',
-                'Full ATO legislation citations',
-                'Professional review recommended',
-                'HTTPS encrypted',
+                { icon: Lock, label: 'No Xero Modifications' },
+                { icon: CheckCircle, label: 'ATO Legislation Citations' },
+                { icon: Shield, label: 'Professional Review Required' },
+                { icon: Award, label: 'Bank-Grade Encryption' },
               ].map((item, idx) => (
                 <motion.div
-                  key={item}
-                  initial={{ opacity: 0, x: -10 }}
-                  whileInView={{ opacity: 1, x: 0 }}
+                  key={item.label}
+                  initial={{ opacity: 0, y: 10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.08, duration: 0.5, ease: EASING }}
-                  className="flex items-center gap-2"
+                  className="flex flex-col items-center text-center gap-3 p-6 rounded-sm border border-white/[0.04]"
+                  style={{ background: 'rgba(255,255,255,0.01)' }}
                 >
-                  <div className="w-1 h-1 rounded-full" style={{ backgroundColor: SPECTRAL.emerald }} />
-                  <span className="text-[11px] text-white/40 tracking-wide">{item}</span>
+                  <item.icon className="w-6 h-6" style={{ color: SPECTRAL.emerald }} />
+                  <span className="text-[12px] text-white/50 tracking-wide leading-snug">{item.label}</span>
                 </motion.div>
               ))}
             </div>
@@ -416,28 +474,28 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="px-6 pb-32">
-        <div className="max-w-3xl mx-auto text-center">
+      {/* ── Final CTA ── */}
+      <section className="px-6 pb-40">
+        <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: EASING }}
           >
-            <p className="text-[10px] uppercase tracking-[0.4em] text-white/20 mb-6">
+            <p className="text-[11px] uppercase tracking-[0.4em] text-white/30 mb-8 font-medium">
               Ready to Begin
             </p>
-            <h2 className="text-4xl md:text-5xl font-extralight tracking-tight text-white mb-6">
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extralight tracking-tight text-white mb-8">
               Optimise Your Tax Position
             </h2>
-            <p className="text-sm text-white/30 mb-10 max-w-md mx-auto">
+            <p className="text-lg md:text-xl text-white/40 mb-12 max-w-2xl mx-auto leading-relaxed">
               Connect your Xero account and discover potential refunds,
               unclaimed deductions, and optimisation opportunities.
             </p>
             <Link
               href="/api/auth/xero"
-              className="inline-flex items-center gap-3 px-10 py-5 rounded-sm text-[11px] uppercase tracking-[0.2em] font-medium transition-all hover:shadow-2xl"
+              className="inline-flex items-center gap-4 px-12 py-6 rounded-sm text-[12px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 hover:scale-105"
               style={{
                 color: '#050505',
                 backgroundColor: SPECTRAL.emerald,
@@ -445,8 +503,8 @@ export default function Home() {
               }}
             >
               Get Started with Xero
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </Link>
           </motion.div>
@@ -454,17 +512,17 @@ export default function Home() {
       </section>
 
       {/* ── Footer ── */}
-      <footer className="px-6 py-8 border-t border-white/[0.06]">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-[10px] text-white/20 tracking-wider">
-            &copy; 2026 ATO Tax Optimizer. Analysis recommendations only.
+      <footer className="px-6 py-12 border-t border-white/[0.06]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+          <p className="text-[11px] text-white/25 tracking-wider">
+            © 2026 ATO Tax Optimizer. Analysis recommendations only. Not financial advice.
           </p>
-          <div className="flex items-center gap-6">
-            <span className="text-[10px] text-white/15 tracking-wider">Division 355 ITAA 1997</span>
-            <div className="h-3 w-px bg-white/[0.06]" />
-            <span className="text-[10px] text-white/15 tracking-wider">Xero Integration</span>
-            <div className="h-3 w-px bg-white/[0.06]" />
-            <span className="text-[10px] text-white/15 tracking-wider">Read-Only Access</span>
+          <div className="flex items-center gap-8">
+            <span className="text-[11px] text-white/20 tracking-wider">Division 355 ITAA 1997</span>
+            <div className="h-4 w-px bg-white/[0.06]" />
+            <span className="text-[11px] text-white/20 tracking-wider">Xero Integration</span>
+            <div className="h-4 w-px bg-white/[0.06]" />
+            <span className="text-[11px] text-white/20 tracking-wider">Read-Only Access</span>
           </div>
         </div>
       </footer>
