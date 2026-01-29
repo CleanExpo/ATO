@@ -1,0 +1,18 @@
+Category,Transaction Count,Total Amount,Claimable Amount
+IT Services,3,"$17,500.00","$17,500.00"
+Software,78,"$9,386.20","$9,386.20"
+Professional Services,22,"$8,572.74","$8,572.74"
+Financial Services,22,"$6,580.03","$6,580.03"
+Marketing,21,"$5,212.59","$5,212.59"
+Unknown,27,"$43,006.60","$2,564.20"
+Taxation,1,$566.00,$566.00
+Tax,1,$425.00,$425.00
+Travel,1,$399.91,$399.91
+Professional Development,1,$355.00,$355.00
+Regulatory Fees,1,$290.00,$290.00
+General Expenses,1,$263.42,$263.42
+Rent,1,$38.50,$38.50
+Uncategorized,3,$14.94,$14.94
+Bank Fees,2,$0.06,$0.06
+Unclassified,2,"$6,000.00",$0.00
+Financial Transaction,2,"$5,000.00",$0.00

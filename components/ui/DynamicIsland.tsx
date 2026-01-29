@@ -14,7 +14,12 @@ import {
   Settings,
   Users,
   Menu,
-  X
+  X,
+  ShieldAlert,
+  BrainCircuit,
+  Terminal,
+  HelpCircle,
+  CreditCard
 } from 'lucide-react'
 import {
   getDesktopNavItems,
@@ -33,6 +38,11 @@ const iconMap: Record<IconName, React.ComponentType<{ size?: number }>> = {
   TrendingDown,
   Settings,
   Users,
+  ShieldAlert,
+  BrainCircuit,
+  Terminal,
+  HelpCircle,
+  CreditCard,
 }
 
 function NavIcon({ name, size = 16 }: { name: IconName; size?: number }) {

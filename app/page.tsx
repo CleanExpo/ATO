@@ -64,6 +64,12 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-4">
             <Link
+              href="#pricing"
+              className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white/70 transition-colors"
+            >
+              Pricing
+            </Link>
+            <Link
               href="/dashboard"
               className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white/70 transition-colors"
             >
@@ -276,6 +282,131 @@ export default function Home() {
                 </div>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pricing Section ── */}
+      <section id="pricing" className="px-6 pb-32">
+        <div className="max-w-5xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8, ease: EASING }}
+            className="text-center mb-16"
+          >
+            <p className="text-[10px] uppercase tracking-[0.4em] text-white/30 mb-4">Investment Strategy</p>
+            <h2 className="text-4xl md:text-5xl font-extralight tracking-tight text-white mb-6">Select Your Plan</h2>
+            <p className="text-sm text-white/30 max-w-xl mx-auto font-light tracking-wide">
+              Professional solutions for entities seeking high-fidelity tax optimization.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Personal Use Card */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, ease: EASING }}
+              className="p-10 border-[0.5px] border-white/[0.06] rounded-sm flex flex-col justify-between"
+              style={{ background: 'rgba(255,255,255,0.01)' }}
+            >
+              <div>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: SPECTRAL.cyan }} />
+                  <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">Personal Use</span>
+                </div>
+                <h3 className="text-3xl font-light text-white mb-4">Business Owner</h3>
+                <p className="text-sm text-white/30 mb-8 font-light leading-relaxed">
+                  For individual Australian entities seeking to recover historical R&D offsets and correct ledger misclassifications across 5 financial years.
+                </p>
+                <div className="space-y-4 mb-12">
+                  {[
+                    'Full 5-Year Forensic Audit',
+                    'R&D Eligibility Assessment (Div 355)',
+                    'Division 7A Risk Monitoring',
+                    'Unclaimed Deduction Discovery',
+                    'Professional PDF/Excel Reports'
+                  ].map(feat => (
+                    <div key={feat} className="flex items-center gap-3">
+                      <div className="w-1 h-1 rounded-full bg-white/10" />
+                      <span className="text-[11px] text-white/40">{feat}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="flex items-baseline gap-2 mb-8">
+                  <span className="text-4xl font-mono text-white">$995</span>
+                  <span className="text-[10px] uppercase tracking-widest text-white/20">/ One-Off Full Audit</span>
+                </div>
+                <Link
+                  href="/api/auth/xero"
+                  className="block w-full text-center py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-medium border-[0.5px] border-white/[0.1] text-white/50 hover:text-white/80 hover:border-white/[0.2] transition-all"
+                  style={{ background: 'rgba(255,255,255,0.02)' }}
+                >
+                  Start Professional Audit
+                </Link>
+              </div>
+            </motion.div>
+
+            {/* Commercial Use Card */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, ease: EASING }}
+              className="p-10 border-[0.5px] border-white/[0.1] rounded-sm flex flex-col justify-between relative overflow-hidden"
+              style={{
+                background: 'rgba(0, 245, 255, 0.03)',
+                boxShadow: `0 0 80px ${SPECTRAL.cyan}10`
+              }}
+            >
+              <div className="absolute top-0 right-0 p-4">
+                <div className="px-3 py-1 bg-sky-500 rounded-full text-[8px] font-black uppercase tracking-widest text-[#050505]">Pro Licensed</div>
+              </div>
+              <div>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: SPECTRAL.emerald }} />
+                  <span className="text-[10px] uppercase tracking-[0.3em] text-white/30">Commercial Suite</span>
+                </div>
+                <h3 className="text-3xl font-light text-white mb-4">Advisory Firms</h3>
+                <p className="text-sm text-white/30 mb-8 font-light leading-relaxed">
+                  Enterprise-grade multi-tenant platform for Accountants, Financial Planners, and Bookkeepers managing high-volume client portfolios.
+                </p>
+                <div className="space-y-4 mb-12">
+                  {[
+                    'Unlimited Client Organizations',
+                    'Dedicated Advisor Dashboard',
+                    'White-Label Report Generation',
+                    'Priority Legislative Support',
+                    'Advanced API & Bulk-Sync'
+                  ].map(feat => (
+                    <div key={feat} className="flex items-center gap-3">
+                      <div className="w-1 h-1 rounded-full" style={{ backgroundColor: SPECTRAL.emerald }} />
+                      <span className="text-[11px] text-white/40">{feat}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="flex items-baseline gap-2 mb-8">
+                  <span className="text-4xl font-mono text-white italic">POA</span>
+                  <span className="text-[10px] uppercase tracking-widest text-white/20">/ Volume-Based Licensing</span>
+                </div>
+                <button
+                  className="block w-full text-center py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-medium transition-all"
+                  style={{
+                    background: SPECTRAL.cyan,
+                    color: '#050505'
+                  }}
+                >
+                  Apply for Commercial License
+                </button>
+              </div>
+            </motion.div>
           </div>
         </div>
       </section>

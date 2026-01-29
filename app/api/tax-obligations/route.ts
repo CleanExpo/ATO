@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
 
     // Get financial year dates
     const currentDate = new Date();
@@ -51,14 +51,19 @@ export async function GET(request: NextRequest) {
     const fyStart = getFinancialYearStart(currentFY);
     const fyEnd = getFinancialYearEnd(currentFY);
 
-    // Fetch GST transactions for quarterly summaries
-    const { data: transactions } = await supabase
-      .from('xero_transactions_cache')
-      .select('*')
+    // Fetch transactions for quarterly summaries from the correct cache table
+    const { data: transactions, error: fetchError } = await supabase
+      .from('historical_transactions_cache')
+      .select('transaction_type, transaction_date, total_amount, raw_data, financial_year')
       .eq('tenant_id', tenantId)
-      .gte('date', fyStart.toISOString())
-      .lte('date', fyEnd.toISOString())
-      .order('date', { ascending: true });
+      .gte('transaction_date', fyStart.toISOString())
+      .lte('transaction_date', fyEnd.toISOString())
+      .order('transaction_date', { ascending: true });
+
+    if (fetchError) {
+      console.error('Failed to fetch transactions from cache:', fetchError);
+      throw new Error(`Database error: ${fetchError.message}`);
+    }
 
     // Calculate quarterly summaries
     const quarterlySummaries = calculateQuarterlySummaries(
@@ -149,7 +154,7 @@ function calculateQuarterlySummaries(
     const [start, end] = getQuarterDates(fy, quarter);
 
     const quarterTransactions = transactions.filter(t => {
-      const date = new Date(t.date);
+      const date = new Date(t.transaction_date);
       return date >= start && date <= end;
     });
 
@@ -158,19 +163,30 @@ function calculateQuarterlySummaries(
     let payg = new Decimal(0);
 
     quarterTransactions.forEach(tx => {
-      const taxAmount = new Decimal(tx.tax_amount || 0);
+      const raw = tx.raw_data || {};
+      // Xero field names are often PascalCase in the API response
+      const taxAmount = new Decimal(raw.TotalTax || raw.totalTax || raw.taxAmount || 0);
+      const type = tx.transaction_type;
 
-      if (tx.type === 'ACCREC' || tx.type === 'RECEIVE') {
+      if (type === 'ACCREC' || type === 'RECEIVE') {
         // GST collected on sales
         gstCollected = gstCollected.plus(taxAmount);
-      } else if (tx.type === 'ACCPAY' || tx.type === 'SPEND') {
+      } else if (type === 'ACCPAY' || type === 'SPEND') {
         // GST paid on purchases
         gstPaid = gstPaid.plus(taxAmount);
       }
 
       // PAYG withholding (if applicable)
-      if (tx.account_code === '825' || tx.account_name?.includes('PAYG')) {
-        payg = payg.plus(new Decimal(Math.abs(tx.total || 0)));
+      // Account 825 is usually PAYG Withholding Payable in standard Xero Chart of Accounts
+      const isPaygAccount = raw.AccountCode === '825' ||
+        raw.AccountCode === '820' ||
+        (raw.LineItems && raw.LineItems.some((li: any) => li.AccountCode === '825' || li.AccountCode === '820')) ||
+        raw.Description?.includes('PAYG') ||
+        raw.Reference?.includes('PAYG') ||
+        tx.transaction_type === 'PAYG'; // Some might be directly typed
+
+      if (isPaygAccount) {
+        payg = payg.plus(new Decimal(Math.abs(tx.total_amount || 0)));
       }
     });
 
