@@ -47,7 +47,12 @@ export function OrganizationProvider({
   const fetchOrganizations = async () => {
     try {
       const response = await fetch('/api/organizations')
-      if (!response.ok) throw new Error('Failed to fetch organizations')
+      // Silently handle auth failures - app works in single-user mode without this
+      if (!response.ok) {
+        console.warn('Organizations API unavailable - running in single-user mode')
+        setIsLoading(false)
+        return
+      }
 
       const data = await response.json()
       setOrganizations(data.organizations || [])
@@ -73,7 +78,8 @@ export function OrganizationProvider({
         }
       }
     } catch (error) {
-      console.error('Failed to fetch organizations:', error)
+      // Silently fail - multi-tenant features not required for single-user mode
+      console.warn('Organizations context unavailable:', error)
     } finally {
       setIsLoading(false)
     }
