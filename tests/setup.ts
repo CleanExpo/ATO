@@ -13,12 +13,27 @@ import { beforeAll, afterEach, vi, expect } from 'vitest'
 // Set test environment variables (NODE_ENV is automatically set by Vitest)
 beforeAll(() => {
   const env = process.env as Record<string, string>
+
+  // Single-user mode for simplified testing
+  env.SINGLE_USER_MODE = 'true'
+
+  // Supabase
   env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co'
-  env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
-  env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
-  env.XERO_CLIENT_ID = 'test-xero-client-id'
-  env.XERO_CLIENT_SECRET = 'test-xero-client-secret'
+  env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key-' + 'x'.repeat(100)
+  env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-key-' + 'x'.repeat(100)
+
+  // Xero OAuth
+  env.XERO_CLIENT_ID = 'test-client-id'
+  env.XERO_CLIENT_SECRET = 'test-client-secret'
+
+  // Gemini AI
+  env.GOOGLE_AI_API_KEY = 'test-gemini-key'
+
+  // Token encryption
   env.TOKEN_ENCRYPTION_KEY = 'a'.repeat(64) // 32 bytes in hex
+
+  // Base URL
+  env.NEXT_PUBLIC_BASE_URL = 'http://localhost:3000'
 })
 
 // Clean up after each test
