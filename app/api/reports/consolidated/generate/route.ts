@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Generate the consolidated report
-    const report = await generateConsolidatedReport(user.id, batchSize);
+    const report = await generateConsolidatedReport(user.id, supabase, batchSize);
 
     // Filter to requested organizations if specified
     let filteredReport = report;

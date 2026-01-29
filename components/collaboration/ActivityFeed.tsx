@@ -7,7 +7,7 @@ import { useRealtimeActivity } from '@/lib/hooks/useRealtimeActivity';
 interface ActivityItem {
   id: string;
   organization_id: string;
-  user_id: string;
+  user_id: string | null;
   action: string;
   entity_type: string | null;
   entity_id: string | null;

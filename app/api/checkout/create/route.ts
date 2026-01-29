@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     let productDescription: string;
 
     if (body.productType === 'wholesale_accountant') {
-      const baseProduct = body.baseProduct || 'comprehensive';
+      const baseProduct: 'comprehensive' | 'core' = (body.baseProduct as 'comprehensive' | 'core') || 'comprehensive';
       priceAmount = calculateWholesalePrice(body.wholesaleTier, baseProduct);
       productName = `${PRICING_CONFIG[baseProduct].name} (${body.wholesaleTier} tier)`;
       productDescription = `Wholesale accountant pricing - ${body.wholesaleTier} tier (${
@@ -115,7 +115,8 @@ export async function POST(request: NextRequest) {
           : '35%'
       } discount)`;
     } else {
-      const config = PRICING_CONFIG[body.productType];
+      const productType: 'comprehensive' | 'core' = body.productType as 'comprehensive' | 'core';
+      const config = PRICING_CONFIG[productType];
       priceAmount = config.price;
       productName = config.name;
       productDescription = config.description;

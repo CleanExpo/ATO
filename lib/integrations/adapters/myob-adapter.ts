@@ -468,7 +468,7 @@ export class MYOBAdapter implements PlatformAdapter {
     return {
       id: journal.UID,
       platform: 'myob',
-      type: 'manual_journal',
+      type: 'journal_entry',
       date: journal.DateOccurred,
       reference: journal.GSTReportingMethod || journal.Memo,
       financialYear: getFinancialYearFromDate(new Date(journal.DateOccurred)),

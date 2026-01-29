@@ -4,13 +4,13 @@
  * Sent when a user is invited to join an organization
  */
 
-import { OrganizationRole } from '@/lib/types/multi-tenant'
+import { UserRole } from '@/lib/types/multi-tenant'
 
 export interface OrganizationInvitationData {
   inviteeName: string
   inviterName: string
   organizationName: string
-  role: OrganizationRole
+  role: UserRole
   invitationUrl: string
   expiresAt: Date
 }
@@ -20,7 +20,7 @@ export function getOrganizationInvitationSubject(data: OrganizationInvitationDat
 }
 
 export function getOrganizationInvitationHtml(data: OrganizationInvitationData): string {
-  const roleDescriptions: Record<OrganizationRole, string> = {
+  const roleDescriptions: Record<UserRole, string> = {
     owner: 'full administrative access and control',
     admin: 'manage settings and team members',
     accountant: 'view and analyze tax data',
@@ -235,7 +235,7 @@ export function getOrganizationInvitationHtml(data: OrganizationInvitationData):
 }
 
 export function getOrganizationInvitationText(data: OrganizationInvitationData): string {
-  const roleDescriptions: Record<OrganizationRole, string> = {
+  const roleDescriptions: Record<UserRole, string> = {
     owner: 'full administrative access and control',
     admin: 'manage settings and team members',
     accountant: 'view and analyze tax data',

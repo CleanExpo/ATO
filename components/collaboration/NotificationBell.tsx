@@ -11,12 +11,12 @@ interface Notification {
   type: string;
   title: string;
   message: string;
-  related_entity_type: string | null;
-  related_entity_id: string | null;
-  action_url: string | null;
+  related_entity_type?: string | null;
+  related_entity_id?: string | null;
+  action_url?: string | null;
   read: boolean;
-  read_at: string | null;
-  metadata: Record<string, any>;
+  read_at?: string | null;
+  metadata?: Record<string, any>;
   created_at: string;
 }
 

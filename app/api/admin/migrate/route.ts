@@ -56,9 +56,11 @@ ADD COLUMN IF NOT EXISTS analyzed_at timestamptz DEFAULT NULL;
 }
 
 export async function GET(request: NextRequest) {
-    // Authenticate user (admin check should be added for production)
-    const auth = await requireAuthOnly(request)
-    if (isErrorResponse(auth)) return auth
+    // Require admin role
+    const adminCheck = await requireAdminRole();
+    if (!adminCheck.isAdmin) {
+        return adminCheck.response;
+    }
 
     try {
         const supabase = await createServiceClient()

@@ -27,7 +27,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import type { ConsolidatedReport } from '@/lib/reports/consolidated-report-generator'
-import { formatCurrency, formatPercentage } from '@/lib/reports/consolidated-report-generator'
+import { formatCurrency, formatPercentage } from '@/lib/reports/formatting-utils'
 
 type GenerationStatus = 'idle' | 'generating' | 'complete' | 'error'
 

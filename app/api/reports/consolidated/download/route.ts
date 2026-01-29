@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Generate the consolidated report
-    const report = await generateConsolidatedReport(user.id, batchSize);
+    const report = await generateConsolidatedReport(user.id, supabase, batchSize);
 
     // Filter to requested organizations if specified
     let clientReports = report.clientReports;
@@ -327,7 +327,7 @@ export async function POST(request: NextRequest) {
           'Content-Type':
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           'Content-Disposition': `attachment; filename="${filename}"`,
-          'Content-Length': buffer.length.toString(),
+          'Content-Length': String(buffer.byteLength),
         },
       });
     } else {

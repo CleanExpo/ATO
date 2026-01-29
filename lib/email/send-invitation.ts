@@ -12,8 +12,25 @@ import {
   type OrganizationInvitationData,
 } from './templates/organization-invitation'
 
-// Initialize Resend client
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Lazy-initialize Resend client
+let resendInstance: Resend | null = null;
+
+function getResendInstance(): Resend {
+  if (!resendInstance) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY not configured. Email delivery unavailable.');
+    }
+    resendInstance = new Resend(apiKey);
+  }
+  return resendInstance;
+}
+
+const resend = new Proxy({} as Resend, {
+  get(_target, prop) {
+    return (getResendInstance() as any)[prop];
+  },
+});
 
 // Sender email (must be verified domain in Resend)
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@ato.app'

@@ -13,7 +13,8 @@
  */
 
 import { generatePDFReportData, type PDFReport, type ExecutiveSummary } from './pdf-generator';
-import { createServiceClient } from '@/lib/supabase/server';
+// Note: Supabase client must be passed in from API routes, not imported here
+// import { createServiceClient } from '@/lib/supabase/server';
 
 export interface ClientReportSummary {
   organizationId: string;
@@ -91,9 +92,9 @@ export interface ConsolidatedReport {
  * Get all organizations accessible by an accountant
  */
 async function getAccountantOrganizations(
-  accountantUserId: string
+  accountantUserId: string,
+  supabase: any
 ): Promise<Array<{ id: string; name: string; abn?: string; tenantId?: string }>> {
-  const supabase = await createServiceClient();
 
   // Get all organizations where user has accountant or admin role
   const { data, error } = await supabase
@@ -181,16 +182,17 @@ async function generateClientReport(
  * Generate consolidated report for an accountant's entire client portfolio
  *
  * @param accountantUserId - User ID of the accountant
+ * @param supabase - Supabase client (must be passed from server context)
  * @param batchSize - Number of reports to generate in parallel (default: 5)
  */
 export async function generateConsolidatedReport(
   accountantUserId: string,
+  supabase: any,
   batchSize: number = 5
 ): Promise<ConsolidatedReport> {
   const startTime = Date.now();
 
   // Get accountant details
-  const supabase = await createServiceClient();
   const { data: profile } = await supabase
     .from('profiles')
     .select('full_name, email')
@@ -201,7 +203,7 @@ export async function generateConsolidatedReport(
   const accountantEmail = profile?.email || '';
 
   // Get all client organizations
-  const organizations = await getAccountantOrganizations(accountantUserId);
+  const organizations = await getAccountantOrganizations(accountantUserId, supabase);
 
   if (organizations.length === 0) {
     throw new Error('No client organizations found for this accountant');
@@ -341,21 +343,5 @@ export async function generateConsolidatedReport(
   return consolidatedReport;
 }
 
-/**
- * Format currency for display
- */
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-}
-
-/**
- * Format percentage for display
- */
-export function formatPercentage(value: number): string {
-  return `${value.toFixed(1)}%`;
-}
+// Re-export formatting utilities for backwards compatibility
+export { formatCurrency, formatPercentage } from './formatting-utils';

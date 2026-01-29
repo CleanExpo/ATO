@@ -54,6 +54,7 @@ export function reportError(
 
   try {
     // Dynamic import to avoid errors if @sentry/nextjs is not installed
+    // @ts-ignore - Package may not be installed
     import('@sentry/nextjs').then((Sentry) => {
       // Set user context if provided
       if (context?.user) {
@@ -115,6 +116,7 @@ export function reportMessage(
   }
 
   try {
+    // @ts-ignore - Package may not be installed
     import('@sentry/nextjs').then((Sentry) => {
       if (context?.user) {
         Sentry.setUser({

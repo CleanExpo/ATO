@@ -157,8 +157,8 @@ export async function PATCH(
         can_reapply,
         reapply_after,
       },
-      ip_address: getIpAddress(request),
-      user_agent: getUserAgent(request),
+      ip_address: getIpAddress(request) ?? undefined,
+      user_agent: getUserAgent(request) ?? undefined,
     });
 
     // Send rejection email

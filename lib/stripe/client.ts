@@ -9,24 +9,34 @@
 
 import Stripe from 'stripe';
 
-// Validate Stripe API key
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.warn(
-    'WARNING: STRIPE_SECRET_KEY not configured. Payment processing will fail.'
-  );
+/**
+ * Lazy-initialize Stripe client with secret key
+ * This prevents build errors when STRIPE_SECRET_KEY is not available
+ */
+let stripeInstance: Stripe | null = null;
+
+function getStripeInstance(): Stripe {
+  if (!stripeInstance) {
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    if (!apiKey) {
+      throw new Error('STRIPE_SECRET_KEY not configured. Payment processing unavailable.');
+    }
+    stripeInstance = new Stripe(apiKey, {
+      apiVersion: '2026-01-28.clover',
+      typescript: true,
+      appInfo: {
+        name: 'ATO Tax Optimizer',
+        version: '1.0.0',
+        url: 'https://ato-optimizer.com.au',
+      },
+    });
+  }
+  return stripeInstance;
 }
 
-/**
- * Initialize Stripe client with secret key
- * Using API version 2024-12-18-acacia (latest stable)
- */
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2024-12-18.acacia',
-  typescript: true,
-  appInfo: {
-    name: 'ATO Tax Optimizer',
-    version: '1.0.0',
-    url: 'https://ato-optimizer.com.au',
+export const stripe = new Proxy({} as Stripe, {
+  get(_target, prop) {
+    return (getStripeInstance() as any)[prop];
   },
 });
 

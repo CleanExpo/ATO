@@ -211,8 +211,8 @@ export async function PATCH(
         wholesale_discount_rate,
         vetted_accountant_id: vettedAccountant.id,
       },
-      ip_address: getIpAddress(request),
-      user_agent: getUserAgent(request),
+      ip_address: getIpAddress(request) ?? undefined,
+      user_agent: getUserAgent(request) ?? undefined,
     });
 
     // Step 6: Generate login URL

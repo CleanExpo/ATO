@@ -6,8 +6,25 @@
 
 import { Resend } from 'resend'
 
-// Initialize Resend client with fallback for build time
-const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder')
+// Lazy-initialize Resend client
+let resendInstance: Resend | null = null;
+
+function getResendInstance(): Resend {
+  if (!resendInstance) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey || apiKey === 're_placeholder') {
+      throw new Error('RESEND_API_KEY not configured. Email delivery unavailable.');
+    }
+    resendInstance = new Resend(apiKey);
+  }
+  return resendInstance;
+}
+
+const resend = new Proxy({} as Resend, {
+  get(_target, prop) {
+    return (getResendInstance() as any)[prop];
+  },
+});
 
 // Default sender email (must be verified in Resend)
 const DEFAULT_FROM_EMAIL =
