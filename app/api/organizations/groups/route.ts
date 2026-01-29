@@ -1,0 +1,122 @@
+/**
+ * Organization Groups API
+ *
+ * GET /api/organizations/groups
+ * List all organization groups for authenticated user
+ *
+ * POST /api/organizations/groups
+ * Create a new organization group
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+
+// GET - List organization groups
+export async function GET() {
+  try {
+    const supabase = await createClient();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // Get all groups owned by user
+    const { data: groups, error: groupsError } = await supabase
+      .from('organization_groups')
+      .select(`
+        id,
+        name,
+        description,
+        enable_consolidated_analysis,
+        enable_intercompany_tracking,
+        created_at,
+        updated_at
+      `)
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (groupsError) {
+      console.error('Error fetching organization groups:', groupsError);
+      return createErrorResponse(groupsError, { operation: 'fetchGroups' }, 500);
+    }
+
+    // Get organization counts for each group
+    const groupsWithCounts = await Promise.all(
+      (groups || []).map(async (group) => {
+        const { data: orgs } = await supabase
+          .from('organizations')
+          .select('id, name, xero_tenant_id')
+          .eq('group_id', group.id);
+
+        return {
+          ...group,
+          organizationCount: orgs?.length || 0,
+          organizations: orgs || [],
+        };
+      })
+    );
+
+    return NextResponse.json({
+      groups: groupsWithCounts,
+      total: groupsWithCounts.length,
+    });
+  } catch (error) {
+    console.error('Error in GET /api/organizations/groups:', error);
+    return createErrorResponse(error, { operation: 'getGroups' }, 500);
+  }
+}
+
+// POST - Create new organization group
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient();
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+
+    // Validate required fields
+    if (!body.name || typeof body.name !== 'string' || body.name.trim().length === 0) {
+      return createValidationError('name is required and must be a non-empty string');
+    }
+
+    // Create group
+    const { data: group, error: createError } = await supabase
+      .from('organization_groups')
+      .insert({
+        name: body.name.trim(),
+        description: body.description?.trim() || null,
+        owner_id: user.id,
+        enable_consolidated_analysis: body.enableConsolidatedAnalysis ?? true,
+        enable_intercompany_tracking: body.enableIntercompanyTracking ?? true,
+      })
+      .select()
+      .single();
+
+    if (createError) {
+      console.error('Error creating organization group:', createError);
+      return createErrorResponse(createError, { operation: 'createGroup' }, 500);
+    }
+
+    return NextResponse.json({
+      group,
+      message: 'Organization group created successfully',
+    }, { status: 201 });
+  } catch (error) {
+    console.error('Error in POST /api/organizations/groups:', error);
+    return createErrorResponse(error, { operation: 'createGroup' }, 500);
+  }
+}

@@ -28,7 +28,11 @@ export async function GET() {
     // Check license compliance
     const compliance = await checkOrganizationLicenseCompliance(user.id);
 
-    return NextResponse.json(compliance);
+    // Return compliance with additional context
+    return NextResponse.json({
+      ...compliance,
+      needsAdditionalLicenses: compliance.needsAdditionalLicenses || 0,
+    });
   } catch (error) {
     console.error('Failed to check license compliance:', error);
     return NextResponse.json(

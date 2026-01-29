@@ -39,6 +39,7 @@ import { DataStrip, DataStripGroup } from '@/components/ui/DataStrip'
 import { HoloPanel, HoloPanelGrid } from '@/components/ui/HoloPanel'
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections'
 import { AdditionalOrganizationPrompt } from '@/components/dashboard/AdditionalOrganizationPrompt'
+import { OrganizationGroupManager } from '@/components/dashboard/OrganizationGroupManager'
 
 interface Connection {
   tenant_id: string
@@ -757,6 +758,22 @@ function DashboardContent() {
                 </Link>
               </div>
             </section>
+
+            {/* Organization Grouping */}
+            {connections.length > 0 && (
+              <OrganizationGroupManager
+                organizations={connections.map(conn => ({
+                  id: conn.tenant_id,
+                  name: conn.organisation_name || conn.tenant_name,
+                  group_id: null, // TODO: Fetch from API
+                  is_primary_in_group: false,
+                  xero_tenant_id: conn.tenant_id,
+                }))}
+                onOrganizationsUpdated={() => {
+                  fetchConnections()
+                }}
+              />
+            )}
 
             {/* Connected Platforms - Xero + MYOB */}
             <PlatformConnections

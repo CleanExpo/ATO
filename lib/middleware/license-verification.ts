@@ -46,14 +46,93 @@ export async function getUserOrganizationCount(userId: string): Promise<number> 
 }
 
 /**
+ * Get organization groups for user
+ * Returns groups with their organization counts
+ *
+ * @param userId - User ID to check
+ * @returns Array of groups with organization counts
+ */
+export async function getUserOrganizationGroups(userId: string): Promise<Array<{
+  groupId: string | null;
+  organizationCount: number;
+  needsBaseLicense: boolean;
+  needsAdditionalLicenses: number;
+}>> {
+  try {
+    const supabase = await createClient();
+
+    // Get all organizations user has access to
+    const { data: userAccess, error: accessError } = await supabase
+      .from('user_tenant_access')
+      .select('organization_id')
+      .eq('user_id', userId);
+
+    if (accessError || !userAccess) {
+      console.error('Error fetching user access:', accessError);
+      return [];
+    }
+
+    const orgIds = userAccess.map(a => a.organization_id);
+
+    if (orgIds.length === 0) {
+      return [];
+    }
+
+    // Get organizations with their group information
+    const { data: organizations, error: orgError } = await supabase
+      .from('organizations')
+      .select('id, group_id, is_primary_in_group')
+      .in('id', orgIds);
+
+    if (orgError || !organizations) {
+      console.error('Error fetching organizations:', orgError);
+      return [];
+    }
+
+    // Group organizations by group_id
+    const groupMap = new Map<string | null, typeof organizations>();
+
+    for (const org of organizations) {
+      const key = org.group_id || org.id; // Ungrouped orgs use their own ID as key
+      if (!groupMap.has(key)) {
+        groupMap.set(key, []);
+      }
+      groupMap.get(key)!.push(org);
+    }
+
+    // Calculate license needs per group
+    const groups = [];
+    for (const [groupId, orgs] of groupMap.entries()) {
+      const isRealGroup = orgs[0].group_id !== null;
+      const organizationCount = orgs.length;
+
+      groups.push({
+        groupId: isRealGroup ? groupId : null,
+        organizationCount,
+        needsBaseLicense: true, // Each group needs 1 base license
+        needsAdditionalLicenses: isRealGroup ? Math.max(0, organizationCount - 1) : 0,
+      });
+    }
+
+    return groups;
+  } catch (error) {
+    console.error('Error in getUserOrganizationGroups:', error);
+    return [];
+  }
+}
+
+/**
  * Get number of organization licenses purchased by user
  * - Base license (comprehensive/core) includes 1 organization
  * - Additional organization purchases add more
  *
  * @param userId - User ID to check
- * @returns Number of organizations licensed
+ * @returns Object with base and additional license counts
  */
-export async function getUserLicensedOrganizationCount(userId: string): Promise<number> {
+export async function getUserLicensedOrganizationCount(userId: string): Promise<{
+  baseLicenses: number;
+  additionalLicenses: number;
+}> {
   try {
     const supabase = await createClient();
 
@@ -66,52 +145,69 @@ export async function getUserLicensedOrganizationCount(userId: string): Promise<
 
     if (error || !purchases) {
       console.error('Error fetching user purchases:', error);
-      return 0;
+      return { baseLicenses: 0, additionalLicenses: 0 };
     }
 
-    let licensedOrganizations = 0;
+    let baseLicenses = 0;
+    let additionalLicenses = 0;
 
     for (const purchase of purchases) {
       if (purchase.product_type === 'additional_organization') {
         // Each additional organization purchase adds 1
-        licensedOrganizations += 1;
+        additionalLicenses += 1;
       } else if (['comprehensive', 'core', 'wholesale_accountant'].includes(purchase.product_type)) {
         // Base license includes 1 organization
-        licensedOrganizations += 1;
+        baseLicenses += 1;
       }
     }
 
-    return licensedOrganizations;
+    return { baseLicenses, additionalLicenses };
   } catch (error) {
     console.error('Error in getUserLicensedOrganizationCount:', error);
-    return 0;
+    return { baseLicenses: 0, additionalLicenses: 0 };
   }
 }
 
 /**
  * Check if user has sufficient licenses for all their organizations
+ * Accounts for organization groups (linked orgs get $199 pricing, separate orgs get full pricing)
  *
  * @param userId - User ID to check
- * @returns Object with hasAccess flag and details
+ * @returns Object with hasAccess flag and detailed breakdown
  */
 export async function checkOrganizationLicenseCompliance(userId: string): Promise<{
   hasAccess: boolean;
   connectedOrganizations: number;
   licensedOrganizations: number;
   needsAdditionalLicenses: number;
+  needsBaseLicenses: number;
+  groups: Array<{
+    groupId: string | null;
+    organizationCount: number;
+    needsBaseLicense: boolean;
+    needsAdditionalLicenses: number;
+  }>;
 }> {
-  const [connectedOrgs, licensedOrgs] = await Promise.all([
-    getUserOrganizationCount(userId),
+  const [groups, licenses] = await Promise.all([
+    getUserOrganizationGroups(userId),
     getUserLicensedOrganizationCount(userId)
   ]);
 
-  const needsAdditional = Math.max(0, connectedOrgs - licensedOrgs);
+  // Calculate total needs
+  const needsBaseLicenses = Math.max(0, groups.length - licenses.baseLicenses);
+  const totalAdditionalNeeded = groups.reduce((sum, g) => sum + g.needsAdditionalLicenses, 0);
+  const needsAdditionalLicenses = Math.max(0, totalAdditionalNeeded - licenses.additionalLicenses);
+
+  const totalOrgs = groups.reduce((sum, g) => sum + g.organizationCount, 0);
+  const licensedOrgs = licenses.baseLicenses + licenses.additionalLicenses;
 
   return {
-    hasAccess: connectedOrgs <= licensedOrgs,
-    connectedOrganizations: connectedOrgs,
+    hasAccess: needsBaseLicenses === 0 && needsAdditionalLicenses === 0,
+    connectedOrganizations: totalOrgs,
     licensedOrganizations: licensedOrgs,
-    needsAdditionalLicenses: needsAdditional,
+    needsAdditionalLicenses,
+    needsBaseLicenses,
+    groups,
   };
 }
 
