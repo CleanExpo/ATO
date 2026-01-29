@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Mail, CheckCircle, RefreshCw } from 'lucide-react'
@@ -24,9 +24,9 @@ const SPECTRAL = {
 
 const EASING = [0.19, 1, 0.22, 1] as const
 
-// ─── Verify Email Page ───────────────────────────────────────────────
+// ─── Verify Email Page Content ───────────────────────────────────────
 
-export default function VerifyEmailPage() {
+function VerifyEmailContent() {
   const searchParams = useSearchParams()
   const email = searchParams.get('email') || ''
 
@@ -266,5 +266,19 @@ export default function VerifyEmailPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// ─── Page Export with Suspense ───────────────────────────────────────
+
+export default function VerifyEmailPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex justify-center items-center" style={{ background: '#050505' }}>
+        <div className="text-white/60 text-sm font-light">Loading...</div>
+      </div>
+    }>
+      <VerifyEmailContent />
+    </Suspense>
   )
 }
