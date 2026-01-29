@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse } from '@/lib/api/errors';
-import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth';
+import { requireAdminRole } from '@/lib/middleware/admin-role';
 
 export async function GET(request: NextRequest) {
     try {
-        // In production, we would check for a 'superadmin' role or similar
-        const auth = await requireAuthOnly(request);
-        if (isErrorResponse(auth)) return auth;
+        // Require admin role
+        const adminCheck = await requireAdminRole();
+        if (!adminCheck.isAdmin) {
+            return adminCheck.response;
+        }
 
         const supabase = await createServiceClient();
 

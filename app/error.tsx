@@ -10,6 +10,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
+import { reportError, isSentryConfigured } from '@/lib/error-tracking/sentry'
 
 export default function Error({
   error,
@@ -19,11 +20,29 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    // Log error to console in development
-    console.error('Root error boundary caught error:', error)
+    // Report error to Sentry in production
+    reportError(error, {
+      tags: {
+        errorBoundary: 'root',
+        digest: error.digest || 'none',
+      },
+      extra: {
+        componentStack: error.stack,
+        timestamp: new Date().toISOString(),
+      },
+    });
 
-    // TODO: Add error reporting service (Sentry) when configured
-    // For now, just log to console
+    // Log error to console in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Root error boundary caught error:', error);
+    }
+
+    // Notify user if Sentry is not configured in production
+    if (process.env.NODE_ENV === 'production' && !isSentryConfigured()) {
+      console.warn(
+        'SENTRY: Error tracking not configured. Set NEXT_PUBLIC_SENTRY_DSN to enable.'
+      );
+    }
   }, [error])
 
   return (

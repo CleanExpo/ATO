@@ -14,10 +14,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse } from '@/lib/api/errors';
+import { requireAdminRole } from '@/lib/middleware/admin-role';
 import type { AccountantApplication } from '@/lib/types/accountant';
 
 export async function GET(request: NextRequest) {
   try {
+    // Require admin role
+    const adminCheck = await requireAdminRole();
+    if (!adminCheck.isAdmin) {
+      return adminCheck.response;
+    }
+
     const { searchParams } = new URL(request.url);
 
     // Parse query parameters

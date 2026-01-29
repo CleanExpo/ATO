@@ -1,23 +1,20 @@
 /**
  * POST /api/admin/migrate
- * 
+ *
  * Run database migration to add analysis columns.
  * This is a one-time endpoint.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
+import { requireAdminRole } from '@/lib/middleware/admin-role'
 
 export async function POST(request: NextRequest) {
-    // Authenticate user (admin check should be added for production)
-    const auth = await requireAuthOnly(request)
-    if (isErrorResponse(auth)) return auth
-
-    // TODO: Add admin role check here
-    // if (auth.user.role !== 'admin') {
-    //     return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
-    // }
+    // Require admin role - database migrations are critical operations
+    const adminCheck = await requireAdminRole();
+    if (!adminCheck.isAdmin) {
+        return adminCheck.response;
+    }
 
     try {
         const supabase = await createServiceClient()

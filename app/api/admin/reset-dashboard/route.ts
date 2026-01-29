@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse } from '@/lib/api/errors'
+import { requireAdminRole } from '@/lib/middleware/admin-role'
 
 /**
  * POST /api/admin/reset-dashboard
@@ -15,9 +16,15 @@ import { createErrorResponse } from '@/lib/api/errors'
  */
 export async function POST(request: NextRequest) {
   try {
+    // Require admin role - this is a destructive operation!
+    const adminCheck = await requireAdminRole();
+    if (!adminCheck.isAdmin) {
+      return adminCheck.response;
+    }
+
     const supabase = await createServiceClient()
 
-    console.log('🧹 Starting dashboard reset...')
+    console.log(`🧹 Starting dashboard reset by admin ${adminCheck.userId}...`)
 
     // Delete in correct order to respect foreign key constraints
     const tables = [
