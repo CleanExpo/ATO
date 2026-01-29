@@ -1,0 +1,11 @@
+/**
+ * Scientific Luxury Tier - UI Components
+ *
+ * Export all UI components for easy importing:
+ * import { DataStrip, HoloPanel, DynamicIsland } from '@/components/ui'
+ */
+
+export { DataStrip, DataStripGroup, DataStripSkeleton } from './DataStrip'
+export { HoloPanel, HoloPanelGrid, HoloPanelSkeleton } from './HoloPanel'
+export { DynamicIsland, VerticalNav } from './DynamicIsland'
+export { MetricBlock, MetricRow } from './MetricBlock'

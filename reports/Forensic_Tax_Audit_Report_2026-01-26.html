@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forensic Tax Audit Report - 26 January 2026</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #1a1a2e;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 30px;
+      font-size: 12px;
+      background: #fff;
+    }
+
+    .cover-page {
+      text-align: center;
+      padding: 100px 0;
+      page-break-after: always;
+    }
+
+    .cover-page h1 {
+      font-size: 36px;
+      color: #1a1a2e;
+      margin-bottom: 20px;
+      border: none;
+    }
+
+    .cover-page .subtitle {
+      font-size: 18px;
+      color: #6366f1;
+      margin-bottom: 60px;
+    }
+
+    .cover-page .meta {
+      font-size: 14px;
+      color: #666;
+      line-height: 2;
+    }
+
+    .cover-page .logo {
+      width: 120px;
+      height: 120px;
+      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+      border-radius: 24px;
+      margin: 0 auto 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 48px;
+      font-weight: bold;
+    }
+
+    h1 {
+      color: #1a1a2e;
+      border-bottom: 3px solid #8b5cf6;
+      padding-bottom: 10px;
+      font-size: 24px;
+      margin-top: 40px;
+    }
+
+    h2 {
+      color: #2d2d44;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 8px;
+      font-size: 18px;
+      margin-top: 35px;
+      page-break-after: avoid;
+    }
+
+    h3 {
+      color: #4a4a6a;
+      font-size: 14px;
+      margin-top: 25px;
+      page-break-after: avoid;
+    }
+
+    h4 {
+      color: #6366f1;
+      font-size: 12px;
+      margin-top: 20px;
+      page-break-after: avoid;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 11px;
+      page-break-inside: avoid;
+    }
+
+    th {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+      color: white;
+      padding: 12px 15px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    td {
+      padding: 10px 15px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    tr:nth-child(even) {
+      background-color: #f9fafb;
+    }
+
+    .summary-box {
+      background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 100%);
+      padding: 25px;
+      border-radius: 12px;
+      margin: 25px 0;
+    }
+
+    .summary-box h3 {
+      margin-top: 0;
+      color: #5b21b6;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin: 20px 0;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .stat-card .value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #8b5cf6;
+    }
+
+    .stat-card .label {
+      font-size: 11px;
+      color: #666;
+      margin-top: 5px;
+    }
+
+    .recommendation-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      page-break-inside: avoid;
+    }
+
+    .recommendation-card.priority-medium {
+      border-left: 4px solid #f59e0b;
+    }
+
+    .recommendation-card.priority-low {
+      border-left: 4px solid #10b981;
+    }
+
+    .recommendation-card.priority-high {
+      border-left: 4px solid #ef4444;
+    }
+
+    .recommendation-card h4 {
+      margin-top: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .priority-badge {
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .priority-badge.medium {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .priority-badge.low {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .benefit-highlight {
+      font-size: 18px;
+      font-weight: 700;
+      color: #10b981;
+    }
+
+    blockquote {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 15px 20px;
+      margin: 25px 0;
+      font-style: italic;
+      color: #92400e;
+      border-radius: 0 8px 8px 0;
+    }
+
+    code {
+      background: #f3f4f6;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'Consolas', monospace;
+      font-size: 11px;
+    }
+
+    ul, ol {
+      margin: 15px 0;
+      padding-left: 25px;
+    }
+
+    li {
+      margin: 8px 0;
+    }
+
+    hr {
+      border: none;
+      border-top: 2px solid #e5e7eb;
+      margin: 40px 0;
+    }
+
+    .org-section {
+      page-break-before: always;
+    }
+
+    .footer {
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 2px solid #e5e7eb;
+      text-align: center;
+      font-size: 10px;
+      color: #666;
+    }
+
+    @media print {
+      body {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+        padding: 20px;
+      }
+
+      .cover-page {
+        padding: 150px 0;
+      }
+
+      .no-print {
+        display: none;
+      }
+    }
+
+    .print-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    }
+
+    .print-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
+    }
+  </style>
+</head>
+<body>
+
+<button class="print-button no-print" onclick="window.print()">📄 Print / Save as PDF</button>
+
+<!-- Cover Page -->
+<div class="cover-page">
+  <div class="logo">ATO</div>
+  <h1>Forensic Tax Audit Report</h1>
+  <div class="subtitle">AI-Powered Tax Recovery Analysis</div>
+  <div class="meta">
+    <p><strong>Report Date:</strong> 26 January 2026</p>
+    <p><strong>Report ID:</strong> REPORT-2026012600001</p>
+    <p><strong>Analysis Engine:</strong> Gemini AI (gemini-2.0-flash-exp)</p>
+    <p><strong>Status:</strong> Complete</p>
+  </div>
+</div>
+
+<!-- Executive Summary -->
+<h1>Executive Summary</h1>
+
+<p>This forensic tax audit analysed <strong>10,488 transactions</strong> across three Xero organisations using AI-powered analysis to identify potential tax benefits, unclaimed deductions, and compliance opportunities.</p>
+
+<div class="summary-box">
+  <h3>Total Tax Recovery Potential</h3>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="value">$51,316.71</div>
+      <div class="label">Total Estimated Benefit</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">$42,545.47</div>
+      <div class="label">Total Adjusted Benefit</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">$19,545.47</div>
+      <div class="label">Total Net Benefit</div>
+    </div>
+    <div class="stat-card">
+      <div class="value">23</div>
+      <div class="label">Total Recommendations</div>
+    </div>
+  </div>
+</div>
+
+<h3>Organisation Summary</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Organisation</th>
+      <th>Transactions</th>
+      <th>Recommendations</th>
+      <th>Adjusted Benefit</th>
+      <th>Net Benefit</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Disaster Recovery Qld Pty Ltd</td>
+      <td>9,961</td>
+      <td>11</td>
+      <td>$27,996.29</td>
+      <td>$16,996.29</td>
+    </tr>
+    <tr>
+      <td>Disaster Recovery Pty Ltd</td>
+      <td>338</td>
+      <td>6</td>
+      <td>$12,340.61</td>
+      <td>$6,340.61</td>
+    </tr>
+    <tr>
+      <td>CARSI</td>
+      <td>189</td>
+      <td>6</td>
+      <td>$2,208.57</td>
+      <td>-$3,791.43*</td>
+    </tr>
+    <tr style="font-weight: bold; background: #ede9fe;">
+      <td>TOTAL</td>
+      <td>10,488</td>
+      <td>23</td>
+      <td>$42,545.47</td>
+      <td>$19,545.47</td>
+    </tr>
+  </tbody>
+</table>
+
+<p><em>*Note: CARSI shows negative net benefit due to accounting costs exceeding the small benefit amount.</em></p>
+
+<hr>
+
+<!-- Organisation 1 -->
+<div class="org-section">
+<h1>Organisation 1: Disaster Recovery Qld Pty Ltd</h1>
+
+<table>
+  <tr><th>Tenant ID</th><td>8a8caf6c-614b-45a5-9e15-46375122407c</td></tr>
+  <tr><th>Transactions Analysed</th><td>9,961</td></tr>
+  <tr><th>Analysis Status</th><td>Complete (100%)</td></tr>
+</table>
+
+<h3>Financial Summary</h3>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="value">11</div>
+    <div class="label">Recommendations</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">$27,996.29</div>
+    <div class="label">Adjusted Benefit</div>
+  </div>
+</div>
+
+<h3>Benefit by Financial Year</h3>
+
+<table>
+  <thead>
+    <tr><th>Financial Year</th><th>Adjusted Benefit</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>FY2024-25</td><td>$19,398.80</td></tr>
+    <tr><td>FY2025-26</td><td>$5,308.46</td></tr>
+    <tr><td>FY2022-23</td><td>$3,064.30</td></tr>
+    <tr><td>FY2023-24</td><td>$224.72</td></tr>
+  </tbody>
+</table>
+
+<h3>Key Recommendations</h3>
+
+<div class="recommendation-card priority-medium">
+  <h4>
+    1. Professional Fees Deductions (FY2024-25)
+    <span class="priority-badge medium">Medium Priority</span>
+  </h4>
+  <p><strong>Action:</strong> Claim Professional Fees deductions</p>
+  <p><strong>Description:</strong> Unclaimed Professional Fees expenses totaling $74,027.01 across 47 transactions</p>
+  <p><strong>Benefit:</strong> <span class="benefit-highlight">$15,360.60</span> (Confidence: 83%)</p>
+  <p><strong>Legislative Reference:</strong> Section 8-1 ITAA 1997 (General deductions)</p>
+  <p><strong>ATO Forms:</strong> Company Tax Return</p>
+  <p><strong>Deadline:</strong> 29 June 2029</p>
+  <p><strong>Documentation Required:</strong></p>
+  <ul>
+    <li>Invoices and receipts for all 47 transactions</li>
+    <li>Proof of payment (bank statements, credit card statements)</li>
+    <li>Evidence of business purpose (emails, contracts, project documents)</li>
+  </ul>
+</div>
+
+<div class="recommendation-card priority-medium">
+  <h4>
+    2. Other Deductible Expenses (FY2025-26)
+    <span class="priority-badge medium">Medium Priority</span>
+  </h4>
+  <p><strong>Action:</strong> Claim Other Deductible Expenses deductions</p>
+  <p><strong>Description:</strong> Unclaimed expenses totaling $23,183.52 across 123 transactions</p>
+  <p><strong>Benefit:</strong> <span class="benefit-highlight">$5,042.42</span> (Confidence: 87%)</p>
+  <p><strong>Legislative Reference:</strong> Section 8-1 ITAA 1997 (General deductions)</p>
+  <p><strong>Deadline:</strong> 29 June 2030</p>
+</div>
+</div>
+
+<hr>
+
+<!-- Organisation 2 -->
+<div class="org-section">
+<h1>Organisation 2: Disaster Recovery Pty Ltd</h1>
+
+<table>
+  <tr><th>Tenant ID</th><td>fc010696-d9f1-482e-ab43-aa0c13ee27fa</td></tr>
+  <tr><th>Transactions Analysed</th><td>338</td></tr>
+  <tr><th>Analysis Status</th><td>Complete (100%)</td></tr>
+</table>
+
+<h3>Financial Summary</h3>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="value">6</div>
+    <div class="label">Recommendations</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">$12,340.61</div>
+    <div class="label">Adjusted Benefit</div>
+  </div>
+</div>
+
+<h3>Benefit by Financial Year</h3>
+
+<table>
+  <thead>
+    <tr><th>Financial Year</th><th>Adjusted Benefit</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>FY2023-24</td><td>$4,686.14</td></tr>
+    <tr><td>FY2022-23</td><td>$4,636.37</td></tr>
+    <tr><td>FY2024-25</td><td>$1,528.31</td></tr>
+    <tr><td>FY2025-26</td><td>$1,489.79</td></tr>
+  </tbody>
+</table>
+
+<h3>Key Recommendations</h3>
+
+<div class="recommendation-card priority-medium">
+  <h4>
+    1. Professional Fees Deductions (FY2023-24)
+    <span class="priority-badge medium">Medium Priority</span>
+  </h4>
+  <p><strong>Action:</strong> Claim Professional Fees deductions</p>
+  <p><strong>Description:</strong> Unclaimed Professional Fees expenses totaling $23,141.45 across 32 transactions</p>
+  <p><strong>Benefit:</strong> <span class="benefit-highlight">$4,686.14</span> (Confidence: 81%)</p>
+  <p><strong>Legislative Reference:</strong> Section 8-1 ITAA 1997 (General deductions)</p>
+  <p><strong>Deadline:</strong> 29 June 2028</p>
+</div>
+</div>
+
+<hr>
+
+<!-- Organisation 3 -->
+<div class="org-section">
+<h1>Organisation 3: CARSI</h1>
+
+<table>
+  <tr><th>Tenant ID</th><td>9656b831-bb60-43db-8176-9f009903c1a8</td></tr>
+  <tr><th>Transactions Analysed</th><td>189</td></tr>
+  <tr><th>Analysis Status</th><td>Complete (100%)</td></tr>
+</table>
+
+<h3>Financial Summary</h3>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="value">6</div>
+    <div class="label">Recommendations</div>
+  </div>
+  <div class="stat-card">
+    <div class="value">$2,208.57</div>
+    <div class="label">Adjusted Benefit</div>
+  </div>
+</div>
+
+<p><em>Note: Negative net benefit (-$3,791.43) indicates accounting costs exceed the benefit amount. Consider batching with other claims.</em></p>
+
+<h3>Benefit by Financial Year</h3>
+
+<table>
+  <thead>
+    <tr><th>Financial Year</th><th>Adjusted Benefit</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>FY2023-24</td><td>$1,992.45</td></tr>
+    <tr><td>FY2024-25</td><td>$216.11</td></tr>
+  </tbody>
+</table>
+
+<h3>Key Recommendations</h3>
+
+<div class="recommendation-card priority-low">
+  <h4>
+    1. Other Deductible Expenses (FY2023-24)
+    <span class="priority-badge low">Low Priority</span>
+  </h4>
+  <p><strong>Action:</strong> Claim Other Deductible Expenses deductions</p>
+  <p><strong>Description:</strong> Unclaimed expenses totaling $10,792.80 across 38 transactions</p>
+  <p><strong>Benefit:</strong> <span class="benefit-highlight">$1,861.76</span> (Confidence: 69%)</p>
+  <p><strong>Legislative Reference:</strong> Section 8-1 ITAA 1997 (General deductions)</p>
+  <p><strong>Deadline:</strong> 29 June 2028</p>
+</div>
+</div>
+
+<hr>
+
+<!-- Amendment Schedule -->
+<h1>Amendment Schedule Summary</h1>
+
+<p>All recommendations fall within open amendment windows. No urgent amendments required.</p>
+
+<h3>Deadline Summary</h3>
+
+<table>
+  <thead>
+    <tr><th>Deadline</th><th>Recommendations</th><th>Total Benefit</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>June 2028</td><td>7</td><td>$11,366.91</td></tr>
+    <tr><td>June 2029</td><td>6</td><td>$18,246.34</td></tr>
+    <tr><td>June 2030</td><td>10</td><td>$12,932.22</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- Methodology -->
+<h1>Methodology</h1>
+
+<h3>Analysis Approach</h3>
+
+<ol>
+  <li><strong>Data Extraction:</strong> Transactions extracted from Xero API including bank transactions, invoices, and journal entries</li>
+  <li><strong>AI Analysis:</strong> Each transaction analysed by Gemini AI for tax implications</li>
+  <li><strong>Confidence Scoring:</strong> AI assigns confidence scores (0-100%) based on transaction clarity</li>
+  <li><strong>Benefit Calculation:</strong> Estimated benefit = Transaction amount × 25% (small business tax rate)</li>
+  <li><strong>Adjusted Benefit:</strong> Estimated benefit × Confidence score</li>
+  <li><strong>Net Benefit:</strong> Adjusted benefit - Estimated accounting costs ($1,000 per recommendation)</li>
+</ol>
+
+<h3>Tax Rate Assumptions</h3>
+
+<table>
+  <thead>
+    <tr><th>Rate</th><th>Value</th><th>Source</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Small Business Tax Rate</td><td>25%</td><td>Section 23AA ITAA 1936</td></tr>
+    <tr><td>R&D Tax Offset (if applicable)</td><td>43.5%</td><td>Division 355 ITAA 1997</td></tr>
+    <tr><td>Standard Corporate Rate</td><td>30%</td><td>Section 23 ITAA 1936</td></tr>
+  </tbody>
+</table>
+
+<hr>
+
+<!-- Disclaimers -->
+<h1>Important Disclaimers</h1>
+
+<blockquote>
+  <strong>DISCLAIMER:</strong> This analysis is provided for informational purposes only and does not constitute tax advice. All recommendations should be reviewed by a qualified tax professional before implementation. The software provides 'intelligence' and 'estimates', not binding financial advice.
+</blockquote>
+
+<h3>Key Limitations</h3>
+
+<ol>
+  <li>Analysis based on transaction descriptions and amounts only</li>
+  <li>Supporting documentation not verified</li>
+  <li>Business purpose assumptions made by AI</li>
+  <li>Tax rates may vary based on entity circumstances</li>
+  <li>Amendment deadlines subject to verification with ATO</li>
+</ol>
+
+<h3>Professional Review Recommended</h3>
+
+<p>We recommend engaging a registered tax agent to:</p>
+<ul>
+  <li>Verify all high-value deductions (>$10,000)</li>
+  <li>Confirm business purpose for flagged transactions</li>
+  <li>Prepare and lodge any amendments</li>
+  <li>Maintain ATO-compliant documentation</li>
+</ul>
+
+<hr>
+
+<!-- Next Steps -->
+<h1>Next Steps</h1>
+
+<h3>Immediate Actions (Within 30 Days)</h3>
+<ol>
+  <li>Review all MEDIUM priority recommendations</li>
+  <li>Gather supporting documentation for FY2024-25 claims</li>
+  <li>Engage tax professional for high-value deductions</li>
+</ol>
+
+<h3>Short-Term Actions (Within 90 Days)</h3>
+<ol>
+  <li>Lodge amendments for FY2022-23 claims (approaching 4-year limit)</li>
+  <li>Review and categorise all flagged transactions</li>
+  <li>Implement improved transaction coding in Xero</li>
+</ol>
+
+<hr>
+
+<div class="footer">
+  <p><strong>Report Version:</strong> 1.0 | <strong>Generated By:</strong> ATO Tax Optimizer</p>
+  <p><strong>Analysis Engine:</strong> Gemini AI (gemini-2.0-flash-exp) | <strong>Total Processing Time:</strong> ~2 hours</p>
+  <p><strong>Transactions Processed:</strong> 10,488 | <strong>API Calls:</strong> ~200 batches</p>
+  <hr style="margin: 20px 0;">
+  <p><em>Australian Tax Optimizer (ATO) Platform</em></p>
+  <p>For support, review dashboard at <code>http://localhost:3000/dashboard/forensic-audit</code></p>
+</div>
+
+</body>
+</html>
