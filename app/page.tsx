@@ -51,8 +51,8 @@ function BreathingOrb({ colour, size = 'md' }: { colour: string; size?: 'sm' | '
 
 export default function Home() {
   return (
-    <div className="min-h-screen text-white" style={{ background: '#050505' }}>
-      <div className="max-w-[1920px] mx-auto">
+    <div className="min-h-screen text-white flex justify-center" style={{ background: '#050505' }}>
+      <div className="max-w-[1920px] w-full">
         {/* ── Hero ── */}
         <section className="pt-24 md:pt-32 pb-40 px-6">
           <div className="max-w-6xl mx-auto text-center">
