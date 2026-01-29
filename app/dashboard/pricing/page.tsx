@@ -203,12 +203,13 @@ export default function PricingPage() {
                         onCheckout={() => handleCheckout('comprehensive')}
                         isLoading={loadingCheckout === 'comprehensive'}
                         features={[
+                            '1 Organization Included',
                             '5-Year Historical Ledger Sync',
                             'AI-Driven R&D Discovery ($20k+ Potential)',
                             'Deduction Leakage Analysis',
                             'Division 7A Risk Monitoring',
                             'Full "Audit Outline" PDF Export',
-                            'Priority Email Support'
+                            'Additional Organizations: $199 each'
                         ]}
                     />
 
@@ -221,12 +222,13 @@ export default function PricingPage() {
                         buttonText="Apply for Accountant Pricing"
                         buttonLink="/accountant/apply"
                         features={[
+                            '1 Organization Included',
                             'Wholesale License Pricing (-50%)',
                             'Professional Audit Package Export',
                             'White-labeled CSV Data Sheets',
                             'Accountant-Layer Evidence Analysis',
                             'Batch Multi-Client Dashboard',
-                            'Dedicated Partner Success Lead'
+                            'Additional Organizations: $199 each'
                         ]}
                     />
                 </div>

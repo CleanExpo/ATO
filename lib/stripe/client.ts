@@ -53,6 +53,7 @@ export const PRICING_CONFIG = {
     price: 99500, // $995.00 AUD
     currency: 'aud',
     type: 'one_time' as const,
+    includesOrganizations: 1, // Includes 1 organization
   },
   core: {
     id: 'price_core',
@@ -61,6 +62,7 @@ export const PRICING_CONFIG = {
     price: 49500, // $495.00 AUD
     currency: 'aud',
     type: 'one_time' as const,
+    includesOrganizations: 1, // Includes 1 organization
   },
   wholesale_accountant: {
     id: 'price_wholesale_accountant',
@@ -69,13 +71,22 @@ export const PRICING_CONFIG = {
     basePrice: 99500, // Base price before discount
     currency: 'aud',
     type: 'one_time' as const,
+    includesOrganizations: 1, // Includes 1 organization
+  },
+  additional_organization: {
+    id: 'price_additional_organization',
+    name: 'Additional Organization License',
+    description: 'Add another organization to your existing license',
+    price: 19900, // $199.00 AUD per additional organization
+    currency: 'aud',
+    type: 'one_time' as const,
   },
 } as const;
 
 /**
  * License types corresponding to purchase tiers
  */
-export type LicenseType = 'comprehensive' | 'core' | 'wholesale_accountant';
+export type LicenseType = 'comprehensive' | 'core' | 'wholesale_accountant' | 'additional_organization';
 
 /**
  * Calculate accountant wholesale pricing with tier discount

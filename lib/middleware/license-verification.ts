@@ -19,6 +19,103 @@ export interface LicenseStatus {
 }
 
 /**
+ * Get number of organizations user has access to
+ *
+ * @param userId - User ID to check
+ * @returns Number of organizations
+ */
+export async function getUserOrganizationCount(userId: string): Promise<number> {
+  try {
+    const supabase = await createClient();
+
+    const { count, error } = await supabase
+      .from('user_tenant_access')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error counting user organizations:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Error in getUserOrganizationCount:', error);
+    return 0;
+  }
+}
+
+/**
+ * Get number of organization licenses purchased by user
+ * - Base license (comprehensive/core) includes 1 organization
+ * - Additional organization purchases add more
+ *
+ * @param userId - User ID to check
+ * @returns Number of organizations licensed
+ */
+export async function getUserLicensedOrganizationCount(userId: string): Promise<number> {
+  try {
+    const supabase = await createClient();
+
+    // Get all active purchases for this user
+    const { data: purchases, error } = await supabase
+      .from('purchases')
+      .select('product_type, license_active')
+      .eq('user_id', userId)
+      .eq('license_active', true);
+
+    if (error || !purchases) {
+      console.error('Error fetching user purchases:', error);
+      return 0;
+    }
+
+    let licensedOrganizations = 0;
+
+    for (const purchase of purchases) {
+      if (purchase.product_type === 'additional_organization') {
+        // Each additional organization purchase adds 1
+        licensedOrganizations += 1;
+      } else if (['comprehensive', 'core', 'wholesale_accountant'].includes(purchase.product_type)) {
+        // Base license includes 1 organization
+        licensedOrganizations += 1;
+      }
+    }
+
+    return licensedOrganizations;
+  } catch (error) {
+    console.error('Error in getUserLicensedOrganizationCount:', error);
+    return 0;
+  }
+}
+
+/**
+ * Check if user has sufficient licenses for all their organizations
+ *
+ * @param userId - User ID to check
+ * @returns Object with hasAccess flag and details
+ */
+export async function checkOrganizationLicenseCompliance(userId: string): Promise<{
+  hasAccess: boolean;
+  connectedOrganizations: number;
+  licensedOrganizations: number;
+  needsAdditionalLicenses: number;
+}> {
+  const [connectedOrgs, licensedOrgs] = await Promise.all([
+    getUserOrganizationCount(userId),
+    getUserLicensedOrganizationCount(userId)
+  ]);
+
+  const needsAdditional = Math.max(0, connectedOrgs - licensedOrgs);
+
+  return {
+    hasAccess: connectedOrgs <= licensedOrgs,
+    connectedOrganizations: connectedOrgs,
+    licensedOrganizations: licensedOrgs,
+    needsAdditionalLicenses: needsAdditional,
+  };
+}
+
+/**
  * Get user's current license status
  *
  * @param userId - User ID to check license for

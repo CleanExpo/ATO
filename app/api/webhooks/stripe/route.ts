@@ -148,21 +148,26 @@ async function handleCheckoutCompleted(
     console.log(`Purchase record created: ${purchase.id} for user ${userId}`);
 
     // Update user profile with license status
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({
-        license_type: productType,
-        license_active: true,
-        license_activated_at: new Date().toISOString(),
-      })
-      .eq('id', userId);
+    // Note: For additional_organization purchases, we don't update the primary license_type
+    if (productType !== 'additional_organization') {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          license_type: productType,
+          license_active: true,
+          license_activated_at: new Date().toISOString(),
+        })
+        .eq('id', userId);
 
-    if (profileError) {
-      console.error('Error updating profile license status:', profileError);
-      return;
+      if (profileError) {
+        console.error('Error updating profile license status:', profileError);
+        return;
+      }
+
+      console.log(`License activated for user ${userId}: ${productType}`);
+    } else {
+      console.log(`Additional organization license purchased for user ${userId}`);
     }
-
-    console.log(`License activated for user ${userId}: ${productType}`);
 
     // TODO: Send confirmation email to user
     console.log(`TODO: Send purchase confirmation email to user ${userId}`);

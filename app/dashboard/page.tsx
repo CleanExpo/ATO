@@ -38,6 +38,7 @@ import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import { DataStrip, DataStripGroup } from '@/components/ui/DataStrip'
 import { HoloPanel, HoloPanelGrid } from '@/components/ui/HoloPanel'
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections'
+import { AdditionalOrganizationPrompt } from '@/components/dashboard/AdditionalOrganizationPrompt'
 
 interface Connection {
   tenant_id: string
@@ -123,6 +124,12 @@ function DashboardContent() {
   const [summaryError, setSummaryError] = useState<string | null>(null)
   const [activeOperations, setActiveOperations] = useState<ActiveOperation[]>([])
   const [recentCompletions, setRecentCompletions] = useState<RecentCompletion[]>([])
+  const [licenseCompliance, setLicenseCompliance] = useState<{
+    hasAccess: boolean
+    connectedOrganizations: number
+    licensedOrganizations: number
+    needsAdditionalLicenses: number
+  } | null>(null)
 
   const fetchSummary = useCallback(async (tenantId: string) => {
     try {
@@ -186,11 +193,22 @@ function DashboardContent() {
 
   const fetchConnections = useCallback(async () => {
     try {
-      // Fetch both Xero and MYOB connections in parallel
-      const [xeroData, myobData] = await Promise.all([
+      // Fetch Xero, MYOB connections, and license compliance in parallel
+      const [xeroData, myobData, licenseData] = await Promise.all([
         apiRequest<{ connections: Connection[] }>('/api/xero/organizations').catch(() => ({ connections: [] })),
-        apiRequest<{ connections: MYOBConnection[] }>('/api/myob/connections').catch(() => ({ connections: [] }))
+        apiRequest<{ connections: MYOBConnection[] }>('/api/myob/connections').catch(() => ({ connections: [] })),
+        apiRequest<{
+          hasAccess: boolean
+          connectedOrganizations: number
+          licensedOrganizations: number
+          needsAdditionalLicenses: number
+        }>('/api/license/check-compliance').catch(() => null)
       ])
+
+      // Set license compliance status
+      if (licenseData) {
+        setLicenseCompliance(licenseData)
+      }
 
       setConnections(xeroData.connections || [])
       setMyobConnections(myobData.connections || [])
@@ -406,6 +424,15 @@ function DashboardContent() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Additional Organization License Prompt */}
+        {licenseCompliance && !licenseCompliance.hasAccess && licenseCompliance.needsAdditionalLicenses > 0 && (
+          <AdditionalOrganizationPrompt
+            connectedOrganizations={licenseCompliance.connectedOrganizations}
+            licensedOrganizations={licenseCompliance.licensedOrganizations}
+            needsAdditionalLicenses={licenseCompliance.needsAdditionalLicenses}
+          />
+        )}
 
         {summaryError && (
           <div className="alert alert--error" style={{ marginBottom: 'var(--space-lg)' }}>
