@@ -8,7 +8,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Building2 } from 'lucide-react'
+import { Building2, Plus } from 'lucide-react'
+import Link from 'next/link'
 import { PlatformSyncButton } from './PlatformSyncButton'
 
 interface XeroConnection {
@@ -105,6 +106,27 @@ export function PlatformConnections({
       </div>
 
       <div className="layout-stack">
+        {/* Add Connection Buttons */}
+        <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-sm)' }}>
+          <Link
+            href="/api/auth/xero?prompt=login"
+            className="btn btn-secondary"
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-xs)' }}
+          >
+            <Plus className="w-4 h-4" />
+            <span>Connect Another Xero Account</span>
+          </Link>
+
+          <Link
+            href="/api/auth/myob"
+            className="btn btn-secondary"
+            style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-xs)' }}
+          >
+            <Plus className="w-4 h-4" />
+            <span>Connect MYOB Account</span>
+          </Link>
+        </div>
+
         {normalizedConnections.map((conn) => {
           const isActive = activeConnectionId === conn.id
           const platformColor = conn.platform === 'xero' ? 'var(--accent-xero)' : 'var(--accent-myob)'
