@@ -6,7 +6,7 @@
 
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
@@ -18,24 +18,64 @@ import {
     ArrowRight,
     ShieldAlert,
     Terminal,
-    Calculator
+    Calculator,
+    Loader2
 } from 'lucide-react'
 import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
 
-const PricingCard = ({ title, price, description, features, buttonText, highlight = false, badge = '', buttonLink = '' }: any) => {
+interface PricingCardProps {
+    title: string
+    price: string
+    description: string
+    features: string[]
+    buttonText: string
+    highlight?: boolean
+    badge?: string
+    buttonLink?: string
+    productType?: 'comprehensive' | 'core'
+    onCheckout?: () => Promise<void>
+    isLoading?: boolean
+}
+
+const PricingCard = ({
+    title,
+    price,
+    description,
+    features,
+    buttonText,
+    highlight = false,
+    badge = '',
+    buttonLink = '',
+    productType,
+    onCheckout,
+    isLoading = false
+}: PricingCardProps) => {
     const ButtonContent = () => (
         <>
-            {buttonText} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            {isLoading ? (
+                <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                </>
+            ) : (
+                <>
+                    {buttonText} <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                </>
+            )}
         </>
     );
 
-    const buttonClasses = `w-full py-4 rounded-xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all ${highlight ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-white/10 text-white hover:bg-white/20'}`;
+    const buttonClasses = `w-full py-4 rounded-xl font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 transition-all ${
+        highlight ? 'bg-sky-500 text-white hover:bg-sky-400' : 'bg-white/10 text-white hover:bg-white/20'
+    } ${isLoading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`;
 
     return (
         <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`glass-card p-8 flex flex-col items-start relative overflow-hidden group ${highlight ? 'border-sky-500/50 bg-sky-500/5 shadow-[0_0_50px_-12px_rgba(14,165,233,0.3)]' : 'border-white/10'}`}
+            className={`glass-card p-8 flex flex-col items-start relative overflow-hidden group ${
+                highlight ? 'border-sky-500/50 bg-sky-500/5 shadow-[0_0_50px_-12px_rgba(14,165,233,0.3)]' : 'border-white/10'
+            }`}
         >
             {badge && (
                 <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-sky-500 text-[10px] font-black uppercase tracking-widest text-white">
@@ -43,7 +83,9 @@ const PricingCard = ({ title, price, description, features, buttonText, highligh
                 </div>
             )}
 
-            <div className={`w-12 h-12 rounded-xl mb-6 flex items-center justify-center ${highlight ? 'bg-sky-500 text-white' : 'bg-white/5 text-sky-400'}`}>
+            <div className={`w-12 h-12 rounded-xl mb-6 flex items-center justify-center ${
+                highlight ? 'bg-sky-500 text-white' : 'bg-white/5 text-sky-400'
+            }`}>
                 {title === 'Business Owner' ? <Building2 className="w-6 h-6" /> : <Users className="w-6 h-6" />}
             </div>
 
@@ -71,7 +113,11 @@ const PricingCard = ({ title, price, description, features, buttonText, highligh
                     <ButtonContent />
                 </Link>
             ) : (
-                <button className={buttonClasses}>
+                <button
+                    className={buttonClasses}
+                    onClick={onCheckout}
+                    disabled={isLoading}
+                >
                     <ButtonContent />
                 </button>
             )}
@@ -80,6 +126,42 @@ const PricingCard = ({ title, price, description, features, buttonText, highligh
 }
 
 export default function PricingPage() {
+    const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null)
+    const [error, setError] = useState<string | null>(null)
+
+    const handleCheckout = async (productType: 'comprehensive' | 'core') => {
+        try {
+            setLoadingCheckout(productType)
+            setError(null)
+
+            const response = await fetch('/api/checkout/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ productType }),
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || 'Failed to create checkout session')
+            }
+
+            const data = await response.json()
+
+            // Redirect to Stripe Checkout
+            if (data.url) {
+                window.location.href = data.url
+            } else {
+                throw new Error('No checkout URL received')
+            }
+        } catch (err) {
+            console.error('Checkout error:', err)
+            setError(err instanceof Error ? err.message : 'Failed to initiate checkout')
+            setLoadingCheckout(null)
+        }
+    }
+
     return (
         <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
             <DynamicIsland />
@@ -99,13 +181,27 @@ export default function PricingPage() {
                     </p>
                 </div>
 
+                {/* Error Message */}
+                {error && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center"
+                    >
+                        {error}
+                    </motion.div>
+                )}
+
                 {/* Pricing Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
                     <PricingCard
                         title="Business Owner"
-                        price="990"
+                        price="995"
                         description="Complete self-service forensic analysis for a single organization. Discover every hidden benefit instantly."
                         buttonText="Unlock Business License"
+                        productType="comprehensive"
+                        onCheckout={() => handleCheckout('comprehensive')}
+                        isLoading={loadingCheckout === 'comprehensive'}
                         features={[
                             '5-Year Historical Ledger Sync',
                             'AI-Driven R&D Discovery ($20k+ Potential)',
