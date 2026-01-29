@@ -4,7 +4,7 @@ import { createErrorResponse } from '@/lib/api/errors'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
 // Single-user mode: Skip auth and return all connections
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true // Default to true for now
+const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true'
 
 // GET /api/xero/organizations - List connected organizations
 // In single-user mode: Returns all connections
