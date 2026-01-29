@@ -70,7 +70,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: EASING }}
-            className="text-6xl md:text-7xl lg:text-8xl font-extralight tracking-tight leading-[0.95] mb-10"
+            className="text-4xl md:text-5xl lg:text-6xl font-extralight tracking-tight leading-[1.1] mb-8"
           >
             <span className="text-white">Unlock Every</span>
             <br />
@@ -81,7 +81,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: EASING }}
-            className="text-xl md:text-2xl text-white/60 max-w-3xl mx-auto mb-14 font-light leading-relaxed"
+            className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-10 font-light leading-relaxed"
           >
             Deep AI analysis of your Xero data to identify R&D refunds,
             unclaimed deductions, and tax optimisation opportunities worth <span className="text-white/90" style={{ color: SPECTRAL.emerald }}>$200K-$500K</span>.
@@ -143,14 +143,14 @@ export default function Home() {
       </section>
 
       {/* ── Capabilities Data Strip ── */}
-      <section className="px-6 pb-40">
-        <div className="max-w-6xl mx-auto">
+      <section className="px-6 py-20 md:py-32">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: EASING }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="grid grid-cols-1 md:grid-cols-3 gap-5"
           >
             {[
               {
@@ -178,20 +178,20 @@ export default function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, ease: EASING }}
-                className="p-8 border-[0.5px] border-white/[0.08] rounded-sm hover:border-white/[0.15] transition-all duration-300"
+                className="p-6 border-[0.5px] border-white/[0.08] rounded-sm hover:border-white/[0.15] transition-all duration-300"
                 style={{
                   background: `rgba(255,255,255,0.02)`,
                   boxShadow: `0 0 40px ${cap.colour}08`
                 }}
               >
-                <div className="flex items-center gap-3 mb-6">
+                <div className="flex items-center gap-3 mb-4">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: cap.colour }} />
                   <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-medium">{cap.label}</span>
                 </div>
-                <p className="font-mono text-4xl md:text-5xl font-medium tabular-nums mb-4" style={{ color: cap.colour }}>
+                <p className="font-mono text-3xl md:text-4xl font-medium tabular-nums mb-3" style={{ color: cap.colour }}>
                   {cap.value}
                 </p>
-                <p className="text-base text-white/40 leading-relaxed">{cap.detail}</p>
+                <p className="text-sm text-white/40 leading-relaxed">{cap.detail}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -199,19 +199,19 @@ export default function Home() {
       </section>
 
       {/* ── Process Timeline ── */}
-      <section className="px-6 pb-40">
+      <section className="px-6 py-20 md:py-32">
         <div className="max-w-4xl mx-auto">
           <motion.p
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, ease: EASING }}
-            className="text-[11px] uppercase tracking-[0.4em] text-white/40 text-center mb-20 font-medium"
+            className="text-[11px] uppercase tracking-[0.4em] text-white/40 text-center mb-12 font-medium"
           >
             How It Works
           </motion.p>
 
-          <div className="space-y-12">
+          <div className="space-y-10">
             {[
               {
                 step: '01',
@@ -249,15 +249,15 @@ export default function Home() {
                 {/* Orb */}
                 <div className="flex-shrink-0">
                   <div
-                    className="w-16 h-16 flex items-center justify-center rounded-full border-[0.5px]"
+                    className="w-12 h-12 flex items-center justify-center rounded-full border-[0.5px]"
                     style={{
                       borderColor: `${item.colour}40`,
                       backgroundColor: `${item.colour}08`,
-                      boxShadow: `0 0 40px ${item.colour}20`,
+                      boxShadow: `0 0 30px ${item.colour}20`,
                     }}
                   >
                     <motion.div
-                      className="w-3 h-3 rounded-full"
+                      className="w-2.5 h-2.5 rounded-full"
                       style={{ backgroundColor: item.colour }}
                       animate={{ scale: [1, 1.3, 1], opacity: [1, 0.5, 1] }}
                       transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.3 }}
@@ -266,12 +266,12 @@ export default function Home() {
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 pt-2">
-                  <div className="flex items-baseline gap-4 mb-3">
-                    <span className="text-[12px] font-mono text-white/25 tabular-nums tracking-wider">{item.step}</span>
-                    <h3 className="text-2xl md:text-3xl font-light text-white/95">{item.title}</h3>
+                <div className="flex-1 pt-1">
+                  <div className="flex items-baseline gap-4 mb-2">
+                    <span className="text-[11px] font-mono text-white/25 tabular-nums tracking-wider">{item.step}</span>
+                    <h3 className="text-xl md:text-2xl font-light text-white/95">{item.title}</h3>
                   </div>
-                  <p className="text-base md:text-lg text-white/45 leading-relaxed">{item.desc}</p>
+                  <p className="text-sm md:text-base text-white/45 leading-relaxed">{item.desc}</p>
                 </div>
               </motion.div>
             ))}
@@ -280,44 +280,44 @@ export default function Home() {
       </section>
 
       {/* ── Pricing Section ── */}
-      <section id="pricing" className="px-6 pb-40">
-        <div className="max-w-6xl mx-auto">
+      <section id="pricing" className="px-6 py-20 md:py-32">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: EASING }}
-            className="text-center mb-20"
+            className="text-center mb-14"
           >
-            <p className="text-[11px] uppercase tracking-[0.4em] text-white/40 mb-6 font-medium">Investment Options</p>
-            <h2 className="text-5xl md:text-6xl font-extralight tracking-tight text-white mb-8">Select Your Plan</h2>
-            <p className="text-lg md:text-xl text-white/40 max-w-2xl mx-auto font-light leading-relaxed">
+            <p className="text-[11px] uppercase tracking-[0.4em] text-white/40 mb-4 font-medium">Investment Options</p>
+            <h2 className="text-3xl md:text-4xl font-extralight tracking-tight text-white mb-6">Select Your Plan</h2>
+            <p className="text-base md:text-lg text-white/40 max-w-2xl mx-auto font-light leading-relaxed">
               Professional solutions for Australian entities seeking high-fidelity tax optimisation.
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Business Owner Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8, ease: EASING }}
-              className="p-10 md:p-12 border-[0.5px] border-white/[0.08] rounded-sm flex flex-col justify-between hover:border-white/[0.15] transition-all duration-300"
+              className="p-8 border-[0.5px] border-white/[0.08] rounded-sm flex flex-col justify-between hover:border-white/[0.15] transition-all duration-300"
               style={{ background: 'rgba(255,255,255,0.02)' }}
             >
               <div>
-                <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SPECTRAL.cyan }} />
                     <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-medium">Individual</span>
                   </div>
                 </div>
-                <h3 className="text-3xl md:text-4xl font-light text-white mb-4">Business Owner</h3>
-                <p className="text-base text-white/40 mb-10 font-light leading-relaxed">
+                <h3 className="text-2xl md:text-3xl font-light text-white mb-3">Business Owner</h3>
+                <p className="text-sm md:text-base text-white/40 mb-8 font-light leading-relaxed">
                   For Australian entities seeking to recover historical R&D offsets and correct ledger misclassifications across 5 financial years.
                 </p>
-                <div className="space-y-4 mb-12">
+                <div className="space-y-3 mb-10">
                   {[
                     'Full 5-Year Forensic Audit',
                     'R&D Eligibility Assessment (Div 355)',
@@ -334,13 +334,13 @@ export default function Home() {
                 </div>
               </div>
               <div>
-                <div className="flex items-baseline gap-3 mb-10">
-                  <span className="text-5xl md:text-6xl font-mono text-white font-light">$995</span>
+                <div className="flex items-baseline gap-3 mb-6">
+                  <span className="text-4xl md:text-5xl font-mono text-white font-light">$995</span>
                   <span className="text-[11px] uppercase tracking-wider text-white/30">One-Off Audit</span>
                 </div>
                 <Link
                   href="/api/auth/xero"
-                  className="block w-full text-center py-5 rounded-sm text-[12px] uppercase tracking-[0.2em] font-medium border-[0.5px] border-white/[0.15] text-white/60 hover:text-white/90 hover:border-white/[0.3] transition-all duration-300"
+                  className="block w-full text-center py-4 rounded-sm text-[12px] uppercase tracking-[0.2em] font-medium border-[0.5px] border-white/[0.15] text-white/60 hover:text-white/90 hover:border-white/[0.3] transition-all duration-300"
                   style={{ background: 'rgba(255,255,255,0.04)' }}
                 >
                   Start Professional Audit
@@ -354,28 +354,28 @@ export default function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.8, delay: 0.1, ease: EASING }}
-              className="p-10 md:p-12 border-[0.5px] rounded-sm flex flex-col justify-between relative overflow-hidden"
+              className="p-8 border-[0.5px] rounded-sm flex flex-col justify-between relative overflow-hidden"
               style={{
                 borderColor: `${SPECTRAL.cyan}30`,
                 background: `linear-gradient(135deg, rgba(0, 245, 255, 0.05) 0%, rgba(0, 255, 136, 0.03) 100%)`,
                 boxShadow: `0 0 100px ${SPECTRAL.cyan}15`
               }}
             >
-              <div className="absolute top-6 right-6">
-                <div className="px-4 py-2 rounded-full text-[9px] font-black uppercase tracking-widest" style={{ background: SPECTRAL.cyan, color: '#050505' }}>
+              <div className="absolute top-5 right-5">
+                <div className="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest" style={{ background: SPECTRAL.cyan, color: '#050505' }}>
                   Pro Licensed
                 </div>
               </div>
               <div>
-                <div className="flex items-center gap-3 mb-8">
+                <div className="flex items-center gap-3 mb-6">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: SPECTRAL.emerald }} />
                   <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-medium">Enterprise</span>
                 </div>
-                <h3 className="text-3xl md:text-4xl font-light text-white mb-4">Advisory Firms</h3>
-                <p className="text-base text-white/40 mb-10 font-light leading-relaxed">
+                <h3 className="text-2xl md:text-3xl font-light text-white mb-3">Advisory Firms</h3>
+                <p className="text-sm md:text-base text-white/40 mb-8 font-light leading-relaxed">
                   Enterprise multi-tenant platform for Accountants, Financial Planners, and Bookkeepers managing high-volume client portfolios.
                 </p>
-                <div className="space-y-4 mb-12">
+                <div className="space-y-3 mb-10">
                   {[
                     'Unlimited Client Organizations',
                     'Dedicated Advisor Dashboard',
@@ -392,12 +392,12 @@ export default function Home() {
                 </div>
               </div>
               <div>
-                <div className="flex items-baseline gap-3 mb-10">
-                  <span className="text-5xl md:text-6xl font-mono text-white italic font-light">POA</span>
+                <div className="flex items-baseline gap-3 mb-6">
+                  <span className="text-4xl md:text-5xl font-mono text-white italic font-light">POA</span>
                   <span className="text-[11px] uppercase tracking-wider text-white/30">Volume Licensing</span>
                 </div>
                 <button
-                  className="block w-full text-center py-5 rounded-sm text-[12px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 hover:scale-105"
+                  className="block w-full text-center py-4 rounded-sm text-[12px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 hover:scale-105"
                   style={{
                     background: SPECTRAL.cyan,
                     color: '#050505',
@@ -416,14 +416,14 @@ export default function Home() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, delay: 0.2, ease: EASING }}
-            className="mt-12 p-8 border-[0.5px] border-white/[0.06] rounded-sm text-center"
+            className="mt-10 p-6 border-[0.5px] border-white/[0.06] rounded-sm text-center"
             style={{ background: 'rgba(255,255,255,0.01)' }}
           >
-            <div className="flex items-center justify-center gap-3 mb-3">
+            <div className="flex items-center justify-center gap-3 mb-2">
               <Shield className="w-5 h-5" style={{ color: SPECTRAL.emerald }} />
               <span className="text-sm text-white/60 font-medium">100% Money-Back Guarantee</span>
             </div>
-            <p className="text-[13px] text-white/35">
+            <p className="text-[12px] text-white/35">
               If we don't identify at least $5,000 in potential tax benefits, we'll refund your audit fee in full.
             </p>
           </motion.div>
@@ -431,25 +431,25 @@ export default function Home() {
       </section>
 
       {/* ── Trust Strip ── */}
-      <section className="px-6 pb-40">
-        <div className="max-w-6xl mx-auto">
+      <section className="px-6 py-20 md:py-32">
+        <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: EASING }}
-            className="p-10 md:p-12 border-[0.5px] border-white/[0.08] rounded-sm"
+            className="p-8 border-[0.5px] border-white/[0.08] rounded-sm"
             style={{ background: 'rgba(255,255,255,0.02)' }}
           >
-            <div className="flex items-center gap-4 mb-8">
+            <div className="flex items-center gap-4 mb-6">
               <BreathingOrb colour={SPECTRAL.emerald} size="md" />
-              <h3 className="text-2xl md:text-3xl font-light text-white/90">Read-Only Analysis</h3>
+              <h3 className="text-xl md:text-2xl font-light text-white/90">Read-Only Analysis</h3>
             </div>
-            <p className="text-base md:text-lg text-white/40 mb-10 max-w-3xl leading-relaxed">
+            <p className="text-sm md:text-base text-white/40 mb-8 max-w-3xl leading-relaxed">
               Your data is never modified. We analyse and recommend — all changes
               require your review and professional advice.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { icon: Lock, label: 'No Xero Modifications' },
                 { icon: CheckCircle, label: 'ATO Legislation Citations' },
@@ -462,11 +462,11 @@ export default function Home() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: idx * 0.08, duration: 0.5, ease: EASING }}
-                  className="flex flex-col items-center text-center gap-3 p-6 rounded-sm border border-white/[0.04]"
+                  className="flex flex-col items-center text-center gap-2 p-5 rounded-sm border border-white/[0.04]"
                   style={{ background: 'rgba(255,255,255,0.01)' }}
                 >
-                  <item.icon className="w-6 h-6" style={{ color: SPECTRAL.emerald }} />
-                  <span className="text-[12px] text-white/50 tracking-wide leading-snug">{item.label}</span>
+                  <item.icon className="w-5 h-5" style={{ color: SPECTRAL.emerald }} />
+                  <span className="text-[11px] text-white/50 tracking-wide leading-snug">{item.label}</span>
                 </motion.div>
               ))}
             </div>
@@ -475,7 +475,7 @@ export default function Home() {
       </section>
 
       {/* ── Final CTA ── */}
-      <section className="px-6 pb-40">
+      <section className="px-6 pb-20 md:pb-32">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -483,19 +483,19 @@ export default function Home() {
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: EASING }}
           >
-            <p className="text-[11px] uppercase tracking-[0.4em] text-white/30 mb-8 font-medium">
+            <p className="text-[11px] uppercase tracking-[0.4em] text-white/30 mb-6 font-medium">
               Ready to Begin
             </p>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-extralight tracking-tight text-white mb-8">
+            <h2 className="text-3xl md:text-4xl font-extralight tracking-tight text-white mb-6">
               Optimise Your Tax Position
             </h2>
-            <p className="text-lg md:text-xl text-white/40 mb-12 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base md:text-lg text-white/40 mb-10 max-w-2xl mx-auto leading-relaxed">
               Connect your Xero account and discover potential refunds,
               unclaimed deductions, and optimisation opportunities.
             </p>
             <Link
               href="/api/auth/xero"
-              className="inline-flex items-center gap-4 px-12 py-6 rounded-sm text-[12px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 hover:scale-105"
+              className="inline-flex items-center gap-3 px-10 py-5 rounded-sm text-[12px] uppercase tracking-[0.2em] font-semibold transition-all duration-300 hover:scale-105"
               style={{
                 color: '#050505',
                 backgroundColor: SPECTRAL.emerald,
@@ -503,7 +503,7 @@ export default function Home() {
               }}
             >
               Get Started with Xero
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </Link>
