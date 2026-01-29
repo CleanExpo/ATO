@@ -37,7 +37,8 @@ async function testLinear() {
       console.log(`   ❌ Team ${teamId} not found`);
       console.log('   Available teams:');
       const teams = await linear.teams();
-      for await (const t of teams) {
+      const teamNodes = await teams.nodes;
+      for (const t of teamNodes) {
         console.log(`      - ${t.name} (${t.key})`);
       }
       process.exit(1);
