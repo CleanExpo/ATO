@@ -1,0 +1,78 @@
+name: Critical Path Tests (Auto)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  deployment_status: # Triggered by Vercel deployments
+
+jobs:
+  critical-tests:
+    name: Run Critical Tests (500-1,000)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Critical Unit Tests
+        run: npm run test:unit -- --run --reporter=verbose
+        env:
+          TEST_PATTERN: 'critical'
+          NODE_ENV: test
+
+      - name: Run Critical Integration Tests
+        run: npm run test:integration -- --run --reporter=verbose
+        env:
+          TEST_PATTERN: 'critical'
+          NODE_ENV: test
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: critical-test-results
+          path: |
+            coverage/
+            test-results/
+          retention-days: 7
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const testResults = {
+              unit: '${{ job.status }}',
+              integration: '${{ job.status }}'
+            };
+
+            const comment = `## 🧪 Critical Test Results\n\n` +
+              `- **Unit Tests**: ${testResults.unit === 'success' ? '✅ Passed' : '❌ Failed'}\n` +
+              `- **Integration Tests**: ${testResults.integration === 'success' ? '✅ Passed' : '❌ Failed'}\n\n` +
+              `${testResults.unit === 'success' && testResults.integration === 'success' ? '✅ **Safe to deploy**' : '⚠️ **Deployment blocked - fix failing tests**'}`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Block Deployment on Failure
+        if: failure()
+        run: |
+          echo "::error::Critical tests failed. Deployment blocked."
+          exit 1

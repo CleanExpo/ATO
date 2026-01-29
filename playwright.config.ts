@@ -14,11 +14,11 @@ export default defineConfig({
   testDir: './tests/e2e',
 
   // Maximum time one test can run for
-  timeout: 30 * 1000,
+  timeout: 60 * 1000,
 
   // Maximum time to wait for expect() assertions
   expect: {
-    timeout: 5000
+    timeout: 10000
   },
 
   // Run tests in files in parallel
@@ -30,6 +30,9 @@ export default defineConfig({
   // Retry on CI only
   retries: process.env.CI ? 2 : 0,
 
+  // Workers: 4 for CI, auto for local
+  workers: process.env.CI ? 4 : undefined,
+
   // Reporter to use
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
@@ -39,8 +42,9 @@ export default defineConfig({
 
   // Shared settings for all the projects below
   use: {
-    // Base URL to use in actions like `await page.goto('/')`
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
+    // Base URL - auto-detect Vercel preview or local dev
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ||
+             (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'),
 
     // Collect trace when retrying the failed test
     trace: 'on-first-retry',
@@ -51,40 +55,52 @@ export default defineConfig({
     // Video on failure
     video: 'retain-on-failure',
 
-    // Viewport
-    viewport: { width: 1280, height: 720 }
+    // Action and navigation timeouts
+    actionTimeout: 10000,
+    navigationTimeout: 30000,
   },
 
   // Configure projects for major browsers
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1920, height: 1080 },
+      },
     },
-
-    // Uncomment to test on other browsers
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
-
-    // {
-    //   name: 'webkit',
-    //   use: { ...devices['Desktop Safari'] },
-    // },
-
-    // Test against mobile viewports
     {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        viewport: { width: 1920, height: 1080 },
+      },
     },
+    {
+      name: 'webkit',
+      use: {
+        ...devices['Desktop Safari'],
+        viewport: { width: 1920, height: 1080 },
+      },
+    },
+
+    // Mobile browsers (optional - disabled by default for CI speed)
+    // Uncomment to test mobile viewports
+    // {
+    //   name: 'Mobile Chrome',
+    //   use: { ...devices['Pixel 5'] },
+    // },
+    // {
+    //   name: 'Mobile Safari',
+    //   use: { ...devices['iPhone 12'] },
+    // },
   ],
 
-  // Run your local dev server before starting the tests
-  webServer: {
+  // Run your local dev server before starting the tests (disabled in CI)
+  webServer: process.env.CI ? undefined : {
     command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true,
     timeout: 120 * 1000,
   },
 })

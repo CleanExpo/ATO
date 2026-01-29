@@ -1,0 +1,273 @@
+name: Comprehensive Test Suite (Manual/Scheduled)
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of tests to run'
+        required: true
+        type: choice
+        options:
+          - all
+          - unit
+          - integration
+          - e2e
+          - security
+          - performance
+        default: 'all'
+      environment:
+        description: 'Environment to test'
+        required: true
+        type: choice
+        options:
+          - production
+          - preview
+        default: 'production'
+  schedule:
+    - cron: '0 2 * * 0' # Every Sunday at 2am UTC
+
+jobs:
+  unit-tests:
+    if: inputs.test_type == 'all' || inputs.test_type == 'unit' || github.event_name == 'schedule'
+    name: Unit Tests (5,000 target)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Unit Tests with Coverage
+        run: npm run test:unit -- --run --coverage --reporter=verbose
+        env:
+          NODE_ENV: test
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: unit
+          name: unit-tests
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: |
+            coverage/
+            test-results/
+
+  integration-tests:
+    if: inputs.test_type == 'all' || inputs.test_type == 'integration' || github.event_name == 'schedule'
+    name: Integration Tests (8,000 target)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Integration Tests with Coverage
+        run: npm run test:integration -- --run --coverage --reporter=verbose
+        env:
+          NODE_ENV: test
+
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage/lcov.info
+          flags: integration
+          name: integration-tests
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results
+          path: |
+            coverage/
+            test-results/
+
+  e2e-tests:
+    if: inputs.test_type == 'all' || inputs.test_type == 'e2e' || github.event_name == 'schedule'
+    name: E2E Tests (9,000 target) - Shard ${{ matrix.shard }}/10
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Determine Test URL
+        id: test-url
+        run: |
+          if [ "${{ inputs.environment }}" == "production" ]; then
+            echo "url=https://ato.vercel.app" >> $GITHUB_OUTPUT
+          else
+            echo "url=https://ato-preview-${{ github.sha }}.vercel.app" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run E2E Tests (Shard ${{ matrix.shard }}/10)
+        run: npm run test:e2e:full -- --shard=${{ matrix.shard }}/10
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.test-url.outputs.url }}
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-shard-${{ matrix.shard }}
+          path: playwright-report/
+          retention-days: 7
+
+  security-tests:
+    if: inputs.test_type == 'all' || inputs.test_type == 'security' || github.event_name == 'schedule'
+    name: Security Tests (2,000 target)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Security Tests
+        run: npm run test:security -- --run --reporter=verbose
+        env:
+          NODE_ENV: test
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: 'https://ato.vercel.app'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+
+      - name: Upload Security Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-test-results
+          path: |
+            test-results/
+            zap-report/
+
+  performance-tests:
+    if: inputs.test_type == 'all' || inputs.test_type == 'performance' || github.event_name == 'schedule'
+    name: Performance Tests (3,000 target)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Performance Tests
+        run: npm run test:performance -- --run --reporter=verbose
+        env:
+          NODE_ENV: test
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v11
+        with:
+          urls: |
+            https://ato.vercel.app
+            https://ato.vercel.app/dashboard
+            https://ato.vercel.app/dashboard/forensic-audit
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Upload Performance Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-results
+          path: |
+            test-results/
+            .lighthouseci/
+
+  summary:
+    name: Test Summary & Notifications
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests, security-tests, performance-tests]
+    if: always()
+
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## 🧪 Comprehensive Test Suite Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Type | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Integration Tests | ${{ needs.integration-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests | ${{ needs.e2e-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Tests | ${{ needs.security-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance Tests | ${{ needs.performance-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check Overall Status
+        run: |
+          if [ "${{ needs.unit-tests.result }}" == "success" ] && \
+             [ "${{ needs.integration-tests.result }}" == "success" ] && \
+             [ "${{ needs.e2e-tests.result }}" == "success" ] && \
+             [ "${{ needs.security-tests.result }}" == "success" ] && \
+             [ "${{ needs.performance-tests.result }}" == "success" ]; then
+            echo "✅ All tests passed!"
+            exit 0
+          else
+            echo "❌ Some tests failed"
+            exit 1
+          fi
