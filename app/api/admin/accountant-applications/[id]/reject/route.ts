@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { sendAccountantRejectionEmail } from '@/lib/email/resend-client';
 import type { RejectionResponse } from '@/lib/types/accountant';
 
 export async function PATCH(
@@ -134,15 +135,29 @@ export async function PATCH(
       },
     ]);
 
-    // TODO: Send rejection email
-    console.log(`TODO: Send rejection email to ${application.email}`);
-    console.log(`Reason: ${rejection_reason}`);
-    console.log(`Can reapply: ${can_reapply}`);
+    // Send rejection email
+    const emailResult = await sendAccountantRejectionEmail({
+      to: application.email,
+      firstName: application.first_name,
+      rejectionReason: rejection_reason,
+    });
+
+    if (!emailResult.success) {
+      console.error('Failed to send rejection email:', emailResult.error);
+      // Continue with rejection even if email fails
+    }
 
     // Return response
+    let message = 'Application rejected successfully.';
+    if (emailResult.success) {
+      message += ' Rejection email sent.';
+    } else {
+      message += ` Warning: Failed to send rejection email (${emailResult.error || 'unknown error'}).`;
+    }
+
     const response: RejectionResponse = {
       success: true,
-      message: 'Application rejected successfully. Rejection email sent.',
+      message,
       can_reapply,
       reapply_after,
     };

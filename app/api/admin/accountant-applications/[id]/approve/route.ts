@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { sendAccountantWelcomeEmail } from '@/lib/email/resend-client';
 import type {
   ApprovalResponse,
   AccountantApplication,
@@ -189,27 +190,59 @@ export async function PATCH(
       },
     ]);
 
-    // Step 6: Generate magic link for email (placeholder)
-    const magicLink = `${process.env.NEXT_PUBLIC_APP_URL}/auth/magic-link?token=${crypto.randomUUID()}`;
+    // Step 6: Generate login URL
+    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/login`;
 
-    // TODO: Send welcome email with magic link
+    // Step 7: Send welcome email
+    let emailSuccess = false;
+    let emailError: string | undefined;
+
     if (send_welcome_email) {
-      console.log(`TODO: Send welcome email to ${application.email}`);
-      console.log(`Magic link: ${magicLink}`);
+      // Determine pricing tier from discount rate
+      let pricingTier: 'standard' | 'professional' | 'enterprise' = 'standard';
+      if (wholesale_discount_rate >= 0.35) {
+        pricingTier = 'enterprise';
+      } else if (wholesale_discount_rate >= 0.25) {
+        pricingTier = 'professional';
+      }
+
+      const emailResult = await sendAccountantWelcomeEmail({
+        to: application.email,
+        firstName: application.first_name,
+        lastName: application.last_name,
+        firmName: application.firm_name,
+        pricingTier,
+        loginUrl,
+      });
+
+      emailSuccess = emailResult.success;
+      emailError = emailResult.error;
+
+      if (!emailSuccess) {
+        console.error('Failed to send welcome email:', emailError);
+        // Continue with approval even if email fails
+      }
     }
 
     // Return success response
+    let message = 'Application approved successfully.';
+    if (send_welcome_email) {
+      if (emailSuccess) {
+        message += ` Welcome email sent to ${application.email}.`;
+      } else {
+        message += ` Warning: Failed to send welcome email (${emailError || 'unknown error'}).`;
+      }
+    } else {
+      message += ' No email sent.';
+    }
+
     const response: ApprovalResponse = {
       success: true,
       accountant_id: vettedAccountant.id,
       user_id: tempUserId,
       organization_id: organizationId,
-      magic_link: magicLink,
-      message: `Application approved successfully. ${
-        send_welcome_email
-          ? 'Welcome email sent to ' + application.email
-          : 'No email sent'
-      }.`,
+      magic_link: loginUrl,
+      message,
     };
 
     return NextResponse.json(response);
