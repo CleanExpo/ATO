@@ -58,8 +58,8 @@ const HelpPage = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-[var(--bg-dashboard)] p-8">
-            <div className="max-w-5xl mx-auto space-y-12">
+        <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            <div className="max-w-5xl mx-auto space-y-8 sm:space-y-12">
 
                 {/* Header Section */}
                 <div className="text-center space-y-4">

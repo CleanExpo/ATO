@@ -59,8 +59,8 @@ export default function GrantAcceleratorPage() {
     if (loading) return <div className="min-h-screen flex items-center justify-center bg-[var(--bg-dashboard)]"><div className="w-12 h-12 border-2 border-sky-500 border-t-transparent animate-spin rounded-full" /></div>
 
     return (
-        <div className="min-h-screen bg-[var(--bg-dashboard)] p-8">
-            <div className="max-w-5xl mx-auto space-y-12">
+        <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+            <div className="max-w-5xl mx-auto space-y-8 sm:space-y-12">
 
                 {/* Header Block */}
                 <div className="flex items-center justify-between border-b border-white/10 pb-8">

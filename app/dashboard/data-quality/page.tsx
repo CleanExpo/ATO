@@ -81,8 +81,8 @@ export default function DataQualityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-dashboard)] p-8">
-      <div className="max-w-7xl mx-auto space-y-12">
+    <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-12">
 
         {/* Header Block */}
         <div className="flex flex-col md:flex-row justify-between items-start gap-8 border-b border-white/10 pb-8">
@@ -91,7 +91,7 @@ export default function DataQualityPage() {
               <Database className="w-4 h-4" />
               <span>Forensic Data Sovereignty</span>
             </div>
-            <h1 className="text-6xl font-black text-white tracking-tighter">Data Quality</h1>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter">Data Quality</h1>
             <p className="text-white/40 max-w-xl text-lg font-medium leading-relaxed">
               AI-powered sentinel for transaction <span className="text-white">integrity</span>, classification accuracy, and tax compliance validation.
             </p>
