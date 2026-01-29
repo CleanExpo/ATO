@@ -163,6 +163,19 @@ function buildDescription(
  * Determines transaction type from QuickBooks data
  */
 function determineTransactionType(qbTxn: QuickBooksTransaction): string {
+  // Check raw data for txnType or domain indicators
+  const rawData = qbTxn as any;
+
+  // Check for explicit type in metadata or domain
+  if (rawData.domain) {
+    if (rawData.domain === 'Expense') return 'Expense';
+    if (rawData.domain === 'CreditMemo') return 'CreditMemo';
+    if (rawData.domain === 'JournalEntry') return 'JournalEntry';
+    if (rawData.domain === 'Purchase') return 'Purchase';
+    if (rawData.domain === 'Bill') return 'Bill';
+    if (rawData.domain === 'Invoice') return 'Invoice';
+  }
+
   // Check for type indicators in the raw data structure
   if (qbTxn.VendorRef) {
     if (qbTxn.PaymentType) {
@@ -172,11 +185,20 @@ function determineTransactionType(qbTxn: QuickBooksTransaction): string {
   }
 
   if (qbTxn.CustomerRef) {
+    // CreditMemos also have CustomerRef, check for specific fields
+    if (rawData.RemainingCredit !== undefined || rawData.Balance === 0) {
+      return 'CreditMemo';
+    }
     return 'Invoice'
   }
 
+  // Journal entries typically have no vendor/customer reference
+  if (rawData.Adjustment || (qbTxn.Line && qbTxn.Line.length > 1 && !qbTxn.VendorRef && !qbTxn.CustomerRef)) {
+    return 'JournalEntry';
+  }
+
   if (qbTxn.AccountRef) {
-    return 'Purchase'
+    return 'Expense'
   }
 
   return 'Transaction'

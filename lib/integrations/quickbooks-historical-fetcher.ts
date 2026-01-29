@@ -162,6 +162,90 @@ async function fetchQuickBooksInvoices(
 }
 
 /**
+ * Fetches expenses from QuickBooks (direct expenses, different from purchases)
+ */
+async function fetchQuickBooksExpenses(
+  client: Awaited<ReturnType<typeof createQuickBooksClient>>,
+  startDate?: string,
+  endDate?: string
+): Promise<QuickBooksTransaction[]> {
+  let query = "SELECT * FROM Expense"
+
+  const conditions: string[] = []
+  if (startDate) {
+    conditions.push(`TxnDate >= '${startDate}'`)
+  }
+  if (endDate) {
+    conditions.push(`TxnDate <= '${endDate}'`)
+  }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ')
+  }
+
+  query += ' MAXRESULTS 1000'
+
+  const response = await client.query<{ Expense?: QuickBooksTransaction[] }>(query)
+  return response.QueryResponse.Expense || []
+}
+
+/**
+ * Fetches credit memos from QuickBooks (customer returns and credits)
+ */
+async function fetchQuickBooksCreditMemos(
+  client: Awaited<ReturnType<typeof createQuickBooksClient>>,
+  startDate?: string,
+  endDate?: string
+): Promise<QuickBooksTransaction[]> {
+  let query = "SELECT * FROM CreditMemo"
+
+  const conditions: string[] = []
+  if (startDate) {
+    conditions.push(`TxnDate >= '${startDate}'`)
+  }
+  if (endDate) {
+    conditions.push(`TxnDate <= '${endDate}'`)
+  }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ')
+  }
+
+  query += ' MAXRESULTS 1000'
+
+  const response = await client.query<{ CreditMemo?: QuickBooksTransaction[] }>(query)
+  return response.QueryResponse.CreditMemo || []
+}
+
+/**
+ * Fetches journal entries from QuickBooks (manual accounting entries)
+ */
+async function fetchQuickBooksJournalEntries(
+  client: Awaited<ReturnType<typeof createQuickBooksClient>>,
+  startDate?: string,
+  endDate?: string
+): Promise<QuickBooksTransaction[]> {
+  let query = "SELECT * FROM JournalEntry"
+
+  const conditions: string[] = []
+  if (startDate) {
+    conditions.push(`TxnDate >= '${startDate}'`)
+  }
+  if (endDate) {
+    conditions.push(`TxnDate <= '${endDate}'`)
+  }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ')
+  }
+
+  query += ' MAXRESULTS 1000'
+
+  const response = await client.query<{ JournalEntry?: QuickBooksTransaction[] }>(query)
+  return response.QueryResponse.JournalEntry || []
+}
+
+/**
  * Fetches all historical transactions from QuickBooks
  */
 export async function fetchQuickBooksHistoricalData(
@@ -169,7 +253,7 @@ export async function fetchQuickBooksHistoricalData(
   options: {
     startDate?: string  // Format: YYYY-MM-DD
     endDate?: string    // Format: YYYY-MM-DD
-    types?: ('purchases' | 'bills' | 'invoices')[]
+    types?: ('purchases' | 'bills' | 'invoices' | 'expenses' | 'creditmemos' | 'journalentries')[]
   } = {}
 ): Promise<{
   transactions: QuickBooksTransaction[]
@@ -177,7 +261,8 @@ export async function fetchQuickBooksHistoricalData(
 }> {
   const client = await createQuickBooksClient(tenantId)
 
-  const transactionTypes = options.types || ['purchases', 'bills', 'invoices']
+  // Default: fetch all transaction types for complete tax analysis
+  const transactionTypes = options.types || ['purchases', 'bills', 'invoices', 'expenses', 'creditmemos', 'journalentries']
   const allTransactions: QuickBooksTransaction[] = []
 
   // Fetch each transaction type
@@ -200,6 +285,27 @@ export async function fetchQuickBooksHistoricalData(
     const invoices = await fetchQuickBooksInvoices(client, options.startDate, options.endDate)
     allTransactions.push(...invoices)
     console.log(`Fetched ${invoices.length} invoices`)
+  }
+
+  if (transactionTypes.includes('expenses')) {
+    console.log('Fetching QuickBooks expenses...')
+    const expenses = await fetchQuickBooksExpenses(client, options.startDate, options.endDate)
+    allTransactions.push(...expenses)
+    console.log(`Fetched ${expenses.length} expenses`)
+  }
+
+  if (transactionTypes.includes('creditmemos')) {
+    console.log('Fetching QuickBooks credit memos...')
+    const creditMemos = await fetchQuickBooksCreditMemos(client, options.startDate, options.endDate)
+    allTransactions.push(...creditMemos)
+    console.log(`Fetched ${creditMemos.length} credit memos`)
+  }
+
+  if (transactionTypes.includes('journalentries')) {
+    console.log('Fetching QuickBooks journal entries...')
+    const journalEntries = await fetchQuickBooksJournalEntries(client, options.startDate, options.endDate)
+    allTransactions.push(...journalEntries)
+    console.log(`Fetched ${journalEntries.length} journal entries`)
   }
 
   return {

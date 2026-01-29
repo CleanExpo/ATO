@@ -196,6 +196,10 @@ async function getCachedTransactionCount(tenantId: string, platform: string = 'x
         const { getCachedMYOBTransactions } = await import('@/lib/integrations/myob-historical-fetcher')
         const transactions = await getCachedMYOBTransactions(tenantId)
         return transactions.length
+    } else if (platform === 'quickbooks') {
+        const { getCachedQuickBooksTransactions } = await import('@/lib/integrations/quickbooks-historical-fetcher')
+        const transactions = await getCachedQuickBooksTransactions(tenantId)
+        return transactions.length
     } else {
         throw new Error(`Unsupported platform: ${platform}`)
     }
