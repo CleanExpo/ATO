@@ -348,7 +348,10 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
 
 <!-- Cover Page -->
 <div class="page cover-page">
-  <h1>Forensic Tax Audit Report</h1>
+  <div style="background: #6366f1; color: white; padding: 10px 30px; border-radius: 40px; font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 40px;">
+    Professional Review Required
+  </div>
+  <h1>Forensic Tax Audit:<br>Audit Outline & Value Discovery</h1>
   <div class="metadata">
     <p><strong>${report.metadata.organizationName}</strong></p>
     <p>ABN: ${report.metadata.abn}</p>
@@ -359,7 +362,13 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
   <div class="opportunity-amount">
     $${report.executiveSummary.adjustedOpportunity.toLocaleString('en-AU', { minimumFractionDigits: 2 })}
   </div>
-  <p style="font-size: 18px; color: #666;">Total Tax Optimization Opportunity</p>
+  <p style="font-size: 18px; color: #666; font-weight: 600;">Candidate Tax Benefits Identified</p>
+  
+  <div style="margin-top: 60px; padding: 20px; border: 1px dashed #6366f1; border-radius: 12px; max-width: 80% text-align: left;">
+    <p style="font-size: 12px; color: #4338ca; line-height: 1.5;">
+      <strong>NOTICE:</strong> This document is an <strong>Audit Outline</strong> generated via AI forensic ledger analysis. It is designed to assist Business Owners and Accountants in identifying missed optimization opportunities. This is not a tax return and must be reviewed by a qualified Tax Agent before implementation.
+    </p>
+  </div>
 </div>
 
 <div class="page-break"></div>
@@ -370,7 +379,7 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
 
   <div class="summary-box">
     <p><strong>Total Opportunity Identified:</strong> $${report.executiveSummary.totalOpportunity.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</p>
-    <p><strong>Confidence-Adjusted Benefit:</strong> $${report.executiveSummary.adjustedOpportunity.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</p>
+    <p><strong>Proposed Recovery (Risk-Adjusted):</strong> $${report.executiveSummary.adjustedOpportunity.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</p>
     <p><strong>Overall Confidence:</strong> ${report.executiveSummary.overallConfidence.toFixed(0)}%</p>
   </div>
 
@@ -399,8 +408,7 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
     ${report.executiveSummary.topRecommendations.map((rec) => `<li>${rec}</li>`).join('\n    ')}
   </ol>
 
-  ${
-    report.executiveSummary.criticalDeadlines.length > 0
+  ${report.executiveSummary.criticalDeadlines.length > 0
       ? `
   <h3>Critical Deadlines</h3>
   <table>
@@ -427,7 +435,7 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
   </table>
   `
       : ''
-  }
+    }
 </div>
 
 <div class="page-break"></div>
@@ -475,8 +483,7 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
   </div>
 
   <h3>Projects Identified</h3>
-  ${
-    report.rndAnalysis.projects.length > 0
+  ${report.rndAnalysis.projects.length > 0
       ? `
   <table>
     <thead>
@@ -506,7 +513,7 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
   </table>
   `
       : '<p>No R&D projects identified.</p>'
-  }
+    }
 
   <h3>Division 355 Four-Element Test</h3>
   <p>All identified projects meet the following criteria:</p>
@@ -542,30 +549,29 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
     </thead>
     <tbody>
       ${Object.entries(report.deductionAnalysis.opportunitiesByCategory)
-        .sort((a: any, b: any) => b[1] - a[1])
-        .map(
-          ([category, amount]: [string, any]) => `
+      .sort((a: any, b: any) => b[1] - a[1])
+      .map(
+        ([category, amount]: [string, any]) => `
         <tr>
           <td>${category}</td>
           <td>$${amount.toLocaleString('en-AU')}</td>
           <td>$${(amount * 0.25).toLocaleString('en-AU')}</td>
         </tr>
       `
-        )
-        .join('\n      ')}
+      )
+      .join('\n      ')}
     </tbody>
   </table>
 
   <h3>High-Value Opportunities (>$10,000)</h3>
-  ${
-    report.deductionAnalysis.highValueOpportunities.length > 0
+  ${report.deductionAnalysis.highValueOpportunities.length > 0
       ? `
   <ul>
     ${report.deductionAnalysis.highValueOpportunities.map((opp: any) => `<li><strong>${opp.category}</strong> (${opp.financialYear}): $${opp.unclaimedAmount.toLocaleString('en-AU')}</li>`).join('\n    ')}
   </ul>
   `
       : '<p>No high-value opportunities identified.</p>'
-  }
+    }
 </div>
 
 <div class="page-break"></div>

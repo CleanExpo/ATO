@@ -22,22 +22,24 @@ const REGISTRATION_DEADLINE_MONTHS = 10 // 10 months after end of financial year
 
 // Cache for R&D offset rate (refreshed per function invocation)
 let cachedRndRate: number | null = null
+let cachedRndSource: string = 'fallback'
 
 /**
  * Get current R&D offset rate from ATO (cached for 24 hours)
  */
-async function getRndOffsetRate(): Promise<number> {
+async function getRndOffsetRate(): Promise<{ rate: number; source: string }> {
   if (cachedRndRate !== null) {
-    return cachedRndRate
+    return { rate: cachedRndRate, source: cachedRndSource }
   }
 
   try {
     const rates = await getCurrentTaxRates()
     cachedRndRate = rates.rndOffsetRate || FALLBACK_RND_OFFSET_RATE
-    return cachedRndRate
+    cachedRndSource = rates.sources.rndIncentive || 'ATO_FALLBACK_DEFAULT'
+    return { rate: cachedRndRate, source: cachedRndSource }
   } catch (error) {
     console.warn('Failed to fetch R&D offset rate, using fallback value:', error)
-    return FALLBACK_RND_OFFSET_RATE
+    return { rate: FALLBACK_RND_OFFSET_RATE, source: 'ERROR_FALLBACK' }
   }
 }
 
@@ -121,6 +123,11 @@ export interface RndSummary {
   coreRndTransactions: number
   supportingRndTransactions: number
   projects: RndProjectAnalysis[]
+  /** Source URL of the tax rate used for calculations */
+  taxRateSource: string
+  /** Timestamp of when the tax rate was verified */
+  taxRateVerifiedAt: string
+
   /** Projects excluded due to insufficient evidence or failed eligibility (Division 355 s 355-25) */
   excludedProjects: BorderlineProject[]
   /** Summary note about excluded projects for user review */
@@ -174,20 +181,22 @@ export async function analyzeRndOpportunities(
       projects: [],
       excludedProjects: [],
       excludedProjectsNote: '',
+      taxRateSource: 'none',
+      taxRateVerifiedAt: new Date().toISOString(),
     }
   }
 
   console.log(`Found ${rndCandidates.length} R&D candidate transactions`)
 
   // Get current R&D offset rate from ATO
-  const rndOffsetRate = await getRndOffsetRate()
-  console.log(`Using R&D offset rate: ${(rndOffsetRate * 100).toFixed(1)}%`)
+  const { rate: rndOffsetRate, source: rndOffsetSource } = await getRndOffsetRate()
+  console.log(`Using R&D offset rate: ${(rndOffsetRate * 100).toFixed(1)}% [Source: ${rndOffsetSource}]`)
 
   // Group transactions into projects (returns both eligible and excluded)
   const { eligible, excluded } = groupIntoProjects(rndCandidates, rndOffsetRate)
 
   // Calculate summary statistics (includes excluded projects for user visibility)
-  const summary = calculateRndSummary(eligible, excluded, rndOffsetRate)
+  const summary = calculateRndSummary(eligible, excluded, rndOffsetRate, rndOffsetSource)
 
   return summary
 }
@@ -698,7 +707,8 @@ function generateProjectDescription(
 function calculateRndSummary(
   projects: RndProjectAnalysis[],
   excludedProjects: BorderlineProject[],
-  rndOffsetRate: number
+  rndOffsetRate: number,
+  rndOffsetSource: string
 ): RndSummary {
   let totalEligibleExpenditure = 0
   let totalEstimatedOffset = 0
@@ -740,7 +750,7 @@ function calculateRndSummary(
   // Generate summary note for excluded projects (Division 355 s 355-25 ITAA 1997)
   const excludedNote = excludedProjects.length > 0
     ? `${excludedProjects.length} project(s) excluded due to insufficient evidence or failed eligibility criteria. ` +
-      `Review these projects - additional documentation may qualify them for R&D Tax Incentive under Division 355 ITAA 1997.`
+    `Review these projects - additional documentation may qualify them for R&D Tax Incentive under Division 355 ITAA 1997.`
     : ''
 
   return {
@@ -756,6 +766,8 @@ function calculateRndSummary(
     projects,
     excludedProjects,
     excludedProjectsNote: excludedNote,
+    taxRateSource: rndOffsetSource,
+    taxRateVerifiedAt: new Date().toISOString(),
   }
 }
 

@@ -11,11 +11,12 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import Decimal from 'decimal.js'
 
-// Tax rates - s 23AA and s 23 ITAA 1997
-const CORPORATE_TAX_RATE_SMALL = 0.25 // 25% base rate entity (turnover < $50M) - s 23AA ITAA 1997
-const CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% standard corporate rate - s 23 ITAA 1997
+// Fallback tax rates - s 23AA and s 23 ITAA 1997
+const FALLBACK_CORPORATE_TAX_RATE_SMALL = 0.25 // 25% base rate entity
+const FALLBACK_CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% standard corporate rate
 
 // Entity types for tax rate determination
 export type EntityType = 'company' | 'trust' | 'partnership' | 'individual' | 'unknown'
@@ -109,43 +110,64 @@ function checkAmendmentPeriod(
  * s 23 ITAA 1997 - Standard corporate rate: 30%
  * Trusts: tax benefit depends on beneficiary marginal rates (no fixed rate)
  */
-function getApplicableTaxRate(
+/**
+ * Determine the applicable corporate tax rate based on entity type.
+ */
+async function getApplicableTaxRate(
   entityType: EntityType = 'unknown',
   isBaseRateEntity: boolean = false
-): { rate: number; note: string } {
+): Promise<{ rate: number; note: string; source: string }> {
+  let rateSmall = FALLBACK_CORPORATE_TAX_RATE_SMALL
+  let rateStandard = FALLBACK_CORPORATE_TAX_RATE_STANDARD
+  let source = 'ATO_FALLBACK_DEFAULT'
+
+  try {
+    const liveRates = await getCurrentTaxRates()
+    if (liveRates.corporateTaxRateSmall) rateSmall = liveRates.corporateTaxRateSmall
+    if (liveRates.corporateTaxRateStandard) rateStandard = liveRates.corporateTaxRateStandard
+    if (liveRates.sources.corporateTax) source = liveRates.sources.corporateTax
+  } catch (err) {
+    console.warn('Failed to fetch live corporate rates, using fallbacks', err)
+  }
+
   switch (entityType) {
     case 'company':
       if (isBaseRateEntity) {
         return {
-          rate: CORPORATE_TAX_RATE_SMALL,
+          rate: rateSmall,
           note: 'Base rate entity (turnover < $50M) - 25% rate per s 23AA ITAA 1997',
+          source
         }
       }
       return {
-        rate: CORPORATE_TAX_RATE_STANDARD,
+        rate: rateStandard,
         note: 'Standard corporate rate - 30% per s 23 ITAA 1997',
+        source
       }
     case 'trust':
       return {
-        rate: CORPORATE_TAX_RATE_STANDARD, // Conservative estimate
+        rate: rateStandard,
         note: 'Trust: tax benefit depends on beneficiary marginal rates. 30% used as conservative estimate. Professional review required.',
+        source
       }
     case 'partnership':
       return {
-        rate: CORPORATE_TAX_RATE_STANDARD, // Conservative estimate
+        rate: rateStandard,
         note: 'Partnership: tax benefit depends on partner marginal rates. 30% used as conservative estimate.',
+        source
       }
     case 'individual':
       return {
-        rate: CORPORATE_TAX_RATE_STANDARD, // Conservative estimate using top marginal-ish rate
+        rate: rateStandard,
         note: 'Individual: actual benefit depends on marginal tax rate. 30% used as conservative estimate.',
+        source
       }
     case 'unknown':
     default:
-      // Default to the higher/more conservative rate when entity type is unknown
       return {
-        rate: CORPORATE_TAX_RATE_STANDARD,
+        rate: rateStandard,
         note: 'Entity type unknown - defaulting to 30% standard corporate rate (conservative). Verify entity type for accurate calculation.',
+        source
       }
   }
 }
@@ -203,6 +225,8 @@ export interface LossSummary {
   averageRiskLevel: string
   optimizationOpportunities: LossAnalysis[]
   lossHistory: LossAnalysis[]
+  taxRateSource: string
+  taxRateVerifiedAt: string
 }
 
 /**
@@ -228,7 +252,7 @@ export async function analyzeLossPosition(
   console.log(`Analysing loss positions for ${lossPositions.length} financial years (entity: ${entityType})`)
 
   // Determine applicable tax rate based on entity type
-  const taxRateInfo = getApplicableTaxRate(entityType, isBaseRateEntity)
+  const taxRateInfo = await getApplicableTaxRate(entityType, isBaseRateEntity)
 
   // Analyze each year's loss position
   const lossAnalyses: LossAnalysis[] = []
@@ -242,7 +266,7 @@ export async function analyzeLossPosition(
   }
 
   // Calculate summary
-  const summary = calculateLossSummary(lossAnalyses)
+  const summary = calculateLossSummary(lossAnalyses, taxRateInfo.source)
 
   return summary
 }
@@ -383,7 +407,11 @@ async function fetchLossPositions(
 function analyzeSingleYearLoss(
   currentYear: LossPosition,
   previousYears: LossPosition[],
-  taxRateInfo: { rate: number; note: string } = { rate: CORPORATE_TAX_RATE_STANDARD, note: 'Default 30% rate' }
+  taxRateInfo: { rate: number; note: string; source: string } = {
+    rate: FALLBACK_CORPORATE_TAX_RATE_STANDARD,
+    note: 'Default 30% rate',
+    source: 'ATO_FALLBACK_DEFAULT'
+  }
 ): LossAnalysis {
   // Perform COT/SBT analysis
   const cotSbtAnalysis = analyzeCotSbt(currentYear, previousYears)
@@ -495,7 +523,11 @@ function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]
 function optimizeLossUtilization(
   currentYear: LossPosition,
   cotSbtAnalysis: CotSbtAnalysis,
-  taxRateInfo: { rate: number; note: string } = { rate: CORPORATE_TAX_RATE_STANDARD, note: 'Default 30% rate' }
+  taxRateInfo: { rate: number; note: string; source: string } = {
+    rate: FALLBACK_CORPORATE_TAX_RATE_STANDARD,
+    note: 'Default 30% rate',
+    source: 'ATO_FALLBACK_DEFAULT'
+  }
 ): {
   currentStrategy: string
   recommendedStrategy: string
@@ -545,7 +577,11 @@ function generateLossRecommendations(
   currentYear: LossPosition,
   cotSbtAnalysis: CotSbtAnalysis,
   optimization: { currentStrategy: string; recommendedStrategy: string; additionalBenefit: number; reasoning: string },
-  taxRateInfo: { rate: number; note: string } = { rate: CORPORATE_TAX_RATE_STANDARD, note: 'Default 30% rate' }
+  taxRateInfo: { rate: number; note: string; source: string } = {
+    rate: FALLBACK_CORPORATE_TAX_RATE_STANDARD,
+    note: 'Default 30% rate',
+    source: 'ATO_FALLBACK_DEFAULT'
+  }
 ): string[] {
   const recommendations: string[] = []
 
@@ -630,7 +666,13 @@ function generateLossRecommendations(
 /**
  * Calculate overall loss summary
  */
-function calculateLossSummary(lossAnalyses: LossAnalysis[]): LossSummary {
+/**
+ * Calculate overall loss summary
+ */
+function calculateLossSummary(
+  lossAnalyses: LossAnalysis[],
+  taxRateSource: string = 'none'
+): LossSummary {
   let totalAvailableLosses = 0
   let totalUtilizedLosses = 0
   let totalExpiredLosses = 0
@@ -685,6 +727,8 @@ function calculateLossSummary(lossAnalyses: LossAnalysis[]): LossSummary {
     averageRiskLevel,
     optimizationOpportunities,
     lossHistory: lossAnalyses,
+    taxRateSource,
+    taxRateVerifiedAt: new Date().toISOString(),
   }
 }
 
@@ -702,6 +746,8 @@ function createEmptyLossSummary(): LossSummary {
     averageRiskLevel: 'low',
     optimizationOpportunities: [],
     lossHistory: [],
+    taxRateSource: 'none',
+    taxRateVerifiedAt: new Date().toISOString(),
   }
 }
 

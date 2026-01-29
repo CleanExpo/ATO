@@ -26,8 +26,12 @@ export class JinaScraper {
   private baseUrl = 'https://r.jina.ai'
 
   constructor(apiKey?: string) {
-    // Jina AI token from CLAUDE.md
-    this.apiKey = apiKey || 'jina_c016fb6c12c1444c98737d7e9f70966eNpogql_hauwHSi3Ta2KPptcvhXLc'
+    // Jina AI token from environment
+    this.apiKey = apiKey || process.env.JINA_API_KEY || ''
+
+    if (!this.apiKey) {
+      console.warn('⚠️ JINA_API_KEY is not set. Real-time scraping will fail.')
+    }
   }
 
   /**
@@ -172,8 +176,8 @@ export class JinaScraper {
 
       // Look for cents per hour: "67 cents", "67c", "$0.67"
       const centsMatch = result.markdown.match(/(\d+)\s*cents?\s+per\s+hour/i) ||
-                         result.markdown.match(/(\d+)c\s+per\s+hour/i) ||
-                         result.markdown.match(/\$0\.(\d+)\s+per\s+hour/i)
+        result.markdown.match(/(\d+)c\s+per\s+hour/i) ||
+        result.markdown.match(/\$0\.(\d+)\s+per\s+hour/i)
 
       if (!centsMatch) {
         console.warn('No home office rate found')

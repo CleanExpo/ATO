@@ -14,6 +14,11 @@ export type IconName =
   | 'TrendingDown'
   | 'Settings'
   | 'Users'
+  | 'ShieldAlert'
+  | 'BrainCircuit'
+  | 'Terminal'
+  | 'HelpCircle'
+  | 'CreditCard'
 
 export interface NavItemConfig {
   /** URL path */
@@ -96,6 +101,42 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Settings',
     icon: 'Settings',
     matchPaths: ['/dashboard/settings', '/dashboard/organization/settings', '/dashboard/organization/members'],
+    showInMobile: true,
+    showInDesktop: true,
+  },
+  {
+    href: '/dashboard/strategies',
+    label: 'Strategies',
+    shortLabel: 'Strtgy',
+    icon: 'BrainCircuit',
+    matchPaths: ['/dashboard/strategies'],
+    showInMobile: true,
+    showInDesktop: true,
+  },
+  {
+    href: '/dashboard/admin',
+    label: 'Admin Control',
+    shortLabel: 'Admin',
+    icon: 'Terminal',
+    matchPaths: ['/dashboard/admin'],
+    showInMobile: false,
+    showInDesktop: true,
+  },
+  {
+    href: '/dashboard/pricing',
+    label: 'Pricing & Licenses',
+    shortLabel: 'Pricing',
+    icon: 'CreditCard',
+    matchPaths: ['/dashboard/pricing'],
+    showInMobile: true,
+    showInDesktop: true,
+  },
+  {
+    href: '/dashboard/help',
+    label: 'Help Center',
+    shortLabel: 'Help',
+    icon: 'HelpCircle',
+    matchPaths: ['/dashboard/help'],
     showInMobile: true,
     showInDesktop: true,
   },

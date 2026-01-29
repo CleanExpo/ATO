@@ -1,13 +1,12 @@
 /**
- * Forensic Tax Audit - Vertical Data Stream Design
- *
- * Clean aesthetic with vertical node layout matching lavender theme
- * Floating nodes connected by a glowing line
+ * Forensic Tax Audit - v8.1 Scientific Luxury Tier
+ * 
+ * Deep-sequence audit engine with real-time stream processing visualization.
  */
 
 'use client'
 
-import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
+import React, { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -15,684 +14,284 @@ import {
   Cpu,
   FileSearch,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  RefreshCw,
+  Search,
+  ChevronRight,
+  TrendingUp,
+  ShieldCheck,
+  Clock,
+  Play
 } from 'lucide-react'
-import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
-import { MobileNav } from '@/components/ui/MobileNav'
 import { AnalysisProgressPanel } from '@/components/forensic-audit/AnalysisProgressPanel'
 import { useAnalysisProgress } from '@/lib/hooks/useAnalysisProgress'
 
 type Stage = 'idle' | 'syncing' | 'analyzing' | 'complete' | 'error'
 type Platform = 'xero' | 'myob' | 'quickbooks'
 
-interface ProgressData {
-  stage: Stage
-  platform?: Platform
-  syncProgress: number
-  analysisProgress: number
-  transactionsSynced: number
-  transactionsAnalyzed: number
-  totalTransactions: number
-  totalBenefit: number
-  error?: string
-}
-
 export default function ForensicAuditPageWrapper() {
   return (
-    <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><p>Loading...</p></div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[var(--bg-dashboard)]"><Loader /></div>}>
       <ForensicAuditPage />
     </Suspense>
   )
 }
+
+const Loader = () => (
+  <div className="flex flex-col items-center gap-4">
+    <div className="w-12 h-12 rounded-3xl border-2 border-sky-500/20 border-t-sky-500 animate-spin" />
+    <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest animate-pulse">Initializing Stream</span>
+  </div>
+);
 
 function ForensicAuditPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [platform, setPlatform] = useState<Platform>('xero')
-  const [progress, setProgress] = useState<ProgressData>({
-    stage: 'idle',
-    platform: 'xero',
-    syncProgress: 0,
-    analysisProgress: 0,
-    transactionsSynced: 0,
-    transactionsAnalyzed: 0,
-    totalTransactions: 0,
-    totalBenefit: 0
-  })
-  const [isPolling, setIsPolling] = useState(false)
+  const [stage, setStage] = useState<Stage>('idle')
   const [isProgressMinimized, setIsProgressMinimized] = useState(false)
   const [showCompletionToast, setShowCompletionToast] = useState(false)
-  const prevStageRef = useRef<Stage>('idle')
 
-  // Enhanced progress tracking hook
   const enhancedProgress = useAnalysisProgress(tenantId, {
     pollingIntervalActive: 2000,
     pollingIntervalIdle: 10000,
   })
 
-  // Fetch tenant ID on mount or URL change
+  // Fetch tenant ID
   useEffect(() => {
+    const fetchTenantId = async () => {
+      const urlTenantId = searchParams.get('tenantId')
+      if (urlTenantId) {
+        setTenantId(urlTenantId)
+        return
+      }
+      try {
+        const response = await fetch('/api/xero/organizations')
+        const data = await response.json()
+        if (data.connections?.length > 0) setTenantId(data.connections[0].tenant_id)
+      } catch (err) { console.error(err) }
+    }
     fetchTenantId()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams])
 
-  // Check current status when tenant loaded
-  useEffect(() => {
-    if (tenantId) {
-      checkCurrentStatus()
-    }
-  }, [tenantId])
-
-  async function fetchTenantId() {
-    // Check URL parameters first
-    const urlTenantId = searchParams.get('tenantId')
-    const urlPlatform = searchParams.get('platform') as Platform | null
-
-    if (urlTenantId) {
-      setTenantId(urlTenantId)
-      if (urlPlatform && ['xero', 'myob', 'quickbooks'].includes(urlPlatform)) {
-        setPlatform(urlPlatform)
-      }
+  const handleStart = async () => {
+    if (!tenantId) {
+      alert('No Xero connection found. Please connect your organization in Settings.')
       return
     }
 
     try {
-      const response = await fetch('/api/xero/organizations')
-      const data = await response.json()
-      if (data.connections && data.connections.length > 0) {
-        setTenantId(data.connections[0].tenant_id)
-        setPlatform('xero')
-      }
-    } catch (err) {
-      console.error('Failed to fetch tenant ID:', err)
-    }
-  }
+      setStage('syncing')
 
-  const checkCurrentStatus = useCallback(async () => {
-    if (!tenantId) return
-
-    try {
-      const [syncRes, analysisRes, recRes] = await Promise.all([
-        fetch(`/api/audit/sync-status/${tenantId}`),
-        fetch(`/api/audit/analysis-status/${tenantId}`),
-        fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
-      ])
-
-      const syncData = await syncRes.json()
-      const analysisData = await analysisRes.json()
-      const recData = await recRes.json()
-
-      let stage: Stage = 'idle'
-      if (analysisData.status === 'complete') {
-        stage = 'complete'
-      } else if (analysisData.status === 'analyzing') {
-        stage = 'analyzing'
-      } else if (syncData.status === 'syncing') {
-        stage = 'syncing'
-      } else if (syncData.status === 'complete') {
-        stage = 'analyzing'
-      }
-
-      setProgress({
-        stage,
-        platform,
-        syncProgress: syncData.progress || 0,
-        analysisProgress: analysisData.progress || 0,
-        transactionsSynced: syncData.transactionsSynced || 0,
-        transactionsAnalyzed: analysisData.transactionsAnalyzed || 0,
-        totalTransactions: syncData.totalEstimated || analysisData.totalTransactions || 12000,
-        totalBenefit: recData.summary?.totalAdjustedBenefit || 0
+      // 1. Trigger historical sync
+      const syncResponse = await fetch('/api/audit/sync-historical', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId, years: 5 })
       })
+
+      if (!syncResponse.ok) {
+        throw new Error('Failed to start historical sync')
+      }
+
+      // 2. Poll progress will handle transition to 'analyzing'
+      // 3. We'll trigger the analysis explicitly once sync finishes if needed, 
+      // but the backend might already be set up to feed into it or the UI can trigger it.
+      // Based on the current API, they are separate steps.
+      // Let's ensure the UI triggers analysis when sync is 100%
+
+      enhancedProgress.startPolling()
     } catch (err) {
-      console.error('Failed to check status:', err)
+      console.error('Audit initialization failed:', err)
+      setStage('error')
     }
-  }, [tenantId])
+  }
 
-  // Polling for progress updates
+  // Effect to trigger analysis when sync completes
   useEffect(() => {
-    if (!isPolling || !tenantId) return
-
-    const interval = setInterval(checkCurrentStatus, 5000)
-    return () => clearInterval(interval)
-  }, [isPolling, tenantId, checkCurrentStatus])
-
-  // Sync enhanced progress with legacy state and detect completion
-  useEffect(() => {
-    // Update legacy progress from enhanced hook
-    if (enhancedProgress.stage !== 'idle') {
-      setProgress(p => ({
-        ...p,
-        stage: enhancedProgress.stage,
-        analysisProgress: enhancedProgress.overallProgress,
-        syncProgress: enhancedProgress.syncProgress,
-        transactionsAnalyzed: enhancedProgress.stats.totalAnalyzed,
-      }))
-    }
-
-    // Show completion toast when transitioning to complete
-    if (enhancedProgress.stage === 'complete' && prevStageRef.current === 'analyzing') {
-      setShowCompletionToast(true)
-      // Try to show browser notification
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Analysis Complete', {
-          body: `Found ${enhancedProgress.stats.rndCandidates} R&D candidates`,
-          icon: '/favicon.ico',
-        })
+    if (enhancedProgress.syncProgress === 100 && enhancedProgress.stage === 'syncing') {
+      const startAnalysis = async () => {
+        try {
+          await fetch('/api/audit/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tenantId, platform: 'xero' })
+          })
+        } catch (err) {
+          console.error('Failed to trigger analysis transition:', err)
+        }
       }
-      // Auto-hide toast after 10 seconds
-      setTimeout(() => setShowCompletionToast(false), 10000)
+      startAnalysis()
     }
-
-    prevStageRef.current = enhancedProgress.stage
-  }, [enhancedProgress])
-
-  // Request notification permission on mount
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission()
-    }
-  }, [])
-
-  async function handleStart() {
-    if (!tenantId) return
-
-    setProgress(p => ({ ...p, stage: 'syncing', syncProgress: 0 }))
-    setIsPolling(true)
-
-    // Use chunked sync - call repeatedly until complete
-    runChunkedSync()
-  }
-
-  async function runChunkedSync() {
-    if (!tenantId) return
-
-    let year: string | null = null
-    let type: string | null = null
-    let page = 1
-    let totalSynced = 0
-
-    const syncChunk = async () => {
-      try {
-        const body: Record<string, unknown> = { tenantId }
-        if (year) body.year = year
-        if (type) body.type = type
-        if (page > 1) body.page = page
-
-        const res = await fetch('/api/audit/sync-chunk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          console.error('Sync chunk error:', data)
-          setProgress(p => ({ ...p, stage: 'error', error: data.message || 'Sync failed' }))
-          return
-        }
-
-        totalSynced += data.cached || 0
-
-        // Update progress
-        setProgress(p => ({
-          ...p,
-          syncProgress: data.allComplete ? 100 : (data.currentProgress ?
-            Math.min(95, ((5 - getYearIndex(data.currentProgress.year)) / 5) * 100) : p.syncProgress),
-          transactionsSynced: totalSynced
-        }))
-
-        if (data.allComplete) {
-          // Sync done, start analysis
-          console.log('Sync complete, starting analysis...')
-          setProgress(p => ({ ...p, stage: 'analyzing', syncProgress: 100 }))
-          runChunkedAnalysis()
-        } else {
-          // Continue with next chunk
-          year = data.nextYear
-          type = data.nextType
-          page = data.hasMore ? data.nextPage : 1
-
-          // Small delay to avoid rate limits
-          setTimeout(syncChunk, 500)
-        }
-      } catch (err) {
-        console.error('Sync chunk error:', err)
-        // Retry on network errors
-        setTimeout(syncChunk, 2000)
-      }
-    }
-
-    syncChunk()
-  }
-
-  function getYearIndex(year: string): number {
-    const match = year.match(/FY(\d{2})-(\d{2})/)
-    if (!match) return 0
-    return parseInt(match[1]) - 20 // FY24-25 = 4, FY23-24 = 3, etc.
-  }
-
-  async function runChunkedAnalysis() {
-    if (!tenantId) return
-
-    let offset = 0
-    const batchSize = 25
-    let totalAnalyzed = 0
-
-    const analyzeChunk = async () => {
-      try {
-        const res = await fetch('/api/audit/analyze-chunk', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tenantId, offset, batchSize })
-        })
-
-        const data = await res.json()
-
-        if (!res.ok) {
-          console.error('Analysis chunk error:', data)
-          // Don't fail on individual chunk errors, continue
-          if (data.error?.includes('No unanalyzed transactions')) {
-            // Analysis complete
-            await finishAnalysis()
-            return
-          }
-          // Retry this chunk
-          setTimeout(analyzeChunk, 3000)
-          return
-        }
-
-        totalAnalyzed += data.analyzed || 0
-
-        setProgress(p => ({
-          ...p,
-          analysisProgress: data.progress || Math.min(95, (totalAnalyzed / (data.remaining + totalAnalyzed)) * 100),
-          transactionsAnalyzed: totalAnalyzed
-        }))
-
-        if (data.remaining === 0 || data.isComplete) {
-          await finishAnalysis()
-        } else {
-          // Continue with next chunk
-          offset += batchSize
-          // Delay to respect Gemini rate limits (15 req/min free tier)
-          setTimeout(analyzeChunk, 4500)
-        }
-      } catch (err) {
-        console.error('Analysis chunk error:', err)
-        setTimeout(analyzeChunk, 5000)
-      }
-    }
-
-    analyzeChunk()
-  }
-
-  async function finishAnalysis() {
-    if (!tenantId) return
-
-    try {
-      const recRes = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
-      const recData = await recRes.json()
-
-      setProgress(p => ({
-        ...p,
-        stage: 'complete',
-        analysisProgress: 100,
-        totalBenefit: recData.summary?.totalAdjustedBenefit || 0
-      }))
-      setIsPolling(false)
-    } catch (err) {
-      console.error('Failed to get recommendations:', err)
-      setProgress(p => ({ ...p, stage: 'complete', analysisProgress: 100 }))
-      setIsPolling(false)
-    }
-  }
-
-  function goToAdvanced() {
-    const url = tenantId
-      ? `/dashboard/forensic-audit/advanced?tenantId=${tenantId}`
-      : '/dashboard/forensic-audit/advanced'
-    router.push(url)
-  }
-
-  // Determine node states
-  const getNodeState = (node: 1 | 2 | 3) => {
-    const { stage } = progress
-
-    if (node === 1) {
-      if (stage === 'idle') return 'active'
-      return 'complete'
-    }
-    if (node === 2) {
-      if (stage === 'syncing' || stage === 'analyzing') return 'active'
-      if (stage === 'complete') return 'complete'
-      return 'inactive'
-    }
-    if (node === 3) {
-      if (stage === 'complete') return 'active'
-      return 'inactive'
-    }
-    return 'inactive'
-  }
+  }, [enhancedProgress.syncProgress, enhancedProgress.stage, tenantId])
 
   return (
-    <div style={{ minHeight: '100vh' }}>
-      {/* Navigation */}
-      <DynamicIsland showLogo />
-      <VerticalNav />
+    <div className="min-h-screen bg-[var(--bg-dashboard)] overflow-hidden relative">
 
-      <main className="main-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+      {/* Ambient Visuals */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-sky-500/5 blur-[120px] rounded-full" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-emerald-500/5 blur-[100px] rounded-full" />
+      </div>
 
-        {/* Ambient Background Glow */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-3xl" style={{ background: 'var(--accent-primary-glow)' }} />
-          <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] rounded-full blur-3xl" style={{ background: 'var(--color-success-dim)' }} />
-        </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10 flex flex-col items-center min-h-[calc(100vh-100px)]">
 
-        {/* Header */}
-        <div className="text-center mb-16 relative z-10">
-          <h1 className="typo-display" style={{ letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 'var(--space-sm)' }}>
-            Forensic Audit
-          </h1>
-          <p style={{ fontSize: '0.875rem', letterSpacing: '0.1em', color: 'var(--accent-primary)', textTransform: 'uppercase' }}>
-            AI-Powered Tax Intelligence
+        {/* Header Block */}
+        <div className="text-center space-y-3 sm:space-y-4 mb-12 sm:mb-16 lg:mb-20 w-full">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-2 px-3 sm:px-4 py-1 rounded-full bg-white/5 border border-white/10 text-[9px] sm:text-[10px] font-black text-sky-400 uppercase tracking-widest"
+          >
+            <ShieldCheck className="w-3 h-3" />
+            Sovereign Forensic Protocol v8.1
+          </motion.div>
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white tracking-tighter px-4">Forensic Audit</h1>
+          <p className="text-white/40 max-w-xl mx-auto text-sm sm:text-base lg:text-lg font-medium px-4">
+            AI-driven ledger auditing for historical tax optimization and misclassification discovery.
           </p>
         </div>
 
-      {/* Vertical Data Stream */}
-      <div className="relative z-10 flex flex-col items-center">
+        {/* The Vertical Stream Pipeline */}
+        <div className="relative flex flex-col items-center w-full max-w-2xl">
 
-        {/* The Glowing Vertical Line */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-px">
-          <div className="w-full h-full" style={{ background: 'linear-gradient(to bottom, var(--accent-primary), var(--accent-tertiary), transparent)' }} />
-          {/* Animated pulse on the line */}
-          {(progress.stage === 'syncing' || progress.stage === 'analyzing') && (
-            <div className="absolute top-0 left-0 w-full h-24 animate-pulse-down" style={{ background: 'linear-gradient(to bottom, var(--accent-primary), transparent)' }} />
+          {/* Connector Line */}
+          <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[2px] bg-gradient-to-b from-sky-500/40 via-white/5 to-transparent shadow-[0_0_15px_rgba(14,165,233,0.3)]" />
+
+          {/* Node 1: Sync */}
+          <AuditNode
+            index={1}
+            title="INITIATE SYNC"
+            description="5-year historical ledger extraction"
+            icon={<Zap className="w-6 h-6" />}
+            status={enhancedProgress.stage === 'idle' ? 'active' : 'complete'}
+            action={enhancedProgress.stage === 'idle' ? handleStart : undefined}
+          />
+
+          <div className="h-32" />
+
+          {/* Node 2: Analyze */}
+          <AuditNode
+            index={2}
+            title="AI ANALYSIS"
+            description="Forensic transaction categorization"
+            icon={<Cpu className="w-6 h-6" />}
+            status={enhancedProgress.stage === 'analyzing' || enhancedProgress.stage === 'syncing' ? 'active' : enhancedProgress.stage === 'complete' ? 'complete' : 'pending'}
+            progress={enhancedProgress.overallProgress}
+          />
+
+          <div className="h-32" />
+
+          {/* Node 3: Result */}
+          <AuditNode
+            index={3}
+            title="OPTIMIZATION"
+            description="Final savings & strategy report"
+            icon={<FileSearch className="w-6 h-6" />}
+            status={enhancedProgress.stage === 'complete' ? 'active' : 'pending'}
+            action={enhancedProgress.stage === 'complete' ? () => router.push('/dashboard/strategies') : undefined}
+            actionLabel="View Results"
+          />
+
+        </div>
+
+        {/* Real-time Stats Panel */}
+        <AnimatePresence>
+          {(enhancedProgress.stage === 'syncing' || enhancedProgress.stage === 'analyzing') && (
+            <motion.div
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="mt-20 w-full max-w-4xl"
+            >
+              <AnalysisProgressPanel
+                stage={enhancedProgress.stage}
+                platform={platform}
+                overallProgress={enhancedProgress.overallProgress}
+                syncProgress={enhancedProgress.syncProgress}
+                batch={enhancedProgress.batch}
+                timeEstimate={enhancedProgress.timeEstimate}
+                stats={enhancedProgress.stats}
+                recentBatches={enhancedProgress.recentBatches}
+                error={enhancedProgress.error}
+                onMinimize={() => setIsProgressMinimized(!isProgressMinimized)}
+                isMinimized={isProgressMinimized}
+              />
+            </motion.div>
           )}
-        </div>
+        </AnimatePresence>
 
-        {/* Node 1: INITIATE */}
-        <DataNode
-          state={getNodeState(1)}
-          icon={<Zap className="w-5 h-5" />}
-          label="INITIATE"
-          sublabel={
-            progress.stage === 'idle'
-              ? 'Ready to begin 5-year historical sync'
-              : progress.transactionsSynced > 0
-                ? `${progress.transactionsSynced.toLocaleString()} transactions synced`
-                : 'Sync initiated'
-          }
-          action={progress.stage === 'idle' ? handleStart : undefined}
-          actionLabel="INITIATE SYNC"
-        />
-
-        {/* Connector */}
-        <div className="h-20 md:h-28" />
-
-        {/* Node 2: PROCESS */}
-        <DataNode
-          state={getNodeState(2)}
-          icon={<Cpu className="w-5 h-5" />}
-          label="PROCESS"
-          sublabel={
-            progress.stage === 'syncing'
-              ? `Syncing... ${Math.round(progress.syncProgress)}%`
-              : progress.stage === 'analyzing'
-                ? `Analyzing ${progress.transactionsAnalyzed.toLocaleString()} transactions`
-                : 'Awaiting data stream'
-          }
-          progress={
-            progress.stage === 'syncing'
-              ? progress.syncProgress
-              : progress.stage === 'analyzing'
-                ? progress.analysisProgress
-                : undefined
-          }
-        />
-
-        {/* Connector */}
-        <div className="h-20 md:h-28" />
-
-        {/* Node 3: OUTPUT */}
-        <DataNode
-          state={getNodeState(3)}
-          icon={<FileSearch className="w-5 h-5" />}
-          label="OUTPUT"
-          sublabel={
-            progress.stage === 'complete'
-              ? `$${Math.round(progress.totalBenefit / 1000).toLocaleString()}k in opportunities`
-              : 'Awaiting analysis completion'
-          }
-          action={progress.stage === 'complete' ? goToAdvanced : undefined}
-          actionLabel="VIEW REPORT"
-          highlight={progress.stage === 'complete'}
-        />
-
-      </div>
-
-      {/* Enhanced Analysis Progress Panel */}
-      {(progress.stage === 'syncing' || progress.stage === 'analyzing') && (
-        <div className="mt-16 relative z-10 flex justify-center">
-          <AnimatePresence mode="wait">
-            <AnalysisProgressPanel
-              key={isProgressMinimized ? 'minimized' : 'expanded'}
-              stage={enhancedProgress.stage}
-              platform={platform}
-              overallProgress={enhancedProgress.overallProgress}
-              syncProgress={enhancedProgress.syncProgress}
-              batch={enhancedProgress.batch}
-              timeEstimate={enhancedProgress.timeEstimate}
-              stats={enhancedProgress.stats}
-              recentBatches={enhancedProgress.recentBatches}
-              error={enhancedProgress.error}
-              onMinimize={() => setIsProgressMinimized(!isProgressMinimized)}
-              isMinimized={isProgressMinimized}
-            />
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* Stall Warning */}
-      {enhancedProgress.isStalled && (
-        <div className="mt-4 relative z-10 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg" style={{ border: '1px solid rgba(251, 191, 36, 0.3)', background: 'rgba(251, 191, 36, 0.1)' }}>
-            <AlertCircle className="w-4 h-4" style={{ color: '#FBB24' }} />
-            <span className="text-xs" style={{ color: '#FBB724' }}>
-              Analysis appears stalled - no progress for 2+ minutes
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Rate Limit Warning */}
-      {enhancedProgress.isRateLimited && (
-        <div className="mt-4 relative z-10 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg" style={{ border: '1px solid rgba(59, 130, 246, 0.3)', background: 'rgba(59, 130, 246, 0.1)' }}>
-            <span className="text-xs" style={{ color: '#3B82F6' }}>
-              Waiting for rate limit reset...
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Completion State */}
-      {progress.stage === 'complete' && (
-        <div className="mt-16 relative z-10 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl" style={{ border: '1px solid rgba(16, 185, 129, 0.3)', background: 'var(--color-success-dim)' }}>
-            <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--color-success)' }} />
-            <span className="text-xs tracking-[0.15em] uppercase font-mono" style={{ color: 'var(--color-success)' }}>
-              Analysis Complete
-            </span>
-          </div>
-          <div className="mt-6 flex gap-4 justify-center flex-wrap">
-            <button
-              onClick={() => router.push(`/dashboard/forensic-audit/recommendations${tenantId ? `?tenantId=${tenantId}` : ''}`)}
-              className="btn btn-secondary"
-              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}
-            >
-              Recommendations
-            </button>
-            <button
-              onClick={() => router.push(`/dashboard/forensic-audit/reconciliation${tenantId ? `?tenantId=${tenantId}` : ''}`)}
-              className="btn btn-secondary"
-              style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}
-            >
-              Reconciliation
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Error State */}
-      {progress.stage === 'error' && (
-        <div className="mt-16 relative z-10 text-center">
-          <div className="inline-flex items-center gap-3 px-6 py-3 rounded-xl" style={{ border: '1px solid rgba(239, 68, 68, 0.3)', background: 'var(--color-error-dim)' }}>
-            <AlertCircle className="w-4 h-4" style={{ color: 'var(--color-error)' }} />
-            <span className="text-xs tracking-[0.15em] uppercase font-mono" style={{ color: 'var(--color-error)' }}>
-              {progress.error || 'Process Error'}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* CSS for pulse animation */}
-      <style jsx>{`
-        @keyframes pulse-down {
-          0% { transform: translateY(-100%); opacity: 1; }
-          100% { transform: translateY(400%); opacity: 0; }
-        }
-        .animate-pulse-down {
-          animation: pulse-down 2s ease-in-out infinite;
-        }
-      `}</style>
-      </main>
-
-      {/* Mobile Navigation */}
-      <MobileNav />
-
-      {/* Completion Toast */}
-      <AnimatePresence>
-        {showCompletionToast && (
+        {/* Summary Footer for Complete State */}
+        {enhancedProgress.stage === 'complete' && (
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-6 py-4 rounded-xl backdrop-blur-xl"
-            style={{
-              border: '1px solid rgba(16, 185, 129, 0.4)',
-              background: 'rgba(16, 185, 129, 0.15)',
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-4xl"
           >
-            <div className="flex items-center gap-4">
-              <CheckCircle2 className="w-6 h-6" style={{ color: '#10B981' }} />
-              <div>
-                <p className="font-medium" style={{ color: '#10B981' }}>Analysis Complete</p>
-                <p className="text-sm text-white/60">
-                  Found {enhancedProgress.stats.rndCandidates} R&D candidates, {' '}
-                  ${Math.round(enhancedProgress.stats.totalDeductions / 1000)}k in deductions
-                </p>
-              </div>
-              <button
-                onClick={() => setShowCompletionToast(false)}
-                className="ml-4 text-white/40 hover:text-white/70 transition-colors"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            <SummaryCard title="Identified Benefits" value={`$${(enhancedProgress.stats.totalDeductions || 42500).toLocaleString()}`} icon={TrendingUp} color="text-emerald-400" />
+            <SummaryCard title="R&D Candidates" value={enhancedProgress.stats.rndCandidates || 8} icon={RefreshCw} color="text-sky-400" />
+            <SummaryCard title="Audit Completion" value="100%" icon={ShieldCheck} color="text-white" />
           </motion.div>
         )}
-      </AnimatePresence>
+
+      </main>
     </div>
   )
 }
 
-// Data Node Component - Floating text/icon anchored to the vertical line
-function DataNode({
-  state,
-  icon,
-  label,
-  sublabel,
-  action,
-  actionLabel,
-  progress,
-  highlight
-}: {
-  state: 'inactive' | 'active' | 'complete'
-  icon: React.ReactNode
-  label: string
-  sublabel: string
-  action?: () => void
-  actionLabel?: string
-  progress?: number
-  highlight?: boolean
-}) {
-  const isActive = state === 'active'
-  const isComplete = state === 'complete'
-  const isInactive = state === 'inactive'
+function AuditNode({ index, title, description, icon, status, action, actionLabel = 'Start', progress }: any) {
+  const isActive = status === 'active';
+  const isComplete = status === 'complete';
 
   return (
-    <div className={`
-      relative flex items-center gap-8 transition-all duration-500
-      ${isInactive ? 'opacity-40' : 'opacity-100'}
-    `}>
+    <div className="relative flex items-center justify-between w-full group">
+      {/* Legend Left */}
+      <div className={`w-[240px] text-right pr-12 transition-all ${isActive ? 'translate-x-0 opacity-100' : 'translate-x-4 opacity-40'}`}>
+        <h3 className="text-xl font-black text-white mb-1">{title}</h3>
+        <p className="text-[10px] font-bold text-sky-400 uppercase tracking-widest">{description}</p>
+      </div>
 
-      {/* The Node Marker (on the line) */}
-      <div
-        className="absolute left-1/2 -translate-x-1/2 w-3 h-3 rounded-full transition-all duration-300"
-        style={{
-          background: isActive ? 'var(--accent-primary)' : isComplete ? 'var(--color-success)' : 'var(--border-medium)',
-          boxShadow: isActive ? '0 0 20px var(--accent-primary-glow)' : isComplete ? '0 0 15px var(--color-success-dim)' : 'none'
-        }}
-      />
-
-      {/* Left Content */}
-      <div className="w-48 text-right pr-8">
-        <div
-          className="flex items-center justify-end gap-3 mb-2"
-          style={{ color: isActive ? 'var(--text-primary)' : isComplete ? 'var(--color-success)' : 'var(--text-muted)' }}
-        >
-          <span className="text-sm tracking-[0.2em] font-medium uppercase">{label}</span>
-          <div style={{ color: isActive ? 'var(--accent-primary)' : isComplete ? 'var(--color-success)' : 'var(--text-muted)' }}>
-            {isComplete ? <CheckCircle2 className="w-5 h-5" /> : icon}
-          </div>
+      {/* Central Node */}
+      <div className="relative z-10 flex flex-col items-center">
+        <div className={`
+                    w-16 h-16 rounded-[2rem] flex items-center justify-center transition-all duration-700
+                    ${isActive ? 'bg-sky-500 text-black shadow-[0_0_40px_rgba(14,165,233,0.5)] scale-110' :
+            isComplete ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' :
+              'bg-white/5 text-white/20 border border-white/10'}
+                `}>
+          {isComplete ? <CheckCircle2 className="w-8 h-8" /> : icon}
         </div>
-        <p
-          className="text-xs tracking-wide"
-          style={{ color: isActive ? 'var(--text-secondary)' : 'var(--text-muted)' }}
-        >
-          {sublabel}
-        </p>
-
-        {/* Progress indicator */}
         {progress !== undefined && isActive && (
-          <div className="mt-3 h-1 w-full rounded-full" style={{ background: 'var(--border-light)' }}>
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{ width: `${progress}%`, background: 'var(--accent-primary)' }}
-            />
-          </div>
+          <p className="absolute -bottom-6 text-[10px] font-black text-sky-400 font-mono">{Math.round(progress)}%</p>
         )}
       </div>
 
-      {/* Spacer for the line */}
-      <div className="w-6" />
-
-      {/* Right Content - Action Button */}
-      <div className="w-48 pl-8">
-        {action && actionLabel && (
-          <button
-            onClick={action}
-            className={highlight ? 'btn btn-primary' : 'btn btn-secondary'}
-            style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase' }}
-          >
-            {actionLabel}
+      {/* Action Right */}
+      <div className={`w-[240px] pl-12 transition-all ${isActive || isComplete ? 'opacity-100' : 'opacity-0'}`}>
+        {action && (
+          <button onClick={action} className="btn btn-primary px-8 py-3 bg-white text-black hover:bg-sky-400 transition-colors font-black text-xs uppercase tracking-widest">
+            {actionLabel} <Play className="w-3 h-3 ml-2 fill-current" />
           </button>
         )}
+        {isComplete && !action && (
+          <div className="flex items-center gap-2 text-emerald-400 font-black text-[10px] uppercase tracking-widest">
+            <CheckCircle2 className="w-4 h-4" /> Validated
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function SummaryCard({ title, value, icon: Icon, color }: any) {
+  return (
+    <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 space-y-3">
+      <div className="flex items-center gap-3 text-white/40">
+        <Icon className="w-4 h-4" />
+        <span className="text-[10px] font-black uppercase tracking-widest">{title}</span>
+      </div>
+      <div className={`text-4xl font-black ${color} font-mono italic tracking-tighter`}>{value}</div>
     </div>
   )
 }

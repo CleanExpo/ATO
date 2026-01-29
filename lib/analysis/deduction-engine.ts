@@ -21,9 +21,9 @@ const FALLBACK_INSTANT_WRITEOFF_THRESHOLD = 20000 // $20,000 (2024-25 fallback)
 const FALLBACK_HOME_OFFICE_RATE_PER_HOUR = 0.67 // 67c per hour (2024-25 fallback)
 const MIN_CONFIDENCE_FOR_CLAIM = 60 // Minimum confidence to recommend claiming
 
-// Corporate tax rates - s 23AA and s 23 ITAA 1997
-const CORPORATE_TAX_RATE_BASE = new Decimal('0.25') // 25% base rate entity (turnover < $50M) - s 23AA ITAA 1997
-const CORPORATE_TAX_RATE_STANDARD = new Decimal('0.30') // 30% standard corporate rate - s 23 ITAA 1997
+// Fallback corporate tax rates - s 23AA and s 23 ITAA 1997
+const FALLBACK_CORPORATE_TAX_RATE_BASE = 0.25 // 25% base rate entity
+const FALLBACK_CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% standard corporate rate
 
 // Small business turnover threshold for instant asset write-off - s 328-180 ITAA 1997
 const SMALL_BUSINESS_TURNOVER_THRESHOLD = 10_000_000 // $10M
@@ -65,6 +65,7 @@ export interface DeductionAnalysisOptions {
 let cachedRates: {
   instantWriteOffThreshold: number
   homeOfficeRatePerHour: number
+  source: string
 } | null = null
 
 /**
@@ -73,6 +74,7 @@ let cachedRates: {
 async function getDeductionThresholds(): Promise<{
   instantWriteOffThreshold: number
   homeOfficeRatePerHour: number
+  source: string
 }> {
   if (cachedRates) {
     return cachedRates
@@ -84,6 +86,7 @@ async function getDeductionThresholds(): Promise<{
     cachedRates = {
       instantWriteOffThreshold: rates.instantWriteOffThreshold || FALLBACK_INSTANT_WRITEOFF_THRESHOLD,
       homeOfficeRatePerHour: rates.homeOfficeRatePerHour || FALLBACK_HOME_OFFICE_RATE_PER_HOUR,
+      source: rates.sources.instantWriteOff || 'ATO_FALLBACK_DEFAULT'
     }
 
     return cachedRates
@@ -94,6 +97,7 @@ async function getDeductionThresholds(): Promise<{
     return {
       instantWriteOffThreshold: FALLBACK_INSTANT_WRITEOFF_THRESHOLD,
       homeOfficeRatePerHour: FALLBACK_HOME_OFFICE_RATE_PER_HOUR,
+      source: 'ERROR_FALLBACK'
     }
   }
 }
@@ -199,6 +203,10 @@ export interface DeductionSummary {
   averageConfidence: number
   highValueOpportunities: DeductionOpportunity[] // >$10k
   opportunities: DeductionOpportunity[]
+  /** Source URL of the tax rate used for calculations */
+  taxRateSource: string
+  /** Timestamp of when the tax rates were verified */
+  taxRateVerifiedAt: string
 }
 
 /**
@@ -209,53 +217,67 @@ export interface DeductionSummary {
  * - Trust: depends on beneficiary marginal rates (defaults to 30% as conservative estimate)
  * - Unknown: defaults to 30% (conservative) - s 23 ITAA 1997
  */
-export function determineTaxRate(options?: DeductionAnalysisOptions): {
+/**
+ * Determine the applicable corporate tax rate based on entity type.
+ */
+export async function determineTaxRate(options?: DeductionAnalysisOptions): Promise<{
   rate: Decimal
   rateNumber: number
   note: string
-} {
+}> {
   const entityType = options?.entityType ?? 'unknown'
   const isBaseRate = options?.isBaseRateEntity ?? false
+
+  let rateBase = FALLBACK_CORPORATE_TAX_RATE_BASE
+  let rateStandard = FALLBACK_CORPORATE_TAX_RATE_STANDARD
+
+  try {
+    const liveRates = await getCurrentTaxRates()
+    if (liveRates.corporateTaxRateSmall) rateBase = liveRates.corporateTaxRateSmall
+    if (liveRates.corporateTaxRateStandard) rateStandard = liveRates.corporateTaxRateStandard
+  } catch (err) {
+    console.warn('Failed to fetch live corporate rates for deduction engine', err)
+  }
 
   // Auto-determine from turnover if available
   if (options?.annualTurnover !== undefined && entityType === 'unknown') {
     if (options.annualTurnover < 50_000_000) {
       return {
-        rate: CORPORATE_TAX_RATE_BASE,
-        rateNumber: 0.25,
-        note: 'Base rate entity (turnover < $50M) - 25% tax rate (s 23AA ITAA 1997)',
+        rate: new Decimal(rateBase),
+        rateNumber: rateBase,
+        note: `Base rate entity (turnover < $50M) - ${rateBase * 100}% tax rate (s 23AA ITAA 1997)`,
       }
     }
     return {
-      rate: CORPORATE_TAX_RATE_STANDARD,
-      rateNumber: 0.30,
-      note: 'Standard corporate rate (turnover >= $50M) - 30% tax rate (s 23 ITAA 1997)',
+      rate: new Decimal(rateStandard),
+      rateNumber: rateStandard,
+      note: `Standard corporate rate (turnover >= $50M) - ${rateStandard * 100}% tax rate (s 23 ITAA 1997)`,
     }
   }
 
   if (entityType === 'base_rate_entity' || isBaseRate) {
     return {
-      rate: CORPORATE_TAX_RATE_BASE,
-      rateNumber: 0.25,
-      note: 'Base rate entity - 25% tax rate (s 23AA ITAA 1997)',
+      rate: new Decimal(rateBase),
+      rateNumber: rateBase,
+      note: `Base rate entity - ${rateBase * 100}% tax rate (s 23AA ITAA 1997)`,
     }
   }
 
   if (entityType === 'trust') {
     return {
-      rate: CORPORATE_TAX_RATE_STANDARD,
-      rateNumber: 0.30,
-      note: 'Trust entity - tax saving depends on beneficiary marginal rates. Using 30% as conservative estimate.',
+      rate: new Decimal(rateStandard),
+      rateNumber: rateStandard,
+      note: `Trust entity - tax saving depends on beneficiary marginal rates. Using ${rateStandard * 100}% as conservative estimate.`,
     }
   }
 
-  // Default to 30% standard rate (conservative) for unknown or standard_company
+  // Default to standard rate (conservative) for unknown or standard_company
   return {
-    rate: CORPORATE_TAX_RATE_STANDARD,
-    rateNumber: 0.30,
+    rate: new Decimal(rateStandard),
+    rateNumber: rateStandard,
     note: entityType === 'standard_company'
-      ? 'Standard corporate rate - 30% tax rate (s 23 ITAA 1997)'
-      : 'Entity type unknown - defaulting to 30% standard corporate rate (s 23 ITAA 1997). Specify entityType for accurate calculation.',
+      ? `Standard corporate rate - ${rateStandard * 100}% tax rate (s 23 ITAA 1997)`
+      : `Entity type unknown - defaulting to ${rateStandard * 100}% standard corporate rate (s 23 ITAA 1997). Specify entityType for accurate calculation.`,
   }
 }
 
@@ -458,20 +480,30 @@ export async function analyzeDeductionOpportunities(
   }
 
   if (!transactions || transactions.length === 0) {
-    return createEmptySummary()
+    return {
+      ...createEmptySummary(),
+      taxRateSource: 'none',
+      taxRateVerifiedAt: new Date().toISOString()
+    }
   }
 
   console.log(`Analysing ${transactions.length} transactions for deduction opportunities`)
 
   // Determine tax rate and small business status
-  const taxRateInfo = determineTaxRate(options)
+  const taxRateInfo = await determineTaxRate(options)
   const smallBusiness = isSmallBusinessEntity(options)
 
   // Group transactions by category and financial year
   const opportunities = groupByDeductionCategory(transactions, taxRateInfo, smallBusiness)
 
+  // Determine source of rates (fetch again to get source metadata)
+  const rateSource = (await getDeductionThresholds()).source
+
   // Calculate summary statistics
-  const summary = calculateDeductionSummary(opportunities)
+  // Calculate summary statistics
+  const summary = calculateDeductionSummary(opportunities, rateSource)
+
+  return summary
 
   return summary
 }
@@ -820,7 +852,7 @@ function generateDeductionRecommendations(
   }
 
   // Fix 3b: Calculate tax saving with dynamic rate
-  const taxRate = taxRateInfo?.rate ?? CORPORATE_TAX_RATE_STANDARD
+  const taxRate = taxRateInfo?.rate ?? new Decimal(FALLBACK_CORPORATE_TAX_RATE_STANDARD)
   const taxRatePercent = taxRate.times(100).toNumber()
   const taxSaving = new Decimal(potentialAmount).times(taxRate).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber()
 
@@ -955,7 +987,13 @@ function checkFbtImplications(category: DeductionCategory): boolean {
 /**
  * Calculate overall deduction summary
  */
-function calculateDeductionSummary(opportunities: DeductionOpportunity[]): DeductionSummary {
+/**
+ * Calculate overall deduction summary
+ */
+function calculateDeductionSummary(
+  opportunities: DeductionOpportunity[],
+  taxRateSource: string = 'none'
+): DeductionSummary {
   let totalUnclaimedDeductions = 0
   let totalEstimatedTaxSaving = 0
   let totalConfidence = 0
@@ -988,6 +1026,8 @@ function calculateDeductionSummary(opportunities: DeductionOpportunity[]): Deduc
     averageConfidence,
     highValueOpportunities,
     opportunities,
+    taxRateSource,
+    taxRateVerifiedAt: new Date().toISOString(),
   }
 }
 
@@ -1046,5 +1086,7 @@ function createEmptySummary(): DeductionSummary {
     averageConfidence: 0,
     highValueOpportunities: [],
     opportunities: [],
+    taxRateSource: 'none',
+    taxRateVerifiedAt: new Date().toISOString(),
   }
 }

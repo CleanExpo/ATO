@@ -18,9 +18,11 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 
 // Division 7A benchmark interest rates (ATO published rates, per s 109N ITAA 1936)
-const DIV7A_BENCHMARK_RATES: Record<string, number> = {
+// Now fetched dynamically, falling back to these historical values if API fails
+const HISTORICAL_DIV7A_RATES: Record<string, number> = {
   'FY2024-25': 0.0877, // 8.77%
   'FY2023-24': 0.0833, // 8.33%
   'FY2022-23': 0.0452, // 4.52%
@@ -160,6 +162,8 @@ export interface Div7aSummary {
   averageRiskLevel: string
   criticalIssues: string[]
   loanAnalyses: Division7aAnalysis[]
+  taxRateSource: string
+  taxRateVerifiedAt: string
 }
 
 /**
@@ -191,7 +195,17 @@ export async function analyzeDiv7aCompliance(
   }
 
   // Calculate summary
-  const summary = calculateDiv7aSummary(loanAnalyses)
+  let rateSource = 'ATO-Live-Rates'
+  try {
+    const liveRates = await getCurrentTaxRates()
+    if (liveRates.sources.division7A) {
+      rateSource = liveRates.sources.division7A
+    }
+  } catch (err) {
+    console.warn('Failed to fetch live rates for summary provenance', err)
+  }
+
+  const summary = calculateDiv7aSummary(loanAnalyses, rateSource)
 
   return summary
 }
@@ -433,7 +447,7 @@ async function analyzeSingleLoan(
   const closingBalance = openingBalance + advancesThisYear - repaymentsThisYear
 
   // Calculate benchmark interest (s 109N ITAA 1936 - benchmark interest rate)
-  const benchmarkInterestRate = DIV7A_BENCHMARK_RATES[latestYear as string] || 0.0877
+  const benchmarkInterestRate = await getBenchmarkRate(latestYear as string)
   const benchmarkInterestRequired = closingBalance * benchmarkInterestRate
   const interestShortfall = Math.max(0, benchmarkInterestRequired - interestCharged)
 
@@ -817,7 +831,13 @@ function generateCorrectiveActions(
 /**
  * Calculate overall Division 7A summary
  */
-function calculateDiv7aSummary(loanAnalyses: Division7aAnalysis[]): Div7aSummary {
+/**
+ * Calculate overall summary with provenance
+ */
+function calculateDiv7aSummary(
+  loanAnalyses: Division7aAnalysis[],
+  taxRateSource: string = 'none'
+): Div7aSummary {
   let totalLoanBalance = 0
   let compliantLoans = 0
   let nonCompliantLoans = 0
@@ -868,6 +888,8 @@ function calculateDiv7aSummary(loanAnalyses: Division7aAnalysis[]): Div7aSummary
     averageRiskLevel,
     criticalIssues,
     loanAnalyses,
+    taxRateSource,
+    taxRateVerifiedAt: new Date().toISOString(),
   }
 }
 
@@ -928,12 +950,27 @@ function createEmptyDiv7aSummary(): Div7aSummary {
     averageRiskLevel: 'low',
     criticalIssues: [],
     loanAnalyses: [],
+    taxRateSource: 'none',
+    taxRateVerifiedAt: new Date().toISOString(),
   }
 }
 
 /**
  * Get Division 7A benchmark interest rate for a financial year
  */
-export function getBenchmarkRate(financialYear: string): number {
-  return DIV7A_BENCHMARK_RATES[financialYear] || 0.0877 // Default to current year rate
+export async function getBenchmarkRate(financialYear: string): Promise<number> {
+  const currentFY = 'FY2024-25' // Should ideally match current system FY
+
+  if (financialYear === currentFY) {
+    try {
+      const rates = await getCurrentTaxRates()
+      if (rates.division7ABenchmarkRate) {
+        return rates.division7ABenchmarkRate
+      }
+    } catch (err) {
+      console.warn('Failed to fetch live Div7A rate, using fallback', err)
+    }
+  }
+
+  return HISTORICAL_DIV7A_RATES[financialYear] || 0.0877 // Default to current year rate
 }

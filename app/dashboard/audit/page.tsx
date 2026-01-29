@@ -16,6 +16,7 @@ import {
     AlertTriangle
 } from 'lucide-react'
 import { MobileNav } from '@/components/ui/MobileNav'
+import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
 
 type Connection = {
     tenant_id: string
@@ -203,57 +204,25 @@ export default function TaxAuditPage() {
 
     return (
         <div className="min-h-screen">
-            {/* Sidebar */}
-            <aside className="sidebar-wide">
-                <div className="p-6">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center">
-                            <DollarSign className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h1 className="font-bold text-[var(--text-primary)]">ATO Optimizer</h1>
-                            <p className="text-xs text-[var(--text-muted)]">Tax Intelligence</p>
-                        </div>
-                    </div>
+            {/* Dynamic Island Navigation */}
+            <DynamicIsland showLogo />
 
-                    <nav className="space-y-1">
-                        <Link href="/dashboard" className="sidebar-link">
-                            <LayoutDashboard className="w-5 h-5" />
-                            <span>Dashboard</span>
-                        </Link>
-                        <Link href="/dashboard/rnd" className="sidebar-link">
-                            <Beaker className="w-5 h-5" />
-                            <span>R&D Assessment</span>
-                        </Link>
-                        <Link href="/dashboard/audit" className="sidebar-link active">
-                            <FileSearch className="w-5 h-5" />
-                            <span>Tax Audit</span>
-                        </Link>
-                        <Link href="/dashboard/losses" className="sidebar-link">
-                            <TrendingDown className="w-5 h-5" />
-                            <span>Loss Analysis</span>
-                        </Link>
-                    </nav>
-                </div>
+            {/* Vertical Navigation (Desktop) */}
+            <VerticalNav />
 
-                <div className="mt-auto p-6 border-t border-[var(--border-default)]">
-                    <Link href="/dashboard/settings" className="sidebar-link">
-                        <Settings className="w-5 h-5" />
-                        <span>Settings</span>
-                    </Link>
-                </div>
-            </aside>
+            {/* Mobile Navigation */}
+            <MobileNav />
 
             {/* Main Content */}
-            <main className="main-content-wide">
+            <main className="main-content" style={{ paddingTop: 'var(--space-3xl)' }}>
                 {/* Header */}
-                <div className="flex flex-wrap items-center gap-4 mb-8">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-4 mb-6 sm:mb-8">
                     <Link href="/dashboard" className="btn btn-ghost p-2">
                         <ArrowLeft className="w-5 h-5" />
                     </Link>
                     <div className="flex-1">
-                        <h2 className="text-2xl font-bold mb-1">Tax Audit Findings</h2>
-                        <p className="text-[var(--text-secondary)]">
+                        <h2 className="text-xl sm:text-2xl font-bold mb-1">Tax Audit Findings</h2>
+                        <p className="text-sm sm:text-base text-[var(--text-secondary)]">
                             Findings are derived from your Xero transactions only.
                         </p>
                     </div>
@@ -271,14 +240,54 @@ export default function TaxAuditPage() {
                                 ))}
                             </select>
                         )}
-                        <button className="btn btn-secondary" disabled>
+                        <button
+                            className="btn btn-secondary"
+                            onClick={async () => {
+                                if (!activeTenantId) return;
+                                try {
+                                    const res = await fetch('/api/reports/generate', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            tenantId: activeTenantId,
+                                            reportType: 'pdf',
+                                            options: {
+                                                includeLegislation: true,
+                                                clientFriendly: true
+                                            }
+                                        })
+                                    });
+                                    if (res.ok) {
+                                        const data = await res.json();
+                                        window.open(data.url, '_blank');
+                                    }
+                                } catch (err) {
+                                    console.error('Failed to generate report:', err);
+                                }
+                            }}
+                            disabled={!hasConnections || loading}
+                        >
                             <Download className="w-4 h-4" />
                             Export Report
                         </button>
-                        <button className="btn btn-primary" disabled>
+                        <Link
+                            href="/dashboard/forensic-audit/shared-links"
+                            className="btn btn-secondary border-magenta-500/30 text-magenta-400 hover:bg-magenta-500/10"
+                        >
+                            <div className="flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                                </svg>
+                                <span>Secure Share</span>
+                            </div>
+                        </Link>
+                        <Link
+                            href={`/dashboard/forensic-audit?tenantId=${activeTenantId}`}
+                            className="btn btn-primary"
+                        >
                             <Play className="w-4 h-4" />
                             Run Full Audit
-                        </button>
+                        </Link>
                     </div>
                 </div>
 

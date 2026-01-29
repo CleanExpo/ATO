@@ -11,9 +11,10 @@
  */
 
 import Decimal from 'decimal.js'
+import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 
-// Benchmark interest rate for FY2024-25 (Section 109N ITAA 1936)
-const DIV7A_BENCHMARK_RATE = new Decimal('0.0877') // 8.77%
+// Benchmark interest rate for FY2024-25 (Section 109N ITAA 1936) - FALLBACK
+const FALLBACK_DIV7A_BENCHMARK_RATE = new Decimal('0.0877') // 8.77%
 
 export interface Div7ALoan {
   loanAmount: number
@@ -42,14 +43,28 @@ export interface Div7ACalculation {
   repaymentSchedule: Div7ARepayment[]
   warnings: string[]
   recommendations: string[]
+  taxRateSource?: string
 }
 
 /**
  * Calculate Division 7A minimum yearly repayment schedule
  */
-export function calculateDiv7ARepayments(loan: Div7ALoan): Div7ACalculation {
+export async function calculateDiv7ARepayments(loan: Div7ALoan): Promise<Div7ACalculation> {
   const warnings: string[] = []
   const recommendations: string[] = []
+
+  // Fetch live rate
+  let liveRate = FALLBACK_DIV7A_BENCHMARK_RATE
+  let rateSource = 'ATO_FALLBACK'
+  try {
+    const rates = await getCurrentTaxRates()
+    if (rates.division7ABenchmarkRate) {
+      liveRate = new Decimal(rates.division7ABenchmarkRate)
+      rateSource = rates.sources.division7A || 'ATO.gov.au'
+    }
+  } catch (err) {
+    console.warn('Failed to fetch live Div7A rate, using fallback', err)
+  }
 
   // Determine loan term
   const loanTerm = loan.isSecured ? 25 : 7
@@ -57,20 +72,19 @@ export function calculateDiv7ARepayments(loan: Div7ALoan): Div7ACalculation {
   // Use provided interest rate or benchmark
   const interestRate = loan.interestRate
     ? new Decimal(loan.interestRate)
-    : DIV7A_BENCHMARK_RATE
+    : liveRate
 
   // Validate interest rate
-  if (loan.interestRate && loan.interestRate < DIV7A_BENCHMARK_RATE.toNumber()) {
+  if (loan.interestRate && loan.interestRate < liveRate.toNumber()) {
     warnings.push(
-      `Interest rate ${(loan.interestRate * 100).toFixed(2)}% is below benchmark rate ${(DIV7A_BENCHMARK_RATE.toNumber() * 100).toFixed(2)}%. This may result in deemed dividend.`
+      `Interest rate ${(loan.interestRate * 100).toFixed(2)}% is below benchmark rate ${(liveRate.toNumber() * 100).toFixed(2)}%. This may result in deemed dividend.`
     )
     recommendations.push(
-      `Increase interest rate to at least ${(DIV7A_BENCHMARK_RATE.toNumber() * 100).toFixed(2)}% to avoid Division 7A issues.`
+      `Increase interest rate to at least ${(liveRate.toNumber() * 100).toFixed(2)}% to avoid Division 7A issues.`
     )
   }
 
   // Calculate minimum yearly repayment using amortization formula
-  // PMT = P × [r(1 + r)^n] / [(1 + r)^n - 1]
   const principal = new Decimal(loan.loanAmount)
   const rate = interestRate
   const n = loanTerm
@@ -96,8 +110,6 @@ export function calculateDiv7ARepayments(loan: Div7ALoan): Div7ACalculation {
     const closingBalance = balance.minus(principalComponent)
 
     totalInterest = totalInterest.plus(interestComponent)
-
-    // Calculate deemed dividend risk (what would be deemed if minimum not paid)
     const deemedDividendRisk = minimumYearlyRepayment
 
     schedule.push({
@@ -112,97 +124,65 @@ export function calculateDiv7ARepayments(loan: Div7ALoan): Div7ACalculation {
     })
 
     balance = closingBalance
-
-    // Stop if loan is fully repaid
-    if (balance.lessThanOrEqualTo(0)) {
-      break
-    }
+    if (balance.lessThanOrEqualTo(0)) break
   }
 
   // Add recommendations based on loan structure
   if (!loan.isSecured && loan.loanAmount > 100000) {
     recommendations.push(
-      'Consider securing this loan with a registered mortgage to extend the repayment term from 7 to 25 years, reducing the minimum yearly repayment.'
-    )
-  }
-
-  if (schedule.length > 0 && schedule[0].minimumRepayment > loan.loanAmount * 0.2) {
-    recommendations.push(
-      'The minimum yearly repayment is high relative to the loan amount. Consider restructuring or increasing shareholder salary to reduce the loan.'
-    )
-  }
-
-  // Check if repayment schedule will fully repay the loan
-  const finalBalance = schedule[schedule.length - 1]?.closingBalance || 0
-  if (finalBalance > 1) {
-    warnings.push(
-      `Loan will not be fully repaid after ${loanTerm} years. Final balance: $${finalBalance.toFixed(2)}. This may result in deemed dividend.`
+      'Consider securing this loan with a registered mortgage to extend the repayment term from 7 to 25 years.'
     )
   }
 
   return {
     loanDetails: loan,
-    benchmarkRate: DIV7A_BENCHMARK_RATE.toNumber(),
+    benchmarkRate: liveRate.toNumber(),
     loanTerm,
     totalInterest: totalInterest.toNumber(),
     totalRepayments: minimumYearlyRepayment.times(schedule.length).toNumber(),
     repaymentSchedule: schedule,
     warnings,
     recommendations,
+    taxRateSource: rateSource
   }
 }
 
 /**
  * Calculate if a loan arrangement complies with Division 7A
  */
-export function checkDiv7ACompliance(
+export async function checkDiv7ACompliance(
   loan: Div7ALoan,
   actualRepayments: Array<{ date: string; amount: number }>
-): {
+): Promise<{
   compliant: boolean
   issues: string[]
   shortfall: number
   recommendations: string[]
-} {
-  const calculation = calculateDiv7ARepayments(loan)
+}> {
+  const calculation = await calculateDiv7ARepayments(loan)
   const issues: string[] = []
   const recommendations: string[] = []
   let totalShortfall = 0
 
-  // Check if actual repayments meet minimum requirements
   actualRepayments.forEach((repayment, index) => {
     const expectedMinimum = calculation.repaymentSchedule[index]?.minimumRepayment || 0
-
     if (repayment.amount < expectedMinimum) {
       const shortfall = expectedMinimum - repayment.amount
       totalShortfall += shortfall
       issues.push(
-        `Year ${index + 1}: Repayment of $${repayment.amount.toFixed(2)} is below minimum required $${expectedMinimum.toFixed(2)} (shortfall: $${shortfall.toFixed(2)})`
+        `Year ${index + 1}: Repayment $${repayment.amount.toFixed(2)} is below minimum $${expectedMinimum.toFixed(2)}`
       )
     }
   })
 
-  // Check interest rate
-  if (loan.interestRate && loan.interestRate < DIV7A_BENCHMARK_RATE.toNumber()) {
+  if (loan.interestRate && loan.interestRate < calculation.benchmarkRate) {
     issues.push(
-      `Interest rate of ${(loan.interestRate * 100).toFixed(2)}% is below the benchmark rate of ${(DIV7A_BENCHMARK_RATE.toNumber() * 100).toFixed(2)}%`
+      `Interest rate ${(loan.interestRate * 100).toFixed(2)}% is below benchmark rate ${(calculation.benchmarkRate * 100).toFixed(2)}%`
     )
   }
 
-  // Generate recommendations
   if (totalShortfall > 0) {
-    recommendations.push(
-      `Make an additional repayment of $${totalShortfall.toFixed(2)} before lodgement day to avoid deemed dividend.`
-    )
-    recommendations.push(
-      'Consider setting up automatic monthly repayments to ensure minimum requirements are met.'
-    )
-  }
-
-  if (issues.length === 0) {
-    recommendations.push(
-      'Loan is currently compliant with Division 7A. Ensure minimum repayments continue each year.'
-    )
+    recommendations.push(`Make additional repayment of $${totalShortfall.toFixed(2)} before lodgement day.`)
   }
 
   return {
@@ -216,7 +196,7 @@ export function checkDiv7ACompliance(
 /**
  * Compare loan restructuring options
  */
-export function compareLoanOptions(loanAmount: number): {
+export async function compareLoanOptions(loanAmount: number): Promise<{
   unsecured: Div7ACalculation
   secured: Div7ACalculation
   savings: {
@@ -224,18 +204,11 @@ export function compareLoanOptions(loanAmount: number): {
     totalInterestDifference: number
     extendedYears: number
   }
-} {
-  const unsecured = calculateDiv7ARepayments({
-    loanAmount,
-    loanDate: new Date().toISOString(),
-    isSecured: false,
-  })
-
-  const secured = calculateDiv7ARepayments({
-    loanAmount,
-    loanDate: new Date().toISOString(),
-    isSecured: true,
-  })
+}> {
+  const [unsecured, secured] = await Promise.all([
+    calculateDiv7ARepayments({ loanAmount, loanDate: new Date().toISOString(), isSecured: false }),
+    calculateDiv7ARepayments({ loanAmount, loanDate: new Date().toISOString(), isSecured: true })
+  ])
 
   const yearlyReduction =
     unsecured.repaymentSchedule[0].minimumRepayment -
@@ -249,7 +222,8 @@ export function compareLoanOptions(loanAmount: number): {
     savings: {
       yearlyRepaymentReduction: yearlyReduction,
       totalInterestDifference: interestDifference,
-      extendedYears: 18, // 25 - 7
+      extendedYears: 18,
     },
   }
 }
+
