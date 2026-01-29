@@ -10,12 +10,27 @@ export async function GET(request: NextRequest) {
     const forceLogin = request.nextUrl.searchParams.get('prompt') === 'login'
 
     try {
+        // Check environment variables before creating client
+        if (!process.env.XERO_CLIENT_ID || !process.env.XERO_CLIENT_SECRET) {
+            console.error('[CRITICAL] Missing Xero OAuth credentials', {
+                hasClientId: !!process.env.XERO_CLIENT_ID,
+                hasClientSecret: !!process.env.XERO_CLIENT_SECRET,
+            })
+            return NextResponse.redirect(
+                `${baseUrl}/dashboard?error=${encodeURIComponent('Xero OAuth not configured. Please contact support.')}`
+            )
+        }
+
         // Generate state for CSRF protection
         const state = crypto.randomUUID()
 
         // Build the consent URL
+        console.log('[OAuth] Creating Xero client with baseUrl:', baseUrl)
         const client = createXeroClient({ state, baseUrl })
+
+        console.log('[OAuth] Building consent URL...')
         let consentUrl = await client.buildConsentUrl()
+        console.log('[OAuth] Consent URL built successfully')
 
         // Add max_age=0 to force Xero to re-authenticate
         // This invalidates the current session and requires a fresh login

@@ -1,5 +1,4 @@
 import { XeroClient, TokenSet } from 'xero-node'
-import { serverConfig, sharedConfig } from '@/lib/config/env'
 import { withRetry } from '@/lib/xero/retry'
 
 // Xero OAuth 2.0 Scopes
@@ -25,20 +24,45 @@ type CreateXeroClientOptions = {
 }
 
 function resolveBaseUrl(override?: string): string {
-    // Use override if provided, otherwise use validated config
-    const baseUrl = override || sharedConfig.baseUrl
-    return baseUrl.replace(/\/+$/, '')
+    // Use override if provided, otherwise resolve from environment
+    if (override) {
+        return override.replace(/\/+$/, '')
+    }
+
+    // Try explicit base URL first
+    if (process.env.NEXT_PUBLIC_BASE_URL) {
+        return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/+$/, '')
+    }
+
+    // Vercel deployment URL
+    if (process.env.VERCEL_URL) {
+        return `https://${process.env.VERCEL_URL}`
+    }
+
+    // Local development fallback
+    const port = process.env.PORT || '3000'
+    return `http://localhost:${port}`
 }
 
 export function createXeroClient(options: CreateXeroClientOptions = {}): XeroClient {
+    // Get credentials directly from environment
+    const clientId = process.env.XERO_CLIENT_ID
+    const clientSecret = process.env.XERO_CLIENT_SECRET
+
+    if (!clientId || !clientSecret) {
+        throw new Error(
+            'Missing Xero OAuth credentials. Please set XERO_CLIENT_ID and XERO_CLIENT_SECRET environment variables.'
+        )
+    }
+
     const baseUrl = resolveBaseUrl(options.baseUrl)
 
     console.log('Xero Client initialized with Base URL:', baseUrl)
 
     try {
         return new XeroClient({
-            clientId: serverConfig.xero.clientId,
-            clientSecret: serverConfig.xero.clientSecret,
+            clientId,
+            clientSecret,
             redirectUris: [`${baseUrl}/api/auth/xero/callback`],
             scopes: XERO_SCOPES.split(' '),
             httpTimeout: 30000,
