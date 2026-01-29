@@ -109,7 +109,7 @@ export function PlatformConnections({
         {/* Add Connection Buttons */}
         <div style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-sm)' }}>
           <Link
-            href="/api/auth/xero?prompt=login"
+            href="/api/auth/xero/logout-and-connect"
             className="btn btn-secondary"
             style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--space-xs)' }}
           >
