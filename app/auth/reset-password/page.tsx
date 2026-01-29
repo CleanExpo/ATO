@@ -100,51 +100,59 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-6 py-12"
-      style={{ background: '#050505' }}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: EASING }}
-        className="w-full max-w-md"
-      >
-        {/* Logo/Header */}
-        <div className="text-center mb-12">
-          <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-4xl font-extralight tracking-tight text-white mb-3"
+    <div className="min-h-screen flex justify-center" style={{ background: '#050505' }}>
+      <div className="max-w-[1920px] w-full">
+        <div className="min-h-screen flex items-center justify-center px-6 py-24">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: EASING }}
+            className="w-full max-w-md"
           >
-            {success ? 'Password Reset!' : 'Set New Password'}
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-sm text-white/60 font-light"
-          >
-            {success
-              ? 'Your password has been successfully reset'
-              : 'Choose a strong password for your account'}
-          </motion.p>
-        </div>
+            {/* Logo/Header */}
+            <div className="text-center mb-16">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.8, ease: EASING }}
+              >
+                <p className="text-[11px] uppercase tracking-[0.4em] text-white/40 mb-8 font-medium">
+                  {success ? 'Success' : 'Password Reset'}
+                </p>
+              </motion.div>
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.8, ease: EASING }}
+                className="text-4xl md:text-5xl font-extralight tracking-tight text-white mb-4 leading-tight"
+              >
+                {success ? 'Password Reset!' : 'Set New Password'}
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.8, ease: EASING }}
+                className="text-base text-white/60 font-light"
+              >
+                {success
+                  ? 'Your password has been successfully reset'
+                  : 'Choose a strong password for your account'}
+              </motion.p>
+            </div>
 
-        {/* Glassmorphic Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4, duration: 0.6, ease: EASING }}
-          className="p-8 rounded-sm border-[0.5px]"
-          style={{
-            borderColor: `${SPECTRAL.cyan}50`,
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: `0 0 60px ${SPECTRAL.cyan}15`,
-          }}
-        >
+            {/* Glassmorphic Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.4, duration: 0.8, ease: EASING }}
+              className="p-10 rounded-sm border-[0.5px]"
+              style={{
+                borderColor: `${SPECTRAL.cyan}50`,
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                backdropFilter: 'blur(20px)',
+                boxShadow: `0 0 60px ${SPECTRAL.cyan}15`,
+              }}
+            >
           {/* Error Message */}
           {error && (
             <motion.div
@@ -183,25 +191,26 @@ export default function ResetPasswordPage() {
                 You can now sign in with your new password
               </p>
 
-              <Link
-                href="/auth/login"
-                className="inline-block px-8 py-3 rounded-sm text-sm uppercase tracking-[0.2em] font-semibold transition-all duration-300 hover:scale-[1.02]"
-                style={{
-                  color: '#050505',
-                  backgroundColor: SPECTRAL.emerald,
-                  boxShadow: `0 0 40px ${SPECTRAL.emerald}30`,
-                }}
-              >
-                Go to Login
-              </Link>
-            </motion.div>
-          ) : (
-            <form onSubmit={handlePasswordReset} className="space-y-6">
-              {/* New Password */}
-              <div>
-                <label className="block text-xs text-white/60 mb-2 font-light tracking-wide">
-                  NEW PASSWORD
-                </label>
+                <Link
+                  href="/auth/login"
+                  className="inline-block px-10 py-5 rounded-sm text-[12px] uppercase tracking-[0.2em] font-semibold border-[0.5px] transition-all duration-300 hover:scale-105"
+                  style={{
+                    borderColor: `${SPECTRAL.emerald}50`,
+                    color: '#050505',
+                    backgroundColor: SPECTRAL.emerald,
+                    boxShadow: `0 0 60px ${SPECTRAL.emerald}30`,
+                  }}
+                >
+                  Go to Login
+                </Link>
+              </motion.div>
+            ) : (
+              <form onSubmit={handlePasswordReset} className="space-y-6">
+                {/* New Password */}
+                <div>
+                  <label className="block text-[11px] uppercase tracking-[0.2em] text-white/50 mb-3 font-light">
+                    New Password
+                  </label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                   <input
@@ -239,11 +248,11 @@ export default function ResetPasswordPage() {
                 </p>
               </div>
 
-              {/* Confirm Password */}
-              <div>
-                <label className="block text-xs text-white/60 mb-2 font-light tracking-wide">
-                  CONFIRM NEW PASSWORD
-                </label>
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-[11px] uppercase tracking-[0.2em] text-white/50 mb-3 font-light">
+                    Confirm New Password
+                  </label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
                   <input
@@ -278,58 +287,60 @@ export default function ResetPasswordPage() {
                 )}
               </div>
 
-              {/* Reset Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full mt-6 px-6 py-4 rounded-sm text-sm uppercase tracking-[0.2em] font-semibold transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  borderColor: `${SPECTRAL.cyan}50`,
-                  color: '#050505',
-                  backgroundColor: SPECTRAL.cyan,
-                  boxShadow: `0 0 40px ${SPECTRAL.cyan}30`,
-                }}
-              >
-                {loading ? 'Resetting Password...' : 'Reset Password'}
-              </button>
-            </form>
+                {/* Reset Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full mt-8 px-10 py-5 rounded-sm text-[12px] uppercase tracking-[0.2em] font-semibold border-[0.5px] transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    borderColor: `${SPECTRAL.cyan}50`,
+                    color: '#050505',
+                    backgroundColor: SPECTRAL.cyan,
+                    boxShadow: `0 0 60px ${SPECTRAL.cyan}30`,
+                  }}
+                >
+                  {loading ? 'Resetting Password...' : 'Reset Password'}
+                </button>
+              </form>
           )}
         </motion.div>
 
-        {/* Back to Login */}
-        {!success && (
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="text-center mt-8 text-sm text-white/60 font-light"
-          >
-            Remember your password?{' '}
-            <Link
-              href="/auth/login"
-              className="font-medium hover:text-white transition-colors"
-              style={{ color: SPECTRAL.cyan }}
-            >
-              Sign In
-            </Link>
-          </motion.p>
-        )}
+            {/* Back to Login */}
+            {!success && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.7, duration: 0.8 }}
+                className="text-center mt-10 text-sm text-white/60 font-light"
+              >
+                Remember your password?{' '}
+                <Link
+                  href="/auth/login"
+                  className="font-medium hover:text-white transition-colors"
+                  style={{ color: SPECTRAL.cyan }}
+                >
+                  Sign In
+                </Link>
+              </motion.p>
+            )}
 
-        {/* Back to Home */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="text-center mt-6"
-        >
-          <Link
-            href="/"
-            className="text-xs text-white/40 hover:text-white/60 transition-colors font-light tracking-wide"
-          >
-            ← Back to Home
-          </Link>
-        </motion.div>
-      </motion.div>
+            {/* Back to Home */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8, duration: 0.8 }}
+              className="text-center mt-8"
+            >
+              <Link
+                href="/"
+                className="text-[11px] uppercase tracking-[0.2em] text-white/30 hover:text-white/50 transition-colors font-light"
+              >
+                ← Back to Home
+              </Link>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
     </div>
   )
 }

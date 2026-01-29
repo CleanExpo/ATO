@@ -63,64 +63,73 @@ export default function VerifyEmailPage() {
   }
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-6 py-12"
-      style={{ background: '#050505' }}
-    >
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: EASING }}
-        className="w-full max-w-md"
-      >
-        {/* Logo/Header */}
-        <div className="text-center mb-12">
+    <div className="min-h-screen flex justify-center" style={{ background: '#050505' }}>
+      <div className="max-w-[1920px] w-full">
+        <div className="min-h-screen flex items-center justify-center px-6 py-24">
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2, duration: 0.6, ease: EASING }}
-            className="inline-flex items-center justify-center w-20 h-20 rounded-full border-[0.5px] mb-6"
-            style={{
-              borderColor: `${SPECTRAL.emerald}50`,
-              backgroundColor: `${SPECTRAL.emerald}10`,
-              boxShadow: `0 0 60px ${SPECTRAL.emerald}30`,
-            }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: EASING }}
+            className="w-full max-w-md"
           >
-            <Mail className="w-10 h-10" style={{ color: SPECTRAL.emerald }} />
-          </motion.div>
+            {/* Logo/Header */}
+            <div className="text-center mb-16">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1, duration: 0.8, ease: EASING }}
+              >
+                <p className="text-[11px] uppercase tracking-[0.4em] text-white/40 mb-8 font-medium">
+                  Email Verification
+                </p>
+              </motion.div>
 
-          <motion.h1
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            className="text-4xl font-extralight tracking-tight text-white mb-3"
-          >
-            Check Your Email
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="text-sm text-white/60 font-light max-w-sm mx-auto"
-          >
-            We've sent a verification link to{' '}
-            {email && <span className="text-white font-medium">{email}</span>}
-          </motion.p>
-        </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2, duration: 0.8, ease: EASING }}
+                className="inline-flex items-center justify-center w-20 h-20 rounded-full border-[0.5px] mb-8"
+                style={{
+                  borderColor: `${SPECTRAL.emerald}50`,
+                  backgroundColor: `${SPECTRAL.emerald}10`,
+                  boxShadow: `0 0 60px ${SPECTRAL.emerald}30`,
+                }}
+              >
+                <Mail className="w-10 h-10" style={{ color: SPECTRAL.emerald }} />
+              </motion.div>
 
-        {/* Glassmorphic Card */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5, duration: 0.6, ease: EASING }}
-          className="p-8 rounded-sm border-[0.5px]"
-          style={{
-            borderColor: `${SPECTRAL.cyan}50`,
-            backgroundColor: 'rgba(255, 255, 255, 0.02)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: `0 0 60px ${SPECTRAL.cyan}15`,
-          }}
-        >
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.8, ease: EASING }}
+                className="text-4xl md:text-5xl font-extralight tracking-tight text-white mb-4 leading-tight"
+              >
+                Check Your Email
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.8, ease: EASING }}
+                className="text-base text-white/60 font-light max-w-sm mx-auto"
+              >
+                We've sent a verification link to{' '}
+                {email && <span className="text-white font-medium">{email}</span>}
+              </motion.p>
+            </div>
+
+            {/* Glassmorphic Card */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.5, duration: 0.8, ease: EASING }}
+              className="p-10 rounded-sm border-[0.5px]"
+              style={{
+                borderColor: `${SPECTRAL.cyan}50`,
+                backgroundColor: 'rgba(255, 255, 255, 0.02)',
+                backdropFilter: 'blur(20px)',
+                boxShadow: `0 0 60px ${SPECTRAL.cyan}15`,
+              }}
+            >
           {/* Error Message */}
           {error && (
             <motion.div
@@ -202,58 +211,60 @@ export default function VerifyEmailPage() {
             </div>
           </div>
 
-          {/* Resend Email Button */}
-          <button
-            onClick={handleResendEmail}
-            disabled={loading || !email}
-            className="w-full px-6 py-3.5 rounded-sm border-[0.5px] text-sm font-light text-white/90 transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            style={{
-              borderColor: 'rgba(255, 255, 255, 0.1)',
-              backgroundColor: 'rgba(255, 255, 255, 0.03)',
-            }}
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Sending...' : 'Resend Verification Email'}
-          </button>
+              {/* Resend Email Button */}
+              <button
+                onClick={handleResendEmail}
+                disabled={loading || !email}
+                className="w-full px-10 py-5 rounded-sm border-[0.5px] text-[12px] uppercase tracking-[0.2em] font-medium text-white/90 transition-all duration-300 hover:scale-105 hover:text-white hover:border-white/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                style={{
+                  borderColor: 'rgba(255, 255, 255, 0.15)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.03)',
+                }}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                {loading ? 'Sending...' : 'Resend Verification Email'}
+              </button>
 
-          {/* Help Text */}
-          <p className="mt-6 text-xs text-white/40 font-light text-center">
-            Didn't receive the email? Check your spam folder or click the button above to resend.
-          </p>
-        </motion.div>
+              {/* Help Text */}
+              <p className="mt-6 text-xs text-white/40 font-light text-center">
+                Didn't receive the email? Check your spam folder or click the button above to resend.
+              </p>
+            </motion.div>
 
-        {/* Back to Login */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="text-center mt-8 text-sm text-white/60 font-light"
-        >
-          Wrong email address?{' '}
-          <Link
-            href="/auth/signup"
-            className="font-medium hover:text-white transition-colors"
-            style={{ color: SPECTRAL.cyan }}
-          >
-            Sign Up Again
-          </Link>
-        </motion.p>
+            {/* Back to Login */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.7, duration: 0.8 }}
+              className="text-center mt-10 text-sm text-white/60 font-light"
+            >
+              Wrong email address?{' '}
+              <Link
+                href="/auth/signup"
+                className="font-medium hover:text-white transition-colors"
+                style={{ color: SPECTRAL.cyan }}
+              >
+                Sign Up Again
+              </Link>
+            </motion.p>
 
-        {/* Back to Home */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8 }}
-          className="text-center mt-6"
-        >
-          <Link
-            href="/"
-            className="text-xs text-white/40 hover:text-white/60 transition-colors font-light tracking-wide"
-          >
-            ← Back to Home
-          </Link>
-        </motion.div>
-      </motion.div>
+            {/* Back to Home */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8, duration: 0.8 }}
+              className="text-center mt-8"
+            >
+              <Link
+                href="/"
+                className="text-[11px] uppercase tracking-[0.2em] text-white/30 hover:text-white/50 transition-colors font-light"
+              >
+                ← Back to Home
+              </Link>
+            </motion.div>
+          </motion.div>
+        </div>
+      </div>
     </div>
   )
 }
