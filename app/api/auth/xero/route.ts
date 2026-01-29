@@ -17,11 +17,11 @@ export async function GET(request: NextRequest) {
         const client = createXeroClient({ state, baseUrl })
         let consentUrl = await client.buildConsentUrl()
 
-        // Add prompt=select_account to force Xero to show login screen
-        // This allows connecting different Xero accounts with different credentials
+        // Add prompt=login to force Xero to re-authenticate
+        // This allows connecting organizations with different Xero credentials
         if (forceLogin) {
             const url = new URL(consentUrl)
-            url.searchParams.set('prompt', 'select_account')
+            url.searchParams.set('prompt', 'login')
             consentUrl = url.toString()
         }
 
