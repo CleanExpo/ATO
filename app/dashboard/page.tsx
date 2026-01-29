@@ -741,9 +741,6 @@ function DashboardContent() {
           </>
         )}
       </main>
-
-      {/* Mobile Bottom Navigation */}
-      <MobileNav />
     </div>
   )
 }
