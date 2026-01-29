@@ -298,6 +298,8 @@ body {
   padding: var(--space-lg);
   border: 0.5px solid var(--border-light);
   transition: border-color var(--transition-base);
+  min-height: fit-content;
+  overflow: visible;
 }
 
 .card:hover {
@@ -322,6 +324,8 @@ body {
   flex-direction: column;
   gap: var(--space-sm);
   transition: border-color var(--transition-base);
+  min-height: fit-content;
+  overflow: visible;
 }
 
 .stat-card:hover {
@@ -431,6 +435,7 @@ body {
   cursor: pointer;
   text-decoration: none;
   display: block;
+  min-height: fit-content;
 }
 
 .feature-card:hover {
@@ -504,6 +509,8 @@ body {
   border-radius: var(--radius-sm);
   padding: var(--space-lg);
   border: 0.5px solid var(--border-light);
+  min-height: fit-content;
+  overflow: visible;
 }
 
 .glass-surface {
@@ -1122,7 +1129,8 @@ select {
   padding: var(--space-xl);
   border: 0.5px solid var(--border-light);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  min-height: fit-content;
 }
 
 .holo-panel::before {
@@ -1673,6 +1681,61 @@ select {
     padding: var(--space-sm) var(--space-md);
     font-size: 0.75rem;
   }
+}
+
+/* ============================================
+   Utility Classes for Responsive Containers
+   ============================================ */
+
+/* Prevent horizontal overflow on small screens */
+.overflow-x-safe {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Responsive text that scales with viewport */
+.text-responsive {
+  font-size: clamp(0.875rem, 2vw, 1rem);
+}
+
+/* Container that scrolls horizontally on mobile */
+.scroll-container {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Ensure images and media scale properly */
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Word break for long text/URLs */
+.break-words {
+  word-wrap: break-word;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 /* ============================================

@@ -29,7 +29,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
           {/* Page content - centered with max-width */}
           <main className="flex-1 flex flex-col items-center w-full px-4 md:px-6 lg:px-8">
-            <div className="w-full max-w-4xl">
+            <div className="w-full max-w-7xl">
               {children}
             </div>
           </main>

@@ -329,7 +329,7 @@ export function AnalysisProgressPanel({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
       transition={{ duration: 0.4, ease: EASING.outExpo }}
-      className="w-full max-w-lg p-6 border-[0.5px] border-white/[0.08] rounded-sm backdrop-blur-xl"
+      className="w-full max-w-2xl p-4 md:p-6 border-[0.5px] border-white/[0.08] rounded-sm backdrop-blur-xl"
       style={{ backgroundColor: 'rgba(5,5,5,0.9)' }}
     >
       {/* Header with minimize button */}
@@ -401,7 +401,7 @@ export function AnalysisProgressPanel({
       </div>
 
       {/* Time Estimates */}
-      <div className="grid grid-cols-3 gap-4 mb-6 p-3 rounded-sm" style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6 p-3 rounded-sm" style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
         <div>
           <p className="text-[9px] uppercase tracking-[0.2em] text-white/30 mb-1">Started</p>
           <p className="text-sm font-mono text-white/60">
@@ -423,7 +423,7 @@ export function AnalysisProgressPanel({
       </div>
 
       {/* Live Statistics */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-6">
         <div className="text-center p-2 rounded-sm" style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
           <p className="text-lg font-light" style={{ color: SPECTRAL.cyan }}>
             <AnimatedCounter value={stats.totalAnalyzed} />
@@ -454,7 +454,7 @@ export function AnalysisProgressPanel({
       {recentBatches.length > 0 && (
         <div>
           <p className="text-[9px] uppercase tracking-[0.2em] text-white/30 mb-2">Recent Activity</p>
-          <div className="max-h-32 overflow-y-auto space-y-1">
+          <div className="max-h-40 md:max-h-48 overflow-y-auto space-y-1">
             <AnimatePresence initial={false}>
               {recentBatches.slice(0, 5).map((activity, idx) => (
                 <motion.div
