@@ -52,46 +52,8 @@ export default function Home() {
   return (
     <div className="min-h-screen text-white" style={{ background: '#050505' }}>
 
-      {/* ── Header ── */}
-      <header className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.06]" style={{ background: 'rgba(5,5,5,0.85)', backdropFilter: 'blur(20px)' }}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <BreathingOrb colour={SPECTRAL.cyan} size="sm" />
-            <div>
-              <span className="text-sm font-medium text-white/90 tracking-wide">ATO Tax Optimizer</span>
-              <p className="text-[9px] uppercase tracking-[0.3em] text-white/30">Australian Tax Intelligence</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="#pricing"
-              className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white/70 transition-colors"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/dashboard"
-              className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white/70 transition-colors"
-            >
-              Dashboard
-            </Link>
-            <Link
-              href="/api/auth/xero"
-              className="px-5 py-2.5 rounded-sm text-[10px] uppercase tracking-[0.15em] font-medium border-[0.5px] transition-all hover:shadow-lg"
-              style={{
-                borderColor: `${SPECTRAL.cyan}40`,
-                color: SPECTRAL.cyan,
-                backgroundColor: `${SPECTRAL.cyan}10`,
-              }}
-            >
-              Connect Xero
-            </Link>
-          </div>
-        </div>
-      </header>
-
       {/* ── Hero ── */}
-      <section className="pt-40 pb-32 px-6">
+      <section className="pt-20 pb-32 px-6">
         <div className="max-w-5xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
