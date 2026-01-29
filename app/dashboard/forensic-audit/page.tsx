@@ -52,6 +52,7 @@ function ForensicAuditPage() {
   const [stage, setStage] = useState<Stage>('idle')
   const [isProgressMinimized, setIsProgressMinimized] = useState(false)
   const [showCompletionToast, setShowCompletionToast] = useState(false)
+  const [showPlatformSelector, setShowPlatformSelector] = useState(false)
 
   const enhancedProgress = useAnalysisProgress(tenantId, {
     pollingIntervalActive: 2000,
@@ -77,18 +78,27 @@ function ForensicAuditPage() {
 
   const handleStart = async () => {
     if (!tenantId) {
-      alert('No Xero connection found. Please connect your organization in Settings.')
+      alert(`No ${platform === 'xero' ? 'Xero' : platform === 'quickbooks' ? 'QuickBooks' : 'MYOB'} connection found. Please connect your organization in Settings.`)
       return
     }
 
     try {
       setStage('syncing')
+      setShowPlatformSelector(false)
 
-      // 1. Trigger historical sync
-      const syncResponse = await fetch('/api/audit/sync-historical', {
+      // 1. Trigger historical sync (platform-specific)
+      const syncEndpoint = platform === 'quickbooks'
+        ? '/api/quickbooks/sync'
+        : '/api/audit/sync-historical'
+
+      const syncResponse = await fetch(syncEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tenantId, years: 5 })
+        body: JSON.stringify({
+          tenantId,
+          years: 5,
+          ...(platform !== 'quickbooks' && { platform })
+        })
       })
 
       if (!syncResponse.ok) {
@@ -116,7 +126,7 @@ function ForensicAuditPage() {
           await fetch('/api/audit/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tenantId, platform: 'xero' })
+            body: JSON.stringify({ tenantId, platform })
           })
         } catch (err) {
           console.error('Failed to trigger analysis transition:', err)
@@ -168,7 +178,7 @@ function ForensicAuditPage() {
             description="5-year historical ledger extraction"
             icon={<Zap className="w-6 h-6" />}
             status={enhancedProgress.stage === 'idle' ? 'active' : 'complete'}
-            action={enhancedProgress.stage === 'idle' ? handleStart : undefined}
+            action={enhancedProgress.stage === 'idle' ? () => setShowPlatformSelector(true) : undefined}
           />
 
           <div className="h-32" />
@@ -197,6 +207,99 @@ function ForensicAuditPage() {
           />
 
         </section>
+
+        {/* Platform Selector Modal */}
+        <AnimatePresence>
+          {showPlatformSelector && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+              onClick={() => setShowPlatformSelector(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-[#0a0a0a] border border-white/10 rounded-3xl p-8 max-w-2xl w-full mx-4"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-2xl font-black text-white mb-2">Select Accounting Platform</h2>
+                <p className="text-white/40 text-sm mb-8">Choose your accounting software to begin forensic analysis</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  {/* Xero */}
+                  <button
+                    onClick={() => {
+                      setPlatform('xero')
+                      handleStart()
+                    }}
+                    className={`p-6 rounded-2xl border-2 transition-all text-left group hover:scale-105 ${
+                      platform === 'xero'
+                        ? 'border-[#13b5ea] bg-[#13b5ea]/10'
+                        : 'border-white/5 hover:border-[#13b5ea]/50'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-[#13b5ea]/10 flex items-center justify-center mb-4">
+                      <span className="text-2xl">📊</span>
+                    </div>
+                    <h3 className="font-bold text-white mb-1">Xero</h3>
+                    <p className="text-[10px] text-white/40 uppercase tracking-widest mb-2">Market Leader</p>
+                    <p className="text-xs text-white/60">Most popular in AU/NZ with complete transaction support</p>
+                  </button>
+
+                  {/* QuickBooks */}
+                  <button
+                    onClick={() => {
+                      setPlatform('quickbooks')
+                      handleStart()
+                    }}
+                    className={`p-6 rounded-2xl border-2 transition-all text-left group hover:scale-105 ${
+                      platform === 'quickbooks'
+                        ? 'border-[#2ca01c] bg-[#2ca01c]/10'
+                        : 'border-white/5 hover:border-[#2ca01c]/50'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-[#2ca01c]/10 flex items-center justify-center mb-4">
+                      <span className="text-2xl">💚</span>
+                    </div>
+                    <h3 className="font-bold text-white mb-1">QuickBooks</h3>
+                    <p className="text-[10px] text-[#2ca01c] uppercase tracking-widest mb-2">100% Coverage</p>
+                    <p className="text-xs text-white/60">36% market share with 6 transaction types supported</p>
+                  </button>
+
+                  {/* MYOB */}
+                  <button
+                    onClick={() => {
+                      setPlatform('myob')
+                      handleStart()
+                    }}
+                    className={`p-6 rounded-2xl border-2 transition-all text-left group hover:scale-105 ${
+                      platform === 'myob'
+                        ? 'border-purple-500 bg-purple-500/10'
+                        : 'border-white/5 hover:border-purple-500/50'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center mb-4">
+                      <span className="text-2xl">📈</span>
+                    </div>
+                    <h3 className="font-bold text-white mb-1">MYOB</h3>
+                    <p className="text-[10px] text-purple-400 uppercase tracking-widest mb-2">Enterprise Ready</p>
+                    <p className="text-xs text-white/60">Australian-built platform with robust API access</p>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setShowPlatformSelector(false)}
+                  className="w-full py-3 rounded-xl border border-white/10 text-white/40 hover:text-white hover:border-white/20 transition-colors text-sm font-medium"
+                >
+                  Cancel
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Real-time Stats Panel */}
         <AnimatePresence>
