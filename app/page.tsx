@@ -51,11 +51,11 @@ function BreathingOrb({ colour, size = 'md' }: { colour: string; size?: 'sm' | '
 
 export default function Home() {
   return (
-    <div className="min-h-screen text-white" style={{ background: '#050505' }}>
-
-      {/* ── Hero ── */}
-      <section className="pt-24 md:pt-32 pb-40 px-6">
-        <div className="max-w-6xl mx-auto text-center">
+    <div className="min-h-screen text-white flex flex-col items-center" style={{ background: '#050505' }}>
+      <div className="w-full max-w-[1920px]">
+        {/* ── Hero ── */}
+        <section className="pt-24 md:pt-32 pb-40 px-6">
+          <div className="max-w-6xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -526,6 +526,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   )
 }
