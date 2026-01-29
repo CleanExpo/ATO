@@ -17,11 +17,12 @@ export async function GET(request: NextRequest) {
         const client = createXeroClient({ state, baseUrl })
         let consentUrl = await client.buildConsentUrl()
 
-        // Add prompt=login to force Xero to re-authenticate
-        // This allows connecting organizations with different Xero credentials
+        // Add max_age=0 to force Xero to re-authenticate
+        // This invalidates the current session and requires a fresh login
+        // Allows connecting organizations with different Xero credentials
         if (forceLogin) {
             const url = new URL(consentUrl)
-            url.searchParams.set('prompt', 'login')
+            url.searchParams.set('max_age', '0')
             consentUrl = url.toString()
         }
 
