@@ -43,6 +43,14 @@ interface QuickBooksConnection {
     connected_at: string
 }
 
+interface MYOBConnection {
+    user_id: string
+    company_file_id: string
+    company_file_name: string
+    connected_at: string
+    api_base_url: string
+}
+
 export default function SettingsPage() {
     const [businessName, setBusinessName] = useState('Disaster Recovery Qld')
     const [businessABN, setBusinessABN] = useState('42 633 062 307')
@@ -56,6 +64,9 @@ export default function SettingsPage() {
     const [quickbooksConnections, setQuickbooksConnections] = useState<QuickBooksConnection[]>([])
     const [quickbooksLoading, setQuickbooksLoading] = useState(true)
     const [quickbooksError, setQuickbooksError] = useState<string | null>(null)
+    const [myobConnections, setMyobConnections] = useState<MYOBConnection[]>([])
+    const [myobLoading, setMyobLoading] = useState(true)
+    const [myobError, setMyobError] = useState<string | null>(null)
 
     useEffect(() => {
         async function fetchXeroConnections() {
@@ -94,6 +105,23 @@ export default function SettingsPage() {
             }
         }
         fetchQuickBooksConnections()
+    }, [])
+
+    useEffect(() => {
+        async function fetchMYOBConnections() {
+            try {
+                const res = await fetch('/api/myob/connections')
+                if (!res.ok) throw new Error(`Failed to fetch MYOB connections: ${res.status}`)
+                const data = await res.json()
+                setMyobConnections(data.connections || [])
+            } catch (err) {
+                console.error('Error fetching MYOB connections:', err)
+                setMyobError(err instanceof Error ? err.message : 'Failed to load MYOB connections')
+            } finally {
+                setMyobLoading(false)
+            }
+        }
+        fetchMYOBConnections()
     }, [])
 
     const handleSave = () => {
@@ -415,6 +443,123 @@ export default function SettingsPage() {
                                 ].map((type) => (
                                     <div key={type} className="flex items-center gap-2 text-xs">
                                         <CheckCircle2 className="w-3 h-3 text-[#2ca01c]" />
+                                        <span className="text-white/60 font-medium">{type}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </motion.div>
+
+                {/* MYOB Connection Matrix */}
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-card p-8 border-white/5 space-y-8">
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                                <Building2 className="w-5 h-5 text-purple-500" />
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white tracking-tight">MYOB Integration</h3>
+                                <p className="text-[10px] text-white/40 font-medium mt-0.5">22% Australian market share</p>
+                            </div>
+                        </div>
+                        <Link href="/api/auth/myob/authorize" className="btn btn-secondary border-white/5 hover:border-purple-500/40 px-6 py-2 text-[10px] font-black uppercase tracking-widest text-purple-500">
+                            <RefreshCw className="w-3 h-3 mr-2" /> Connect MYOB
+                        </Link>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {myobLoading ? (
+                            <div className="col-span-full py-12 flex flex-col items-center justify-center space-y-4">
+                                <Loader2 className="w-8 h-8 animate-spin text-white/20" />
+                                <p className="text-xs font-bold text-white/20 uppercase tracking-[0.2em]">Synchronizing Connections</p>
+                            </div>
+                        ) : myobConnections.length === 0 ? (
+                            <div className="col-span-full py-12 text-center glass-card border-dashed border-white/5">
+                                <div className="mb-4 flex justify-center">
+                                    <div className="w-16 h-16 rounded-2xl bg-purple-500/5 flex items-center justify-center">
+                                        <Building2 className="w-8 h-8 text-purple-500/40" />
+                                    </div>
+                                </div>
+                                <p className="text-sm text-white/40 font-medium mb-2">No MYOB connections found.</p>
+                                <p className="text-xs text-white/30 mb-6">Connect your MYOB AccountRight company file to unlock 6 transaction types for comprehensive tax analysis.</p>
+                                <Link href="/api/auth/myob/authorize" className="btn btn-primary px-8 bg-purple-500 hover:bg-purple-500/80">
+                                    Initialize MYOB OAuth
+                                </Link>
+                            </div>
+                        ) : (
+                            myobConnections.map((conn) => (
+                                <div key={conn.company_file_id} className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 space-y-4 group hover:border-purple-500/30 transition-all">
+                                    <div className="flex justify-between items-start">
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                                <span className="text-[10px] font-black text-purple-500 uppercase tracking-widest">Active Connection</span>
+                                            </div>
+                                            <h4 className="font-bold text-white">{conn.company_file_name}</h4>
+                                        </div>
+                                        <div className="p-2 rounded-lg bg-white/5">
+                                            <ShieldCheck className="w-4 h-4 text-purple-500 opacity-60" />
+                                        </div>
+                                    </div>
+                                    <div className="pt-4 space-y-3 border-t border-white/5">
+                                        <div className="flex justify-between items-center text-[10px]">
+                                            <span className="text-white/40 font-bold uppercase">Company File ID</span>
+                                            <span className="text-white/60 font-mono">{conn.company_file_id.slice(0, 12)}...</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-[10px]">
+                                            <span className="text-white/40 font-bold uppercase">Region</span>
+                                            <span className="text-white/60 font-mono">AU</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-[10px]">
+                                            <span className="text-white/40 font-bold uppercase">Connected</span>
+                                            <span className="text-white/60 font-mono">{new Date(conn.connected_at).toLocaleDateString()}</span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={async () => {
+                                            if (confirm(`Disconnect ${conn.company_file_name}?`)) {
+                                                try {
+                                                    const res = await fetch('/api/myob/disconnect', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ companyFileId: conn.company_file_id })
+                                                    })
+                                                    if (res.ok) {
+                                                        setMyobConnections(prev => prev.filter(c => c.company_file_id !== conn.company_file_id))
+                                                    }
+                                                } catch (err) {
+                                                    console.error('Disconnect failed:', err)
+                                                }
+                                            }
+                                        }}
+                                        className="w-full py-3 rounded-xl bg-white/5 text-[10px] font-black text-red-400 uppercase tracking-widest hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                        Disconnect Company
+                                    </button>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    {/* Transaction Type Coverage Info */}
+                    {myobConnections.length > 0 && (
+                        <div className="p-6 rounded-2xl bg-purple-500/5 border border-purple-500/10 space-y-4">
+                            <div className="flex items-center gap-3">
+                                <Zap className="w-5 h-5 text-purple-500" />
+                                <h4 className="text-sm font-bold text-white">100% Transaction Coverage</h4>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                {[
+                                    'Sale Invoices',
+                                    'Purchase Bills',
+                                    'Spend Money Transactions',
+                                    'Receive Money Transactions',
+                                    'General Journals',
+                                    'Service Invoices'
+                                ].map((type) => (
+                                    <div key={type} className="flex items-center gap-2 text-xs">
+                                        <CheckCircle2 className="w-3 h-3 text-purple-500" />
                                         <span className="text-white/60 font-medium">{type}</span>
                                     </div>
                                 ))}

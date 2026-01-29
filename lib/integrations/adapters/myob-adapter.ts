@@ -155,16 +155,34 @@ export class MYOBAdapter implements PlatformAdapter {
       const bills = await this.fetchPurchaseBills(options)
       transactions.push(...bills)
       syncProgress.transactionsSynced = transactions.length
+      syncProgress.progress = 33
+      options.onProgress?.(syncProgress)
+
+      // Fetch spend money transactions
+      syncProgress.message = 'Fetching spend money transactions...'
+      options.onProgress?.(syncProgress)
+      const spendTransactions = await this.fetchSpendMoneyTransactions(options)
+      transactions.push(...spendTransactions)
+      syncProgress.transactionsSynced = transactions.length
       syncProgress.progress = 50
       options.onProgress?.(syncProgress)
 
-      // Fetch banking transactions
-      syncProgress.message = 'Fetching bank transactions...'
+      // Fetch receive money transactions
+      syncProgress.message = 'Fetching receive money transactions...'
       options.onProgress?.(syncProgress)
-      const bankTransactions = await this.fetchBankTransactions(options)
-      transactions.push(...bankTransactions)
+      const receiveTransactions = await this.fetchReceiveMoneyTransactions(options)
+      transactions.push(...receiveTransactions)
       syncProgress.transactionsSynced = transactions.length
-      syncProgress.progress = 75
+      syncProgress.progress = 65
+      options.onProgress?.(syncProgress)
+
+      // Fetch general journals
+      syncProgress.message = 'Fetching general journals...'
+      options.onProgress?.(syncProgress)
+      const journals = await this.fetchGeneralJournals(options)
+      transactions.push(...journals)
+      syncProgress.transactionsSynced = transactions.length
+      syncProgress.progress = 80
       options.onProgress?.(syncProgress)
 
       // Normalize phase
@@ -248,14 +266,14 @@ export class MYOBAdapter implements PlatformAdapter {
   }
 
   /**
-   * Fetch MYOB bank transactions
+   * Fetch MYOB spend money transactions
    */
-  private async fetchBankTransactions(options: SyncOptions): Promise<CanonicalTransaction[]> {
+  private async fetchSpendMoneyTransactions(options: SyncOptions): Promise<CanonicalTransaction[]> {
     const endpoint = '/Banking/SpendMoneyTxn'
     const response = await this.makeRequest(endpoint)
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch bank transactions: ${response.status}`)
+      throw new Error(`Failed to fetch spend money transactions: ${response.status}`)
     }
 
     const data = await response.json()
@@ -263,7 +281,45 @@ export class MYOBAdapter implements PlatformAdapter {
 
     return transactions
       .filter((txn: any) => this.matchesDateFilter(txn.Date, options))
-      .map((txn: any) => this.normalizeMYOBBankTransaction(txn))
+      .map((txn: any) => this.normalizeMYOBBankTransaction(txn, 'spend'))
+  }
+
+  /**
+   * Fetch MYOB receive money transactions
+   */
+  private async fetchReceiveMoneyTransactions(options: SyncOptions): Promise<CanonicalTransaction[]> {
+    const endpoint = '/Banking/ReceiveMoneyTxn'
+    const response = await this.makeRequest(endpoint)
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch receive money transactions: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const transactions = data.Items || []
+
+    return transactions
+      .filter((txn: any) => this.matchesDateFilter(txn.Date, options))
+      .map((txn: any) => this.normalizeMYOBBankTransaction(txn, 'receive'))
+  }
+
+  /**
+   * Fetch MYOB general journals
+   */
+  private async fetchGeneralJournals(options: SyncOptions): Promise<CanonicalTransaction[]> {
+    const endpoint = '/GeneralLedger/GeneralJournal'
+    const response = await this.makeRequest(endpoint)
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch general journals: ${response.status}`)
+    }
+
+    const data = await response.json()
+    const journals = data.Items || []
+
+    return journals
+      .filter((journal: any) => this.matchesDateFilter(journal.DateOccurred, options))
+      .map((journal: any) => this.normalizeMYOBGeneralJournal(journal))
   }
 
   /**
@@ -337,7 +393,7 @@ export class MYOBAdapter implements PlatformAdapter {
   /**
    * Normalize MYOB bank transaction
    */
-  private normalizeMYOBBankTransaction(txn: any): CanonicalTransaction {
+  private normalizeMYOBBankTransaction(txn: any, txnType: 'spend' | 'receive' = 'spend'): CanonicalTransaction {
     const lineItems: CanonicalLineItem[] = (txn.Lines || []).map((line: any) => ({
       description: line.Description || '',
       quantity: 1,
@@ -360,11 +416,11 @@ export class MYOBAdapter implements PlatformAdapter {
     return {
       id: txn.UID,
       platform: 'myob',
-      type: 'bank_transaction',
+      type: txnType === 'receive' ? 'payment' : 'bank_transaction',
       date: txn.Date,
-      reference: txn.PaymentNumber || txn.Memo,
+      reference: txn.PaymentNumber || txn.Memo || txn.ReceiptNumber,
       financialYear: getFinancialYearFromDate(new Date(txn.Date)),
-      contact: txn.Payee ? this.normalizeMYOBContact(txn.Payee, 'supplier') : undefined,
+      contact: txn.Payee ? this.normalizeMYOBContact(txn.Payee, txnType === 'receive' ? 'customer' : 'supplier') : undefined,
       lineItems,
       subtotal,
       totalTax,
@@ -381,7 +437,57 @@ export class MYOBAdapter implements PlatformAdapter {
       rawData: txn,
       metadata: {
         myobUID: txn.UID,
-        myobPaymentNumber: txn.PaymentNumber,
+        myobPaymentNumber: txn.PaymentNumber || txn.ReceiptNumber,
+        myobTransactionType: txnType,
+      },
+    }
+  }
+
+  /**
+   * Normalize MYOB general journal
+   */
+  private normalizeMYOBGeneralJournal(journal: any): CanonicalTransaction {
+    const lineItems: CanonicalLineItem[] = (journal.Lines || []).map((line: any) => ({
+      description: line.Description || line.Memo || '',
+      quantity: 1,
+      unitPrice: Math.abs(line.Amount || 0),
+      lineAmount: Math.abs(line.Amount || 0),
+      taxAmount: line.TaxAmount || 0,
+      totalAmount: Math.abs(line.Amount || 0) + (line.TaxAmount || 0),
+      accountCode: line.Account?.DisplayID,
+      accountName: line.Account?.Name,
+      metadata: {
+        myobLineRowID: line.RowID,
+        myobDebitCredit: line.IsCredit ? 'Credit' : 'Debit',
+      },
+    }))
+
+    const subtotal = lineItems.reduce((sum, item) => sum + item.lineAmount, 0)
+    const totalTax = lineItems.reduce((sum, item) => sum + item.taxAmount, 0)
+
+    return {
+      id: journal.UID,
+      platform: 'myob',
+      type: 'manual_journal',
+      date: journal.DateOccurred,
+      reference: journal.GSTReportingMethod || journal.Memo,
+      financialYear: getFinancialYearFromDate(new Date(journal.DateOccurred)),
+      lineItems,
+      subtotal,
+      totalTax,
+      total: subtotal + totalTax,
+      currency: 'AUD',
+      status: 'authorized',
+      isPaid: false,
+      hasAttachments: false,
+      attachmentCount: 0,
+      sourceUrl: journal.URI,
+      createdAt: journal.DateOccurred,
+      updatedAt: journal.LastModified,
+      rawData: journal,
+      metadata: {
+        myobUID: journal.UID,
+        myobGSTReportingMethod: journal.GSTReportingMethod,
       },
     }
   }

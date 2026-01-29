@@ -115,11 +115,14 @@ export async function fetchMYOBHistoricalTransactions(
             console.log(`[MYOB] Fetching transactions for ${fy.value} (${fy.startDate} to ${fy.endDate})`)
 
             // Fetch all transaction types
-            // MYOB endpoints: Sale/Invoice, Purchase/Bill, Banking/SpendMoneyTxn
+            // MYOB endpoints: Sale/Invoice, Purchase/Bill, Banking transactions, GeneralJournal
             const transactionTypes = [
                 { endpoint: 'Sale/Invoice/Item', type: 'ACCREC' },
                 { endpoint: 'Purchase/Bill/Item', type: 'ACCPAY' },
-                { endpoint: 'Banking/SpendMoneyTxn', type: 'BANK' }
+                { endpoint: 'Banking/SpendMoneyTxn', type: 'SPEND' },
+                { endpoint: 'Banking/ReceiveMoneyTxn', type: 'RECEIVE' },
+                { endpoint: 'GeneralLedger/GeneralJournal', type: 'JOURNAL' },
+                { endpoint: 'Sale/Invoice/Service', type: 'ACCREC_SERVICE' }
             ]
 
             for (const txType of transactionTypes) {
