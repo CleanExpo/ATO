@@ -89,8 +89,8 @@ function validateServerConfig() {
       clientSecret: getRequiredEnv('XERO_CLIENT_SECRET'),
     },
     linear: {
-      apiKey: getRequiredEnv('LINEAR_API_KEY'),
-      teamId: getRequiredEnv('LINEAR_TEAM_ID'),
+      apiKey: getOptionalEnv('LINEAR_API_KEY', ''),
+      teamId: getOptionalEnv('LINEAR_TEAM_ID', ''),
       projectId: getOptionalEnv('LINEAR_PROJECT_ID', ''),
     },
   };
