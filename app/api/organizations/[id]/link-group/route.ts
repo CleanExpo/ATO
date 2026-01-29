@@ -15,7 +15,7 @@ import { createErrorResponse, createValidationError } from '@/lib/api/errors';
 // POST - Link organization to group
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -29,7 +29,7 @@ export async function POST(
       );
     }
 
-    const organizationId = params.id;
+    const { id: organizationId } = await params;
     const body = await request.json();
 
     // Validate required fields
@@ -97,7 +97,7 @@ export async function POST(
 // DELETE - Unlink organization from group
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -111,7 +111,7 @@ export async function DELETE(
       );
     }
 
-    const organizationId = params.id;
+    const { id: organizationId } = await params;
 
     // Verify user has access to this organization
     const { data: access, error: accessError } = await supabase
