@@ -35,10 +35,8 @@ import {
 } from 'lucide-react'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
-import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
 import { DataStrip, DataStripGroup } from '@/components/ui/DataStrip'
 import { HoloPanel, HoloPanelGrid } from '@/components/ui/HoloPanel'
-import { MobileNav } from '@/components/ui/MobileNav'
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections'
 
 interface Connection {
@@ -342,12 +340,6 @@ function DashboardContent() {
 
   return (
     <div style={{ minHeight: '100vh' }}>
-      {/* Dynamic Island Navigation */}
-      <DynamicIsland showLogo />
-
-      {/* Vertical Navigation (Desktop) */}
-      <VerticalNav />
-
       {/* Main Content */}
       <main className="main-content" style={{
         paddingTop: 'var(--space-3xl)',
