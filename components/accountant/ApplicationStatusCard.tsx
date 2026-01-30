@@ -27,11 +27,13 @@ export default function ApplicationStatusCard({
   const fetchStatus = async () => {
     try {
       const response = await fetch(`/api/accountant/application/${applicationId}`);
-      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to fetch application status');
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to fetch application status');
       }
+
+      const data = await response.json();
 
       setStatus(data);
       setError(null);

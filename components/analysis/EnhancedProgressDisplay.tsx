@@ -44,11 +44,13 @@ export function EnhancedProgressDisplay({
     const fetchProgress = async () => {
       try {
         const response = await fetch(`/api/audit/analysis-status/${tenantId}`)
-        const data = await response.json()
 
         if (!response.ok) {
-          throw new Error(data.error || 'Failed to fetch progress')
+          const errorText = await response.text()
+          throw new Error(errorText || 'Failed to fetch progress')
         }
+
+        const data = await response.json()
 
         setProgress(data as EnhancedProgress)
         setIsLoading(false)

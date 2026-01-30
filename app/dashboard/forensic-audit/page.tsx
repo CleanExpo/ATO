@@ -69,6 +69,10 @@ function ForensicAuditPage() {
       }
       try {
         const response = await fetch('/api/xero/organizations')
+        if (!response.ok) {
+          console.error('Failed to fetch organizations:', response.status)
+          return
+        }
         const data = await response.json()
         if (data.connections?.length > 0) setTenantId(data.connections[0].tenant_id)
       } catch (err) { console.error(err) }

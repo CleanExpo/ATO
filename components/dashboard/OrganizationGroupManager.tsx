@@ -71,6 +71,9 @@ export function OrganizationGroupManager({
     try {
       setLoading(true)
       const response = await fetch('/api/organizations/groups')
+      if (!response.ok) {
+        throw new Error('Failed to fetch groups')
+      }
       const data = await response.json()
       setGroups(data.groups || [])
     } catch (err) {
