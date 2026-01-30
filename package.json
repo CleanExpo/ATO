@@ -36,7 +36,8 @@
     "linear:report": "tsx scripts/linear/generate-report.ts",
     "senior-pm:orchestrate": "tsx scripts/senior-pm/orchestrate-project.ts",
     "senior-pm:daily-report": "tsx scripts/senior-pm/generate-daily-report.ts",
-    "senior-pm:test-workflow": "tsx scripts/test-senior-pm-workflow.ts"
+    "senior-pm:test-workflow": "tsx scripts/test-senior-pm-workflow.ts",
+    "orchestrator:decompose": "tsx scripts/orchestrator/decompose-task.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
