@@ -56,6 +56,66 @@ Review historical loss carry-forwards and capital contributions.
 
 ---
 
+## 🤖 Multi-Agent Architecture Framework
+
+This project uses a formalized multi-agent development framework. See `MULTI_AGENT_ARCHITECTURE.md` for complete specification.
+
+### Agent Hierarchy
+
+```
+Developer (Ultimate Authority)
+    ↓
+Senior Project Manager
+    ↓
+Orchestrator
+    ↓
+┌─────────┬─────────┬─────────┬─────────┐
+│ Spec A  │ Spec B  │ Spec C  │ Spec D  │
+│ Arch    │ Code    │ Test    │ Docs    │
+└─────────┴─────────┴─────────┴─────────┘
+```
+
+### Framework Components
+
+**Framework Agents** (Development):
+- Orchestrator: Task decomposition and coordination
+- Specialist A: Architecture & Design
+- Specialist B: Implementation & Coding
+- Specialist C: Testing & Validation
+- Specialist D: Review & Documentation
+
+**Tax Domain Agents** (Business Logic):
+- 18 specialized tax agents (R&D, deductions, Division 7A, etc.)
+
+### Quality Gates
+
+Six automated quality gates enforce standards before phase transitions:
+1. Design Complete → Implementation
+2. Implementation Complete → Testing
+3. Testing Complete → Documentation
+4. Documentation Complete → Integration
+5. Integration Complete → Final Approval
+6. Final Approval → Deployment
+
+### Linear Integration
+
+All work tracked in Linear:
+- Team: `unite-hub`
+- Project: `ato-3f31f766c467`
+- Auto-updates, blocker escalation, daily reports
+
+### Quick Commands
+
+```bash
+npm run agent:orchestrator -- --task "Description"
+npm run agent:daily-report
+npm run agent:quality-gate -- --gate <name>
+npm run linear:sync
+npm run linear:report
+```
+
+---
+
 ## 🔗 Critical Resources
 - **Knowledge Base**: `KNOWLEDGE.md` - Technical architecture and skill mapping.
 - **Project Status**: `ATO_PROJECT_STATUS.md` - Linear task tracking and deployment health.
