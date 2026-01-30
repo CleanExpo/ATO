@@ -56,6 +56,8 @@ export class LinearOrchestrator {
   private client: LinearClient;
   private teamId: string;
   private projectId: string;
+  private teamUuid?: string;
+  private projectUuid?: string;
 
   constructor() {
     const apiKey = process.env.LINEAR_API_KEY;
@@ -65,27 +67,61 @@ export class LinearOrchestrator {
 
     this.client = new LinearClient({ apiKey });
     this.teamId = process.env.LINEAR_TEAM_ID || 'unite-hub';
-    this.projectId = process.env.LINEAR_PROJECT_ID || 'ato-3f31f766c467';
+    // Project name
+    this.projectId = process.env.LINEAR_PROJECT_NAME || 'ATO';
+  }
+
+  /**
+   * Initialize team and project UUIDs
+   */
+  private async initialize(): Promise<void> {
+    if (this.teamUuid && this.projectUuid) {
+      return; // Already initialized
+    }
+
+    // Get team UUID
+    const team = await this.client.team(this.teamId);
+    if (!team) {
+      throw new Error(`Team not found: ${this.teamId}`);
+    }
+    this.teamUuid = team.id;
+
+    // Get project UUID
+    const projects = await team.projects();
+
+    // Match by project name (case-insensitive)
+    const project = projects.nodes.find(p =>
+      p.name.toLowerCase() === this.projectId.toLowerCase()
+    );
+
+    if (!project) {
+      const availableProjects = projects.nodes.map(p => p.name).join(', ');
+      throw new Error(`Project "${this.projectId}" not found. Available: ${availableProjects}`);
+    }
+
+    this.projectUuid = project.id;
   }
 
   /**
    * Create a parent issue from Developer request
    */
   async createParentIssue(request: DeveloperRequest): Promise<LinearIssue> {
+    await this.initialize();
+
     const description = this.formatDeveloperRequest(request);
     const priority = this.mapPriority(request.priority);
     const labels = await this.getLabels(['agent:orchestrator', `type:${request.type}`]);
 
     const issuePayload: IssueCreateInput = {
-      teamId: this.teamId,
-      projectId: this.projectId,
+      teamId: this.teamUuid!,
+      projectId: this.projectUuid,
       title: request.title,
       description,
       priority,
       labelIds: labels,
     };
 
-    const issueResult = await this.client.issueCreate(issuePayload);
+    const issueResult = await this.client.createIssue(issuePayload);
     const issue = await issueResult.issue;
 
     if (!issue) {
@@ -106,6 +142,8 @@ export class LinearOrchestrator {
     parentIssueId: string,
     tasks: OrchestratorTask[]
   ): Promise<LinearIssue[]> {
+    await this.initialize();
+
     const subTasks: LinearIssue[] = [];
 
     for (const task of tasks) {
@@ -116,8 +154,8 @@ export class LinearOrchestrator {
       const labels = await this.getLabels([agentLabel, 'status:pending']);
 
       const issuePayload: IssueCreateInput = {
-        teamId: this.teamId,
-        projectId: this.projectId,
+        teamId: this.teamUuid!,
+        projectId: this.projectUuid,
         parentId: parentIssueId,
         title: `[${task.specialist}] ${task.title}`,
         description,
@@ -126,7 +164,7 @@ export class LinearOrchestrator {
         estimate: task.estimatedHours,
       };
 
-      const issueResult = await this.client.issueCreate(issuePayload);
+      const issueResult = await this.client.createIssue(issuePayload);
       const issue = await issueResult.issue;
 
       if (!issue) {
@@ -142,7 +180,7 @@ export class LinearOrchestrator {
       // Create dependencies if specified
       if (task.dependsOn && task.dependsOn.length > 0) {
         for (const depId of task.dependsOn) {
-          await this.client.issueRelationCreate({
+          await this.client.createIssueRelation({
             issueId: issue.id,
             relatedIssueId: depId,
             type: 'blocks', // This task is blocked by dependency
@@ -165,13 +203,13 @@ export class LinearOrchestrator {
     // Update labels
     const statusLabels = await this.getLabels([`status:${status}`]);
 
-    await this.client.issueUpdate(issueId, {
+    await this.client.updateIssue(issueId, {
       labelIds: statusLabels,
     });
 
     // Add comment if provided
     if (comment) {
-      await this.client.commentCreate({
+      await this.client.createComment({
         issueId,
         body: this.formatStatusComment(status, comment),
       });
@@ -181,7 +219,7 @@ export class LinearOrchestrator {
     if (status === 'done') {
       const completedState = await this.getCompletedState();
       if (completedState) {
-        await this.client.issueUpdate(issueId, {
+        await this.client.updateIssue(issueId, {
           stateId: completedState.id,
         });
       }
@@ -211,7 +249,7 @@ cc: @senior-pm
 ---
 *Reported: ${new Date().toISOString()}*`;
 
-    await this.client.commentCreate({
+    await this.client.createComment({
       issueId,
       body: comment,
     });
