@@ -2,6 +2,47 @@
 
 This document defines the autonomous agent fleet for comprehensive Australian tax optimization.
 
+## Multi-Agent Architecture Framework
+
+This agent system is organized into **two tiers**:
+
+### Tier 1: Development Process Agents (Framework)
+
+These agents manage the **development workflow**:
+
+| Agent | Role | Context | Reports To |
+|-------|------|---------|-----------|
+| **Orchestrator** | Operational command, task decomposition, results synthesis | Shared | Senior PM |
+| **Specialist A** | Architecture & Design (ADRs, system diagrams, API schemas) | Context 1 (design docs only) | Orchestrator |
+| **Specialist B** | Implementation & Coding (production code, features) | Context 2 (code only) | Orchestrator |
+| **Specialist C** | Testing & Validation (unit/integration/E2E tests, ≥80% coverage) | Context 3 (tests only) | Orchestrator |
+| **Specialist D** | Review & Documentation (code review, API docs, changelogs) | Context 4 (docs only) | Orchestrator |
+
+**Agent Definitions**:
+- Orchestrator: [.agent/orchestrator/ORCHESTRATOR.md](.agent/orchestrator/ORCHESTRATOR.md)
+- Specialist A: [.agent/specialists/architect/SPECIALIST_A.md](.agent/specialists/architect/SPECIALIST_A.md)
+- Specialist B: [.agent/specialists/developer/SPECIALIST_B.md](.agent/specialists/developer/SPECIALIST_B.md)
+- Specialist C: [.agent/specialists/tester/SPECIALIST_C.md](.agent/specialists/tester/SPECIALIST_C.md)
+- Specialist D: [.agent/specialists/reviewer/SPECIALIST_D.md](.agent/specialists/reviewer/SPECIALIST_D.md)
+
+**Context Isolation**: Each specialist operates in an isolated context to prevent cross-contamination. Context handoffs occur via standardized protocols (see `lib/agents/communication.ts`).
+
+**Quality Gates**: Phase transitions require passing automated quality gates (see `lib/agents/quality-gates.ts`):
+1. Design Complete → Implementation
+2. Implementation Complete → Testing
+3. Testing Complete → Documentation
+4. Documentation Complete → Integration
+5. Integration Complete → Final Approval
+6. Final Approval → Deployment
+
+**Linear Integration**: All framework tasks tracked in Linear (Team: `unite-hub`, Project: `ato-3f31f766c467`)
+
+See [MULTI_AGENT_ARCHITECTURE.md](../MULTI_AGENT_ARCHITECTURE.md) for complete framework specification.
+
+### Tier 2: Tax Domain Agents (Business Logic)
+
+These agents handle **Australian tax analysis** (18 specialized agents below):
+
 ## Mission
 
 Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to identify every legal avenue to recover missing tax benefits, correct ledger misclassifications, optimize tax position, and maximize refunds.

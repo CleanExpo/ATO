@@ -151,6 +151,87 @@ flowchart TB
 
 ---
 
+## 🤖 Multi-Agent Development Framework
+
+This project employs a sophisticated multi-agent development framework that coordinates **4 specialist agents** plus an **orchestrator** for structured, quality-gated development.
+
+### Agent Fleet
+
+**Framework Agents** (Development Process):
+- 🎯 **Orchestrator** - Task decomposition, work distribution, results synthesis, quality control
+- 🏗️ **Specialist A: Architect** - System design, API schemas, database ERDs, architecture decision records (ADRs)
+- 💻 **Specialist B: Developer** - Production code implementation, feature development, refactoring
+- 🧪 **Specialist C: Tester** - Unit/integration/E2E testing, QA, coverage reports (≥80% target)
+- 📚 **Specialist D: Reviewer** - Code review, technical documentation, API docs, user guides
+
+**Tax Domain Agents** (Business Logic):
+- 18 specialized agents for Australian tax analysis (R&D, deductions, losses, Division 7A, etc.)
+- See [.agent/AGENTS.md](.agent/AGENTS.md) for complete agent registry
+
+### Development Workflow
+
+```mermaid
+graph TD
+    A[👨‍💼 Developer] -->|Requirement| B[📊 Senior PM]
+    B -->|Create Linear Issue| C[🎯 Orchestrator]
+    C -->|Decompose & Assign| D[🏗️ Specialist A: Design]
+    C -->|Decompose & Assign| E[💻 Specialist B: Implement]
+    C -->|Decompose & Assign| F[🧪 Specialist C: Test]
+    C -->|Decompose & Assign| G[📚 Specialist D: Document]
+    D -->|Handoff Context| E
+    E -->|Handoff Context| F
+    F -->|Handoff Context| G
+    G -->|Integrate Results| C
+    C -->|Review & Report| B
+    B -->|Approve & Deploy| A
+
+    style A fill:#FFB74D,color:#000
+    style B fill:#4FC3F7,color:#000
+    style C fill:#BA68C8,color:#fff
+    style D fill:#81C784,color:#000
+    style E fill:#64B5F6,color:#000
+    style F fill:#FFD54F,color:#000
+    style G fill:#A1887F,color:#fff
+```
+
+### Quality Gates
+
+Every phase transition requires passing automated quality gates:
+
+| Gate | Criteria | Blocks Phase |
+|------|----------|--------------|
+| ✅ Design Complete | ADR created, diagrams complete, risks documented | Implementation |
+| ✅ Implementation Complete | Code compiles, linting passes, basic functionality works | Testing |
+| ✅ Testing Complete | ≥80% coverage, all tests pass, no critical bugs | Documentation |
+| ✅ Documentation Complete | API docs, changelog updated, examples provided | Integration |
+| ✅ Integration Complete | All outputs merged, system functional, no conflicts | Final Approval |
+| ✅ Final Approval | PM + Developer sign-off, ready for deployment | Deployment |
+
+See `lib/agents/quality-gates.ts` for automated enforcement.
+
+### Linear Integration
+
+All development work is tracked in Linear with automated updates:
+
+- 📝 **Task Creation** - Parent issues created from Developer requests
+- 🔄 **Sub-Task Assignment** - Specialists automatically assigned via Linear sub-issues
+- 📊 **Real-Time Updates** - Status transitions (pending → in-progress → review → done)
+- 🚫 **Blocker Escalation** - Automatic escalation with @mentions in comments
+- 📈 **Progress Tracking** - Daily reports showing specialist workload and velocity
+
+**Quick Commands**:
+```bash
+npm run agent:orchestrator -- --task "Add feature" --priority High
+npm run agent:daily-report                         # View daily status
+npm run agent:quality-gate -- --gate <name>        # Check quality gate
+npm run linear:sync                                # Sync with Linear
+npm run linear:report                              # Generate comprehensive report
+```
+
+See [MULTI_AGENT_ARCHITECTURE.md](MULTI_AGENT_ARCHITECTURE.md) for complete framework specification.
+
+---
+
 ## 🚀 Quick Start
 
 <details>
@@ -243,6 +324,7 @@ npm test
 | Document | Description |
 |----------|-------------|
 | [CLAUDE.md](CLAUDE.md) | AI development guidelines (RTCC pattern) |
+| [MULTI_AGENT_ARCHITECTURE.md](MULTI_AGENT_ARCHITECTURE.md) | Multi-agent framework specification |
 | [spec.md](spec.md) | Technical specification |
 | [API_DOCUMENTATION.md](API_DOCUMENTATION.md) | Complete API reference |
 | [FORENSIC_AUDIT_GUIDE.md](FORENSIC_AUDIT_GUIDE.md) | User guide for audits |

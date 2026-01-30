@@ -28,7 +28,12 @@
     "agents:run": "tsx agents/cli.ts run",
     "agents:report": "tsx agents/cli.ts report",
     "agents:stop": "tsx agents/cli.ts stop",
-    "agents:help": "tsx agents/cli.ts help"
+    "agents:help": "tsx agents/cli.ts help",
+    "agent:orchestrator": "tsx scripts/agents/run-orchestrator.ts",
+    "agent:daily-report": "tsx scripts/agents/daily-report.ts",
+    "agent:quality-gate": "tsx scripts/agents/check-quality-gate.ts",
+    "linear:sync": "tsx scripts/linear/sync-agent-tasks.ts",
+    "linear:report": "tsx scripts/linear/generate-report.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

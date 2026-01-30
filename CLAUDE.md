@@ -199,6 +199,93 @@ See `.agent/workflows/idea-intake.md` for complete documentation.
 
 ---
 
+## Multi-Agent Architecture Framework
+
+This project uses a formalized multi-agent architecture for development. See `MULTI_AGENT_ARCHITECTURE.md` for complete specification.
+
+### Agent Hierarchy
+
+```
+Developer (Ultimate Authority)
+    ↓
+Senior Project Manager (Executive)
+    ↓
+Orchestrator (Operational Command)
+    ↓
+┌─────────┬─────────┬─────────┬─────────┐
+│ Spec A  │ Spec B  │ Spec C  │ Spec D  │
+│ Arch    │ Dev     │ Test    │ Docs    │
+└─────────┴─────────┴─────────┴─────────┘
+```
+
+### When to Use Framework Agents
+
+Use the Orchestrator and specialist agents for **development process tasks**:
+- Architecture design, implementation, testing, documentation
+- Code review, refactoring, performance optimization
+- CI/CD setup, deployment automation
+
+Use the existing 18 **tax agents** for **domain-specific work**:
+- R&D analysis, deduction optimization, tax compliance
+- Forensic auditing, loss recovery, bad debt analysis
+
+### Communication Protocol
+
+All inter-agent communication follows standardized message formats (see `lib/agents/communication.ts`):
+- Priority levels: CRITICAL, URGENT, STANDARD, INFO
+- Message types: task-assignment, status-update, blocker-report, handoff, escalation, quality-review
+- Linear integration: High-priority messages auto-post to Linear issues
+
+### Quality Gates
+
+Before phase transitions, quality gates must pass:
+1. **Design Complete** → Implementation can start
+2. **Implementation Complete** → Testing can start
+3. **Testing Complete** → Documentation can start
+4. **Documentation Complete** → Integration can start
+5. **Integration Complete** → Ready for PM review
+6. **Final Approval** → Ready for deployment
+
+See `lib/agents/quality-gates.ts` for automated enforcement.
+
+### Linear Integration
+
+All agent tasks are tracked in Linear:
+- Parent issue created from Developer request
+- Sub-tasks created for each specialist assignment
+- Auto-updates on status changes (pending → in-progress → review → done)
+- Blocker escalation via comments
+- Daily progress reports
+
+### Quick Reference
+
+**Create orchestrated task**:
+```bash
+npm run agent:orchestrator -- --task "Add feature" --priority High
+```
+
+**Assign specialist work**:
+```
+@orchestrator decompose: [Developer requirement]
+@specialist-a design: [component]
+@specialist-b implement: [feature]
+@specialist-c test: [component]
+@specialist-d document: [feature]
+```
+
+**Check quality gate**:
+```bash
+npm run agent:quality-gate -- --gate design-complete --task ORCH-001
+```
+
+**View reports**:
+```bash
+npm run agent:daily-report    # Daily status
+npm run linear:report          # Comprehensive Linear report
+```
+
+---
+
 ## Task Guidelines
 
 ### Code Quality Standards
@@ -582,6 +669,13 @@ import type { ForensicAnalysis, RndTransaction } from '@/lib/types';
 
 # Use in Senior PM instance:
 /validate-queue               # Validate all pending items
+
+# Multi-Agent Framework
+npm run agent:orchestrator -- --task "Description"  # Create orchestrated task
+npm run agent:daily-report                         # Daily status report
+npm run agent:quality-gate -- --gate <name>        # Run quality gate check
+npm run linear:sync                                # Sync with Linear
+npm run linear:report                              # Generate Linear report
 ```
 
 ### Financial Years in Scope
