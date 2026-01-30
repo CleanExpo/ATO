@@ -81,10 +81,16 @@ export function EvidenceWizard({
       })
 
       const evidenceRes = await fetch(`/api/rnd/evidence?${evidenceParams}`)
+      if (!evidenceRes.ok) {
+        throw new Error('Failed to fetch evidence data')
+      }
       const evidenceData = await evidenceRes.json()
 
       // Fetch scores
       const scoreRes = await fetch(`/api/rnd/evidence/score?${evidenceParams}`)
+      if (!scoreRes.ok) {
+        throw new Error('Failed to fetch evidence scores')
+      }
       const scoreData = await scoreRes.json()
 
       // Group evidence by element
