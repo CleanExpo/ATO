@@ -19,7 +19,8 @@ import {
   BrainCircuit,
   Terminal,
   HelpCircle,
-  CreditCard
+  CreditCard,
+  Briefcase
 } from 'lucide-react'
 import {
   getDesktopNavItems,
@@ -45,6 +46,7 @@ const iconMap: Record<IconName, React.ComponentType<{ size?: number }>> = {
   Terminal,
   HelpCircle,
   CreditCard,
+  Briefcase,
 }
 
 function NavIcon({ name, size = 16 }: { name: IconName; size?: number }) {

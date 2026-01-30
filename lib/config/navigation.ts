@@ -19,6 +19,7 @@ export type IconName =
   | 'Terminal'
   | 'HelpCircle'
   | 'CreditCard'
+  | 'Briefcase'
 
 export interface NavItemConfig {
   /** URL path */
@@ -65,6 +66,15 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Audit',
     icon: 'FileSearch',
     matchPaths: ['/dashboard/forensic-audit', '/dashboard/audit', '/dashboard/data-quality'],
+    showInMobile: true,
+    showInDesktop: true,
+  },
+  {
+    href: '/dashboard/accountant',
+    label: 'Accountant Workflow',
+    shortLabel: 'Accountant',
+    icon: 'Briefcase',
+    matchPaths: ['/dashboard/accountant'],
     showInMobile: true,
     showInDesktop: true,
   },
