@@ -221,37 +221,52 @@ cc: @senior-pm
    * Generate daily status report across all active tasks
    */
   async generateDailyReport(): Promise<DailyReport> {
+    // Fetch team to get proper ID
+    const team = await this.client.team(this.teamId);
+    if (!team) {
+      throw new Error(`Team not found: ${this.teamId}`);
+    }
+
+    // Fetch all issues for the team
     const activeIssues = await this.client.issues({
       filter: {
-        project: { id: { eq: this.projectId } },
-        state: { type: { neq: 'completed' } },
+        team: { id: { eq: team.id } },
       },
     });
 
     const specialists: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
     const completedToday: string[] = [];
     const blocked: Array<{ title: string; url: string }> = [];
+    let totalActive = 0;
 
     for await (const issue of activeIssues.nodes) {
-      // Count by specialist
-      const labels = await issue.labels();
-      const specialistLabel = labels.nodes.find(l => l.name.startsWith('agent:specialist-'));
-      if (specialistLabel) {
-        const specialist = specialistLabel.name.split('-')[2]?.toUpperCase();
-        if (specialist && specialists[specialist] !== undefined) {
-          specialists[specialist]++;
+      const state = await issue.state;
+      const isCompleted = state?.type === 'completed';
+
+      // Count active (non-completed) issues
+      if (!isCompleted) {
+        totalActive++;
+
+        // Count by specialist
+        const labels = await issue.labels();
+        const specialistLabel = labels.nodes.find(l => l.name.startsWith('agent:specialist-'));
+        if (specialistLabel) {
+          const specialist = specialistLabel.name.split('-')[2]?.toUpperCase();
+          if (specialist && specialists[specialist] !== undefined) {
+            specialists[specialist]++;
+          }
+        }
+
+        // Check if blocked
+        const isBlocked = labels.nodes.some(l => l.name === 'status:blocked');
+        if (isBlocked) {
+          blocked.push({ title: issue.title, url: issue.url });
         }
       }
 
-      // Check if completed today
+      // Check if completed today (regardless of current state)
       if (issue.completedAt && this.isToday(new Date(issue.completedAt))) {
         completedToday.push(issue.title);
-      }
-
-      // Check if blocked
-      const isBlocked = labels.nodes.some(l => l.name === 'status:blocked');
-      if (isBlocked) {
-        blocked.push({ title: issue.title, url: issue.url });
       }
     }
 
@@ -260,7 +275,7 @@ cc: @senior-pm
       specialistCounts: specialists,
       completedToday,
       blocked,
-      totalActive: activeIssues.nodes.length,
+      totalActive,
     };
   }
 

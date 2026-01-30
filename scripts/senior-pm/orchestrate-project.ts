@@ -10,6 +10,8 @@
  *   npm run senior-pm:orchestrate -- --title "Add feature" --description "..." --priority High
  */
 
+import { config } from 'dotenv';
+import { resolve } from 'path';
 import { createLinearOrchestrator } from '@/lib/linear/orchestrator';
 import { createAgentCommunicationBus } from '@/lib/agents/communication';
 import { createQualityGateEnforcer } from '@/lib/agents/quality-gates';
@@ -17,6 +19,9 @@ import {
   createSeniorPMOrchestrationManager,
   type DeveloperRequest,
 } from '@/lib/senior-pm/orchestration-manager';
+
+// Load environment variables
+config({ path: resolve(process.cwd(), '.env.local') });
 
 interface Args {
   title: string;

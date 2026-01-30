@@ -16,11 +16,16 @@
  *   npm run senior-pm:daily-report -- --output report.md
  */
 
+import { config } from 'dotenv';
+import { resolve } from 'path';
 import { writeFile } from 'fs/promises';
 import { createLinearOrchestrator } from '@/lib/linear/orchestrator';
 import { createAgentCommunicationBus } from '@/lib/agents/communication';
 import { createQualityGateEnforcer } from '@/lib/agents/quality-gates';
 import { createSeniorPMOrchestrationManager } from '@/lib/senior-pm/orchestration-manager';
+
+// Load environment variables
+config({ path: resolve(process.cwd(), '.env.local') });
 
 interface Args {
   format?: 'markdown' | 'json' | 'text';
