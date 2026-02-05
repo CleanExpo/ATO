@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get Supabase client
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
 
     // Get current user
     const {

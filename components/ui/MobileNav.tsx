@@ -24,7 +24,8 @@ import {
   BrainCircuit,
   Terminal,
   HelpCircle,
-  CreditCard
+  CreditCard,
+  Briefcase
 } from 'lucide-react'
 import {
   getMobileNavItems,
@@ -47,6 +48,7 @@ const iconMap: Record<IconName, React.ComponentType<{ className?: string }>> = {
   Terminal,
   HelpCircle,
   CreditCard,
+  Briefcase,
 }
 
 function NavIcon({ name }: { name: IconName }) {

@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const tenantId = searchParams.get('tenantId');
     const status = searchParams.get('status');
 
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
 
     // Get current user
     const {

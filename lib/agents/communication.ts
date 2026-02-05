@@ -89,7 +89,7 @@ export class AgentCommunicationBus {
     if (['CRITICAL', 'URGENT'].includes(message.priority) && message.linearIssueUrl) {
       const issueId = this.extractIssueId(message.linearIssueUrl);
       if (issueId) {
-        await this.linearOrchestrator.client.createComment({
+        await (this.linearOrchestrator as any).client.createComment({
           issueId,
           body: this.formatMessageForLinear(fullMessage),
         });

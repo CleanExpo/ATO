@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get Xero connection from database
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
     const { data: connection, error: dbError } = await supabase
       .from('xero_connections')
       .select('access_token, refresh_token, expires_at')
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     const response = await xeroClient.payrollAUApi.getEmployees(tenantId);
 
     // Extract employees from response
-    const xeroEmployees: XeroEmployee[] = response.body.employees || [];
+    const xeroEmployees = (response.body.employees || []) as any[];
 
     // Filter by status if requested
     let filteredEmployees = xeroEmployees;

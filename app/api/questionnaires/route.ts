@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get Supabase client
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
 
     // Fetch questionnaires
     let query = supabase

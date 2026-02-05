@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get Xero connection from database
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
     const { data: connection, error: dbError } = await supabase
       .from('xero_connections')
       .select('access_token, refresh_token, expires_at')
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     const response = await xeroClient.accountingApi.getItems(tenantId);
 
     // Extract items from response
-    let xeroItems: XeroItem[] = response.body.items || [];
+    let xeroItems = (response.body.items || []) as any[];
 
     // Filter to tracked inventory only if requested
     if (trackedOnly) {

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get Xero connection from database
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
     const { data: connection, error: dbError } = await supabase
       .from('xero_connections')
       .select('access_token, refresh_token, expires_at')
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
       // Fetch BAS report for each quarter
       for (const quarter of quarters) {
         try {
-          const response = await xeroClient.accountingApi.getReportBASorGST(
+          const response = await (xeroClient.accountingApi as any).getReportBASorGST(
             tenantId,
             'BASREPORT', // reportID
             quarter.start,
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
       }
 
       try {
-        const response = await xeroClient.accountingApi.getReportBASorGST(
+        const response = await (xeroClient.accountingApi as any).getReportBASorGST(
           tenantId,
           'BASREPORT',
           quarterStart,

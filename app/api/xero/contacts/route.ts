@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get Xero connection from database
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
     const { data: connection, error: dbError } = await supabase
       .from('xero_connections')
       .select('access_token, refresh_token, expires_at')
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Extract contacts from response
-    let xeroContacts: XeroContact[] = response.body.contacts || [];
+    let xeroContacts = (response.body.contacts || []) as any[];
 
     // Filter by contact type if requested
     if (contactTypeFilter) {

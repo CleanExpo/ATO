@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get Supabase client
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
 
     // Step 1: Identify fuel purchases from transactions
     // Look for:

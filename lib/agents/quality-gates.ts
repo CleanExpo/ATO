@@ -460,7 +460,7 @@ ${result.recommendations.join('\n')}`
 ---
 *Quality gate evaluated: ${new Date(result.timestamp).toLocaleString()}*`;
 
-    await this.linearOrchestrator.client.commentCreate({
+    await (this.linearOrchestrator as any).client.commentCreate({
       issueId,
       body: comment,
     });

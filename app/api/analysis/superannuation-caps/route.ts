@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get Supabase client
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
 
     // Step 1: Fetch superannuation contributions from payroll data
     // Source: xero_super_contributions table (created in Phase 1.2)

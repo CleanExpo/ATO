@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get Xero connection from database
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
     const { data: connection, error: dbError } = await supabase
       .from('xero_connections')
       .select('access_token, refresh_token, expires_at')
@@ -61,10 +61,10 @@ export async function GET(request: NextRequest) {
     // Fetch assets from Xero Assets API
     // Note: Xero Assets API is a separate API from Accounting API
     // Base URL: https://api.xero.com/assets.xro/1.0/
-    const response = await xeroClient.assetApi.getAssets(tenantId, statusFilter || undefined);
+    const response = await xeroClient.assetApi.getAssets(tenantId, (statusFilter || 'Registered') as any);
 
     // Extract assets from response
-    const xeroAssets: XeroAsset[] = response.body.items || [];
+    const xeroAssets = (response.body.items || []) as any[];
 
     // Normalize to ATODE internal format
     const normalizedAssets: NormalizedAsset[] = xeroAssets.map(asset => normalizeAsset(asset));

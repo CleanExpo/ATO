@@ -231,7 +231,7 @@ function analyzeEmployee(
     .filter(c => c.contribution_type === 'SG')
     .reduce((sum, c) => sum + c.contribution_amount, 0);
 
-  const salaryS acrifice = contributions
+  const salarySacrifice = contributions
     .filter(c => c.contribution_type === 'salary_sacrifice')
     .reduce((sum, c) => sum + c.contribution_amount, 0);
 
@@ -239,7 +239,7 @@ function analyzeEmployee(
     .filter(c => c.contribution_type === 'employer_additional')
     .reduce((sum, c) => sum + c.contribution_amount, 0);
 
-  const totalConcessional = sgContributions + salaryS acrifice + employerAdditional;
+  const totalConcessional = sgContributions + salarySacrifice + employerAdditional;
 
   // Cap analysis
   const capUsagePercentage = concessionalCap.toNumber() > 0
@@ -280,7 +280,7 @@ function analyzeEmployee(
     );
   }
 
-  if (salaryS acrifice > 0 || employerAdditional > 0) {
+  if (salarySacrifice > 0 || employerAdditional > 0) {
     recommendations.push(
       'Review salary sacrifice agreements annually to ensure contributions stay within cap.'
     );
@@ -292,7 +292,7 @@ function analyzeEmployee(
     financial_year: fy,
     total_concessional: totalConcessional,
     sg_contributions: sgContributions,
-    salary_sacrifice: salaryS acrifice,
+    salary_sacrifice: salarySacrifice,
     employer_additional: employerAdditional,
     concessional_cap: concessionalCap.toNumber(),
     cap_usage_percentage: capUsagePercentage,

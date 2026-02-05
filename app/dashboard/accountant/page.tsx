@@ -183,7 +183,7 @@ export default async function AccountantWorkflowPage() {
                         border: `1px solid ${area.color}30`,
                       }}
                     >
-                      <Icon className="w-5 h-5" style={{ color: area.color }} />
+                      <Icon className="w-5 h-5" />
                     </div>
                     <h3 className="text-lg font-light text-white/90">
                       {area.title}

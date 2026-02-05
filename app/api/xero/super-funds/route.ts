@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get Xero connection from database
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
     const { data: connection, error: dbError } = await supabase
       .from('xero_connections')
       .select('access_token, refresh_token, expires_at')
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const response = await xeroClient.payrollAUApi.getSuperfunds(tenantId);
 
     // Extract super funds from response
-    const xeroSuperFunds: XeroSuperFund[] = response.body.superfunds || [];
+    const xeroSuperFunds = (response.body.superFunds || []) as any[];
 
     // Separate SMSF vs APRA-regulated funds
     const smsfFunds = xeroSuperFunds.filter(fund => fund.type === 'SMSF');

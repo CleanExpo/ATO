@@ -20,10 +20,10 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { questionnaireId: string } }
+  { params }: { params: Promise<{ questionnaireId: string }> }
 ) {
   try {
-    const { questionnaireId } = params;
+    const { questionnaireId } = await params;
     const body = await request.json();
     const { responses } = body;
 
@@ -33,7 +33,7 @@ export async function POST(
     }
 
     // Get Supabase client
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
 
     // Get current user
     const {

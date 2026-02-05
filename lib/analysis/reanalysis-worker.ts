@@ -38,7 +38,7 @@ interface ReanalysisResult {
 export async function processAnalysisQueue(
   maxJobs: number = 10
 ): Promise<{ processed: number; failed: number; errors: string[] }> {
-  const supabase = createServiceClient();
+  const supabase = await createServiceClient();
 
   // Fetch pending jobs (high priority first, then by creation time)
   const { data: jobs, error: fetchError } = await supabase

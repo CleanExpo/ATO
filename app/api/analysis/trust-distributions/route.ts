@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get Supabase client
-    const supabase = createServiceClient();
+    const supabase = await createServiceClient();
 
     // Step 1: Identify trust entities from contacts
     const { data: trustContacts, error: contactsError } = await supabase
@@ -181,7 +181,7 @@ async function convertToTrustDistributions(
     .select('contact_id, name, entity_type, is_related_party')
     .eq('tenant_id', tenantId);
 
-  const contactMap = new Map(allContacts?.map(c => [c.contact_id, c]) || []);
+  const contactMap = new Map<string, any>(allContacts?.map((c: any) => [c.contact_id, c] as [string, any]) || []);
 
   for (const txn of transactions) {
     const trust = trustContacts.find(t => t.contact_id === txn.contact_id);

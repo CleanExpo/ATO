@@ -5,7 +5,9 @@
  * Manages issue creation, status updates, dependency tracking, and reporting.
  */
 
-import { LinearClient, Issue, IssueCreateInput, Comment } from '@linear/sdk';
+import { LinearClient, Issue, Comment } from '@linear/sdk';
+
+type IssueCreateInput = Parameters<LinearClient['createIssue']>[0];
 
 // Types
 export interface DeveloperRequest {
@@ -183,7 +185,7 @@ export class LinearOrchestrator {
           await this.client.createIssueRelation({
             issueId: issue.id,
             relatedIssueId: depId,
-            type: 'blocks', // This task is blocked by dependency
+            type: 'blocks' as any, // This task is blocked by dependency
           });
         }
       }
