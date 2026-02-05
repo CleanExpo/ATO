@@ -85,8 +85,16 @@ function validateServerConfig() {
       serviceRoleKey: getRequiredEnv('SUPABASE_SERVICE_ROLE_KEY'),
     },
     xero: {
-      clientId: getRequiredEnv('XERO_CLIENT_ID'),
-      clientSecret: getRequiredEnv('XERO_CLIENT_SECRET'),
+      clientId: getOptionalEnv('XERO_CLIENT_ID', ''),
+      clientSecret: getOptionalEnv('XERO_CLIENT_SECRET', ''),
+    },
+    myob: {
+      clientId: getOptionalEnv('MYOB_CLIENT_ID', ''),
+      clientSecret: getOptionalEnv('MYOB_CLIENT_SECRET', ''),
+    },
+    quickbooks: {
+      clientId: getOptionalEnv('QUICKBOOKS_CLIENT_ID', ''),
+      clientSecret: getOptionalEnv('QUICKBOOKS_CLIENT_SECRET', ''),
     },
     linear: {
       apiKey: getOptionalEnv('LINEAR_API_KEY', ''),
@@ -191,6 +199,10 @@ export function validateConfiguration(): {
       warnings.push('BUSINESS_ABN not set - reports will not include ABN');
     }
 
+    if (!serverConfig.xero.clientId) {
+      warnings.push('XERO_CLIENT_ID not set - Xero connections will not be available until configured');
+    }
+
     if (!serverConfig.linear.projectId) {
       warnings.push('LINEAR_PROJECT_ID not set - issues will be created without project assignment');
     }
@@ -215,7 +227,7 @@ export function logConfigurationStatus(): void {
   console.log(`Platform: ${sharedConfig.isVercel ? 'Vercel' : 'Local'}`);
   console.log(`Base URL: ${sharedConfig.baseUrl}`);
   console.log(`Supabase URL: ${clientConfig.supabase.url}`);
-  console.log(`Xero Client ID: ${serverConfig.xero.clientId.substring(0, 8)}...`);
+  console.log(`Xero Client ID: ${serverConfig.xero.clientId ? serverConfig.xero.clientId.substring(0, 8) + '...' : 'Not configured'}`);
   console.log(`Linear Team ID: ${serverConfig.linear.teamId}`);
 
   const validation = validateConfiguration();
