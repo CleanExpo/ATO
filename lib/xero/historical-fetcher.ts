@@ -16,6 +16,9 @@ import { createXeroClient, refreshXeroTokens, isTokenExpired } from '@/lib/xero/
 import { withRetry } from '@/lib/xero/retry'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getFinancialYears, type FinancialYear } from '@/lib/types'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('xero:historical-fetcher')
 
 // Interfaces
 export interface HistoricalTransaction {
@@ -82,7 +85,7 @@ export async function fetchHistoricalTransactions(
         // Generate financial years to fetch
         const financialYears = getFinancialYears().slice(0, options.years)
 
-        console.log(`Fetching ${options.years} years of historical data for tenant ${tenantId}`)
+        log.info('Fetching historical data', { tenantId, years: options.years })
 
         // Create Xero client
         const xero = createXeroClient()
@@ -108,7 +111,7 @@ export async function fetchHistoricalTransactions(
             const fy = financialYears[i]
             syncStatus.currentYear = fy.value
 
-            console.log(`Fetching transactions for ${fy.value} (${fy.startDate} to ${fy.endDate})`)
+            log.info('Fetching transactions for financial year', { fy: fy.value, startDate: fy.startDate, endDate: fy.endDate })
 
             // Fetch all transaction types
             const transactionTypes = ['ACCPAY', 'ACCREC', 'BANK'] // Accounts Payable, Accounts Receivable, Bank Transactions
@@ -146,12 +149,12 @@ export async function fetchHistoricalTransactions(
 
         await updateSyncStatus(tenantId, syncStatus)
 
-        console.log(`Sync complete: ${syncStatus.transactionsSynced} transactions cached`)
+        log.info('Sync complete', { transactionsSynced: syncStatus.transactionsSynced })
 
         return syncStatus
 
     } catch (error) {
-        console.error('Historical fetch error:', error)
+        log.error('Historical fetch error', error instanceof Error ? error : undefined, { tenantId })
 
         syncStatus.status = 'error'
         syncStatus.errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -204,7 +207,7 @@ async function fetchTransactionsByType(
                 timeoutMs: 30000,
                 initialBackoffMs: 1000,
                 onRetry: (attempt, error) => {
-                    console.warn(`Retrying fetch for ${type} page ${page} (attempt ${attempt}):`, error)
+                    log.warn('Retrying fetch', { type, page, attempt, error: error instanceof Error ? error.message : String(error) })
                 },
             }
         )
@@ -215,7 +218,7 @@ async function fetchTransactionsByType(
 
         allTransactions.push(...transactions)
 
-        console.log(`Fetched ${transactions.length} ${type} transactions for ${fy.value} (page ${page})`)
+        log.info('Fetched transactions page', { type, fy: fy.value, page, count: transactions.length })
 
         // Check if there are more pages
         if (transactions.length < pageSize) {
@@ -226,7 +229,7 @@ async function fetchTransactionsByType(
 
         // Rate limit prevention: Add delay before next request
         if (page > 1) {  // Don't delay on first request
-            console.log(`⏱️  Rate limit prevention: waiting ${INTER_REQUEST_DELAY_MS}ms before page ${page}`)
+            log.debug('Rate limit prevention delay', { delayMs: INTER_REQUEST_DELAY_MS, nextPage: page })
             await new Promise(resolve => setTimeout(resolve, INTER_REQUEST_DELAY_MS))
         }
     }
@@ -260,7 +263,7 @@ async function cacheTransactions(
 
             // Debug logging for transactions without IDs
             if (!transactionId) {
-                console.warn(`⚠️  Transaction without ID found:`, {
+                log.warn('Transaction without ID found', {
                     type: txn.type,
                     date: txn.date,
                     total: txn.total,
@@ -285,7 +288,7 @@ async function cacheTransactions(
         .filter(record => {
             // Skip transactions without valid IDs
             if (!record.transaction_id || record.transaction_id === 'null' || record.transaction_id === null) {
-                console.warn(`🚫 Skipping transaction without valid ID (type: ${record.transaction_type}, date: ${record.transaction_date})`)
+                log.warn('Skipping transaction without valid ID', { type: record.transaction_type, date: record.transaction_date })
                 return false
             }
             return true
@@ -300,15 +303,15 @@ async function cacheTransactions(
         })
 
     if (error) {
-        console.error('Error caching transactions:', error)
+        log.error('Error caching transactions', error instanceof Error ? error : undefined)
         throw error
     }
 
     const skippedCount = transactions.length - cacheRecords.length
     if (skippedCount > 0) {
-        console.log(`⚠️  Cached ${cacheRecords.length}/${transactions.length} transactions for ${financialYear} (${skippedCount} skipped due to missing IDs)`)
+        log.warn('Cached transactions with skips', { cached: cacheRecords.length, total: transactions.length, financialYear, skippedCount })
     } else {
-        console.log(`✅ Cached ${cacheRecords.length} transactions for ${financialYear}`)
+        log.info('Cached transactions', { count: cacheRecords.length, financialYear })
     }
 }
 
@@ -337,7 +340,7 @@ async function updateSyncStatus(tenantId: string, status: SyncProgress): Promise
         })
 
     if (error) {
-        console.error('Error updating sync status:', error)
+        log.error('Error updating sync status', error instanceof Error ? error : undefined)
         throw error
     }
 }
@@ -359,7 +362,7 @@ export async function getSyncStatus(tenantId: string): Promise<SyncProgress | nu
             // No status record yet
             return null
         }
-        console.error('Error getting sync status:', error)
+        log.error('Error getting sync status', error instanceof Error ? error : undefined)
         throw error
     }
 
@@ -406,7 +409,7 @@ export async function getCachedTransactions(
         const { data, error } = await query
 
         if (error) {
-            console.error('Error getting cached transactions:', error)
+            log.error('Error getting cached transactions', error instanceof Error ? error : undefined)
             throw error
         }
 
@@ -419,7 +422,7 @@ export async function getCachedTransactions(
         }
     }
 
-    console.log(`[getCachedTransactions] Retrieved ${allRecords.length} transactions for tenant ${tenantId}`)
+    log.info('Retrieved cached transactions', { tenantId, count: allRecords.length })
     return allRecords
 }
 

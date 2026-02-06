@@ -10,6 +10,9 @@
 
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:errors')
 
 export interface ApiErrorResponse {
     error: string
@@ -93,9 +96,8 @@ export function createErrorResponse(
     }
 
     // Log full error details server-side (including stack trace)
-    console.error(`[${errorId}] API Error:`, {
+    log.error(`[${errorId}] API Error`, error instanceof Error ? error : undefined, {
         message,
-        stack: error instanceof Error ? error.stack : undefined,
         context,
         timestamp,
     })

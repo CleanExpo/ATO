@@ -7,6 +7,9 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { createQuickBooksClient } from './quickbooks-client'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('integrations:quickbooks')
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -268,45 +271,45 @@ export async function fetchQuickBooksHistoricalData(
 
   // Fetch each transaction type
   if (transactionTypes.includes('purchases')) {
-    console.log('Fetching QuickBooks purchases...')
+    log.info('Fetching QuickBooks purchases')
     const purchases = await fetchQuickBooksPurchases(client, options.startDate, options.endDate)
     allTransactions.push(...purchases)
-    console.log(`Fetched ${purchases.length} purchases`)
+    log.info('Fetched purchases', { count: purchases.length })
   }
 
   if (transactionTypes.includes('bills')) {
-    console.log('Fetching QuickBooks bills...')
+    log.info('Fetching QuickBooks bills')
     const bills = await fetchQuickBooksBills(client, options.startDate, options.endDate)
     allTransactions.push(...bills)
-    console.log(`Fetched ${bills.length} bills`)
+    log.info('Fetched bills', { count: bills.length })
   }
 
   if (transactionTypes.includes('invoices')) {
-    console.log('Fetching QuickBooks invoices...')
+    log.info('Fetching QuickBooks invoices')
     const invoices = await fetchQuickBooksInvoices(client, options.startDate, options.endDate)
     allTransactions.push(...invoices)
-    console.log(`Fetched ${invoices.length} invoices`)
+    log.info('Fetched invoices', { count: invoices.length })
   }
 
   if (transactionTypes.includes('expenses')) {
-    console.log('Fetching QuickBooks expenses...')
+    log.info('Fetching QuickBooks expenses')
     const expenses = await fetchQuickBooksExpenses(client, options.startDate, options.endDate)
     allTransactions.push(...expenses)
-    console.log(`Fetched ${expenses.length} expenses`)
+    log.info('Fetched expenses', { count: expenses.length })
   }
 
   if (transactionTypes.includes('creditmemos')) {
-    console.log('Fetching QuickBooks credit memos...')
+    log.info('Fetching QuickBooks credit memos')
     const creditMemos = await fetchQuickBooksCreditMemos(client, options.startDate, options.endDate)
     allTransactions.push(...creditMemos)
-    console.log(`Fetched ${creditMemos.length} credit memos`)
+    log.info('Fetched credit memos', { count: creditMemos.length })
   }
 
   if (transactionTypes.includes('journalentries')) {
-    console.log('Fetching QuickBooks journal entries...')
+    log.info('Fetching QuickBooks journal entries')
     const journalEntries = await fetchQuickBooksJournalEntries(client, options.startDate, options.endDate)
     allTransactions.push(...journalEntries)
-    console.log(`Fetched ${journalEntries.length} journal entries`)
+    log.info('Fetched journal entries', { count: journalEntries.length })
   }
 
   return {
@@ -350,11 +353,11 @@ export async function cacheQuickBooksTransactions(
       })
 
     if (error) {
-      console.error('Error caching QuickBooks transactions:', error)
+      log.error('Error caching QuickBooks transactions', error instanceof Error ? error : undefined)
       throw new Error(`Failed to cache transactions: ${error.message}`)
     }
 
-    console.log(`Cached chunk ${i / chunkSize + 1} of ${Math.ceil(records.length / chunkSize)}`)
+    log.debug('Cached chunk', { chunk: i / chunkSize + 1, totalChunks: Math.ceil(records.length / chunkSize) })
   }
 }
 
@@ -380,7 +383,7 @@ export async function getCachedQuickBooksTransactions(
   const { data, error } = await query
 
   if (error) {
-    console.error('Error getting cached QuickBooks transactions:', error)
+    log.error('Error getting cached QuickBooks transactions', error instanceof Error ? error : undefined)
     throw new Error(`Failed to get cached transactions: ${error.message}`)
   }
 
@@ -408,7 +411,7 @@ export async function updateQuickBooksSyncStatus(
     })
 
   if (error) {
-    console.error('Error updating QuickBooks sync status:', error)
+    log.error('Error updating QuickBooks sync status', error instanceof Error ? error : undefined)
     throw new Error(`Failed to update sync status: ${error.message}`)
   }
 }
@@ -432,7 +435,7 @@ export async function getQuickBooksSyncStatus(
     if (error.code === 'PGRST116') {
       return null
     }
-    console.error('Error getting QuickBooks sync status:', error)
+    log.error('Error getting QuickBooks sync status', error instanceof Error ? error : undefined)
     throw new Error(`Failed to get sync status: ${error.message}`)
   }
 
@@ -507,7 +510,7 @@ export async function syncQuickBooksHistoricalData(
     }
 
   } catch (error) {
-    console.error('QuickBooks sync error:', error)
+    log.error('QuickBooks sync error', error instanceof Error ? error : undefined, { tenantId })
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
 

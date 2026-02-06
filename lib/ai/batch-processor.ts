@@ -10,6 +10,7 @@
  */
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createLogger } from '@/lib/logger'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { getCachedMYOBTransactions } from '@/lib/integrations/myob-historical-fetcher'
 import { getCachedQuickBooksTransactions } from '@/lib/integrations/quickbooks-historical-fetcher'
@@ -19,6 +20,8 @@ import { getAdapter } from '@/lib/integrations'
 import type { CanonicalTransaction } from '@/lib/integrations/canonical-schema'
 import { triggerAlertGeneration } from '@/lib/alerts/alert-generator'
 import slack from '@/lib/slack/slack-notifier'
+
+const log = createLogger('ai:batch-processor')
 
 // Types
 export interface AnalysisProgress {
@@ -71,7 +74,7 @@ export async function analyzeAllTransactions(
     const analysisStartTime = Date.now()
 
     try {
-        console.log(`[${platform.toUpperCase()}] Starting AI analysis for tenant ${tenantId}`)
+        log.info('Starting AI analysis', { platform, tenantId })
 
         // Get user email for Slack notifications
         const { data: { user } } = await supabase.auth.admin.getUserById(tenantId)
@@ -98,13 +101,13 @@ export async function analyzeAllTransactions(
         const costEstimate = estimateAnalysisCost(totalTransactions)
         progress.estimatedCostUSD = costEstimate.estimatedCostUSD
 
-        console.log(`[${platform.toUpperCase()}] Total transactions: ${totalTransactions}, Batches: ${totalBatches}, Est. cost: $${costEstimate.estimatedCostUSD.toFixed(2)}`)
+        log.info('Analysis plan', { platform, totalTransactions, totalBatches, estimatedCostUSD: costEstimate.estimatedCostUSD })
 
         // Notify Slack: Analysis started
         try {
             await slack.notifyAnalysisStarted(tenantId, userEmail, platform, totalTransactions)
         } catch (error) {
-            console.error('Failed to send Slack notification (non-fatal):', error)
+            log.warn('Failed to send Slack notification (non-fatal)', { error: error instanceof Error ? error.message : String(error) })
         }
 
         // Store initial progress
@@ -155,7 +158,7 @@ export async function analyzeAllTransactions(
             throw new Error(`Unsupported platform: ${platform}`)
         }
 
-        console.log(`[${platform.toUpperCase()}] Fetched ${allCachedTransactions.length} cached transactions`)
+        log.info('Fetched cached transactions', { platform, count: allCachedTransactions.length })
 
         // Process in batches
         let totalAnalyzed = 0
@@ -164,7 +167,7 @@ export async function analyzeAllTransactions(
         for (let batch = 0; batch < totalBatches; batch++) {
             progress.currentBatch = batch + 1
 
-            console.log(`[${platform.toUpperCase()}] Processing batch ${batch + 1}/${totalBatches}...`)
+            log.info('Processing batch', { platform, batch: batch + 1, totalBatches })
 
             const startIndex = batch * batchSize
             const endIndex = Math.min(startIndex + batchSize, allCachedTransactions.length)
@@ -235,7 +238,7 @@ export async function analyzeAllTransactions(
                 (completed, total) => {
                     // Intra-batch progress
                     const batchProgress = (completed / total) * 100
-                    console.log(`  Batch progress: ${batchProgress.toFixed(0)}%`)
+                    log.debug('Batch progress', { batchProgress: Math.round(batchProgress) })
                 }
             )
 
@@ -249,7 +252,7 @@ export async function analyzeAllTransactions(
             // Check cost limit
             const costLimitUSD = parseFloat(process.env.AI_COST_LIMIT_USD || '10')
             if (totalCostAccumulated > costLimitUSD) {
-                console.warn(`⚠️  AI cost limit exceeded: $${totalCostAccumulated.toFixed(2)} > $${costLimitUSD}. Stopping analysis.`)
+                log.warn('AI cost limit exceeded, stopping analysis', { totalCostUSD: totalCostAccumulated, costLimitUSD })
                 progress.status = 'error'
                 progress.errorMessage = `Cost limit exceeded ($${totalCostAccumulated.toFixed(2)} > $${costLimitUSD} limit). Set AI_COST_LIMIT_USD env var to increase.`
                 await updateAnalysisProgress(tenantId, progress, platform)
@@ -268,7 +271,7 @@ export async function analyzeAllTransactions(
                 options.onProgress(progress)
             }
 
-            console.log(`[${platform.toUpperCase()}] Batch complete: ${totalAnalyzed}/${totalTransactions} (${progress.progress.toFixed(1)}%)`)
+            log.info('Batch complete', { platform, totalAnalyzed, totalTransactions, progressPct: Number(progress.progress.toFixed(1)) })
         }
 
         // Mark complete
@@ -278,18 +281,18 @@ export async function analyzeAllTransactions(
 
         // Invalidate all cached data for this tenant (analysis results changed)
         const invalidatedCount = invalidateTenantCache(tenantId)
-        console.log(`Invalidated ${invalidatedCount} cache entries for tenant ${tenantId}`)
+        log.info('Invalidated cache entries', { tenantId, invalidatedCount })
 
-        console.log(`[${platform.toUpperCase()}] Analysis complete: ${totalAnalyzed} transactions, $${totalCostAccumulated.toFixed(4)} cost`)
+        log.info('Analysis complete', { platform, totalAnalyzed, costUSD: totalCostAccumulated })
 
         // Trigger tax alert generation
         const financialYear = businessContext.financialYear || new Date().getFullYear().toString()
         try {
-            console.log(`🔔 Triggering alert generation for FY ${financialYear}...`)
+            log.info('Triggering alert generation', { financialYear })
             const alertCount = await triggerAlertGeneration(tenantId, financialYear, platform)
-            console.log(`✅ Generated ${alertCount} tax alerts`)
+            log.info('Generated tax alerts', { alertCount })
         } catch (alertError) {
-            console.error('Error generating alerts (non-fatal):', alertError)
+            log.warn('Error generating alerts (non-fatal)', { error: alertError instanceof Error ? alertError.message : String(alertError) })
             // Don't fail the entire analysis if alert generation fails
         }
 
@@ -340,13 +343,13 @@ export async function analyzeAllTransactions(
                 costUSD: totalCostAccumulated
             })
         } catch (error) {
-            console.error('Failed to send Slack notification (non-fatal):', error)
+            log.warn('Failed to send Slack notification (non-fatal)', { error: error instanceof Error ? error.message : String(error) })
         }
 
         return progress
 
     } catch (error) {
-        console.error(`[${platform.toUpperCase()}] Analysis failed:`, error)
+        log.error('Analysis failed', error instanceof Error ? error : undefined, { platform, tenantId })
 
         progress.status = 'error'
         progress.errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -368,7 +371,7 @@ export async function analyzeAllTransactions(
                 }
             )
         } catch (slackError) {
-            console.error('Failed to send Slack error notification (non-fatal):', slackError)
+            log.warn('Failed to send Slack error notification (non-fatal)', { error: slackError instanceof Error ? slackError.message : String(slackError) })
         }
 
         throw error
@@ -569,9 +572,9 @@ async function storeAnalysisResults(
 
     const duplicatesRemoved = records.length - uniqueRecords.length
     if (duplicatesRemoved > 0) {
-        console.warn(`⚠️  Deduplicated ${records.length} records to ${uniqueRecords.length} unique transactions (removed ${duplicatesRemoved} duplicates)`)
+        log.warn('Deduplicated batch records', { total: records.length, unique: uniqueRecords.length, duplicatesRemoved })
     } else {
-        console.log(`✅ No duplicates found in batch of ${records.length} records`)
+        log.debug('No duplicates found in batch', { recordCount: records.length })
     }
 
     // Batch upsert with deduplicated records
@@ -583,11 +586,11 @@ async function storeAnalysisResults(
         })
 
     if (error) {
-        console.error('Error storing analysis results:', error)
+        log.error('Error storing analysis results', error instanceof Error ? error : undefined)
         throw error
     }
 
-    console.log(`Stored ${uniqueRecords.length} analysis results`)
+    log.info('Stored analysis results', { count: uniqueRecords.length })
 }
 
 /**
@@ -618,7 +621,7 @@ async function updateAnalysisProgress(
         })
 
     if (error) {
-        console.error('[' + platform.toUpperCase() + '] Error updating analysis progress:', error)
+        log.error('Error updating analysis progress', error instanceof Error ? error : undefined, { platform })
     }
 }
 
@@ -652,7 +655,7 @@ async function trackAnalysisCost(
         })
 
     if (error) {
-        console.error('[' + platform.toUpperCase() + '] Error tracking cost:', error)
+        log.error('Error tracking cost', error instanceof Error ? error : undefined, { platform })
     }
 }
 
@@ -745,7 +748,7 @@ export async function getAnalysisResults(
     const { data, error } = await query
 
     if (error) {
-        console.error('Error getting analysis results:', error)
+        log.error('Error getting analysis results', error instanceof Error ? error : undefined)
         throw error
     }
 

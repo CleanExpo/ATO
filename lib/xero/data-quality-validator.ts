@@ -14,6 +14,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { classifyTransaction, type Transaction, type AccountCodeOption } from '@/lib/ai/account-classifier'
 import type { HistoricalTransaction } from '@/lib/xero/historical-fetcher'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('xero:data-quality')
 
 // Types
 export interface DataQualityIssue {
@@ -100,7 +103,7 @@ export async function scanForDataQualityIssues(options: ScanOptions): Promise<Sc
         }
 
         if (!transactions || transactions.length === 0) {
-            console.warn(`No transactions found for tenant ${tenantId}`)
+            log.warn('No transactions found', { tenantId })
             return {
                 scanId: crypto.randomUUID(),
                 tenantId,
@@ -114,7 +117,7 @@ export async function scanForDataQualityIssues(options: ScanOptions): Promise<Sc
             }
         }
 
-        console.log(`Scanning ${transactions.length} transactions for data quality issues...`)
+        log.info('Scanning transactions for data quality issues', { tenantId, count: transactions.length })
 
         // Fetch chart of accounts (needed for account classification)
         const chartOfAccounts = await fetchChartOfAccounts(tenantId)
@@ -200,7 +203,7 @@ export async function scanForDataQualityIssues(options: ScanOptions): Promise<Sc
             total_impact_amount: totalImpactAmount.toFixed(2)
         })
 
-        console.log(`✅ Data quality scan complete: ${allIssues.length} issues found`)
+        log.info('Data quality scan complete', { tenantId, issuesFound: allIssues.length })
 
         return {
             scanId: crypto.randomUUID(),
@@ -215,7 +218,7 @@ export async function scanForDataQualityIssues(options: ScanOptions): Promise<Sc
         }
 
     } catch (error) {
-        console.error('Data quality scan failed:', error)
+        log.error('Data quality scan failed', error instanceof Error ? error : undefined, { tenantId })
 
         // Update error status
         await updateScanStatus(tenantId, {
@@ -290,7 +293,7 @@ async function checkWrongAccount(
         return null
 
     } catch (error) {
-        console.error(`Error checking account for transaction ${txn.transaction_id as string}:`, error)
+        log.error('Error checking account for transaction', error instanceof Error ? error : undefined, { transactionId: txn.transaction_id })
         return null
     }
 }
@@ -340,7 +343,7 @@ async function checkTaxClassification(txn: Record<string, unknown>): Promise<Dat
         return null
 
     } catch (error) {
-        console.error(`Error checking tax classification for transaction ${txn.transaction_id as string}:`, error)
+        log.error('Error checking tax classification', error instanceof Error ? error : undefined, { transactionId: txn.transaction_id })
         return null
     }
 }
@@ -388,7 +391,7 @@ async function checkForDuplicates(txn: Record<string, unknown>, allTransactions:
         return null
 
     } catch (error) {
-        console.error(`Error checking duplicates for transaction ${txn.transaction_id as string}:`, error)
+        log.error('Error checking duplicates', error instanceof Error ? error : undefined, { transactionId: txn.transaction_id })
         return null
     }
 }
@@ -424,7 +427,7 @@ async function checkUnreconciled(txn: Record<string, unknown>): Promise<DataQual
         return null
 
     } catch (error) {
-        console.error(`Error checking reconciliation for transaction ${txn.transaction_id as string}:`, error)
+        log.error('Error checking reconciliation', error instanceof Error ? error : undefined, { transactionId: txn.transaction_id })
         return null
     }
 }
@@ -489,11 +492,11 @@ async function storeIssues(tenantId: string, issues: DataQualityIssue[]): Promis
         })
 
     if (error) {
-        console.error('Error storing data quality issues:', error)
+        log.error('Error storing data quality issues', error instanceof Error ? error : undefined)
         throw error
     }
 
-    console.log(`✅ Stored ${issues.length} data quality issues`)
+    log.info('Stored data quality issues', { count: issues.length })
 }
 
 /**
@@ -538,7 +541,7 @@ export async function getScanStatus(tenantId: string): Promise<Record<string, un
         .maybeSingle()
 
     if (error) {
-        console.error('Error getting scan status:', error)
+        log.error('Error getting scan status', error instanceof Error ? error : undefined)
         return null
     }
 
@@ -573,7 +576,7 @@ export async function getDataQualityIssues(tenantId: string, filters?: {
     const { data, error } = await query
 
     if (error) {
-        console.error('Error getting data quality issues:', error)
+        log.error('Error getting data quality issues', error instanceof Error ? error : undefined)
         return []
     }
 

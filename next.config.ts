@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
 
   // Performance optimizations
   compiler: {
-    removeConsole: process.env.NODE_ENV === "production",
+    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["log", "warn", "error", "info"] } : false,
   },
 
   // Security headers

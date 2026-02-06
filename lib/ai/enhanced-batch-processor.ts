@@ -10,6 +10,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { createLogger } from '@/lib/logger'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import {
   analyzeTransactionBatch,
@@ -31,6 +32,8 @@ import {
   type EnhancedProgress,
 } from './analysis-optimizer'
 import type { AnalysisProgress, AnalysisOptions } from './batch-processor'
+
+const log = createLogger('ai:enhanced-batch')
 
 /**
  * Enhanced analysis options with optimization features
@@ -98,7 +101,7 @@ export async function analyzeAllTransactionsOptimized(
   }
 
   try {
-    console.log(`🚀 Starting optimized AI analysis for tenant ${tenantId}`)
+    log.info('Starting optimized AI analysis', { tenantId })
 
     // Check for resume checkpoint
     let resumeFromCount = 0
@@ -106,14 +109,14 @@ export async function analyzeAllTransactionsOptimized(
       const checkpoint = await getResumeCheckpoint(tenantId)
       if (checkpoint.canResume) {
         resumeFromCount = checkpoint.lastAnalyzedCount
-        console.log(`♻️  Resuming from checkpoint: ${resumeFromCount} transactions already analyzed`)
+        log.info('Resuming from checkpoint', { resumeFromCount })
         progress.transactionsAnalyzed = resumeFromCount
       }
     }
 
     // Get all cached transactions
     const allTransactions = await getCachedTransactions(tenantId)
-    console.log(`📊 Found ${allTransactions.length} cached transactions`)
+    log.info('Found cached transactions', { count: allTransactions.length })
 
     // Filter out already-analyzed if caching enabled
     const { unanalyzed, alreadyAnalyzed, cacheHitRate } = await filterUnanalyzedTransactions(
@@ -126,13 +129,11 @@ export async function analyzeAllTransactionsOptimized(
     progress.totalTransactions = allTransactions.length
     progress.transactionsAnalyzed = alreadyAnalyzed.length
 
-    console.log(
-      `📦 Cache analysis: ${unanalyzed.length} to analyze, ${alreadyAnalyzed.length} cached (${cacheHitRate.toFixed(1)}% hit rate)`
-    )
+    log.info('Cache analysis', { toAnalyze: unanalyzed.length, cached: alreadyAnalyzed.length, cacheHitRate })
 
     // If everything is cached, we're done!
     if (unanalyzed.length === 0) {
-      console.log('✅ All transactions already analyzed (100% cache hit)')
+      log.info('All transactions already analyzed (100% cache hit)')
       progress.status = 'complete'
       progress.progress = 100
       await updateAnalysisProgress(tenantId, progress)
@@ -151,7 +152,7 @@ export async function analyzeAllTransactionsOptimized(
       }
 
       if (budgetCheck.warningTriggered) {
-        console.warn(`⚠️  ${budgetCheck.message}`)
+        log.warn(budgetCheck.message || 'Budget warning')
       }
 
       progress.budgetRemaining = budgetCheck.remainingBudget
@@ -161,9 +162,7 @@ export async function analyzeAllTransactionsOptimized(
     const totalBatches = Math.ceil(unanalyzed.length / currentBatchSize)
     progress.totalBatches = totalBatches
 
-    console.log(
-      `💰 Estimated cost: $${costEstimate.estimatedCostUSD.toFixed(4)} for ${unanalyzed.length} new transactions`
-    )
+    log.info('Estimated cost', { estimatedCostUSD: costEstimate.estimatedCostUSD, newTransactions: unanalyzed.length })
 
     // Get business context
     if (!businessContext.name) {
@@ -200,13 +199,13 @@ export async function analyzeAllTransactionsOptimized(
         })
 
         if (suggestedSize !== currentBatchSize) {
-          console.log(`🎯 Auto-tuning batch size: ${currentBatchSize} → ${suggestedSize}`)
+          log.info('Auto-tuning batch size', { from: currentBatchSize, to: suggestedSize })
           currentBatchSize = suggestedSize
           progress.currentBatchSize = currentBatchSize
         }
       }
 
-      console.log(`Processing batch ${batch + 1}/${totalBatches} (size: ${currentBatchSize})...`)
+      log.info('Processing batch', { batch: batch + 1, totalBatches, batchSize: currentBatchSize })
 
       // Get batch slice
       const startIndex = batch * currentBatchSize
@@ -252,12 +251,12 @@ export async function analyzeAllTransactionsOptimized(
           },
           (completed, total) => {
             const batchProgress = (completed / total) * 100
-            console.log(`  Batch progress: ${batchProgress.toFixed(0)}%`)
+            log.debug('Batch progress', { batchProgress: Math.round(batchProgress) })
           }
         )
       } catch (error) {
         hadError = true
-        console.error(`Batch ${batch + 1} failed:`, error)
+        log.error(`Batch ${batch + 1} failed`, error instanceof Error ? error : undefined)
         performanceTracker.recordBatch(batchTransactions.length, Date.now() - batchStartTime, true)
         throw error // Re-throw to stop analysis
       }
@@ -308,9 +307,12 @@ export async function analyzeAllTransactionsOptimized(
       }
 
       const etaFormatted = formatETA(etaCalc.eta, etaCalc.remainingMinutes)
-      console.log(
-        `✓ Batch complete: ${progress.transactionsAnalyzed}/${progress.totalTransactions} (${progress.progress.toFixed(1)}%) - ETA: ${etaFormatted}`
-      )
+      log.info('Batch complete', {
+        analyzed: progress.transactionsAnalyzed,
+        total: progress.totalTransactions,
+        progressPct: Number(progress.progress.toFixed(1)),
+        eta: etaFormatted,
+      })
     }
 
     // Mark complete
@@ -322,15 +324,13 @@ export async function analyzeAllTransactionsOptimized(
 
     // Invalidate tenant cache
     const invalidatedCount = invalidateTenantCache(tenantId)
-    console.log(`🗑️  Invalidated ${invalidatedCount} cache entries for tenant ${tenantId}`)
+    log.info('Invalidated cache entries', { tenantId, invalidatedCount })
 
-    console.log(
-      `✅ Analysis complete: ${totalAnalyzedNew} new, ${alreadyAnalyzed.length} cached, $${totalCostAccumulated.toFixed(4)} cost`
-    )
+    log.info('Analysis complete', { newAnalyzed: totalAnalyzedNew, cached: alreadyAnalyzed.length, costUSD: totalCostAccumulated })
 
     return progress
   } catch (error) {
-    console.error('❌ Analysis failed:', error)
+    log.error('Analysis failed', error instanceof Error ? error : undefined, { tenantId })
 
     progress.status = 'error'
     progress.errorMessage = error instanceof Error ? error.message : 'Unknown error'
@@ -422,11 +422,11 @@ async function storeAnalysisResults(
   })
 
   if (error) {
-    console.error('Error storing analysis results:', error)
+    log.error('Error storing analysis results', error instanceof Error ? error : undefined)
     throw error
   }
 
-  console.log(`💾 Stored ${uniqueRecords.length} analysis results`)
+  log.info('Stored analysis results', { count: uniqueRecords.length })
 }
 
 async function updateAnalysisProgress(tenantId: string, progress: EnhancedProgress): Promise<void> {
@@ -447,7 +447,7 @@ async function updateAnalysisProgress(tenantId: string, progress: EnhancedProgre
   )
 
   if (error) {
-    console.error('Error updating analysis progress:', error)
+    log.error('Error updating analysis progress', error instanceof Error ? error : undefined)
   }
 }
 
@@ -472,7 +472,7 @@ async function trackAnalysisCost(
   })
 
   if (error) {
-    console.error('Error tracking cost:', error)
+    log.error('Error tracking cost', error instanceof Error ? error : undefined)
   }
 }
 

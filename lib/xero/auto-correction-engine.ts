@@ -14,6 +14,9 @@
 import { createXeroClient, refreshXeroTokens, isTokenExpired } from '@/lib/xero/client'
 import { createClient } from '@/lib/supabase/server'
 import type { DataQualityIssue } from '@/lib/xero/data-quality-validator'
+import { createLogger } from '@/lib/logger'
+
+const logger = createLogger('xero:auto-correction')
 
 // Types
 export interface CorrectionLog {
@@ -69,19 +72,21 @@ export async function applyAutoCorrestions(
     let issuesPendingReview = 0
     let issuesSkipped = 0
 
-    console.log(`Processing ${issues.length} data quality issues...`)
+    logger.info(`Processing ${issues.length} data quality issues`, { count: issues.length, tenantId })
 
     // Separate issues by confidence level
     const highConfidence = issues.filter(i => i.confidence >= autoFixThreshold)
     const mediumConfidence = issues.filter(i => i.confidence >= 70 && i.confidence < autoFixThreshold)
     const lowConfidence = issues.filter(i => i.confidence < 70)
 
-    console.log(`- High confidence (auto-fix): ${highConfidence.length}`)
-    console.log(`- Medium confidence (review): ${mediumConfidence.length}`)
-    console.log(`- Low confidence (skip): ${lowConfidence.length}`)
+    logger.info('Issue breakdown by confidence', {
+        highConfidence: highConfidence.length,
+        mediumConfidence: mediumConfidence.length,
+        lowConfidence: lowConfidence.length,
+    })
 
     if (dryRun) {
-        console.log('🔍 DRY RUN MODE - No actual corrections will be applied')
+        logger.info('DRY RUN MODE - No actual corrections will be applied')
     }
 
     // Skip low confidence issues
@@ -115,9 +120,11 @@ export async function applyAutoCorrestions(
         try {
             if (dryRun) {
                 // Dry run: just log what would happen
-                console.log(`[DRY RUN] Would apply correction for ${issue.transactionId}:`)
-                console.log(`  Current: ${JSON.stringify(issue.currentState)}`)
-                console.log(`  Suggested: ${JSON.stringify(issue.suggestedFix)}`)
+                logger.info('DRY RUN: Would apply correction', {
+                    transactionId: issue.transactionId,
+                    currentState: issue.currentState,
+                    suggestedFix: issue.suggestedFix,
+                })
 
                 const log: CorrectionLog = {
                     correctionId: crypto.randomUUID(),
@@ -151,16 +158,18 @@ export async function applyAutoCorrestions(
             }
         } catch (error) {
             const errorMsg = `Failed to correct ${issue.transactionId}: ${error instanceof Error ? error.message : 'Unknown error'}`
-            console.error(errorMsg)
+            logger.error('Failed to correct transaction', error instanceof Error ? error : undefined, { transactionId: issue.transactionId })
             errors.push(errorMsg)
         }
     }
 
-    console.log(`✅ Auto-correction complete:`)
-    console.log(`  - Auto-corrected: ${issuesAutoCorrected}`)
-    console.log(`  - Pending review: ${issuesPendingReview}`)
-    console.log(`  - Skipped: ${issuesSkipped}`)
-    console.log(`  - Errors: ${errors.length}`)
+    logger.info('Auto-correction complete', {
+        issuesAutoCorrected,
+        issuesPendingReview,
+        issuesSkipped,
+        errorCount: errors.length,
+        tenantId,
+    })
 
     return {
         tenantId,
@@ -205,21 +214,21 @@ async function applyCorrection(
         case 'tax_classification':
             // Update tax type (requires Xero API update)
             // For now, we'll log it for manual correction
-            console.log(`Tax classification correction for ${issue.transactionId} requires manual update`)
+            logger.info('Tax classification correction requires manual update', { transactionId: issue.transactionId })
             break
 
         case 'duplicate':
             // Duplicates should be manually reviewed before deletion
-            console.log(`Duplicate ${issue.transactionId} flagged for manual review`)
+            logger.info('Duplicate flagged for manual review', { transactionId: issue.transactionId })
             break
 
         case 'unreconciled':
             // Reconciliation requires manual action
-            console.log(`Unreconciled transaction ${issue.transactionId} flagged for manual review`)
+            logger.info('Unreconciled transaction flagged for manual review', { transactionId: issue.transactionId })
             break
 
         default:
-            console.warn(`Unknown issue type: ${issue.issueType}`)
+            logger.warn('Unknown issue type', { issueType: issue.issueType })
             return null
     }
 
@@ -302,7 +311,7 @@ async function createReclassificationJournal(
         const createdJournal = response.body.manualJournals?.[0]
 
         if (createdJournal) {
-            console.log(`✅ Created Xero manual journal: ${createdJournal.manualJournalID}`)
+            logger.info('Created Xero manual journal', { journalId: createdJournal.manualJournalID })
 
             return {
                 journalId: createdJournal.manualJournalID || '',
@@ -313,7 +322,7 @@ async function createReclassificationJournal(
         return null
 
     } catch (error) {
-        console.error('Failed to create Xero manual journal:', error)
+        logger.error('Failed to create Xero manual journal', error instanceof Error ? error : undefined)
         throw error
     }
 }
@@ -361,7 +370,7 @@ async function storeCorrectionLog(tenantId: string, issueId: string, log: Correc
         })
 
     if (error) {
-        console.error('Error storing correction log:', error)
+        logger.error('Error storing correction log', error instanceof Error ? error : undefined, { tenantId })
         throw error
     }
 }
@@ -407,7 +416,7 @@ export async function getCorrectionLogs(tenantId: string, filters?: {
     const { data, error } = await query
 
     if (error) {
-        console.error('Error getting correction logs:', error)
+        logger.error('Error getting correction logs', error instanceof Error ? error : undefined, { tenantId })
         return []
     }
 
@@ -496,7 +505,7 @@ export async function revertCorrection(
                 manualJournals: [reversingJournal]
             })
 
-            console.log(`✅ Created reversing journal for ${correctionId}`)
+            logger.info('Created reversing journal', { correctionId })
         }
 
         // Update correction log status
@@ -519,7 +528,7 @@ export async function revertCorrection(
         return true
 
     } catch (error) {
-        console.error('Failed to revert correction:', error)
+        logger.error('Failed to revert correction', error instanceof Error ? error : undefined, { correctionId, tenantId })
         return false
     }
 }
