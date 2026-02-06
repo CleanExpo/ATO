@@ -18,9 +18,6 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('Global error boundary caught error:', error)
-
-    // TODO: Add error reporting service (Sentry) when configured
-    // For now, just log to console
   }, [error])
 
   return (

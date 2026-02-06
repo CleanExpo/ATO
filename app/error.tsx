@@ -2,7 +2,6 @@
  * Root Error Page
  *
  * Catches errors in the app directory and displays user-friendly error messages.
- * Automatically reports errors to Sentry in production.
  */
 
 'use client'
@@ -10,7 +9,6 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react'
-import { reportError, isSentryConfigured } from '@/lib/error-tracking/sentry'
 
 export default function Error({
   error,
@@ -20,29 +18,7 @@ export default function Error({
   reset: () => void
 }) {
   useEffect(() => {
-    // Report error to Sentry in production
-    reportError(error, {
-      tags: {
-        errorBoundary: 'root',
-        digest: error.digest || 'none',
-      },
-      extra: {
-        componentStack: error.stack,
-        timestamp: new Date().toISOString(),
-      },
-    });
-
-    // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Root error boundary caught error:', error);
-    }
-
-    // Notify user if Sentry is not configured in production
-    if (process.env.NODE_ENV === 'production' && !isSentryConfigured()) {
-      console.warn(
-        'SENTRY: Error tracking not configured. Set NEXT_PUBLIC_SENTRY_DSN to enable.'
-      );
-    }
+    console.error('Root error boundary caught error:', error);
   }, [error])
 
   return (

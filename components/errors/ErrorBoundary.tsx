@@ -2,7 +2,6 @@
  * Global Error Boundary
  *
  * Catches React errors and displays user-friendly error messages.
- * Integrates with Sentry for error tracking in production.
  */
 
 'use client'
@@ -40,27 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('ErrorBoundary caught error:', error, errorInfo)
-    }
-
-    // Send to Sentry in production
-    if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
-      // Dynamically import Sentry to avoid loading it unnecessarily
-      // @ts-ignore - Sentry is optional and may not be installed
-      import('@sentry/nextjs').then((Sentry: any) => {
-        Sentry.captureException(error, {
-          contexts: {
-            react: {
-              componentStack: errorInfo.componentStack,
-            },
-          },
-        })
-      }).catch(() => {
-        // Sentry not installed, skip error reporting
-      })
-    }
+    console.error('ErrorBoundary caught error:', error, errorInfo)
 
     // Call custom error handler if provided
     if (this.props.onError) {

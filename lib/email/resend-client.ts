@@ -583,6 +583,303 @@ ATO Tax Optimizer Team
   `.trim()
 }
 
+// ---------------------------------------------------------------------------
+// Stripe webhook emails
+// ---------------------------------------------------------------------------
+
+export interface SendPurchaseConfirmationEmailParams {
+  to: string
+  productType: string
+  amountPaid: number
+  dashboardUrl: string
+}
+
+export interface SendPaymentFailureEmailParams {
+  to: string
+  pricingUrl: string
+}
+
+/**
+ * Send purchase confirmation email after successful Stripe checkout
+ */
+export async function sendPurchaseConfirmationEmail(
+  params: SendPurchaseConfirmationEmailParams
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: DEFAULT_FROM_EMAIL,
+      to: params.to,
+      subject: 'Your ATO Tax Optimizer purchase is confirmed',
+      html: getPurchaseConfirmationEmailHTML(params),
+      text: getPurchaseConfirmationEmailText(params),
+    })
+
+    if (error) {
+      console.error('Resend error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, messageId: data?.id }
+  } catch (error) {
+    console.error('Failed to send purchase confirmation email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+/**
+ * Send payment failure email after a Stripe payment fails
+ */
+export async function sendPaymentFailureEmail(
+  params: SendPaymentFailureEmailParams
+): Promise<{ success: boolean; error?: string; messageId?: string }> {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: DEFAULT_FROM_EMAIL,
+      to: params.to,
+      subject: 'Payment issue with your ATO Tax Optimizer order',
+      html: getPaymentFailureEmailHTML(params),
+      text: getPaymentFailureEmailText(params),
+    })
+
+    if (error) {
+      console.error('Resend error:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, messageId: data?.id }
+  } catch (error) {
+    console.error('Failed to send payment failure email:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
+function formatProductType(productType: string): string {
+  const names: Record<string, string> = {
+    individual: 'Individual Plan',
+    business: 'Business Plan',
+    accountant: 'Accountant Plan',
+    additional_organization: 'Additional Organisation',
+  }
+  return names[productType] || productType
+}
+
+function getPurchaseConfirmationEmailHTML(params: SendPurchaseConfirmationEmailParams): string {
+  const amountFormatted = `$${(params.amountPaid / 100).toFixed(2)} AUD`
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Purchase Confirmed</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                Purchase Confirmed
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <div style="text-align: center; margin-bottom: 24px;">
+                <span style="display: inline-block; font-size: 48px;">&#10003;</span>
+              </div>
+
+              <h2 style="margin: 0 0 16px; color: #111827; font-size: 20px; font-weight: 600; text-align: center;">
+                Thank you for your purchase!
+              </h2>
+
+              <p style="margin: 0 0 24px; color: #4b5563; font-size: 16px; line-height: 1.5; text-align: center;">
+                Your payment has been processed successfully. Here are the details:
+              </p>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin: 0 0 24px;">
+                <tr>
+                  <td style="padding: 20px; background-color: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
+                    <p style="margin: 0 0 8px; color: #374151; font-size: 15px;">
+                      <strong>Product:</strong> ${formatProductType(params.productType)}
+                    </p>
+                    <p style="margin: 0; color: #374151; font-size: 15px;">
+                      <strong>Amount Paid:</strong> ${amountFormatted}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin: 0 0 24px;">
+                <tr>
+                  <td style="text-align: center;">
+                    <a href="${params.dashboardUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                      Go to Dashboard
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0; color: #9ca3af; font-size: 13px; line-height: 1.5; text-align: center;">
+                Your licence is now active. You can start using all features immediately.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px; text-align: center;">
+              <p style="margin: 0; color: #6b7280; font-size: 12px;">
+                &copy; ${new Date().getFullYear()} ATO Tax Optimizer. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim()
+}
+
+function getPurchaseConfirmationEmailText(params: SendPurchaseConfirmationEmailParams): string {
+  const amountFormatted = `$${(params.amountPaid / 100).toFixed(2)} AUD`
+
+  return `
+Thank you for your purchase!
+
+Your payment has been processed successfully.
+
+Product: ${formatProductType(params.productType)}
+Amount Paid: ${amountFormatted}
+
+Your licence is now active. Go to your dashboard to get started:
+${params.dashboardUrl}
+
+© ${new Date().getFullYear()} ATO Tax Optimizer
+  `.trim()
+}
+
+function getPaymentFailureEmailHTML(params: SendPaymentFailureEmailParams): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Issue</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f3f4f6;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                Payment Issue
+              </h1>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <h2 style="margin: 0 0 16px; color: #111827; font-size: 20px; font-weight: 600;">
+                We couldn't process your payment
+              </h2>
+
+              <p style="margin: 0 0 24px; color: #4b5563; font-size: 16px; line-height: 1.5;">
+                Unfortunately, your recent payment for ATO Tax Optimizer was unsuccessful. This can happen if your card was declined or if there were insufficient funds.
+              </p>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin: 0 0 24px;">
+                <tr>
+                  <td style="padding: 16px; background-color: #fef3c7; border-radius: 6px; border-left: 4px solid #f59e0b;">
+                    <p style="margin: 0 0 8px; color: #92400e; font-size: 14px; font-weight: 600;">
+                      What you can do
+                    </p>
+                    <ul style="margin: 0; padding-left: 20px; color: #92400e; font-size: 13px; line-height: 1.8;">
+                      <li>Check your card details and ensure funds are available</li>
+                      <li>Try a different payment method</li>
+                      <li>Contact your bank if the issue persists</li>
+                    </ul>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="width: 100%; margin: 0 0 24px;">
+                <tr>
+                  <td style="text-align: center;">
+                    <a href="${params.pricingUrl}" style="display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px;">
+                      Try Again
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 0; color: #9ca3af; font-size: 13px; line-height: 1.5; text-align: center;">
+                If you need assistance, contact us at <a href="mailto:support@ato-optimizer.com" style="color: #667eea; text-decoration: underline;">support@ato-optimizer.com</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #f9fafb; border-top: 1px solid #e5e7eb; border-radius: 0 0 8px 8px; text-align: center;">
+              <p style="margin: 0; color: #6b7280; font-size: 12px;">
+                &copy; ${new Date().getFullYear()} ATO Tax Optimizer. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim()
+}
+
+function getPaymentFailureEmailText(params: SendPaymentFailureEmailParams): string {
+  return `
+Payment Issue - ATO Tax Optimizer
+
+We couldn't process your payment.
+
+Unfortunately, your recent payment for ATO Tax Optimizer was unsuccessful. This can happen if your card was declined or if there were insufficient funds.
+
+What you can do:
+- Check your card details and ensure funds are available
+- Try a different payment method
+- Contact your bank if the issue persists
+
+Try again here: ${params.pricingUrl}
+
+If you need assistance, contact us at support@ato-optimizer.com
+
+© ${new Date().getFullYear()} ATO Tax Optimizer
+  `.trim()
+}
+
 /**
  * Get pricing tier details
  */

@@ -14,7 +14,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { verifyWebhookSignature } from '@/lib/stripe/client';
+import { sendPurchaseConfirmationEmail, sendPaymentFailureEmail } from '@/lib/email/resend-client';
+import { createLogger } from '@/lib/logger';
 import Stripe from 'stripe';
+
+const log = createLogger('stripe:webhook');
 
 /**
  * Disable Next.js body parsing so we can verify webhook signature
@@ -27,9 +31,7 @@ export async function POST(request: NextRequest) {
     // Get webhook secret from environment
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!webhookSecret) {
-      console.error(
-        'STRIPE_WEBHOOK_SECRET not configured. Cannot verify webhook.'
-      );
+      log.error('STRIPE_WEBHOOK_SECRET not configured. Cannot verify webhook.');
       return NextResponse.json(
         { error: 'Webhook secret not configured' },
         { status: 500 }
@@ -41,7 +43,7 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('stripe-signature');
 
     if (!signature) {
-      console.error('Missing stripe-signature header');
+      log.error('Missing stripe-signature header');
       return NextResponse.json(
         { error: 'Missing signature header' },
         { status: 400 }
@@ -54,7 +56,7 @@ export async function POST(request: NextRequest) {
       event = verifyWebhookSignature(body, signature, webhookSecret);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Webhook signature verification failed:', message);
+      log.error('Webhook signature verification failed', new Error(message));
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 400 }
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Process event
-    console.log(`Processing webhook event: ${event.type} (${event.id})`);
+    log.info('Processing webhook event', { type: event.type, eventId: event.id });
 
     switch (event.type) {
       case 'checkout.session.completed':
@@ -78,12 +80,12 @@ export async function POST(request: NextRequest) {
         break;
 
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        log.info('Unhandled event type', { type: event.type });
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error('Error processing webhook:', error);
+    log.error('Error processing webhook', error);
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Internal server error',
@@ -111,10 +113,7 @@ async function handleCheckoutCompleted(
     const priceAmount = parseInt(session.metadata?.price_amount || '0', 10);
 
     if (!userId || !productType) {
-      console.error('Missing required metadata in checkout session:', {
-        userId,
-        productType,
-      });
+      log.error('Missing required metadata in checkout session', undefined, { userId, productType });
       return;
     }
 
@@ -141,11 +140,11 @@ async function handleCheckoutCompleted(
       .single();
 
     if (purchaseError) {
-      console.error('Error creating purchase record:', purchaseError);
+      log.error('Error creating purchase record', purchaseError);
       return;
     }
 
-    console.log(`Purchase record created: ${purchase.id} for user ${userId}`);
+    log.info('Purchase record created', { purchaseId: purchase.id, userId });
 
     // Update user profile with license status
     // Note: For additional_organization purchases, we don't update the primary license_type
@@ -160,19 +159,33 @@ async function handleCheckoutCompleted(
         .eq('id', userId);
 
       if (profileError) {
-        console.error('Error updating profile license status:', profileError);
+        log.error('Error updating profile licence status', profileError);
         return;
       }
 
-      console.log(`License activated for user ${userId}: ${productType}`);
+      log.info('Licence activated', { userId, productType });
     } else {
-      console.log(`Additional organization license purchased for user ${userId}`);
+      log.info('Additional organisation licence purchased', { userId });
     }
 
-    // TODO: Send confirmation email to user
-    console.log(`TODO: Send purchase confirmation email to user ${userId}`);
+    // Send confirmation email
+    const { data: userData } = await supabase.auth.admin.getUserById(userId);
+    if (userData?.user?.email) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ato-optimizer.com';
+      const emailResult = await sendPurchaseConfirmationEmail({
+        to: userData.user.email,
+        productType,
+        amountPaid: priceAmount,
+        dashboardUrl: `${baseUrl}/dashboard`,
+      });
+      if (!emailResult.success) {
+        log.warn('Failed to send purchase confirmation email', { userId, error: emailResult.error });
+      }
+    } else {
+      log.warn('Could not send purchase confirmation email - no email found', { userId });
+    }
   } catch (error) {
-    console.error('Error handling checkout completion:', error);
+    log.error('Error handling checkout completion', error);
     throw error;
   }
 }
@@ -185,10 +198,12 @@ async function handlePaymentSucceeded(
   paymentIntent: Stripe.PaymentIntent
 ): Promise<void> {
   try {
-    console.log(`Payment succeeded: ${paymentIntent.id}`);
-    console.log(`Amount: ${paymentIntent.amount} ${paymentIntent.currency}`);
-    console.log(`Customer: ${paymentIntent.customer}`);
-    console.log(`Metadata:`, paymentIntent.metadata);
+    log.info('Payment succeeded', {
+      paymentIntentId: paymentIntent.id,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      customer: paymentIntent.customer as string,
+    });
 
     // Update purchase record if it exists
     if (paymentIntent.id) {
@@ -202,11 +217,11 @@ async function handlePaymentSucceeded(
         .eq('stripe_payment_intent_id', paymentIntent.id);
 
       if (error) {
-        console.error('Error updating purchase with payment status:', error);
+        log.error('Error updating purchase with payment status', error);
       }
     }
   } catch (error) {
-    console.error('Error handling payment succeeded:', error);
+    log.error('Error handling payment succeeded', error);
   }
 }
 
@@ -218,10 +233,13 @@ async function handlePaymentFailed(
   paymentIntent: Stripe.PaymentIntent
 ): Promise<void> {
   try {
-    console.error(`Payment failed: ${paymentIntent.id}`);
-    console.error(`Amount: ${paymentIntent.amount} ${paymentIntent.currency}`);
-    console.error(`Customer: ${paymentIntent.customer}`);
-    console.error(`Last error:`, paymentIntent.last_payment_error);
+    log.error('Payment failed', undefined, {
+      paymentIntentId: paymentIntent.id,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      customer: paymentIntent.customer as string,
+      lastError: paymentIntent.last_payment_error?.message,
+    });
 
     // Update purchase record if it exists
     if (paymentIntent.id) {
@@ -237,16 +255,27 @@ async function handlePaymentFailed(
         .eq('stripe_payment_intent_id', paymentIntent.id);
 
       if (error) {
-        console.error('Error updating purchase with failure status:', error);
+        log.error('Error updating purchase with failure status', error);
       }
     }
 
-    // TODO: Send payment failure email to user
+    // Send payment failure email
     const userId = paymentIntent.metadata?.user_id;
     if (userId) {
-      console.log(`TODO: Send payment failure email to user ${userId}`);
+      const supabaseForEmail = await createServiceClient();
+      const { data: userData } = await supabaseForEmail.auth.admin.getUserById(userId);
+      if (userData?.user?.email) {
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ato-optimizer.com';
+        const emailResult = await sendPaymentFailureEmail({
+          to: userData.user.email,
+          pricingUrl: `${baseUrl}/pricing`,
+        });
+        if (!emailResult.success) {
+          log.warn('Failed to send payment failure email', { userId, error: emailResult.error });
+        }
+      }
     }
   } catch (error) {
-    console.error('Error handling payment failed:', error);
+    log.error('Error handling payment failed', error);
   }
 }
