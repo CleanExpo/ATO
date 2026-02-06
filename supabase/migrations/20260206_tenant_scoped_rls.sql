@@ -3,7 +3,44 @@
 -- Purpose: Replace permissive USING(true) policies with tenant-scoped access
 -- on core data tables. Service role (batch-processor) bypasses RLS automatically.
 
+-- ============================================================
+-- 0. Create tax_recommendations table (never created in live DB)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS tax_recommendations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id TEXT NOT NULL,
+    priority TEXT CHECK (priority IN ('critical', 'high', 'medium', 'low')) NOT NULL,
+    tax_area TEXT CHECK (tax_area IN ('rnd', 'deductions', 'losses', 'div7a')) NOT NULL,
+    financial_year TEXT NOT NULL,
+    estimated_benefit DECIMAL(15,2) NOT NULL,
+    confidence INTEGER CHECK (confidence >= 0 AND confidence <= 100) NOT NULL,
+    adjusted_benefit DECIMAL(15,2),
+    action TEXT NOT NULL,
+    ato_forms TEXT[],
+    deadline DATE,
+    amendment_window TEXT CHECK (amendment_window IN ('open', 'closing_soon', 'closed')),
+    description TEXT,
+    legislative_reference TEXT,
+    supporting_evidence TEXT[],
+    documentation_required TEXT[],
+    estimated_accounting_cost DECIMAL(15,2),
+    net_benefit DECIMAL(15,2),
+    transaction_ids TEXT[],
+    transaction_count INTEGER,
+    status TEXT CHECK (status IN ('identified', 'in_progress', 'completed', 'rejected')) DEFAULT 'identified',
+    notes TEXT,
+    reviewed_by TEXT,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tax_recommendations_tenant
+    ON tax_recommendations(tenant_id);
+
+-- ============================================================
 -- Helper function: Get tenant IDs accessible by the current user
+-- ============================================================
 CREATE OR REPLACE FUNCTION get_user_tenant_ids()
 RETURNS SETOF TEXT
 LANGUAGE sql
@@ -11,12 +48,10 @@ SECURITY DEFINER
 STABLE
 AS $$
   SELECT tenant_id FROM xero_connections WHERE user_id = auth.uid()
-  UNION
-  SELECT company_file_id FROM myob_connections WHERE user_id = auth.uid()
 $$;
 
 -- ============================================================
--- 1. historical_transactions_cache
+-- 1. historical_transactions_cache RLS
 -- ============================================================
 DROP POLICY IF EXISTS "Users can view own tenant transactions" ON historical_transactions_cache;
 DROP POLICY IF EXISTS "Service role full access" ON historical_transactions_cache;
@@ -38,7 +73,7 @@ CREATE POLICY "tenant_update_historical_transactions"
   USING (tenant_id IN (SELECT get_user_tenant_ids()));
 
 -- ============================================================
--- 2. forensic_analysis_results
+-- 2. forensic_analysis_results RLS
 -- ============================================================
 DROP POLICY IF EXISTS "Users can view own tenant analysis" ON forensic_analysis_results;
 DROP POLICY IF EXISTS "Service role full access" ON forensic_analysis_results;
@@ -61,15 +96,8 @@ CREATE POLICY "tenant_update_forensic_analysis"
   USING (tenant_id IN (SELECT get_user_tenant_ids()));
 
 -- ============================================================
--- 3. tax_recommendations
+-- 3. tax_recommendations RLS
 -- ============================================================
-DROP POLICY IF EXISTS "Users can view own tenant recommendations" ON tax_recommendations;
-DROP POLICY IF EXISTS "Service role full access" ON tax_recommendations;
-DROP POLICY IF EXISTS "Allow all access to tax_recommendations" ON tax_recommendations;
-DROP POLICY IF EXISTS "tax_recommendations_select" ON tax_recommendations;
-DROP POLICY IF EXISTS "tax_recommendations_insert" ON tax_recommendations;
-DROP POLICY IF EXISTS "tax_recommendations_update" ON tax_recommendations;
-
 CREATE POLICY "tenant_select_tax_recommendations"
   ON tax_recommendations FOR SELECT
   USING (tenant_id IN (SELECT get_user_tenant_ids()));
@@ -83,7 +111,7 @@ CREATE POLICY "tenant_update_tax_recommendations"
   USING (tenant_id IN (SELECT get_user_tenant_ids()));
 
 -- ============================================================
--- 4. ai_analysis_costs
+-- 4. ai_analysis_costs RLS
 -- ============================================================
 DROP POLICY IF EXISTS "Users can view own tenant costs" ON ai_analysis_costs;
 DROP POLICY IF EXISTS "Service role full access" ON ai_analysis_costs;
@@ -100,7 +128,7 @@ CREATE POLICY "tenant_insert_ai_analysis_costs"
   WITH CHECK (tenant_id IN (SELECT get_user_tenant_ids()));
 
 -- ============================================================
--- Ensure RLS is enabled on all tables
+-- Enable RLS on all tables
 -- ============================================================
 ALTER TABLE historical_transactions_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE forensic_analysis_results ENABLE ROW LEVEL SECURITY;
