@@ -46,6 +46,7 @@ import {
   Info
 } from 'lucide-react';
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter';
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer';
 
 // --- Interfaces ---
 
@@ -452,6 +453,7 @@ export default function TaxReportingDashboard() {
             </Link>
           </div>
         </div>
+        <TaxDisclaimer />
       </div>
     </div>
   );

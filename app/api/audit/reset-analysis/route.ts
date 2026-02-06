@@ -10,16 +10,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
-
-// Single-user mode: Skip auth and use tenantId directly
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json()
         let tenantId: string
 
-        if (SINGLE_USER_MODE) {
+        if (isSingleUserMode()) {
             tenantId = body.tenantId
             if (!tenantId) {
                 return createValidationError('tenantId is required')

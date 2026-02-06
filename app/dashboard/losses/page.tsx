@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 const GlassCard = ({ children, className = '', highlight = false }: any) => (
     <motion.div
@@ -41,13 +42,13 @@ export default function LossAnalysisPage() {
     const [selectedFY, setSelectedFY] = useState('FY2024-25')
     const [loading, setLoading] = useState(true)
 
-    // Demo data for the forensic view
-    const metrics = {
-        netProfit: -42500.20,
-        totalIncome: 152000.00,
-        totalExpenses: 194500.20,
-        carryForwardLosses: 12500.00
-    }
+    const [metrics, setMetrics] = useState({
+        netProfit: 0,
+        totalIncome: 0,
+        totalExpenses: 0,
+        carryForwardLosses: 0
+    })
+    const [hasData, setHasData] = useState(false)
 
     useEffect(() => {
         async function loadData() {
@@ -63,6 +64,33 @@ export default function LossAnalysisPage() {
         }
         loadData()
     }, [])
+
+    useEffect(() => {
+        if (!activeTenantId) return
+        async function fetchMetrics() {
+            try {
+                const [reportsRes, analysisRes] = await Promise.all([
+                    fetch(`/api/xero/reports?tenantId=${activeTenantId}&reportType=ProfitAndLoss`),
+                    fetch(`/api/audit/analysis-results?tenantId=${activeTenantId}`)
+                ])
+                const reportsData = await reportsRes.json()
+                const analysisData = await analysisRes.json()
+
+                const totalIncome = reportsData.totalIncome || 0
+                const totalExpenses = reportsData.totalExpenses || 0
+                const netProfit = totalIncome - totalExpenses
+                const carryForwardLosses = analysisData.summary?.losses?.totalLosses || 0
+
+                if (totalIncome !== 0 || totalExpenses !== 0) {
+                    setMetrics({ netProfit, totalIncome, totalExpenses, carryForwardLosses })
+                    setHasData(true)
+                }
+            } catch (err) {
+                console.error('Failed to fetch loss metrics:', err)
+            }
+        }
+        fetchMetrics()
+    }, [activeTenantId])
 
     if (loading) return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-dashboard)] space-y-8">
@@ -112,25 +140,25 @@ export default function LossAnalysisPage() {
                     <GlassCard className="p-8">
                         <p className="text-[10px] font-black uppercase text-white/40 mb-3 tracking-widest">Net Result (P&L)</p>
                         <div className="text-3xl font-black text-red-400 font-mono">
-                            <AnimatedCounter value={metrics.netProfit} format="currency" size="lg" />
+                            {hasData ? <AnimatedCounter value={metrics.netProfit} format="currency" size="lg" /> : <span className="text-white/20">--</span>}
                         </div>
                     </GlassCard>
                     <GlassCard className="p-8">
                         <p className="text-[10px] font-black uppercase text-white/40 mb-3 tracking-widest">Total Income</p>
                         <div className="text-3xl font-black text-emerald-400 font-mono">
-                            <AnimatedCounter value={metrics.totalIncome} format="currency" size="lg" />
+                            {hasData ? <AnimatedCounter value={metrics.totalIncome} format="currency" size="lg" /> : <span className="text-white/20">--</span>}
                         </div>
                     </GlassCard>
                     <GlassCard className="p-8">
                         <p className="text-[10px] font-black uppercase text-white/40 mb-3 tracking-widest">Total Expenses</p>
                         <div className="text-3xl font-black text-amber-400 font-mono">
-                            <AnimatedCounter value={metrics.totalExpenses} format="currency" size="lg" />
+                            {hasData ? <AnimatedCounter value={metrics.totalExpenses} format="currency" size="lg" /> : <span className="text-white/20">--</span>}
                         </div>
                     </GlassCard>
                     <GlassCard className="p-8" highlight>
                         <p className="text-[10px] font-black uppercase text-sky-400 mb-3 tracking-widest">Available Losses</p>
                         <div className="text-3xl font-black text-white font-mono">
-                            <AnimatedCounter value={metrics.carryForwardLosses} format="currency" size="lg" />
+                            {hasData ? <AnimatedCounter value={metrics.carryForwardLosses} format="currency" size="lg" /> : <span className="text-white/20">--</span>}
                         </div>
                     </GlassCard>
                 </div>
@@ -238,6 +266,7 @@ export default function LossAnalysisPage() {
                     </div>
                 </div>
 
+                <TaxDisclaimer />
             </div>
         </div>
     )

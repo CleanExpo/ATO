@@ -18,9 +18,7 @@ import {
   calculateDaysUntilDeadline,
   calculateUrgencyLevel,
 } from '@/lib/types/rnd-registration'
-
-// Single-user mode: Skip auth and use tenantId directly
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 /**
  * GET /api/rnd/registrations

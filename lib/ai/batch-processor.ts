@@ -143,6 +143,20 @@ export async function analyzeAllTransactions(
             }
         }
 
+        // Fetch ALL cached transactions ONCE (outside the loop)
+        let allCachedTransactions: any[]
+        if (platform === 'xero') {
+            allCachedTransactions = await getCachedTransactions(tenantId)
+        } else if (platform === 'myob') {
+            allCachedTransactions = await getCachedMYOBTransactions(tenantId)
+        } else if (platform === 'quickbooks') {
+            allCachedTransactions = await getCachedQuickBooksTransactions(tenantId)
+        } else {
+            throw new Error(`Unsupported platform: ${platform}`)
+        }
+
+        console.log(`[${platform.toUpperCase()}] Fetched ${allCachedTransactions.length} cached transactions`)
+
         // Process in batches
         let totalAnalyzed = 0
         let totalCostAccumulated = 0
@@ -152,21 +166,9 @@ export async function analyzeAllTransactions(
 
             console.log(`[${platform.toUpperCase()}] Processing batch ${batch + 1}/${totalBatches}...`)
 
-            // Fetch batch of cached transactions (platform-specific)
-            let cachedTransactions: any[]
-            if (platform === 'xero') {
-                cachedTransactions = await getCachedTransactions(tenantId)
-            } else if (platform === 'myob') {
-                cachedTransactions = await getCachedMYOBTransactions(tenantId)
-            } else if (platform === 'quickbooks') {
-                cachedTransactions = await getCachedQuickBooksTransactions(tenantId)
-            } else {
-                throw new Error(`Unsupported platform: ${platform}`)
-            }
-
             const startIndex = batch * batchSize
-            const endIndex = Math.min(startIndex + batchSize, cachedTransactions.length)
-            const batchTransactions = cachedTransactions.slice(startIndex, endIndex)
+            const endIndex = Math.min(startIndex + batchSize, allCachedTransactions.length)
+            const batchTransactions = allCachedTransactions.slice(startIndex, endIndex)
 
             if (batchTransactions.length === 0) {
                 break // No more transactions
@@ -243,6 +245,16 @@ export async function analyzeAllTransactions(
             // Track cost
             const batchCost = estimateAnalysisCost(analyses.length).estimatedCostUSD
             totalCostAccumulated += batchCost
+
+            // Check cost limit
+            const costLimitUSD = parseFloat(process.env.AI_COST_LIMIT_USD || '10')
+            if (totalCostAccumulated > costLimitUSD) {
+                console.warn(`⚠️  AI cost limit exceeded: $${totalCostAccumulated.toFixed(2)} > $${costLimitUSD}. Stopping analysis.`)
+                progress.status = 'error'
+                progress.errorMessage = `Cost limit exceeded ($${totalCostAccumulated.toFixed(2)} > $${costLimitUSD} limit). Set AI_COST_LIMIT_USD env var to increase.`
+                await updateAnalysisProgress(tenantId, progress, platform)
+                break
+            }
 
             await trackAnalysisCost(tenantId, analyses.length, batchCost, platform)
 

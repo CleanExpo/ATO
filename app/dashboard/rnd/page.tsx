@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 const SectionHeading = ({ icon: Icon, title, badge }: any) => (
     <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
@@ -267,6 +268,7 @@ export default function RnDAssessmentPage() {
                     </div>
                 </div>
 
+                <TaxDisclaimer />
             </div>
         </div>
     )

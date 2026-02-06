@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createValidationError } from '@/lib/api/errors'
-
-// Single-user mode: Skip auth and use tenantId directly
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 export async function GET(request: NextRequest) {
   let tenantId: string
   let supabase
 
-  if (SINGLE_USER_MODE) {
+  if (isSingleUserMode()) {
     // Single-user mode: Get tenantId from query
     tenantId = request.nextUrl.searchParams.get('tenantId') || ''
     if (!tenantId) {

@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createValidationError } from '@/lib/api/errors'
-
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 export async function POST(request: NextRequest) {
   let tenantId: string
 
-  if (SINGLE_USER_MODE) {
+  if (isSingleUserMode()) {
     const body = await request.json()
     tenantId = body.tenantId || ''
     if (!tenantId) {

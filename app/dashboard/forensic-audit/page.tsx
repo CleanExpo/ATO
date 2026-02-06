@@ -338,8 +338,8 @@ function ForensicAuditPage() {
             animate={{ opacity: 1 }}
             className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 w-full max-w-4xl"
           >
-            <SummaryCard title="Identified Benefits" value={`$${(enhancedProgress.stats.totalDeductions || 42500).toLocaleString()}`} icon={TrendingUp} color="text-emerald-400" />
-            <SummaryCard title="R&D Candidates" value={enhancedProgress.stats.rndCandidates || 8} icon={RefreshCw} color="text-sky-400" />
+            <SummaryCard title="Identified Benefits" value={`$${(enhancedProgress.stats.totalDeductions || 0).toLocaleString()}`} icon={TrendingUp} color="text-emerald-400" />
+            <SummaryCard title="R&D Candidates" value={enhancedProgress.stats.rndCandidates || 0} icon={RefreshCw} color="text-sky-400" />
             <SummaryCard title="Audit Completion" value="100%" icon={ShieldCheck} color="text-white" />
           </motion.div>
         )}

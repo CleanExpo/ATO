@@ -27,9 +27,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import ExcelJS from 'exceljs'
 import archiver from 'archiver'
 import { Readable } from 'stream'
-
-// Single-user mode
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 interface ExportFilters {
   financialYear?: string

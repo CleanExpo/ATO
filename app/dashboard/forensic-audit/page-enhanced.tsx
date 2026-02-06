@@ -24,6 +24,7 @@ import {
   transformForensicAuditToClientView,
   type ForensicAuditResult
 } from '@/lib/utils/client-view-transformer'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 interface YearProgress {
   status: 'complete' | 'analyzing' | 'queued' | 'idle'
@@ -296,15 +297,22 @@ export default function ForensicAuditDashboardEnhanced() {
   const isReady = data?.syncStatus.status === 'complete' && data?.analysisStatus.status === 'complete'
   const isAnalyzing = data?.analysisStatus.status === 'analyzing'
 
-  // Chart data for opportunities by year
-  const opportunitiesByYear = data?.yearProgress
-    ? Object.entries(data.yearProgress)
-        .filter(([_, progress]) => progress.status === 'complete')
-        .map(([year]) => ({
-          name: year,
-          value: Math.random() * 100000 // TODO: Get actual values from API
-        }))
-    : []
+  // Chart data for opportunities by year - fetched from API
+  const [opportunitiesByYear, setOpportunitiesByYear] = useState<Array<{ name: string; value: number }>>([])
+
+  useEffect(() => {
+    if (!tenantId) return
+    async function fetchOpportunities() {
+      try {
+        const res = await fetch(`/api/audit/opportunities-by-year?tenantId=${tenantId}`)
+        const json = await res.json()
+        setOpportunitiesByYear(json.opportunities || [])
+      } catch (err) {
+        console.error('Failed to fetch opportunities by year:', err)
+      }
+    }
+    fetchOpportunities()
+  }, [tenantId, data?.analysisStatus.status])
 
   return (
     <div className="min-h-screen p-8">
@@ -527,6 +535,7 @@ export default function ForensicAuditDashboardEnhanced() {
             </div>
           </div>
         )}
+        <TaxDisclaimer />
       </div>
     </div>
   )

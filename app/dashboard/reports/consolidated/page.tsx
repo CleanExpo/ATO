@@ -27,6 +27,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import type { ConsolidatedReport } from '@/lib/reports/consolidated-report-generator'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { formatCurrency, formatPercentage } from '@/lib/reports/formatting-utils'
 
 type GenerationStatus = 'idle' | 'generating' | 'complete' | 'error'
@@ -128,6 +129,7 @@ function ConsolidatedReportPage() {
 
       {/* Page Content */}
       <div className="relative z-10 py-12 pt-20 space-y-12">
+
         {/* Header */}
         <header className="text-center space-y-4">
           <motion.div
@@ -443,6 +445,8 @@ function ConsolidatedReportPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        <TaxDisclaimer />
       </div>
     </>
   )

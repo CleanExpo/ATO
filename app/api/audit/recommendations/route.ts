@@ -26,15 +26,13 @@ import {
   type TaxArea,
 } from '@/lib/recommendations/recommendation-engine'
 import cacheManager, { CacheKeys, CacheTTL } from '@/lib/cache/cache-manager'
-
-// Single-user mode: Skip auth and use tenantId directly
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 export async function GET(request: NextRequest) {
   try {
     let tenantId: string
 
-    if (SINGLE_USER_MODE) {
+    if (isSingleUserMode()) {
       // Single-user mode: Get tenantId from query
       tenantId = request.nextUrl.searchParams.get('tenantId') || ''
       if (!tenantId) {

@@ -16,6 +16,7 @@ import {
   Loader2
 } from 'lucide-react'
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 const GlassCard = ({ children, className = '', highlight = false }: any) => (
   <motion.div
@@ -308,6 +309,7 @@ export default function StrategiesPage() {
           </div>
         </div>
 
+        <TaxDisclaimer />
       </div>
     </div>
   )

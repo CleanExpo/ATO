@@ -26,9 +26,7 @@ import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 import { requireTenantAccess } from '@/lib/auth/tenant-guard'
 import { getAnalysisStatus } from '@/lib/ai/batch-processor'
 import { createServiceClient } from '@/lib/supabase/server'
-
-// Single-user mode: Skip auth and use tenantId directly from URL
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 export async function GET(
     request: NextRequest,
@@ -41,7 +39,7 @@ export async function GET(
             return createValidationError('tenantId parameter is required')
         }
 
-        if (!SINGLE_USER_MODE) {
+        if (!isSingleUserMode()) {
             // Multi-user mode: Authenticate user
             const auth = await requireAuthOnly(request)
             if (isErrorResponse(auth)) return auth

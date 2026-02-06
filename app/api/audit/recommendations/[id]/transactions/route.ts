@@ -22,9 +22,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
 import { generateXeroUrl } from '@/lib/xero/url-generator'
-
-// Single-user mode: Skip auth and use tenantId directly
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 const DEFAULT_LIMIT = 20
 const MAX_LIMIT = 100
@@ -62,7 +60,7 @@ export async function GET(
   try {
     // Authentication
     let tenantId: string
-    if (SINGLE_USER_MODE) {
+    if (isSingleUserMode()) {
       tenantId = request.nextUrl.searchParams.get('tenantId') || ''
       if (!tenantId) {
         return createValidationError('tenantId is required')

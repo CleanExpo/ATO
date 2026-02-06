@@ -29,6 +29,7 @@ import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import LiveChart from '@/components/dashboard/LiveChart'
 import ActivityFeed, { ActivityItem } from '@/components/dashboard/ActivityFeed'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 const GlassCard = ({ children, className = '', highlight = false }: any) => (
   <motion.div
@@ -46,14 +47,14 @@ export default function DataQualityPage() {
   const [tenantId, setTenantId] = useState('')
   const [activities, setActivities] = useState<ActivityItem[]>([])
 
-  // Demo states for the v8.1 view
-  const stats = {
-    totalScanned: 12450,
-    issuesFound: 142,
-    autoFixed: 89,
-    impact: 42500.20,
-    accuracy: 98.4
-  }
+  const [stats, setStats] = useState({
+    totalScanned: 0,
+    issuesFound: 0,
+    autoFixed: 0,
+    impact: 0,
+    accuracy: 0
+  })
+  const [hasScanned, setHasScanned] = useState(false)
 
   useEffect(() => {
     const fetchTenant = async () => {
@@ -66,18 +67,54 @@ export default function DataQualityPage() {
     fetchTenant()
   }, [])
 
-  const startScan = () => {
+  useEffect(() => {
+    if (!tenantId) return
+    const fetchStats = async () => {
+      try {
+        const res = await fetch(`/api/data-quality/scan?tenantId=${tenantId}`)
+        const data = await res.json()
+        if (data.totalScanned > 0 || data.issuesFound > 0) {
+          setStats({
+            totalScanned: data.totalScanned || 0,
+            issuesFound: data.issuesFound || 0,
+            autoFixed: data.autoFixed || 0,
+            impact: data.impact || 0,
+            accuracy: data.accuracy || 0
+          })
+          setHasScanned(true)
+        }
+      } catch (err) { console.error('Failed to fetch data quality stats:', err) }
+    }
+    fetchStats()
+  }, [tenantId])
+
+  const startScan = async () => {
+    if (!tenantId) return
     setIsScanning(true)
     setProgress(0)
-    let p = 0
-    const interval = setInterval(() => {
-      p += 2
-      setProgress(p)
-      if (p >= 100) {
-        clearInterval(interval)
-        setIsScanning(false)
+    try {
+      const res = await fetch('/api/data-quality/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId })
+      })
+      const data = await res.json()
+      if (data.totalScanned > 0 || data.issuesFound > 0) {
+        setStats({
+          totalScanned: data.totalScanned || 0,
+          issuesFound: data.issuesFound || 0,
+          autoFixed: data.autoFixed || 0,
+          impact: data.impact || 0,
+          accuracy: data.accuracy || 0
+        })
+        setHasScanned(true)
       }
-    }, 100)
+      setProgress(100)
+    } catch (err) {
+      console.error('Scan failed:', err)
+    } finally {
+      setIsScanning(false)
+    }
   }
 
   return (
@@ -126,6 +163,14 @@ export default function DataQualityPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* No Data Prompt */}
+        {!hasScanned && !isScanning && (
+          <div className="p-8 rounded-2xl text-center border border-white/10 bg-white/[0.02]">
+            <Scan className="w-10 h-10 text-white/20 mx-auto mb-3" />
+            <p className="text-sm text-white/40">No scan data available. Run a data quality scan to analyse your ledger.</p>
+          </div>
+        )}
 
         {/* KPI Matrix */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -211,6 +256,7 @@ export default function DataQualityPage() {
           </div>
         </div>
 
+        <TaxDisclaimer />
       </div>
     </div>
   )

@@ -14,21 +14,13 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  DollarSign,
   TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  CheckCircle,
   FileText,
-  Beaker,
-  Scale,
-  ArrowRight,
   RefreshCw,
   Download,
   ShieldCheck,
   ExternalLink,
   ChevronRight,
-  Clock,
   Zap,
   ShieldAlert,
   Info,
@@ -51,6 +43,7 @@ import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { useOrganization } from '@/lib/context/OrganizationContext'
 import { ConsolidatedDashboard } from '@/components/dashboard/ConsolidatedDashboard'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 // --- Interfaces ---
 
@@ -115,35 +108,6 @@ const MetricBlock = ({ label, value, prefix = "$", variant = "default", trend }:
   </div>
 );
 
-const CriticalAlertBanner = () => (
-  <motion.div
-    initial={{ opacity: 0, y: -20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="relative group overflow-hidden mb-12 p-1 rounded-3xl bg-gradient-to-r from-amber-500/20 via-sky-500/20 to-amber-500/20 border border-white/10"
-  >
-    <div className="relative z-10 p-6 glass-card border-none bg-black/40 flex flex-col md:flex-row items-center justify-between gap-6">
-      <div className="flex items-center gap-6">
-        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 relative">
-          <Zap className="w-8 h-8 text-amber-400 animate-pulse" />
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping" />
-        </div>
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="px-2 py-0.5 rounded bg-red-500/20 text-[9px] font-black text-red-500 uppercase tracking-widest">Immediate Action Required</span>
-            <span className="text-[10px] font-mono text-white/40">GRANT DISCOVERY ENGINE</span>
-          </div>
-          <h2 className="text-2xl font-black text-white tracking-tighter">QLD Business Growth Fund ($50K - $75K)</h2>
-          <p className="text-sm text-white/60 font-medium">Your entity meets the turnover criteria. Registration of Interest closes in <span className="text-amber-400 font-bold">28 hours</span>.</p>
-        </div>
-      </div>
-      <Link href="/dashboard/strategies" className="btn btn-primary px-8 py-4 bg-amber-500 hover:bg-amber-400 text-black font-black shadow-[0_0_30px_rgba(245,158,11,0.3)] group-hover:scale-105 transition-transform">
-        Accelerate Grant ROI <ArrowRight className="w-4 h-4 ml-2" />
-      </Link>
-    </div>
-    <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-amber-500/10 blur-[80px] rounded-full" />
-    <div className="absolute -top-12 -right-12 w-48 h-48 bg-sky-500/10 blur-[80px] rounded-full" />
-  </motion.div>
-);
 
 // --- Main Page ---
 
@@ -228,7 +192,7 @@ export default function TaxOverviewPage() {
           criticalIssues: summary.compliance?.division7aRisk || 0,
           dataQualityIssues: dqData.issuesFound || 0,
           complianceRisks: summary.compliance?.fbtImplications || 0,
-          recommendations: recsData.recommendations?.map((r: any) => ({ ...r, confidence: Math.random() * 40 + 60 })) || [],
+          recommendations: recsData.recommendations || [],
           lastAnalyzed: analysisData.lastAnalyzed || null,
           dataUpToDate: analysisData.results?.length > 0,
           analysisProgress: 100,
@@ -297,17 +261,33 @@ export default function TaxOverviewPage() {
     <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
 
-        {/* Critical Alert Discovery */}
-        <CriticalAlertBanner />
 
         {/* Header Block */}
         <div className="flex flex-col md:flex-row justify-between items-start gap-6">
           <div>
-            <div className="flex items-center gap-2 text-xs font-bold font-mono text-sky-400 uppercase tracking-widest mb-2">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Compliance Status: Optimal</span>
-              <span className="text-white/20 px-2">•</span>
-              <span>VERIFIED AT {new Date(overview.lastAnalyzed!).toLocaleTimeString()}</span>
+            <div className="flex items-center gap-2 text-xs font-bold font-mono uppercase tracking-widest mb-2">
+              {overview.criticalIssues > 0 ? (
+                <>
+                  <ShieldAlert className="w-4 h-4 text-red-400" />
+                  <span className="text-red-400">Action Required</span>
+                </>
+              ) : overview.lastAnalyzed ? (
+                <>
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="text-emerald-400">No Critical Issues</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="w-4 h-4 text-white/40" />
+                  <span className="text-white/40">Pending Analysis</span>
+                </>
+              )}
+              {overview.lastAnalyzed && (
+                <>
+                  <span className="text-white/20 px-2">•</span>
+                  <span className="text-sky-400">VERIFIED AT {new Date(overview.lastAnalyzed).toLocaleTimeString()}</span>
+                </>
+              )}
             </div>
             <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tighter">Executive Tax Overview</h1>
           </div>
@@ -477,6 +457,7 @@ export default function TaxOverviewPage() {
           </div>
         </div>
 
+        <TaxDisclaimer />
       </div>
     </div>
   )

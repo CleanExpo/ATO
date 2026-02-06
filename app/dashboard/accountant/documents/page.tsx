@@ -12,10 +12,12 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { FindingCard } from '@/components/accountant/FindingCard'
+import { createServiceClient } from '@/lib/supabase/server'
+
+export const dynamic = 'force-dynamic'
 
 export default async function DocumentsWorkflowPage() {
-  // TODO: Fetch real data from API
-  const findings: any[] = []
+  const findings = await fetchFindings('documents')
 
   return (
     <div className="space-y-8 pb-16">
@@ -210,4 +212,39 @@ export default async function DocumentsWorkflowPage() {
       </div>
     </div>
   )
+}
+
+async function fetchFindings(workflowArea: string) {
+  try {
+    const supabase = await createServiceClient()
+    const { data, error } = await supabase
+      .from('accountant_findings')
+      .select('*')
+      .eq('workflow_area', workflowArea)
+      .order('created_at', { ascending: false })
+
+    if (error || !data) return []
+
+    return data.map((f: any) => ({
+      id: f.id,
+      transactionId: f.transaction_id,
+      date: f.transaction_date,
+      description: f.description,
+      amount: f.amount,
+      currentClassification: f.current_classification,
+      suggestedClassification: f.suggested_classification,
+      confidence: {
+        score: f.confidence_score,
+        level: f.confidence_level,
+        factors: f.confidence_factors || [],
+      },
+      legislationRefs: f.legislation_refs || [],
+      reasoning: f.reasoning,
+      financialYear: f.financial_year,
+      estimatedBenefit: f.estimated_benefit,
+      status: f.status,
+    }))
+  } catch {
+    return []
+  }
 }

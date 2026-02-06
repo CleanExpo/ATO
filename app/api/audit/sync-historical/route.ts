@@ -24,10 +24,8 @@ import { isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { fetchHistoricalTransactions, getSyncStatus } from '@/lib/xero/historical-fetcher'
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import type { TokenSet } from 'xero-node'
-
-// Single-user mode: Skip auth and use tenantId directly
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
 
 // Helper to get valid token set for a tenant (with optional organization filtering)
 async function getValidTokenSet(tenantId: string, baseUrl?: string, organizationId?: string): Promise<TokenSet | null> {
@@ -93,7 +91,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         let tenantId: string
 
-        if (SINGLE_USER_MODE) {
+        if (isSingleUserMode()) {
             // Single-user mode: Get tenantId directly from body
             tenantId = body.tenantId
             if (!tenantId) {
@@ -183,7 +181,7 @@ export async function GET(request: NextRequest) {
     try {
         let tenantId: string
 
-        if (SINGLE_USER_MODE) {
+        if (isSingleUserMode()) {
             // Single-user mode: Get tenantId directly from query
             tenantId = request.nextUrl.searchParams.get('tenantId') || ''
             if (!tenantId) {

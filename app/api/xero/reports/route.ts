@@ -4,9 +4,7 @@ import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import type { TokenSet } from 'xero-node'
-
-// Single-user mode: Skip auth and use tenantId directly
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 type XeroReportCell = {
     value?: string
@@ -103,7 +101,7 @@ export async function GET(request: NextRequest) {
     try {
         let tenantId: string
 
-        if (SINGLE_USER_MODE) {
+        if (isSingleUserMode()) {
             // Single-user mode: get tenantId from query param
             const queryTenantId = request.nextUrl.searchParams.get('tenantId')
             if (!queryTenantId) {

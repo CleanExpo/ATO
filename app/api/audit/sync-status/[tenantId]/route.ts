@@ -19,9 +19,7 @@ import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 import { requireTenantAccess } from '@/lib/auth/tenant-guard'
 import { getSyncStatus } from '@/lib/xero/historical-fetcher'
-
-// Single-user mode: Skip auth and use tenantId directly from URL
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 export async function GET(
     request: NextRequest,
@@ -34,7 +32,7 @@ export async function GET(
             return createValidationError('tenantId parameter is required')
         }
 
-        if (!SINGLE_USER_MODE) {
+        if (!isSingleUserMode()) {
             // Multi-user mode: Authenticate and validate tenant access
             const auth = await requireAuthOnly(request)
             if (isErrorResponse(auth)) return auth

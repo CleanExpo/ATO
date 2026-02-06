@@ -31,9 +31,7 @@ import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { validateRequestBody, validateRequestQuery } from '@/lib/api/validation-middleware'
 import { analyzeRequestSchema, tenantIdQuerySchema } from '@/lib/validation/schemas'
 import { retry } from '@/lib/api/retry'
-
-// Single-user mode: Skip auth and use tenantId directly
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 export async function POST(request: NextRequest) {
     try {
@@ -46,7 +44,7 @@ export async function POST(request: NextRequest) {
         let validatedTenantId: string
         const analysisPlatform = platform || 'xero' // Default to Xero
 
-        if (SINGLE_USER_MODE) {
+        if (isSingleUserMode()) {
             // Single-user mode: Use validated tenantId from body
             validatedTenantId = tenantId
         } else {
@@ -145,7 +143,7 @@ export async function GET(request: NextRequest) {
         const { tenantId } = queryValidation.data
         let validatedTenantId: string
 
-        if (SINGLE_USER_MODE) {
+        if (isSingleUserMode()) {
             // Single-user mode: Use validated tenantId from query
             validatedTenantId = tenantId
         } else {

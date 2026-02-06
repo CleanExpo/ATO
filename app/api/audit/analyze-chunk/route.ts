@@ -27,11 +27,9 @@ import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext, type BusinessContext, type ForensicAnalysis } from '@/lib/ai/forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 export const maxDuration = 60 // Vercel serverless max (Pro plan)
-
-// Single-user mode: Skip auth and use tenantId directly
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
 
 const DEFAULT_BATCH_SIZE = 25 // Smaller batches for faster response
 const MAX_BATCH_SIZE = 50
@@ -43,7 +41,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
         let tenantId: string
 
-        if (SINGLE_USER_MODE) {
+        if (isSingleUserMode()) {
             tenantId = body.tenantId
             if (!tenantId) {
                 return createValidationError('tenantId is required')
@@ -391,7 +389,7 @@ async function trackAnalysisCost(
 export async function GET(request: NextRequest) {
     let tenantId: string
 
-    if (SINGLE_USER_MODE) {
+    if (isSingleUserMode()) {
         tenantId = request.nextUrl.searchParams.get('tenantId') || ''
         if (!tenantId) {
             return createValidationError('tenantId is required')

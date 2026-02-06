@@ -10,9 +10,7 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createValidationError } from '@/lib/api/errors'
 import { z } from 'zod'
 import Decimal from 'decimal.js'
-
-// Single-user mode
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true' || true
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 // Tax rates for FY2024-25
 const CORPORATE_TAX_RATE = 0.25 // 25% for base rate entities
@@ -61,7 +59,7 @@ export async function POST(request: NextRequest) {
   let tenantId: string
   let supabase
 
-  if (SINGLE_USER_MODE) {
+  if (isSingleUserMode()) {
     tenantId = request.nextUrl.searchParams.get('tenantId') || ''
     if (!tenantId) {
       return createValidationError('tenantId is required')
