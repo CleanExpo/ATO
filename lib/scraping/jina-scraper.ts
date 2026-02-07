@@ -21,6 +21,10 @@ export interface JinaScraperResult {
   scrapedAt: Date
 }
 
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('scraping:jina')
+
 export class JinaScraper {
   private apiKey: string
   private baseUrl = 'https://r.jina.ai'
@@ -30,7 +34,7 @@ export class JinaScraper {
     this.apiKey = apiKey || process.env.JINA_API_KEY || ''
 
     if (!this.apiKey) {
-      console.warn('⚠️ JINA_API_KEY is not set. Real-time scraping will fail.')
+      console.warn('JINA_API_KEY is not set. Real-time scraping will fail.')
     }
   }
 
@@ -49,7 +53,7 @@ export class JinaScraper {
       // Jina Reader API: https://r.jina.ai/{url}
       const jinaUrl = `${this.baseUrl}/${url}`
 
-      console.log(`Scraping via Jina AI: ${url}`)
+      log.info('Scraping via Jina AI', { url })
 
       const response = await fetch(jinaUrl, {
         headers: {
@@ -116,7 +120,7 @@ export class JinaScraper {
       // Or the largest if they're all different
       const threshold = Math.max(...parsedAmounts)
 
-      console.log(`Parsed instant write-off threshold: $${threshold.toLocaleString()}`)
+      log.debug('Parsed instant write-off threshold', { threshold })
       return threshold
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
@@ -155,7 +159,7 @@ export class JinaScraper {
       // R&D offset is typically the higher rate mentioned
       const rate = Math.max(...rndRates) / 100
 
-      console.log(`Parsed R&D offset rate: ${(rate * 100).toFixed(1)}%`)
+      log.debug('Parsed R&D offset rate', { rate })
       return rate
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
@@ -187,7 +191,7 @@ export class JinaScraper {
       const cents = parseInt(centsMatch[1])
       const rate = cents / 100
 
-      console.log(`Parsed home office rate: ${cents}c per hour`)
+      log.debug('Parsed home office rate', { centsPerHour: cents })
       return rate
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
@@ -226,7 +230,7 @@ export class JinaScraper {
       // Use the most recent rate (typically mentioned first)
       const rate = div7aRates[0] / 100
 
-      console.log(`Parsed Division 7A rate: ${(rate * 100).toFixed(2)}%`)
+      log.debug('Parsed Division 7A rate', { rate })
       return rate
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
@@ -271,7 +275,7 @@ export class JinaScraper {
         standard: Math.max(...taxRates) / 100,
       }
 
-      console.log(`Parsed corporate tax rates: ${(rates.smallBusiness * 100)}% / ${(rates.standard * 100)}%`)
+      log.debug('Parsed corporate tax rates', { smallBusiness: rates.smallBusiness, standard: rates.standard })
       return rates
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
@@ -329,7 +333,7 @@ export class JinaScraper {
         return null
       }
 
-      console.log(`Parsed FBT rate: ${fbtRate ? (fbtRate * 100) + '%' : 'N/A'}, Type 1: ${type1GrossUp}, Type 2: ${type2GrossUp}`)
+      log.debug('Parsed FBT rates', { fbtRate, type1GrossUp, type2GrossUp })
       return { fbtRate, type1GrossUp, type2GrossUp }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
@@ -368,7 +372,7 @@ export class JinaScraper {
       // Use the highest current rate (most recent)
       const rate = Math.max(...sgRates) / 100
 
-      console.log(`Parsed super guarantee rate: ${(rate * 100).toFixed(1)}%`)
+      log.debug('Parsed super guarantee rate', { rate })
       return rate
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)
@@ -423,7 +427,7 @@ export class JinaScraper {
 
       const quarter = quarterMatch ? quarterMatch[1] : null
 
-      console.log(`Parsed fuel tax credit rates: on-road ${onRoad ? (onRoad * 100).toFixed(1) + 'c' : 'N/A'}, off-road ${offRoad ? (offRoad * 100).toFixed(1) + 'c' : 'N/A'}`)
+      log.debug('Parsed fuel tax credit rates', { onRoad, offRoad })
       return { onRoad, offRoad, quarter }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error)

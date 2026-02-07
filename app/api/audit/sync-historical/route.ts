@@ -26,6 +26,9 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { fetchHistoricalTransactions, getSyncStatus } from '@/lib/xero/historical-fetcher'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import type { TokenSet } from 'xero-node'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:sync-historical')
 
 // Helper to get valid token set for a tenant (with optional organization filtering)
 async function getValidTokenSet(tenantId: string, baseUrl?: string, organizationId?: string): Promise<TokenSet | null> {
@@ -114,7 +117,7 @@ export async function POST(request: NextRequest) {
             return createValidationError('years must be between 1 and 10')
         }
 
-        console.log(`Starting historical sync for tenant ${tenantId}: ${years} years, forceResync=${forceResync}`)
+        log.info('Starting historical sync', { tenantId, years, forceResync })
 
         // Check if already syncing
         const currentStatus = await getSyncStatus(tenantId)
@@ -151,7 +154,7 @@ export async function POST(request: NextRequest) {
                 years,
                 forceResync,
                 onProgress: (progress) => {
-                    console.log(`Sync progress for ${tenantId}: ${progress.progress}% (${progress.transactionsSynced} transactions)`)
+                    log.debug('Sync progress', { tenantId, progress: progress.progress, transactionsSynced: progress.transactionsSynced })
                 }
             }
         ).catch(error => {

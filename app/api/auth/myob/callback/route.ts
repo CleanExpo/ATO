@@ -6,6 +6,9 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:auth:myob-callback')
 
 const MYOB_TOKEN_URL = 'https://secure.myob.com/oauth2/v1/authorize'
 const MYOB_CLIENT_ID = process.env.MYOB_CLIENT_ID || ''
@@ -94,7 +97,7 @@ export async function GET(request: NextRequest) {
     if (companyFiles.length > 1) {
       // TODO: Implement company file selection UI
       // For now, use the first one
-      console.log(`Multiple MYOB company files found, using first: ${selectedCompanyFile.Name}`)
+      log.info('Multiple MYOB company files found, using first', { companyName: selectedCompanyFile.Name })
     }
 
     // Store connection in database
@@ -115,7 +118,7 @@ export async function GET(request: NextRequest) {
 
       if (existingConnection?.organization_id) {
         organizationId = existingConnection.organization_id
-        console.log('Found existing organization for MYOB company:', organizationId)
+        log.info('Found existing organization for MYOB company', { organizationId })
 
         // Grant user access if not already granted
         const { data: existingAccess } = await supabase
@@ -132,7 +135,7 @@ export async function GET(request: NextRequest) {
             tenant_id: null, // MYOB doesn't use tenant_id concept
             role: 'owner',
           })
-          console.log('Granted owner access to existing MYOB organization')
+          log.info('Granted owner access to existing MYOB organization')
         }
       } else {
         // Create new organization for this MYOB company file
@@ -151,7 +154,7 @@ export async function GET(request: NextRequest) {
           console.error('Error creating organization for MYOB:', orgError)
         } else if (newOrg) {
           organizationId = newOrg.id
-          console.log('Created new organization for MYOB:', organizationId)
+          log.info('Created new organization for MYOB', { organizationId })
 
           // Grant user owner access to this organization
           await supabase.from('user_tenant_access').insert({
@@ -160,7 +163,7 @@ export async function GET(request: NextRequest) {
             tenant_id: null, // MYOB doesn't use tenant_id concept
             role: 'owner',
           })
-          console.log('Granted owner access to new MYOB organization')
+          log.info('Granted owner access to new MYOB organization')
         }
       }
     } catch (orgError) {
@@ -201,7 +204,7 @@ export async function GET(request: NextRequest) {
         .eq('id', organizationId)
     }
 
-    console.log('MYOB OAuth successful for user:', state, 'companyFileId:', selectedCompanyFile.Id, 'orgId:', organizationId)
+    log.info('MYOB OAuth successful', { userId: state, companyFileId: selectedCompanyFile.Id, orgId: organizationId })
 
     // Success! Redirect to dashboard
     return NextResponse.redirect(

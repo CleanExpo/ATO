@@ -7,6 +7,9 @@
 
 import { createClient } from '../supabase/server'
 import { getRatesFetcher, TaxRates } from './rates-fetcher'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('tax-data:cache-manager')
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 
@@ -32,7 +35,7 @@ export class TaxDataCacheManager {
     }
 
     // Cache miss or force refresh - fetch fresh data
-    console.log('💾 Cache miss - fetching fresh tax rates...')
+    log.info('Cache miss - fetching fresh tax rates')
     return await this.fetchAndCache()
   }
 
@@ -51,7 +54,7 @@ export class TaxDataCacheManager {
         .single()
 
       if (error || !data) {
-        console.log('  No cached tax rates found')
+        log.debug('No cached tax rates found')
         return null
       }
 
@@ -59,11 +62,11 @@ export class TaxDataCacheManager {
 
       // Check if cache is expired
       if (cacheAge > CACHE_TTL_MS) {
-        console.log(`  Cache expired (${Math.round(cacheAge / 1000 / 60 / 60)}h old)`)
+        log.debug('Cache expired', { ageHours: Math.round(cacheAge / 1000 / 60 / 60) })
         return null
       }
 
-      console.log(`✅ Using cached tax rates (${Math.round(cacheAge / 1000 / 60)}m old)`)
+      log.info('Using cached tax rates', { ageMinutes: Math.round(cacheAge / 1000 / 60) })
 
       return {
         ...data.rates,
@@ -107,7 +110,7 @@ export class TaxDataCacheManager {
       if (error) {
         console.error('Failed to cache rates:', error.message)
       } else {
-        console.log('✅ Tax rates cached successfully')
+        log.info('Tax rates cached successfully')
       }
     } catch (error: unknown) {
       console.error('Error caching rates:', error instanceof Error ? error.message : String(error))
@@ -129,7 +132,7 @@ export class TaxDataCacheManager {
       if (error) {
         console.error('Failed to clear cache:', error.message)
       } else {
-        console.log('✅ Cache cleared')
+        log.info('Cache cleared')
       }
     } catch (error: unknown) {
       console.error('Error clearing cache:', error instanceof Error ? error.message : String(error))

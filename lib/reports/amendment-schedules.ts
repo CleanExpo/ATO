@@ -16,6 +16,9 @@ import {
   generateRecommendations,
   type ActionableRecommendation,
 } from '@/lib/recommendations/recommendation-engine'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('reports:amendment-schedules')
 
 export interface TaxPosition {
   income: number
@@ -85,7 +88,7 @@ export async function generateAmendmentSchedules(
   tenantId: string,
   taxRate: number = CORPORATE_TAX_RATE_SMALL
 ): Promise<AmendmentSummary> {
-  console.log(`Generating amendment schedules for tenant ${tenantId}`)
+  log.info('Generating amendment schedules', { tenantId })
 
   // Get all recommendations
   const recSummary = await generateRecommendations(tenantId)
@@ -120,7 +123,7 @@ export async function generateAmendmentSchedules(
   // Calculate summary
   const summary = calculateAmendmentSummary(schedules)
 
-  console.log(`Generated ${summary.totalSchedules} amendment schedules, total refund: $${summary.totalRefundExpected.toFixed(2)}`)
+  log.info('Amendment schedules generated', { totalSchedules: summary.totalSchedules, totalRefund: summary.totalRefundExpected })
 
   return summary
 }

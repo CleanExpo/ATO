@@ -15,6 +15,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import { checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('analysis:deduction')
 
 // Deduction thresholds and rates
 // NOTE: These are fallback values - actual values fetched from ATO.gov.au
@@ -529,7 +532,7 @@ export async function analyzeDeductionOpportunities(
     }
   }
 
-  console.log(`Analysing ${transactions.length} transactions for deduction opportunities`)
+  log.info('Analysing transactions for deduction opportunities', { count: transactions.length })
 
   // Determine tax rate and small business status
   const taxRateInfo = await determineTaxRate(options)

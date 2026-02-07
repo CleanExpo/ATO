@@ -6,12 +6,15 @@
 
 import { NextResponse } from 'next/server'
 import { getCacheManager } from '@/lib/tax-data/cache-manager'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:tax-data:refresh')
 
 export async function POST(_request: Request) {
   try {
     const cacheManager = getCacheManager()
 
-    console.log('🔄 Forcing tax rates refresh...')
+    log.info('Forcing tax rates refresh')
 
     // Clear cache and fetch fresh rates
     await cacheManager.clearCache()

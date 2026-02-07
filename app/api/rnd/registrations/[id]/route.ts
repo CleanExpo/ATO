@@ -21,6 +21,9 @@ import {
   calculateDaysUntilDeadline,
   calculateUrgencyLevel,
 } from '@/lib/types/rnd-registration'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:rnd:registrations:detail')
 
 /**
  * GET /api/rnd/registrations/[id]
@@ -41,7 +44,7 @@ export async function GET(
       return createValidationError('Registration ID is required')
     }
 
-    console.log(`[R&D Registration] Fetching registration ${id}`)
+    log.info('Fetching registration', { id })
 
     const supabase = await createServiceClient()
 
@@ -126,7 +129,7 @@ export async function PATCH(
       return createValidationError(`registrationStatus must be one of: ${validStatuses.join(', ')}`)
     }
 
-    console.log(`[R&D Registration] Updating registration ${id}`)
+    log.info('Updating registration', { id })
 
     const supabase = await createServiceClient()
 
@@ -240,7 +243,7 @@ export async function DELETE(
       return createValidationError('Registration ID is required')
     }
 
-    console.log(`[R&D Registration] Deleting registration ${id}`)
+    log.info('Deleting registration', { id })
 
     const supabase = await createServiceClient()
 

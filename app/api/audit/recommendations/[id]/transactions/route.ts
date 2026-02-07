@@ -23,6 +23,9 @@ import { createErrorResponse, createValidationError, createNotFoundError } from 
 import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
 import { generateXeroUrl } from '@/lib/xero/url-generator'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:recommendations:transactions')
 
 const DEFAULT_LIMIT = 20
 const MAX_LIMIT = 100
@@ -76,7 +79,7 @@ export async function GET(
     )
     const offset = parseInt(request.nextUrl.searchParams.get('offset') || '0', 10)
 
-    console.log(`[transactions] Fetching transactions for recommendation ${recommendationId}`)
+    log.info('Fetching transactions for recommendation', { recommendationId })
 
     // Get the recommendation to get transaction IDs
     const recommendation = await getRecommendation(tenantId, recommendationId)
@@ -86,7 +89,7 @@ export async function GET(
 
     const transactionIds = recommendation.transactionIds || []
 
-    console.log(`[transactions] Found ${transactionIds.length} transaction IDs`)
+    log.debug('Found transaction IDs', { count: transactionIds.length })
 
     // If no transactions, return empty result
     if (transactionIds.length === 0) {
@@ -139,7 +142,7 @@ export async function GET(
       throw error
     }
 
-    console.log(`[transactions] Retrieved ${cachedTransactions?.length || 0} transactions from cache`)
+    log.debug('Retrieved transactions from cache', { count: cachedTransactions?.length || 0 })
 
     // Transform to detailed transactions with Xero URLs
     const transactions: TransactionDetail[] = (cachedTransactions || []).map((cached) => {

@@ -17,6 +17,9 @@ import {
   dbRowToRndEvidence,
   EVIDENCE_ELEMENTS,
 } from '@/lib/types/rnd-evidence'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:rnd:evidence')
 
 const VALID_EVIDENCE_TYPES: EvidenceType[] = ['document', 'description', 'reference']
 
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
       return createValidationError('tenantId is required')
     }
 
-    console.log(`[R&D Evidence] Fetching evidence for tenant ${tenantId}`)
+    log.info('Fetching evidence', { tenantId })
 
     const supabase = await createServiceClient()
 
@@ -184,9 +187,7 @@ export async function POST(request: NextRequest) {
       return createValidationError('dateCreated must be in YYYY-MM-DD format')
     }
 
-    console.log(
-      `[R&D Evidence] Creating evidence for ${body.tenantId} - ${body.projectName} - ${body.element}`
-    )
+    log.info('Creating evidence', { tenantId: body.tenantId, projectName: body.projectName, element: body.element })
 
     const supabase = await createServiceClient()
 

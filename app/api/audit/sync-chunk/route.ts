@@ -30,6 +30,9 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getFinancialYears } from '@/lib/types'
 import type { TokenSet } from 'xero-node'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:sync-chunk')
 
 const PAGE_SIZE = 100
 const TRANSACTION_TYPES = ['BANK', 'ACCPAY', 'ACCREC'] as const
@@ -116,7 +119,7 @@ export async function POST(request: NextRequest) {
             return createValidationError(`Invalid year: ${year}. Valid years: ${financialYears.map(f => f.value).join(', ')}`)
         }
 
-        console.log(`[sync-chunk] Fetching ${type} page ${page} for ${year} (tenant: ${tenantId})`)
+        log.info('Fetching transactions', { type, page, year, tenantId })
 
         // Get valid token set
         const tokenSet = await getValidTokenSet(tenantId, baseUrl)
@@ -162,7 +165,7 @@ export async function POST(request: NextRequest) {
         }
 
         const fetchTime = Date.now() - startTime
-        console.log(`[sync-chunk] Fetched ${transactions.length} ${type} transactions in ${fetchTime}ms`)
+        log.info('Fetched transactions', { count: transactions.length, type, fetchTimeMs: fetchTime })
 
         // Cache transactions to database
         const supabase = await createServiceClient()
@@ -268,7 +271,7 @@ export async function POST(request: NextRequest) {
             })
 
         const totalTime = Date.now() - startTime
-        console.log(`[sync-chunk] Complete in ${totalTime}ms - cached ${cachedCount}, hasMore: ${!allComplete}`)
+        log.info('Sync chunk complete', { totalTimeMs: totalTime, cachedCount, hasMore: !allComplete })
 
         return NextResponse.json({
             success: true,

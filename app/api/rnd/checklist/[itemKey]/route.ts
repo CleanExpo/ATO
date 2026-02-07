@@ -20,6 +20,9 @@ import {
   type UpdateChecklistItemRequest,
   dbRowToChecklistItem,
 } from '@/lib/types/rnd-checklist'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:rnd:checklist:item')
 
 interface RouteContext {
   params: Promise<{ itemKey: string }>
@@ -62,9 +65,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return createValidationError('isCompleted must be a boolean')
     }
 
-    console.log(
-      `[R&D Checklist] Updating item ${itemKey} for tenant ${body.tenantId} -> ${body.isCompleted}`
-    )
+    log.info('Updating checklist item', { itemKey, tenantId: body.tenantId, isCompleted: body.isCompleted })
 
     const supabase = await createServiceClient()
 

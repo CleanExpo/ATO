@@ -22,6 +22,9 @@ import {
   transformDataQualityToClientView,
   type DataQualityScanResult
 } from '@/lib/utils/client-view-transformer'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('dashboard:data-quality')
 
 interface ScanStatus extends DataQualityScanResult {
   status: 'idle' | 'scanning' | 'complete' | 'error'
@@ -111,7 +114,7 @@ export default function DataQualityPage() {
       })
 
       const data = await res.json()
-      console.log('Scan started:', data)
+      log.info('Scan started', { status: data.status })
 
       // Start polling for progress
       const interval = setInterval(async () => {

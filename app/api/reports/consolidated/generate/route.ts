@@ -30,6 +30,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError, createAuthError } from '@/lib/api/errors';
 import { generateConsolidatedReport } from '@/lib/reports/consolidated-report-generator';
 import { z } from 'zod';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:reports:consolidated:generate');
 
 const generateConsolidatedReportSchema = z.object({
   batchSize: z.number().int().min(1).max(10).default(5),
@@ -50,9 +53,7 @@ export async function POST(request: NextRequest) {
       return createAuthError('Authentication required to generate consolidated reports');
     }
 
-    console.log(
-      `[CONSOLIDATED_REPORT] Request from user ${user.id} (${user.email || 'unknown'})`
-    );
+    log.info('Report request received', { userId: user.id, email: user.email || 'unknown' });
 
     // Validate request body
     const body = await request.json();
@@ -69,11 +70,7 @@ export async function POST(request: NextRequest) {
     // TODO: If organizationIds provided, validate user has access to all of them
     // For now, generateConsolidatedReport will only return orgs the user has access to
 
-    console.log(
-      `[CONSOLIDATED_REPORT] Generating report with batchSize=${batchSize}${
-        organizationIds ? `, filtered to ${organizationIds.length} organizations` : ''
-      }`
-    );
+    log.info('Generating report', { batchSize, filteredOrgs: organizationIds?.length });
 
     // Generate the consolidated report
     const report = await generateConsolidatedReport(user.id, supabase, batchSize);
@@ -146,9 +143,11 @@ export async function POST(request: NextRequest) {
       ).length;
     }
 
-    console.log(
-      `[CONSOLIDATED_REPORT] Generated successfully - ${filteredReport.metadata.totalClients} clients, ${filteredReport.metadata.successfulReports} successful, ${filteredReport.generationMetrics.processingTimeMs}ms`
-    );
+    log.info('Report generated successfully', {
+      totalClients: filteredReport.metadata.totalClients,
+      successfulReports: filteredReport.metadata.successfulReports,
+      processingTimeMs: filteredReport.generationMetrics.processingTimeMs,
+    });
 
     // Log report generation for analytics
     try {

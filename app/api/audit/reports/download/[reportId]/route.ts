@@ -13,6 +13,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:reports:download-by-id')
 
 export async function GET(
   request: NextRequest,
@@ -30,7 +33,7 @@ export async function GET(
       return createValidationError('Report ID is required')
     }
 
-    console.log(`Downloading report ${reportId} in format ${format}`)
+    log.info('Downloading report', { reportId, format })
 
     // In a full implementation, this would:
     // 1. Fetch report from file storage (Vercel Blob, S3, etc.)
@@ -83,7 +86,7 @@ export async function DELETE(
       return createValidationError('Report ID is required')
     }
 
-    console.log(`Deleting report ${reportId}`)
+    log.info('Deleting report', { reportId })
 
     // In a full implementation, this would:
     // 1. Delete report from file storage

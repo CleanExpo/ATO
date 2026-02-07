@@ -6,6 +6,9 @@
 
 import { Resend } from 'resend'
 import { createServiceClient } from '@/lib/supabase/server'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('alerts:email-notifier')
 
 const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder')
 
@@ -220,7 +223,7 @@ export async function sendAlertEmail(
       }
     }
 
-    console.log(`✅ Email sent for alert ${alert.id} to ${recipientEmail}`)
+    log.info('Email sent for alert', { alertId: alert.id, recipientEmail })
 
     return {
       success: true,
@@ -287,7 +290,7 @@ export async function sendAlertEmails(
  * Called by scheduled job
  */
 export async function sendPendingAlertEmails(): Promise<void> {
-  console.log('🔔 Checking for pending alert emails...')
+  log.info('Checking for pending alert emails')
 
   const supabase = await createServiceClient()
 
@@ -299,7 +302,7 @@ export async function sendPendingAlertEmails(): Promise<void> {
     .eq('email_notifications', true)
 
   if (!preferences || preferences.length === 0) {
-    console.log('No users with email notifications enabled')
+    log.info('No users with email notifications enabled')
     return
   }
 
@@ -331,12 +334,12 @@ export async function sendPendingAlertEmails(): Promise<void> {
 
       // Send emails
       const result = await sendAlertEmails(alerts as TaxAlert[], recipientEmail)
-      console.log(`Sent ${result.sent} emails to ${recipientEmail}, ${result.failed} failed`)
+      log.info('Alert emails sent', { sent: result.sent, failed: result.failed, recipientEmail })
 
     } catch (error) {
       console.error(`Error processing alerts for tenant ${pref.tenant_id}:`, error)
     }
   }
 
-  console.log('✅ Pending alert emails processed')
+  log.info('Pending alert emails processed')
 }

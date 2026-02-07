@@ -19,6 +19,9 @@
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getFinancialYears, type FinancialYear } from '@/lib/types'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('integrations:myob')
 
 // Interfaces
 export interface MYOBHistoricalTransaction {
@@ -105,14 +108,14 @@ export async function fetchMYOBHistoricalTransactions(
         // Generate financial years to fetch
         const financialYears = getFinancialYears().slice(0, options.years)
 
-        console.log(`[MYOB] Fetching ${options.years} years of historical data for company file ${companyFileId}`)
+        log.info('Fetching historical data', { years: options.years, companyFileId })
 
         // Fetch transactions for each year
         for (let i = 0; i < financialYears.length; i++) {
             const fy = financialYears[i]
             syncStatus.currentYear = fy.value
 
-            console.log(`[MYOB] Fetching transactions for ${fy.value} (${fy.startDate} to ${fy.endDate})`)
+            log.info('Fetching transactions for financial year', { financialYear: fy.value, startDate: fy.startDate, endDate: fy.endDate })
 
             // Fetch all transaction types
             // MYOB endpoints: Sale/Invoice, Purchase/Bill, Banking transactions, GeneralJournal
@@ -159,7 +162,7 @@ export async function fetchMYOBHistoricalTransactions(
 
         await updateMYOBSyncStatus(companyFileId, syncStatus)
 
-        console.log(`[MYOB] Sync complete: ${syncStatus.transactionsSynced} transactions cached`)
+        log.info('Sync complete', { transactionsSynced: syncStatus.transactionsSynced })
 
         return syncStatus
 
@@ -202,7 +205,7 @@ async function fetchMYOBTransactionsByType(
             url.searchParams.set('$top', top.toString())
             url.searchParams.set('$skip', skip.toString())
 
-            console.log(`[MYOB] Fetching ${endpoint} (skip: ${skip}, top: ${top})`)
+            log.debug('Fetching transaction page', { endpoint, skip, top })
 
             // Fetch from MYOB API
             const response = await fetch(url.toString(), {
@@ -233,7 +236,7 @@ async function fetchMYOBTransactionsByType(
 
             allTransactions.push(...transactions)
 
-            console.log(`[MYOB] Fetched ${transactions.length} ${type} transactions for ${fy.value} (skip: ${skip})`)
+            log.debug('Fetched transactions', { count: transactions.length, type, financialYear: fy.value, skip })
 
             // Check if there are more pages
             if (transactions.length < top) {
@@ -244,7 +247,7 @@ async function fetchMYOBTransactionsByType(
 
             // CRITICAL: Rate limit prevention
             // MYOB enforces 60 requests/minute, so wait 1 second between requests
-            console.log(`⏱️  [MYOB] Rate limit prevention: waiting ${MYOB_RATE_LIMIT_DELAY_MS}ms before next request`)
+            log.debug('Rate limit prevention delay', { delayMs: MYOB_RATE_LIMIT_DELAY_MS })
             await new Promise(resolve => setTimeout(resolve, MYOB_RATE_LIMIT_DELAY_MS))
 
         } catch (error) {
@@ -252,7 +255,7 @@ async function fetchMYOBTransactionsByType(
 
             // Retry once after delay
             if (skip === allTransactions.length) {
-                console.log('[MYOB] Retrying after error...')
+                log.info('Retrying after error')
                 await new Promise(resolve => setTimeout(resolve, 2000))
                 continue
             } else {
@@ -310,7 +313,7 @@ async function cacheMYOBTransactions(
             throw error
         }
 
-        console.log(`[MYOB] Cached batch ${Math.floor(i / batchSize) + 1} (${batch.length} transactions)`)
+        log.debug('Cached transaction batch', { batch: Math.floor(i / batchSize) + 1, count: batch.length })
     }
 }
 

@@ -15,6 +15,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import type { TokenSet } from 'xero-node'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:xero:invoices-search')
 
 // Helper to get valid token set for a tenant
 async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
@@ -81,7 +84,7 @@ export async function GET(request: NextRequest) {
             return createValidationError('search is required')
         }
 
-        console.log(`Searching Xero invoices for "${search}" in tenant ${tenantId}`)
+        log.info('Searching Xero invoices', { search, tenantId })
 
         const tokenSet = await getValidTokenSet(tenantId)
         if (!tokenSet) {
@@ -138,7 +141,7 @@ export async function GET(request: NextRequest) {
             page++
         }
 
-        console.log(`Fetched ${allInvoices.length} total invoices across ${page - 1} pages`)
+        log.info('Fetched invoices', { totalInvoices: allInvoices.length, pages: page - 1 })
 
         // Filter by contact name (case-insensitive partial match)
         const searchLower = search.toLowerCase()

@@ -21,6 +21,9 @@ import {
   EVIDENCE_ELEMENTS,
   getScoreLevel,
 } from '@/lib/types/rnd-evidence'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:rnd:evidence:score')
 
 // Score calculation constants
 const MIN_EVIDENCE_FOR_LOW = 1
@@ -62,7 +65,7 @@ export async function GET(request: NextRequest) {
       return createValidationError('tenantId is required')
     }
 
-    console.log(`[R&D Evidence Score] Calculating scores for tenant ${tenantId}`)
+    log.info('Calculating scores', { tenantId })
 
     const supabase = await createServiceClient()
 

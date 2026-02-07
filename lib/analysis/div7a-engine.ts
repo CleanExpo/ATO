@@ -23,6 +23,9 @@ import {
   getCurrentFinancialYear,
   getPriorFinancialYear as sharedGetPriorFinancialYear,
 } from '@/lib/utils/financial-year'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('analysis:div7a')
 
 // Division 7A benchmark interest rates (ATO published rates, per s 109N ITAA 1936)
 // Now fetched dynamically, falling back to these historical values if API fails
@@ -184,11 +187,11 @@ export async function analyzeDiv7aCompliance(
   const loans = await identifyShareholderLoans(supabase, tenantId, startYear, endYear)
 
   if (loans.length === 0) {
-    console.log('No shareholder loans identified')
+    log.info('No shareholder loans identified')
     return createEmptyDiv7aSummary()
   }
 
-  console.log(`Analyzing ${loans.length} shareholder loans for Division 7A compliance`)
+  log.info('Analysing shareholder loans for Division 7A compliance', { count: loans.length })
 
   // Analyze each loan
   const loanAnalyses: Division7aAnalysis[] = []

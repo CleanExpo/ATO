@@ -28,6 +28,9 @@ import ExcelJS from 'exceljs'
 import archiver from 'archiver'
 import { Readable } from 'stream'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:reports:download')
 
 interface ExportFilters {
   financialYear?: string
@@ -82,7 +85,7 @@ export async function POST(request: NextRequest) {
       return createValidationError(`Invalid format. Must be one of: ${validFormats.join(', ')}`)
     }
 
-    console.log(`Generating ${format} export for tenant ${tenantId}, scope: ${scope}`)
+    log.info('Generating export', { format, tenantId, scope })
 
     // Fetch transactions based on scope
     const transactions = await fetchTransactions(tenantId, scope, filters, selectedIds)

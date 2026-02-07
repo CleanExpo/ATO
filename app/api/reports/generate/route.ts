@@ -25,6 +25,9 @@ import { generatePDF, generateClientPDF } from '@/lib/reports/pdf-generator'
 import { generateExcelFromTenant } from '@/lib/reports/excel-generator'
 import { sendForensicReport } from '@/lib/reports/email-delivery'
 import { z } from 'zod'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:reports:generate')
 
 const generateReportSchema = z.object({
   tenantId: z.string().uuid(),
@@ -49,9 +52,7 @@ export async function POST(request: NextRequest) {
 
     const { tenantId, organizationName, abn, format, emailTo, clientFriendly } = validation.data
 
-    console.log(
-      `Generating ${format} report for ${organizationName} (${tenantId})${emailTo ? ` and emailing to ${emailTo}` : ''}`
-    )
+    log.info('Generating report', { format, organizationName, tenantId, emailTo })
 
     const supabase = await createServiceClient()
     let pdfBuffer: Buffer | null = null
@@ -64,13 +65,13 @@ export async function POST(request: NextRequest) {
       } else {
         pdfBuffer = await generatePDF(tenantId, organizationName, abn)
       }
-      console.log(`PDF generated: ${pdfBuffer.length} bytes`)
+      log.info('PDF generated', { bytes: pdfBuffer.length })
     }
 
     // Generate Excel if requested
     if (format === 'excel' || format === 'both') {
       excelBuffer = await generateExcelFromTenant(tenantId, organizationName, abn)
-      console.log(`Excel generated: ${excelBuffer.length} bytes`)
+      log.info('Excel generated', { bytes: excelBuffer.length })
     }
 
     // Generate report ID
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     await Promise.all(uploadPromises)
-    console.log('Reports uploaded to storage')
+    log.info('Reports uploaded to storage')
 
     // Store report metadata in database
     await supabase.from('generated_reports').insert({
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
           excelBuffer || undefined
         )
         emailSent = result.success
-        console.log(`Email sent: ${result.id}`)
+        log.info('Email sent', { emailId: result.id })
       } catch (error) {
         console.error('Failed to send email:', error)
         // Don't fail the request if email fails

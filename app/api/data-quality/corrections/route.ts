@@ -14,6 +14,9 @@ import { createValidationError, createErrorResponse } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getCorrectionLogs, revertCorrection } from '@/lib/xero/auto-correction-engine'
 import { createServiceClient } from '@/lib/supabase/server'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:data-quality:corrections')
 
 export async function GET(request: NextRequest) {
     try {
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
             return createValidationError('correctionId is required and must be a string')
         }
 
-        console.log(`Reverting correction ${correctionId} for tenant ${tenantId}`)
+        log.info('Reverting correction', { correctionId, tenantId })
 
         // Get Xero tokens
         const supabase = await createServiceClient()

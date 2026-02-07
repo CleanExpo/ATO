@@ -8,6 +8,9 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('audit:logger');
 
 export type AuditAction =
   | 'accountant_application_approved'
@@ -67,11 +70,13 @@ export async function logAdminAction(
       return false;
     }
 
-    // Also log to console for real-time monitoring
-    console.log(
-      `[AUDIT] ${entry.action} by ${entry.actor_id} (${entry.actor_email || 'unknown'})`,
-      entry.details ? `Details: ${JSON.stringify(entry.details)}` : ''
-    );
+    // Also log to structured logger for real-time monitoring
+    log.info('Admin action logged', {
+      action: entry.action,
+      actorId: entry.actor_id,
+      actorEmail: entry.actor_email || 'unknown',
+      details: entry.details,
+    });
 
     return true;
   } catch (error) {

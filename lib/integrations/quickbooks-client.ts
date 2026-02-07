@@ -7,6 +7,9 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { QUICKBOOKS_CONFIG, getQuickBooksApiUrl } from './quickbooks-config'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('integrations:quickbooks')
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -183,7 +186,7 @@ export async function getValidQuickBooksTokens(
   }
 
   if (isQuickBooksTokenExpired(tokens)) {
-    console.log('QuickBooks token expired, refreshing...')
+    log.info('QuickBooks token expired, refreshing')
     tokens = await refreshQuickBooksAccessToken(tenantId, tokens.refresh_token, organizationId)
   }
 

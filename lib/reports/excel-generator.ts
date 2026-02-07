@@ -12,6 +12,9 @@
 import ExcelJS from 'exceljs'
 import type { PDFReport } from './pdf-generator'
 import { generatePDFReportData } from './pdf-generator'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('reports:excel')
 
 /**
  * Generate Excel workbook from report data
@@ -434,7 +437,7 @@ export async function generateExcelFromTenant(
   organizationName: string = 'Organisation',
   abn: string = ''
 ): Promise<Buffer> {
-  console.log(`Generating Excel report for tenant ${tenantId}`)
+  log.info('Generating Excel report', { tenantId })
 
   // Generate report data
   const reportData = await generatePDFReportData(tenantId, organizationName, abn)
@@ -442,7 +445,7 @@ export async function generateExcelFromTenant(
   // Generate Excel workbook
   const buffer = await generateExcelReport(reportData)
 
-  console.log(`Excel report generated: ${buffer.length} bytes`)
+  log.info('Excel report generated', { bytes: buffer.length })
   return buffer
 }
 

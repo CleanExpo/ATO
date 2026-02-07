@@ -28,6 +28,9 @@ import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext, type BusinessContext, type ForensicAnalysis } from '@/lib/ai/forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:analyze-chunk')
 
 export const maxDuration = 60 // Vercel serverless max (Pro plan)
 
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
         const batch = body.batch || 0
         const batchSize = Math.min(body.batchSize || DEFAULT_BATCH_SIZE, MAX_BATCH_SIZE)
 
-        console.log(`[analyze-chunk] Processing batch ${batch} (size: ${batchSize}) for tenant ${tenantId}`)
+        log.info('Processing batch', { batch, batchSize, tenantId })
 
         const supabase = await createServiceClient()
 
@@ -139,12 +142,12 @@ export async function POST(request: NextRequest) {
             transactionContexts,
             businessContext,
             (completed, total) => {
-                console.log(`[analyze-chunk] Batch ${batch} progress: ${completed}/${total}`)
+                log.debug('Batch progress', { batch, completed, total })
             }
         )
         const analyzeTime = Date.now() - analyzeStartTime
 
-        console.log(`[analyze-chunk] Analyzed ${analyses.length} transactions in ${analyzeTime}ms`)
+        log.info('Analyzed transactions', { count: analyses.length, analyzeTimeMs: analyzeTime })
 
         // Store analysis results
         await storeAnalysisResults(tenantId, analyses, batchTransactions, supabase)
@@ -175,11 +178,11 @@ export async function POST(request: NextRequest) {
         // If complete, invalidate caches
         if (allComplete) {
             const invalidatedCount = invalidateTenantCache(tenantId)
-            console.log(`[analyze-chunk] Analysis complete. Invalidated ${invalidatedCount} cache entries.`)
+            log.info('Analysis complete, cache invalidated', { invalidatedCount })
         }
 
         const totalTime = Date.now() - startTime
-        console.log(`[analyze-chunk] Batch ${batch} complete in ${totalTime}ms - analyzed ${analyses.length}`)
+        log.info('Batch complete', { batch, totalTimeMs: totalTime, analyzed: analyses.length })
 
         return NextResponse.json({
             success: true,
@@ -354,7 +357,7 @@ async function storeAnalysisResults(
         throw error
     }
 
-    console.log(`[analyze-chunk] Stored ${uniqueRecords.length} analysis results`)
+    log.info('Stored analysis results', { count: uniqueRecords.length })
 }
 
 /**

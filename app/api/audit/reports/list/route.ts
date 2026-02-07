@@ -16,6 +16,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:reports:list')
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
     const format = request.nextUrl.searchParams.get('format')
     const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50', 10)
 
-    console.log(`Listing reports for tenant ${tenantId}`)
+    log.info('Listing reports', { tenantId })
 
     // In a full implementation, this would:
     // 1. Query database for report metadata

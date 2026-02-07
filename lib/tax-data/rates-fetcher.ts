@@ -7,6 +7,9 @@
 
 import { getBraveClient } from '../search/brave-client'
 import { getJinaScraper } from '../scraping/jina-scraper'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('tax-data:rates-fetcher')
 
 export interface TaxRates {
   // Deduction rates
@@ -61,7 +64,7 @@ export class TaxRatesFetcher {
    * This is the main entry point - fetches all rates in parallel
    */
   async fetchAllRates(): Promise<TaxRates> {
-    console.log('🔍 Fetching current tax rates from ATO.gov.au...')
+    log.info('Fetching current tax rates from ATO.gov.au')
 
     const startTime = Date.now()
 
@@ -88,7 +91,7 @@ export class TaxRatesFetcher {
 
     const duration = Date.now() - startTime
 
-    console.log(`Fetched tax rates in ${duration}ms`)
+    log.info('Fetched tax rates', { durationMs: duration })
 
     return {
       // Extract values from settled promises
@@ -157,7 +160,7 @@ export class TaxRatesFetcher {
     source: string | null
   }> {
     try {
-      console.log('  → Fetching instant write-off threshold...')
+      log.debug('Fetching instant write-off threshold')
 
       const url = await this.braveClient.findInstantWriteOffPage()
       if (!url) {
@@ -182,7 +185,7 @@ export class TaxRatesFetcher {
     source: string | null
   }> {
     try {
-      console.log('  → Fetching home office rate...')
+      log.debug('Fetching home office rate')
 
       const url = await this.braveClient.findHomeOfficeRatesPage()
       if (!url) {
@@ -208,7 +211,7 @@ export class TaxRatesFetcher {
     source: string | null
   }> {
     try {
-      console.log('  → Fetching R&D offset rate...')
+      log.debug('Fetching R&D offset rate')
 
       const url = await this.braveClient.findRnDIncentivePage()
       if (!url) {
@@ -236,7 +239,7 @@ export class TaxRatesFetcher {
     source: string | null
   }> {
     try {
-      console.log('  → Fetching corporate tax rates...')
+      log.debug('Fetching corporate tax rates')
 
       const url = await this.braveClient.findCorporateTaxRatesPage()
       if (!url) {
@@ -265,7 +268,7 @@ export class TaxRatesFetcher {
     source: string | null
   }> {
     try {
-      console.log('  -> Fetching Division 7A rate...')
+      log.debug('Fetching Division 7A rate')
 
       const url = await this.braveClient.findDivision7ARatesPage()
       if (!url) {
@@ -294,7 +297,7 @@ export class TaxRatesFetcher {
     source: string | null
   }> {
     try {
-      console.log('  -> Fetching FBT rates...')
+      log.debug('Fetching FBT rates')
 
       const url = await this.braveClient.findFBTRatesPage()
       if (!url) {
@@ -325,7 +328,7 @@ export class TaxRatesFetcher {
     source: string | null
   }> {
     try {
-      console.log('  -> Fetching super guarantee rate...')
+      log.debug('Fetching super guarantee rate')
 
       const url = await this.braveClient.findSuperGuaranteeRatePage()
       if (!url) {
@@ -353,7 +356,7 @@ export class TaxRatesFetcher {
     source: string | null
   }> {
     try {
-      console.log('  -> Fetching fuel tax credit rates...')
+      log.debug('Fetching fuel tax credit rates')
 
       const url = await this.braveClient.findFuelTaxCreditRatesPage()
       if (!url) {

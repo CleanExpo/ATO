@@ -11,6 +11,9 @@ import {
   getOrganizationInvitationText,
   type OrganizationInvitationData,
 } from './templates/organization-invitation'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('email:invitation')
 
 // Lazy-initialize Resend client
 let resendInstance: Resend | null = null;
@@ -105,7 +108,7 @@ export async function sendOrganizationInvitationEmail(
       }
     }
 
-    console.log('Organization invitation email sent:', {
+    log.info('Organization invitation email sent', {
       messageId: response.data.id,
       to: params.to,
       organization: params.invitationData.organizationName,

@@ -24,6 +24,9 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getAnalysisResults, getCostSummary } from '@/lib/ai/batch-processor'
 import cacheManager, { CacheKeys, CacheTTL } from '@/lib/cache/cache-manager'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:analysis-results')
 
 export async function GET(request: NextRequest) {
     try {
@@ -55,7 +58,7 @@ export async function GET(request: NextRequest) {
         const isRndCandidate = isRndCandidateParam === 'true' ? true : isRndCandidateParam === 'false' ? false : undefined
         const minConfidence = minConfidenceParam ? parseInt(minConfidenceParam, 10) : undefined
 
-        console.log(`Getting analysis results for tenant ${tenantId}`)
+        log.info('Getting analysis results', { tenantId })
 
         // Get results with filters (cache for 1 hour)
         const cacheKey = CacheKeys.analysisResults(tenantId, financialYear)

@@ -17,6 +17,9 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { scanForDataQualityIssues, getScanStatus } from '@/lib/xero/data-quality-validator'
 import { applyAutoCorrestions } from '@/lib/xero/auto-correction-engine'
 import { createServiceClient } from '@/lib/supabase/server'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:data-quality:scan')
 
 interface ScanStatus {
     scan_status: string
@@ -54,9 +57,7 @@ export async function POST(request: NextRequest) {
         const autoFixThreshold = body.autoFixThreshold || 90
         const applyCorrections = body.applyCorrections !== false  // Default true
 
-        console.log(`Starting data quality scan for tenant ${tenantId}`)
-        console.log(`Financial years: ${financialYears.join(', ')}`)
-        console.log(`Auto-fix threshold: ${autoFixThreshold}%`)
+        log.info('Starting data quality scan', { tenantId, financialYears, autoFixThreshold })
 
         // Check if already scanning
         const currentStatus = await getScanStatus(tenantId)
@@ -75,14 +76,14 @@ export async function POST(request: NextRequest) {
             issueTypes,
             autoFixThreshold,
             onProgress: (progress, message) => {
-                console.log(`Scan progress: ${progress.toFixed(0)}% - ${message}`)
+                log.debug('Scan progress', { progress: progress.toFixed(0), message })
             }
         }).then(async (scanResult) => {
-            console.log(`✅ Scan complete: ${scanResult.issuesFound} issues found`)
+            log.info('Scan complete', { issuesFound: scanResult.issuesFound })
 
             // Apply auto-corrections if enabled
             if (applyCorrections && scanResult.issues.length > 0) {
-                console.log('Applying auto-corrections...')
+                log.info('Applying auto-corrections')
 
                 // Get Xero tokens
                 const supabase = await createServiceClient()

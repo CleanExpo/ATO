@@ -1,5 +1,8 @@
 import { XeroClient, TokenSet } from 'xero-node'
 import { withRetry } from '@/lib/xero/retry'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('xero:client')
 
 // Xero OAuth 2.0 Scopes
 // Read: accounting data | Write: files & attachments only
@@ -61,7 +64,7 @@ export function createXeroClient(options: CreateXeroClientOptions = {}): XeroCli
 
     const baseUrl = resolveBaseUrl(options.baseUrl)
 
-    console.log('Xero Client initialized with Base URL:', baseUrl)
+    log.info('Xero Client initialized', { baseUrl })
 
     try {
         return new XeroClient({

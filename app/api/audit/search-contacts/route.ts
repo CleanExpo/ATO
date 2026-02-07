@@ -11,6 +11,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:search-contacts')
 
 export async function GET(request: NextRequest) {
     try {
@@ -24,7 +27,7 @@ export async function GET(request: NextRequest) {
             return createValidationError('search is required')
         }
 
-        console.log(`Searching contacts for "${search}" in tenant ${tenantId}`)
+        log.info('Searching contacts', { search, tenantId })
 
         const supabase = await createServiceClient()
 

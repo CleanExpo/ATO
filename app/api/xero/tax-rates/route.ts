@@ -14,6 +14,9 @@ import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import type { TokenSet } from 'xero-node'
 import { TaxRate } from 'xero-node'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:xero:tax-rates')
 
 // Helper to get valid token set for a tenant
 async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
@@ -88,7 +91,7 @@ export async function GET(request: NextRequest) {
             return createValidationError('tenantId is required')
         }
 
-        console.log(`Fetching Xero tax rates for tenant ${tenantId}`)
+        log.info('Fetching Xero tax rates', { tenantId })
 
         const tokenSet = await getValidTokenSet(tenantId)
         if (!tokenSet) {

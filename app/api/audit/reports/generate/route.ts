@@ -27,6 +27,9 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { generatePDFReportData, generatePDFReportHTML } from '@/lib/reports/pdf-generator'
 import { generateExcelWorkbookData, exportWorkbookAsCSVZip } from '@/lib/reports/excel-generator'
 import { generateAmendmentSchedules, generateAmendmentSummaryText } from '@/lib/reports/amendment-schedules'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:reports:generate')
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
       return createValidationError(`Invalid format. Must be one of: ${validFormats.join(', ')}`)
     }
 
-    console.log(`Generating ${format} report for tenant ${tenantId}`)
+    log.info('Generating report', { format, tenantId })
 
     const reportId = `REPORT-${Date.now()}`
 

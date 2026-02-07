@@ -10,6 +10,9 @@
  */
 
 import type { ApiErrorResponse } from './errors'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:client')
 
 export class ApiRequestError extends Error {
     constructor(
@@ -135,7 +138,7 @@ export async function apiRequest<T = unknown>(
 
     // Log request in development
     if (isDevelopment) {
-        console.log(`[API Request] ${fetchOptions.method || 'GET'} ${url}`)
+        log.debug('API request', { method: fetchOptions.method || 'GET', url })
     }
 
     // Retry loop
@@ -145,7 +148,7 @@ export async function apiRequest<T = unknown>(
 
             // Log response in development
             if (isDevelopment) {
-                console.log(`[API Response] ${url} - Status: ${response.status}`)
+                log.debug('API response', { url, status: response.status })
             }
 
             // Handle error responses

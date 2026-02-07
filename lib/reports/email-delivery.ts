@@ -6,6 +6,9 @@
  */
 
 import { Resend } from 'resend'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('reports:email-delivery')
 
 const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder')
 
@@ -66,7 +69,7 @@ export async function sendReportEmail(
       }
     }
 
-    console.log(`Email sent successfully: ${response.data?.id}`)
+    log.info('Email sent successfully', { emailId: response.data?.id })
     return {
       id: response.data?.id || '',
       success: true,

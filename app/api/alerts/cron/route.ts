@@ -17,6 +17,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runScheduledAlertChecks, cleanupOldAlerts } from '@/lib/alerts/scheduled-checker'
 import { sendPendingAlertEmails } from '@/lib/alerts/email-notifier'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:alerts:cron')
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,21 +44,21 @@ export async function POST(request: NextRequest) {
 
     // Run scheduled alert checks (deadline-based alerts)
     if (jobType === 'all' || jobType === 'checks') {
-      console.log('Running scheduled alert checks...')
+      log.info('Running scheduled alert checks')
       await runScheduledAlertChecks()
       results.checks = 'completed'
     }
 
     // Send pending email notifications
     if (jobType === 'all' || jobType === 'emails') {
-      console.log('Sending pending alert emails...')
+      log.info('Sending pending alert emails')
       await sendPendingAlertEmails()
       results.emails = 'completed'
     }
 
     // Clean up old alerts (weekly)
     if (jobType === 'cleanup') {
-      console.log('Cleaning up old alerts...')
+      log.info('Cleaning up old alerts')
       await cleanupOldAlerts()
       results.cleanup = 'completed'
     }

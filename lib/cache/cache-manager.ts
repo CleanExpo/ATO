@@ -5,6 +5,10 @@
  * Uses Map for fast lookups with automatic expiration.
  */
 
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('cache:manager')
+
 interface CacheEntry<T> {
   data: T
   expiresAt: number
@@ -208,7 +212,7 @@ class CacheManager {
     }
 
     if (cleaned > 0) {
-      console.log(`[Cache] Cleaned up ${cleaned} expired entries`)
+      log.debug('Cleaned up expired cache entries', { count: cleaned })
     }
   }
 

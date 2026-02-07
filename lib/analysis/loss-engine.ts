@@ -14,6 +14,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import { checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('analysis:loss')
 
 // Fallback tax rates - s 23AA and s 23 ITAA 1997
 const FALLBACK_CORPORATE_TAX_RATE_SMALL = 0.25 // 25% base rate entity
@@ -194,7 +197,7 @@ export async function analyzeLossPosition(
     return createEmptyLossSummary()
   }
 
-  console.log(`Analysing loss positions for ${lossPositions.length} financial years (entity: ${entityType})`)
+  log.info('Analysing loss positions', { financialYears: lossPositions.length, entityType })
 
   // Determine applicable tax rate based on entity type
   const taxRateInfo = await getApplicableTaxRate(entityType, isBaseRateEntity)

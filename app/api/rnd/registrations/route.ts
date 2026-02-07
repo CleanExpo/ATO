@@ -19,6 +19,9 @@ import {
   calculateUrgencyLevel,
 } from '@/lib/types/rnd-registration'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:rnd:registrations')
 
 /**
  * GET /api/rnd/registrations
@@ -45,7 +48,7 @@ export async function GET(request: NextRequest) {
       return createValidationError('tenantId is required')
     }
 
-    console.log(`[R&D Registrations] Fetching registrations for tenant ${tenantId}`)
+    log.info('Fetching registrations', { tenantId })
 
     const supabase = await createServiceClient()
 
@@ -173,7 +176,7 @@ export async function POST(request: NextRequest) {
       return createValidationError(`registrationStatus must be one of: ${validStatuses.join(', ')}`)
     }
 
-    console.log(`[R&D Registrations] Creating/updating registration for ${body.tenantId} ${body.financialYear}`)
+    log.info('Creating/updating registration', { tenantId: body.tenantId, financialYear: body.financialYear })
 
     // Calculate deadline date from financial year
     const deadlineDate = calculateDeadlineFromFY(body.financialYear)

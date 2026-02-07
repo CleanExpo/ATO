@@ -20,6 +20,9 @@ import {
   type MessagePriority,
 } from '@/lib/agents/communication';
 import { QualityGateEnforcer, type QualityGate } from '@/lib/agents/quality-gates';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('senior-pm:orchestration');
 
 // Developer request format
 export interface DeveloperRequest {
@@ -118,7 +121,7 @@ export class SeniorPMOrchestrationManager {
     linearIssue?: { id: string; url: string; identifier: string };
     message: string;
   }> {
-    console.log(`[Senior PM] Received developer request: ${request.title}`);
+    log.info('Received developer request', { title: request.title });
 
     // Validate request
     if (!request.title || !request.description || !request.successCriteria.length) {
@@ -132,9 +135,7 @@ export class SeniorPMOrchestrationManager {
       // Create Linear parent issue
       const linearIssue = await this.linear.createParentIssue(request);
 
-      console.log(
-        `[Senior PM] Created Linear issue: ${linearIssue.identifier} - ${linearIssue.url}`
-      );
+      log.info('Created Linear issue', { identifier: linearIssue.identifier, url: linearIssue.url });
 
       // Initialize project tracking
       const projectProgress: ProjectProgress = {
@@ -223,8 +224,7 @@ ${request.deadline ? `### Deadline\n${new Date(request.deadline).toLocaleString(
     message: string;
     linearSubIssues?: Array<{ id: string; url: string; identifier: string }>;
   }> {
-    console.log(`[Senior PM] Reviewing orchestrator decomposition for ${parentIssueId}`);
-    console.log(`[Senior PM] ${tasks.length} tasks proposed`);
+    log.info('Reviewing orchestrator decomposition', { parentIssueId, taskCount: tasks.length });
 
     const progress = this.activeProjects.get(parentIssueId);
     if (!progress) {
@@ -247,7 +247,7 @@ ${request.deadline ? `### Deadline\n${new Date(request.deadline).toLocaleString(
       // Create Linear sub-issues for each task
       const subIssues = await this.linear.createSpecialistTasks(parentIssueId, tasks);
 
-      console.log(`[Senior PM] Created ${subIssues.length} Linear sub-issues`);
+      log.info('Created Linear sub-issues', { count: subIssues.length });
 
       // Update specialist task counts
       for (const task of tasks) {
@@ -301,7 +301,7 @@ ${subIssues.map((issue) => `- ${issue.identifier}: ${issue.url}`).join('\n')}
    * Receive status updates from specialists → Track progress → Escalate if needed
    */
   async receiveSpecialistUpdate(message: AgentMessage): Promise<void> {
-    console.log(`[Senior PM] Received update from ${message.from}`);
+    log.info('Received specialist update', { from: message.from });
 
     // Extract project ID from Linear URL
     const projectId = this.extractProjectIdFromUrl(message.linearIssueUrl);
@@ -322,7 +322,7 @@ ${subIssues.map((issue) => `- ${issue.identifier}: ${issue.url}`).join('\n')}
 
     if (statusMatch) {
       const taskProgress = parseInt(statusMatch[1], 10);
-      console.log(`[Senior PM] Task progress: ${taskProgress}%`);
+      log.debug('Task progress update', { progress: taskProgress });
 
       // Update specialist progress
       const specialistKey = this.getSpecialistKeyFromRole(message.from);
@@ -370,7 +370,7 @@ ${subIssues.map((issue) => `- ${issue.identifier}: ${issue.url}`).join('\n')}
    * Track quality gates passed → Update project status
    */
   async recordQualityGatePassed(projectId: string, gate: QualityGate): Promise<void> {
-    console.log(`[Senior PM] Quality gate passed: ${gate} for project ${projectId}`);
+    log.info('Quality gate passed', { gate, projectId });
 
     const progress = this.activeProjects.get(projectId);
     if (!progress) {
@@ -575,7 +575,7 @@ ${subIssues.map((issue) => `- ${issue.identifier}: ${issue.url}`).join('\n')}
   }
 
   private async escalateToDeveloper(progress: ProjectProgress, blocker: Blocker): Promise<void> {
-    console.log(`[Senior PM] Escalating blocker to Developer: ${blocker.description}`);
+    log.info('Escalating blocker to Developer', { description: blocker.description });
 
     await this.commBus.sendMessage({
       from: 'senior-pm',
@@ -608,7 +608,7 @@ ${subIssues.map((issue) => `- ${issue.identifier}: ${issue.url}`).join('\n')}
   }
 
   private async notifyDeveloperCompletion(progress: ProjectProgress): Promise<void> {
-    console.log(`[Senior PM] Notifying Developer of project completion`);
+    log.info('Notifying Developer of project completion');
 
     await this.commBus.sendMessage({
       from: 'senior-pm',

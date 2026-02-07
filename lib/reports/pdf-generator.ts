@@ -25,6 +25,9 @@ import { analyzeDeductionOpportunities } from '@/lib/analysis/deduction-engine'
 import { analyzeLossPosition } from '@/lib/analysis/loss-engine'
 import { analyzeDiv7aCompliance } from '@/lib/analysis/div7a-engine'
 import { getCostSummary } from '@/lib/ai/batch-processor'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('reports:pdf')
 
 export interface ReportMetadata {
   reportId: string
@@ -82,7 +85,7 @@ export async function generatePDFReportData(
   organizationName: string,
   abn: string
 ): Promise<PDFReport> {
-  console.log(`Generating PDF report for tenant ${tenantId}`)
+  log.info('Generating PDF report', { tenantId })
 
   // Run all analyses in parallel
   const [
@@ -697,7 +700,7 @@ export async function generatePDF(
   // Import puppeteer dynamically to avoid build issues
   const puppeteer = await import('puppeteer')
 
-  console.log(`Generating PDF for tenant ${tenantId}`)
+  log.info('Generating PDF', { tenantId })
 
   // Generate report data and HTML
   const reportData = await generatePDFReportData(tenantId, organizationName, abn)
@@ -753,7 +756,7 @@ export async function generatePDF(
       preferCSSPageSize: false
     })
 
-    console.log(`PDF generated successfully: ${pdfBuffer.length} bytes`)
+    log.info('PDF generated successfully', { bytes: pdfBuffer.length })
     return Buffer.from(pdfBuffer)
 
   } finally {
@@ -772,7 +775,7 @@ export async function generateClientPDF(
 ): Promise<Buffer> {
   const puppeteer = await import('puppeteer')
 
-  console.log(`Generating client-friendly PDF for tenant ${tenantId}`)
+  log.info('Generating client-friendly PDF', { tenantId })
 
   // Generate full report data
   const reportData = await generatePDFReportData(tenantId, organizationName, abn)

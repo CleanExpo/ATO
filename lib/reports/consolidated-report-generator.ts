@@ -13,8 +13,11 @@
  */
 
 import { generatePDFReportData, type PDFReport, type ExecutiveSummary } from './pdf-generator';
+import { createLogger } from '@/lib/logger';
 // Note: Supabase client must be passed in from API routes, not imported here
 // import { createServiceClient } from '@/lib/supabase/server';
+
+const log = createLogger('reports:consolidated');
 
 export interface ClientReportSummary {
   organizationId: string;
@@ -113,7 +116,7 @@ async function getAccountantOrganizations(
     .in('role', ['accountant', 'admin', 'owner']);
 
   if (error) {
-    console.error('Error fetching accountant organizations:', error);
+    console.error('Error fetching accountant organizations:', error)
     throw new Error('Failed to fetch accountant organizations');
   }
 
@@ -158,7 +161,7 @@ async function generateClientReport(
       reportId: reportData.metadata.reportId,
     };
   } catch (error) {
-    console.error(`Failed to generate report for ${organizationName}:`, error);
+    console.error(`Failed to generate report for ${organizationName}:`, error)
     return {
       organizationId,
       organizationName,
@@ -209,7 +212,7 @@ export async function generateConsolidatedReport(
     throw new Error('No client organizations found for this accountant');
   }
 
-  console.log(`Generating consolidated report for ${organizations.length} clients...`);
+  log.info('Generating consolidated report', { clientCount: organizations.length });
 
   // Generate reports in parallel batches for performance
   const clientReports: ClientReportSummary[] = [];
@@ -220,9 +223,7 @@ export async function generateConsolidatedReport(
     const batchEnd = Math.min(batchStart + batchSize, organizations.length);
     const batch = organizations.slice(batchStart, batchEnd);
 
-    console.log(
-      `Processing batch ${i + 1}/${batches} (clients ${batchStart + 1}-${batchEnd})`
-    );
+    log.info('Processing batch', { batch: i + 1, totalBatches: batches, clientRange: `${batchStart + 1}-${batchEnd}` });
 
     // Generate reports for this batch in parallel
     const batchReports = await Promise.all(
@@ -336,9 +337,7 @@ export async function generateConsolidatedReport(
     },
   };
 
-  console.log(
-    `Consolidated report generated in ${processingTimeMs}ms (${organizations.length} clients, ${batches} batches)`
-  );
+  log.info('Consolidated report generated', { processingTimeMs, clientCount: organizations.length, batches });
 
   return consolidatedReport;
 }

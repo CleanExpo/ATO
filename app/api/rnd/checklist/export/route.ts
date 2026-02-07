@@ -18,6 +18,9 @@ import {
   dbRowToChecklistItem,
   mergeTemplatesWithCompletion,
 } from '@/lib/types/rnd-checklist'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:rnd:checklist:export')
 
 /**
  * GET /api/rnd/checklist/export
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
       return createValidationError('Only CSV format is currently supported')
     }
 
-    console.log(`[R&D Checklist Export] Exporting checklist for tenant ${tenantId} as ${format}`)
+    log.info('Exporting checklist', { tenantId, format })
 
     const supabase = await createServiceClient()
 

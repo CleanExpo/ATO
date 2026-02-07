@@ -10,6 +10,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { QUICKBOOKS_CONFIG } from '@/lib/integrations/quickbooks-config'
 import { createErrorResponse } from '@/lib/api/errors'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:auth:quickbooks')
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,7 +51,7 @@ export async function GET(request: NextRequest) {
     authUrl.searchParams.set('response_type', 'code')
     authUrl.searchParams.set('state', state)
 
-    console.log('QuickBooks OAuth initiated for tenant:', user.id)
+    log.info('QuickBooks OAuth initiated', { tenantId: user.id })
 
     // Redirect to QuickBooks authorization page
     return NextResponse.redirect(authUrl.toString())

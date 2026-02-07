@@ -32,6 +32,9 @@ import { validateRequestBody, validateRequestQuery } from '@/lib/api/validation-
 import { analyzeRequestSchema, tenantIdQuerySchema } from '@/lib/validation/schemas'
 import { retry } from '@/lib/api/retry'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:analyze')
 
 export async function POST(request: NextRequest) {
     try {
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
             validatedTenantId = auth.tenantId
         }
 
-        console.log(`[${analysisPlatform.toUpperCase()}] Starting AI analysis for tenant ${validatedTenantId}`)
+        log.info('Starting AI analysis', { platform: analysisPlatform, tenantId: validatedTenantId })
 
         // Check if already analyzing (with retry for transient DB errors)
         const currentStatus = await retry(
@@ -86,7 +89,7 @@ export async function POST(request: NextRequest) {
         // Estimate cost
         const costEstimate = estimateAnalysisCost(cachedCount)
 
-        console.log(`Estimated cost: $${costEstimate.estimatedCostUSD.toFixed(4)} for ${cachedCount} transactions`)
+        log.info('Estimated analysis cost', { costUSD: costEstimate.estimatedCostUSD, transactionCount: cachedCount })
 
         // Start analysis in background
         // Note: This is a long-running operation (can take 30-60 minutes for 1000s of transactions)
@@ -103,7 +106,7 @@ export async function POST(request: NextRequest) {
                 platform: analysisPlatform,
                 batchSize: batchSize ?? 50, // Use validated batchSize with default
                 onProgress: (progress) => {
-                    console.log(`[${analysisPlatform.toUpperCase()}] Analysis progress: ${progress.progress.toFixed(1)}% (${progress.transactionsAnalyzed}/${progress.totalTransactions})`)
+                    log.debug('Analysis progress', { platform: analysisPlatform, progress: progress.progress, analyzed: progress.transactionsAnalyzed, total: progress.totalTransactions })
                 }
             }
         ).catch(error => {

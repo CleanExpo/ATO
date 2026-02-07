@@ -7,6 +7,9 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/supabase'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('alerts:scheduled-checker')
 
 type AlertDefinition = Database['public']['Tables']['tax_alert_definitions']['Row']
 
@@ -114,7 +117,7 @@ async function checkBASDeadlines(): Promise<void> {
       }
     })
 
-    console.log(`✅ Created BAS alert for tenant ${user.tenant_id}`)
+    log.info('Created BAS alert', { tenantId: user.tenant_id })
   }
 }
 
@@ -195,7 +198,7 @@ async function checkTaxReturnDeadlines(): Promise<void> {
       }
     })
 
-    console.log(`✅ Created tax return alert for tenant ${user.tenant_id}`)
+    log.info('Created tax return alert', { tenantId: user.tenant_id })
   }
 }
 
@@ -276,7 +279,7 @@ async function checkFBTDeadlines(): Promise<void> {
       }
     })
 
-    console.log(`✅ Created FBT alert for tenant ${user.tenant_id}`)
+    log.info('Created FBT alert', { tenantId: user.tenant_id })
   }
 }
 
@@ -285,14 +288,14 @@ async function checkFBTDeadlines(): Promise<void> {
  * Run this daily via cron job
  */
 export async function runScheduledAlertChecks(): Promise<void> {
-  console.log('🔔 Running scheduled alert checks...')
+  log.info('Running scheduled alert checks')
 
   try {
     await checkBASDeadlines()
     await checkTaxReturnDeadlines()
     await checkFBTDeadlines()
 
-    console.log('✅ Scheduled alert checks complete')
+    log.info('Scheduled alert checks complete')
   } catch (error) {
     console.error('Error in scheduled alert checks:', error)
     throw error
@@ -304,7 +307,7 @@ export async function runScheduledAlertChecks(): Promise<void> {
  * Run this weekly via cron job
  */
 export async function cleanupOldAlerts(): Promise<void> {
-  console.log('🧹 Cleaning up old alerts...')
+  log.info('Cleaning up old alerts')
 
   const supabase = await createServiceClient()
 
@@ -336,5 +339,5 @@ export async function cleanupOldAlerts(): Promise<void> {
     console.error('Error cleaning up actioned alerts:', actionedError)
   }
 
-  console.log('✅ Old alerts cleaned up')
+  log.info('Old alerts cleaned up')
 }

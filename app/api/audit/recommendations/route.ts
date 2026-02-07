@@ -27,6 +27,9 @@ import {
 } from '@/lib/recommendations/recommendation-engine'
 import cacheManager, { CacheKeys, CacheTTL } from '@/lib/cache/cache-manager'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:recommendations')
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,7 +52,7 @@ export async function GET(request: NextRequest) {
     const startYear = request.nextUrl.searchParams.get('startYear') || undefined
     const endYear = request.nextUrl.searchParams.get('endYear') || undefined
 
-    console.log(`Getting recommendations for tenant ${tenantId}`)
+    log.info('Getting recommendations', { tenantId })
 
     // If filtering by priority
     if (priority) {

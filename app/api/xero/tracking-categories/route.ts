@@ -14,6 +14,9 @@ import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import type { TokenSet } from 'xero-node'
 import { TrackingOption, TrackingCategory } from 'xero-node'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:xero:tracking-categories')
 
 // Helper to get valid token set for a tenant
 async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
@@ -101,7 +104,7 @@ export async function GET(request: NextRequest) {
             return createValidationError('tenantId is required')
         }
 
-        console.log(`Fetching Xero tracking categories for tenant ${tenantId}`)
+        log.info('Fetching Xero tracking categories', { tenantId })
 
         const tokenSet = await getValidTokenSet(tenantId)
         if (!tokenSet) {

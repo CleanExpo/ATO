@@ -7,6 +7,9 @@
 
 import { useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('hooks:realtime-activity');
 
 interface ActivityLog {
   id: string;
@@ -48,7 +51,7 @@ export function useRealtimeActivity({
           filter: `organization_id=eq.${organizationId}`,
         },
         (payload) => {
-          console.log('New activity logged:', payload);
+          log.debug('New activity logged', { payload });
           if (onActivityLogged) {
             onActivityLogged(payload.new as ActivityLog);
           }

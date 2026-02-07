@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createXeroClient } from '@/lib/xero/client'
 import crypto from 'crypto'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:auth:xero')
 
 // GET /api/auth/xero - Initiate Xero OAuth flow
 // Single-user mode: No authentication required
@@ -25,12 +28,12 @@ export async function GET(request: NextRequest) {
         const state = crypto.randomUUID()
 
         // Build the consent URL
-        console.log('[OAuth] Creating Xero client with baseUrl:', baseUrl)
+        log.info('Creating Xero client', { baseUrl })
         const client = createXeroClient({ state, baseUrl })
 
-        console.log('[OAuth] Building consent URL...')
+        log.info('Building consent URL')
         let consentUrl = await client.buildConsentUrl()
-        console.log('[OAuth] Consent URL built successfully')
+        log.info('Consent URL built successfully')
 
         // Add max_age=0 to force Xero to re-authenticate
         // This invalidates the current session and requires a fresh login

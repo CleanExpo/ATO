@@ -7,6 +7,9 @@
 
 import { useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('hooks:realtime-notifications');
 
 interface Notification {
   id: string;
@@ -55,7 +58,7 @@ export function useRealtimeNotifications({
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('New notification received:', payload);
+          log.debug('New notification received', { payload });
           if (onNotificationReceived) {
             onNotificationReceived(payload.new as Notification);
           }
@@ -70,7 +73,7 @@ export function useRealtimeNotifications({
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('Notification updated:', payload);
+          log.debug('Notification updated', { payload });
           if (onNotificationUpdated) {
             onNotificationUpdated(payload.new as Notification);
           }
@@ -85,7 +88,7 @@ export function useRealtimeNotifications({
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log('Notification deleted:', payload);
+          log.debug('Notification deleted', { payload });
           if (onNotificationDeleted) {
             onNotificationDeleted(payload.old.id);
           }

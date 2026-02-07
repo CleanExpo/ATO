@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateExcelFromTenant } from '@/lib/reports/excel-generator'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:reports:download-excel')
 
 export async function GET(request: NextRequest) {
   // Authenticate and validate tenant access
@@ -10,12 +13,12 @@ export async function GET(request: NextRequest) {
   const { tenantId } = auth
 
   try {
-    console.log(`Generating Excel workbook for tenant: ${tenantId}`)
+    log.info('Generating Excel workbook', { tenantId })
 
     // Generate real Excel workbook with ExcelJS (no 10K limit!)
     const excelBuffer = await generateExcelFromTenant(tenantId)
 
-    console.log(`Excel generated successfully: ${excelBuffer.length} bytes`)
+    log.info('Excel generated successfully', { bytes: excelBuffer.length })
 
     return new NextResponse(new Uint8Array(excelBuffer), {
       headers: {

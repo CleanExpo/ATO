@@ -13,6 +13,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { QUICKBOOKS_CONFIG } from '@/lib/integrations/quickbooks-config'
 import { storeQuickBooksTokens, createQuickBooksClient } from '@/lib/integrations/quickbooks-client'
 import { createErrorResponse } from '@/lib/api/errors'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:auth:quickbooks-callback')
 
 export async function GET(request: NextRequest) {
   try {
@@ -136,7 +139,7 @@ export async function GET(request: NextRequest) {
 
       if (existingConnection?.organization_id) {
         organizationId = existingConnection.organization_id
-        console.log('Found existing organization for QuickBooks realm:', organizationId)
+        log.info('Found existing organization for QuickBooks realm', { organizationId })
 
         // Grant user access if not already granted
         const { data: existingAccess } = await supabaseService
@@ -153,7 +156,7 @@ export async function GET(request: NextRequest) {
             tenant_id: realmId,
             role: 'owner',
           })
-          console.log('Granted owner access to existing organization')
+          log.info('Granted owner access to existing organization')
         }
       } else {
         // Fetch company info from QuickBooks API
@@ -176,7 +179,7 @@ export async function GET(request: NextRequest) {
           console.error('Error creating organization:', orgError)
         } else if (newOrg) {
           organizationId = newOrg.id
-          console.log('Created new organization:', organizationId)
+          log.info('Created new organization', { organizationId })
 
           // Grant user owner access to this organization
           await supabaseService.from('user_tenant_access').insert({
@@ -185,7 +188,7 @@ export async function GET(request: NextRequest) {
             tenant_id: realmId,
             role: 'owner',
           })
-          console.log('Granted owner access to new organization')
+          log.info('Granted owner access to new organization')
         }
       }
 
@@ -213,7 +216,7 @@ export async function GET(request: NextRequest) {
       console.error('Error setting up organization for QuickBooks:', orgError)
     }
 
-    console.log('QuickBooks OAuth successful for tenant:', user.id, 'realmId:', realmId, 'orgId:', organizationId)
+    log.info('QuickBooks OAuth successful', { tenantId: user.id, realmId, orgId: organizationId })
 
     // Redirect to dashboard with success message
     return NextResponse.redirect(

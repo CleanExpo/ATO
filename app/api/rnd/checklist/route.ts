@@ -23,6 +23,9 @@ import {
   mergeTemplatesWithCompletion,
   calculateChecklistProgress,
 } from '@/lib/types/rnd-checklist'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:rnd:checklist')
 
 /**
  * GET /api/rnd/checklist
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
       return createValidationError('tenantId is required')
     }
 
-    console.log(`[R&D Checklist] Fetching checklist for tenant ${tenantId}`)
+    log.info('Fetching checklist', { tenantId })
 
     const supabase = await createServiceClient()
 

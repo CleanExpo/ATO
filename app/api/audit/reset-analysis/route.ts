@@ -11,6 +11,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:reset-analysis')
 
 export async function POST(request: NextRequest) {
     try {
@@ -26,7 +29,7 @@ export async function POST(request: NextRequest) {
             return createValidationError('Multi-user mode not supported for this endpoint')
         }
 
-        console.log(`Resetting analysis status for tenant ${tenantId}`)
+        log.info('Resetting analysis status', { tenantId })
 
         const supabase = await createServiceClient()
 

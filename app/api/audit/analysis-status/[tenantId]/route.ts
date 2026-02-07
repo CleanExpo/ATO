@@ -27,6 +27,9 @@ import { requireTenantAccess } from '@/lib/auth/tenant-guard'
 import { getAnalysisStatus } from '@/lib/ai/batch-processor'
 import { createServiceClient } from '@/lib/supabase/server'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:analysis-status')
 
 export async function GET(
     request: NextRequest,
@@ -49,7 +52,7 @@ export async function GET(
             if (tenantCheck instanceof NextResponse) return tenantCheck
         }
 
-        console.log(`Getting analysis status for tenant ${tenantId}`)
+        log.info('Getting analysis status', { tenantId })
 
         const status = await getAnalysisStatus(tenantId)
 

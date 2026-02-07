@@ -7,6 +7,9 @@
 
 import { LinearClient } from '@linear/sdk';
 import { LinearOrchestrator } from '@/lib/linear/orchestrator';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('agents:communication');
 
 // Agent role definitions
 export type AgentRole =
@@ -405,23 +408,21 @@ ${message.attachments.map(a => `- ${a.type}: ${a.name} (${a.path})`).join('\n')}
     // 2. Potentially trigger agent execution based on message type
     // 3. Update agent state/context with new information
 
-    console.log(
-      `[AgentComm] Routing ${message.priority} message ${message.messageId} from ${message.from} to ${message.to}`
-    );
+    log.info('Routing message', { priority: message.priority, messageId: message.messageId, from: message.from, to: message.to });
 
     // Log different routing strategies based on priority
     switch (message.priority) {
       case 'CRITICAL':
-        console.log(`[AgentComm] CRITICAL message - immediate notification required`);
+        log.info('CRITICAL message - immediate notification required');
         break;
       case 'URGENT':
-        console.log(`[AgentComm] URGENT message - notification within 1 hour`);
+        log.info('URGENT message - notification within 1 hour');
         break;
       case 'STANDARD':
-        console.log(`[AgentComm] STANDARD message - notification within 4 hours`);
+        log.debug('STANDARD message - notification within 4 hours');
         break;
       case 'INFO':
-        console.log(`[AgentComm] INFO message - notification within 24 hours`);
+        log.debug('INFO message - notification within 24 hours');
         break;
     }
   }

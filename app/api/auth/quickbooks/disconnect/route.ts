@@ -10,6 +10,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { revokeQuickBooksAccess } from '@/lib/integrations/quickbooks-client'
 import { createErrorResponse } from '@/lib/api/errors'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:auth:quickbooks-disconnect')
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Revoke QuickBooks access
     await revokeQuickBooksAccess(user.id)
 
-    console.log('QuickBooks disconnected for tenant:', user.id)
+    log.info('QuickBooks disconnected', { tenantId: user.id })
 
     return NextResponse.json({
       success: true,

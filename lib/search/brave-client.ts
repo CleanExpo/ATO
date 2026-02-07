@@ -21,6 +21,10 @@ export interface BraveSearchResponse {
   totalResults?: number
 }
 
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('search:brave')
+
 export class BraveSearchClient {
   private apiKey: string
   private baseUrl = 'https://api.search.brave.com/res/v1'
@@ -131,7 +135,7 @@ export class BraveSearchClient {
 
       // Return the first (most relevant) result
       const topResult = results.results[0]
-      console.log(`Found ATO page: ${topResult.title} - ${topResult.url}`)
+      log.debug('Found ATO page', { title: topResult.title, url: topResult.url })
 
       return topResult.url
     } catch (error: unknown) {

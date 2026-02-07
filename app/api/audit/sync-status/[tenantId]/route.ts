@@ -20,6 +20,9 @@ import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 import { requireTenantAccess } from '@/lib/auth/tenant-guard'
 import { getSyncStatus } from '@/lib/xero/historical-fetcher'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:sync-status')
 
 export async function GET(
     request: NextRequest,
@@ -41,7 +44,7 @@ export async function GET(
             if (tenantCheck instanceof NextResponse) return tenantCheck
         }
 
-        console.log(`Getting sync status for tenant ${tenantId}`)
+        log.info('Getting sync status', { tenantId })
 
         const status = await getSyncStatus(tenantId)
 

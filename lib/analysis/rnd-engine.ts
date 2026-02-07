@@ -15,6 +15,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import { getCurrentFinancialYear, checkAmendmentPeriod } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('analysis:rnd')
 
 // R&D Tax Incentive Rates (Division 355)
 // NOTE: These are fallback values - actual values fetched from ATO.gov.au
@@ -281,7 +284,7 @@ export async function analyzeRndOpportunities(
   }
 
   if (!rndCandidates || rndCandidates.length === 0) {
-    console.log(`No R&D candidates found for tenant ${tenantId}`)
+    log.info('No R&D candidates found', { tenantId })
     return {
       totalProjects: 0,
       totalEligibleExpenditure: 0,
@@ -304,11 +307,11 @@ export async function analyzeRndOpportunities(
     }
   }
 
-  console.log(`Found ${rndCandidates.length} R&D candidate transactions`)
+  log.info('Found R&D candidate transactions', { count: rndCandidates.length })
 
   // Get current R&D offset rate (tiered if entity context provided)
   const rndRateInfo = await getRndOffsetRate(entityContext)
-  console.log(`Using R&D offset rate: ${(rndRateInfo.rate * 100).toFixed(1)}% [Source: ${rndRateInfo.source}] ${rndRateInfo.note}`)
+  log.info('Using R&D offset rate', { rate: `${(rndRateInfo.rate * 100).toFixed(1)}%`, source: rndRateInfo.source, note: rndRateInfo.note })
 
   // Group transactions into projects (returns both eligible and excluded)
   const { eligible, excluded } = groupIntoProjects(rndCandidates, rndRateInfo.rate)

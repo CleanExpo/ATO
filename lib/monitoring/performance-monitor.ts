@@ -5,6 +5,10 @@
  * and provides performance insights.
  */
 
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('monitoring:performance')
+
 interface PerformanceMetric {
   operation: string
   startTime: number
@@ -315,20 +319,20 @@ export function logPerformanceSummary() {
   const summaries = performanceMonitor.getAllSummaries()
 
   if (summaries.length === 0) {
-    console.log('[Performance] No metrics collected yet')
+    log.info('No metrics collected yet')
     return
   }
 
-  console.log('\n=== Performance Summary ===')
+  log.info('Performance summary', { operationCount: summaries.length })
   summaries.forEach((s) => {
     const grade = getPerformanceGrade(s.averageDuration)
-    console.log(
-      `[${grade}] ${s.operation}:`,
-      `avg ${formatDuration(s.averageDuration)},`,
-      `p95 ${formatDuration(s.p95)},`,
-      `success ${s.successRate.toFixed(1)}%,`,
-      `count ${s.count}`
-    )
+    log.info('Operation performance', {
+      grade,
+      operation: s.operation,
+      avgDuration: formatDuration(s.averageDuration),
+      p95: formatDuration(s.p95),
+      successRate: s.successRate.toFixed(1),
+      count: s.count,
+    })
   })
-  console.log('===========================\n')
 }

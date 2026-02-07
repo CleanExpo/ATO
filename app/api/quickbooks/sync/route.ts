@@ -15,6 +15,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { syncQuickBooksHistoricalData } from '@/lib/integrations/quickbooks-historical-fetcher'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:quickbooks:sync')
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,7 +54,7 @@ export async function POST(request: NextRequest) {
       return createValidationError('endDate must be in YYYY-MM-DD format')
     }
 
-    console.log('Starting QuickBooks sync for tenant:', user.id, body.organizationId ? `org: ${body.organizationId}` : '')
+    log.info('Starting QuickBooks sync', { tenantId: user.id, organizationId: body.organizationId })
 
     // Start sync (runs in background)
     const result = await syncQuickBooksHistoricalData(user.id, {
@@ -70,7 +73,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`QuickBooks sync complete: ${result.transactionsSynced} transactions`)
+    log.info('QuickBooks sync complete', { transactionsSynced: result.transactionsSynced })
 
     return NextResponse.json({
       success: true,

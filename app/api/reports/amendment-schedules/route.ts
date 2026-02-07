@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:reports:amendment-schedules')
 
 export async function GET(request: NextRequest) {
   // Authenticate and validate tenant access
@@ -9,7 +12,7 @@ export async function GET(request: NextRequest) {
   const { tenantId, supabase } = auth
 
   try {
-    console.log(`Generating amendment schedules for tenant: ${tenantId}`)
+    log.info('Generating amendment schedules', { tenantId })
 
     // Import puppeteer for PDF generation
     const puppeteer = await import('puppeteer')
@@ -138,7 +141,7 @@ export async function GET(request: NextRequest) {
         printBackground: true
       })
 
-      console.log(`Amendment schedules generated: ${pdfBuffer.length} bytes`)
+      log.info('Amendment schedules generated', { bytes: pdfBuffer.length })
 
       return new NextResponse(Buffer.from(pdfBuffer), {
         headers: {

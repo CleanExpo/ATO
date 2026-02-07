@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createXeroClient, type XeroOrganization, type XeroTenant } from '@/lib/xero/client'
 import { createServiceClient } from '@/lib/supabase/server'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:auth:xero-callback')
 
 type TenantWithOrg = XeroTenant & { orgData?: XeroOrganization }
 
@@ -17,7 +20,7 @@ function buildErrorResponse(request: NextRequest, message: string, status: numbe
 // GET /api/auth/xero/callback - Handle Xero OAuth callback
 // Single-user mode: No authentication required
 export async function GET(request: NextRequest) {
-    console.log('=== Xero OAuth Callback Started ===')
+    log.info('Xero OAuth callback started')
     const baseUrl = request.nextUrl.origin
 
     // Wrap EVERYTHING in a try-catch that returns JSON for debugging
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
         const state = searchParams.get('state')
         const error = searchParams.get('error')
 
-        console.log('Params received:', { hasCode: !!code, hasState: !!state, error })
+        log.debug('Params received', { hasCode: !!code, hasState: !!state, error })
 
         // Handle OAuth errors from Xero
         if (error) {
@@ -46,7 +49,7 @@ export async function GET(request: NextRequest) {
 
         // Get stored state from cookie
         const storedState = request.cookies.get('xero_oauth_state')?.value
-        console.log('State:', { stored: storedState, received: state, match: storedState === state })
+        log.debug('State verification', { stored: storedState, received: state, match: storedState === state })
 
         if (!storedState || storedState !== state) {
             return buildErrorResponse(request, 'OAuth state mismatch or missing cookie', 400, {
@@ -55,23 +58,23 @@ export async function GET(request: NextRequest) {
         }
 
         // Create client with state for validation
-        console.log('Creating Xero client...')
+        log.info('Creating Xero client')
         const client = createXeroClient({ state: storedState, baseUrl })
 
         // Initialize client (discovers Xero identity endpoints)
-        console.log('Initializing client...')
+        log.info('Initializing client')
         await client.initialize()
-        console.log('Client initialized')
+        log.info('Client initialized')
 
         // Exchange code for tokens - THIS IS WHERE IT FAILS
-        console.log('Exchanging code for tokens...')
-        console.log('Callback URL:', request.nextUrl.href)
+        log.info('Exchanging code for tokens')
+        log.debug('Callback URL', { url: request.nextUrl.href })
 
         const tokenSet = await client.apiCallback(request.nextUrl.href)
-        console.log('Token exchange successful!')
+        log.info('Token exchange successful')
 
         // Get connected tenants
-        console.log('Fetching tenants...')
+        log.info('Fetching tenants')
         await client.updateTenants()
         const tenants = client.tenants
 
@@ -92,7 +95,7 @@ export async function GET(request: NextRequest) {
         const failedTenants: Array<{name: string; reason: string}> = []
 
         for (const tenant of tenants) {
-            console.log('Processing tenant:', tenant.tenantName)
+            log.info('Processing tenant', { tenantName: tenant.tenantName })
 
             try {
                 const org = (tenant as TenantWithOrg).orgData
@@ -109,7 +112,7 @@ export async function GET(request: NextRequest) {
 
                 if (existingOrg) {
                     organizationId = existingOrg.id
-                    console.log('Found existing organization:', organizationId)
+                    log.info('Found existing organization', { organizationId })
                 } else {
                     // Create new organization for this Xero tenant
                     const { data: newOrg, error: orgError} = await supabase
@@ -150,7 +153,7 @@ export async function GET(request: NextRequest) {
                     }
 
                     organizationId = newOrg.id
-                    console.log('Created new organization:', organizationId)
+                    log.info('Created new organization', { organizationId })
 
                     // Grant user owner access to this organization (if user exists)
                     if (userId) {
@@ -160,7 +163,7 @@ export async function GET(request: NextRequest) {
                             tenant_id: tenant.tenantId,
                             role: 'owner',
                         })
-                        console.log('Granted owner access to user')
+                        log.info('Granted owner access to user')
                     }
                 }
 

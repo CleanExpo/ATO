@@ -10,6 +10,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { fetchMYOBHistoricalTransactions } from '@/lib/integrations/myob-historical-fetcher'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:myob:sync')
 
 /**
  * POST /api/myob/sync
@@ -81,7 +84,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`[MYOB Sync] Starting historical data sync for company file ${companyFileId}`)
+    log.info('Starting historical data sync', { companyFileId })
 
     // Start sync in background (don't await - let it run async)
     fetchMYOBHistoricalTransactions(

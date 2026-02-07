@@ -21,6 +21,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:cached-transactions')
 
 export async function GET(request: NextRequest) {
     try {
@@ -53,7 +56,7 @@ export async function GET(request: NextRequest) {
             return createValidationError('pageSize must be >= 1')
         }
 
-        console.log(`Getting cached transactions for tenant ${tenantId}, FY: ${financialYear || 'all'}, page ${page}`)
+        log.info('Getting cached transactions', { tenantId, financialYear: financialYear || 'all', page })
 
         // Get total count first
         const supabase = await createServiceClient()

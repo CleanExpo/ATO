@@ -19,6 +19,9 @@ import {
   type UpdateRndEvidenceRequest,
   dbRowToRndEvidence,
 } from '@/lib/types/rnd-evidence'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:rnd:evidence:detail')
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -49,7 +52,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       return createValidationError('evidence id is required')
     }
 
-    console.log(`[R&D Evidence] Fetching evidence ${id} for tenant ${tenantId}`)
+    log.info('Fetching evidence', { id, tenantId })
 
     const supabase = await createServiceClient()
 
@@ -120,7 +123,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return createValidationError('dateCreated must be in YYYY-MM-DD format')
     }
 
-    console.log(`[R&D Evidence] Updating evidence ${id} for tenant ${body.tenantId}`)
+    log.info('Updating evidence', { id, tenantId: body.tenantId })
 
     const supabase = await createServiceClient()
 
@@ -219,7 +222,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       return createValidationError('evidence id is required')
     }
 
-    console.log(`[R&D Evidence] Deleting evidence ${id} for tenant ${tenantId}`)
+    log.info('Deleting evidence', { id, tenantId })
 
     const supabase = await createServiceClient()
 

@@ -18,6 +18,9 @@ import {
   calculateUrgencyLevel,
   URGENCY_CONFIG,
 } from '@/lib/types/rnd-registration'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:rnd:deadlines')
 
 /**
  * GET /api/rnd/deadlines
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
       return createValidationError('tenantId is required')
     }
 
-    console.log(`[R&D Deadlines] Fetching deadlines for tenant ${tenantId}`)
+    log.info('Fetching deadlines', { tenantId })
 
     const supabase = await createServiceClient()
 

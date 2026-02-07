@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generatePDF, generateClientPDF } from '@/lib/reports/pdf-generator'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:reports:download-pdf')
 
 export async function GET(request: NextRequest) {
   // Authenticate and validate tenant access
@@ -11,7 +14,7 @@ export async function GET(request: NextRequest) {
   const type = request.nextUrl.searchParams.get('type') || 'technical' // 'technical' or 'client'
 
   try {
-    console.log(`Generating ${type} PDF for tenant: ${tenantId}`)
+    log.info('Generating PDF', { type, tenantId })
 
     const { data: xeroOrg } = await supabase
       .from('xero_connections')
@@ -30,7 +33,7 @@ export async function GET(request: NextRequest) {
       pdfBuffer = await generatePDF(tenantId, organizationName, abn)
     }
 
-    console.log(`PDF generated successfully: ${pdfBuffer.length} bytes`)
+    log.info('PDF generated successfully', { bytes: pdfBuffer.length })
 
     // Return as downloadable file
     return new NextResponse(new Uint8Array(pdfBuffer), {

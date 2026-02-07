@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse } from '@/lib/api/errors'
 import { requireAdminRole } from '@/lib/middleware/admin-role'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:admin:reset-dashboard')
 
 /**
  * POST /api/admin/reset-dashboard
@@ -24,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = await createServiceClient()
 
-    console.log(`🧹 Starting dashboard reset by admin ${adminCheck.userId}...`)
+    log.info('Starting dashboard reset', { adminUserId: adminCheck.userId })
 
     // Delete in correct order to respect foreign key constraints
     const tables = [
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
     ]
 
     for (const table of tables) {
-      console.log(`Deleting all rows from ${table}...`)
+      log.info('Deleting all rows from table', { table })
 
       const { error } = await supabase
         .from(table)
@@ -46,11 +49,11 @@ export async function POST(request: NextRequest) {
         console.error(`Error deleting from ${table}:`, error)
         // Continue with other tables even if one fails
       } else {
-        console.log(`✅ Cleared ${table}`)
+        log.info('Cleared table', { table })
       }
     }
 
-    console.log('✨ Dashboard reset complete - now showing empty state for new customers')
+    log.info('Dashboard reset complete')
 
     return NextResponse.json({
       success: true,

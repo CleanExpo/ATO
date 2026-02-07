@@ -22,6 +22,9 @@ import {
   createOrRetrieveCustomer,
   type LicenseType,
 } from '@/lib/stripe/client';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:checkout:create');
 
 interface CheckoutSessionResponse {
   sessionId: string;
@@ -171,9 +174,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Log checkout session creation
-    console.log(
-      `Checkout session created: ${session.id} for user ${user.id} (${productName})`
-    );
+    log.info('Checkout session created', { sessionId: session.id, userId: user.id, productName });
 
     const response: CheckoutSessionResponse = {
       sessionId: session.id,

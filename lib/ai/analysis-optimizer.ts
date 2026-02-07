@@ -10,7 +10,10 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { createLogger } from '@/lib/logger'
 import type { AnalysisProgress } from './batch-processor'
+
+const log = createLogger('ai:analysis-optimizer')
 
 /**
  * Check which transactions have already been analyzed
@@ -98,7 +101,7 @@ export async function filterUnanalyzedTransactions<T extends { transactionID?: s
     ? (alreadyAnalyzed.length / transactions.length) * 100
     : 0
 
-  console.log(`Cache hit rate: ${cacheHitRate.toFixed(1)}% (${alreadyAnalyzed.length}/${transactions.length} already analyzed)`)
+  log.info('Cache hit rate calculated', { cacheHitRate: cacheHitRate.toFixed(1), alreadyAnalyzed: alreadyAnalyzed.length, total: transactions.length })
 
   return {
     unanalyzed,

@@ -14,6 +14,9 @@ import { analyzeRndOpportunities } from '@/lib/analysis/rnd-engine'
 import { analyzeDeductionOpportunities } from '@/lib/analysis/deduction-engine'
 import { analyzeLossPosition } from '@/lib/analysis/loss-engine'
 import { analyzeDiv7aCompliance } from '@/lib/analysis/div7a-engine'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('recommendations:engine')
 
 export type TaxArea = 'rnd' | 'deductions' | 'losses' | 'div7a'
 export type Priority = 'critical' | 'high' | 'medium' | 'low'
@@ -76,7 +79,7 @@ export async function generateRecommendations(
   startYear?: string,
   endYear?: string
 ): Promise<RecommendationSummary> {
-  console.log(`Generating recommendations for tenant ${tenantId}`)
+  log.info('Generating recommendations', { tenantId })
 
   // Run all analysis engines in parallel
   const [rndSummary, deductionSummary, lossSummary, div7aSummary] = await Promise.all([
@@ -128,7 +131,7 @@ export async function generateRecommendations(
   // Calculate summary
   const summary = calculateRecommendationSummary(prioritized)
 
-  console.log(`Generated ${summary.totalRecommendations} recommendations, total benefit: $${summary.totalAdjustedBenefit.toFixed(2)}`)
+  log.info('Recommendations generated', { totalRecommendations: summary.totalRecommendations, totalAdjustedBenefit: summary.totalAdjustedBenefit.toFixed(2) })
 
   return summary
 }

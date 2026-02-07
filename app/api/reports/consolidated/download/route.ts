@@ -27,6 +27,9 @@ import { createErrorResponse, createValidationError, createAuthError } from '@/l
 import { generateConsolidatedReport, formatCurrency, formatPercentage } from '@/lib/reports/consolidated-report-generator';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:reports:consolidated:download');
 
 const downloadConsolidatedReportSchema = z.object({
   batchSize: z.number().int().min(1).max(10).default(5),
@@ -60,9 +63,7 @@ export async function POST(request: NextRequest) {
 
     const { batchSize, organizationIds, format } = validation.data;
 
-    console.log(
-      `[CONSOLIDATED_DOWNLOAD] Generating ${format} download for user ${user.id}`
-    );
+    log.info('Generating download', { format, userId: user.id });
 
     // Generate the consolidated report
     const report = await generateConsolidatedReport(user.id, supabase, batchSize);

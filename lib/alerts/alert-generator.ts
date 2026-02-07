@@ -11,6 +11,9 @@
 
 import { createClient } from '@/lib/supabase/server'
 import type { Database } from '@/types/supabase'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('alerts:generator')
 
 type AlertDefinition = Database['public']['Tables']['tax_alert_definitions']['Row']
 type TaxAlert = Database['public']['Tables']['tax_alerts']['Insert']
@@ -484,7 +487,7 @@ export async function storeGeneratedAlerts(alerts: GeneratedAlert[]): Promise<vo
   })
 
   if (newAlerts.length === 0) {
-    console.log('No new alerts to create (duplicates filtered)')
+    log.debug('No new alerts to create (duplicates filtered)')
     return
   }
 
@@ -498,7 +501,7 @@ export async function storeGeneratedAlerts(alerts: GeneratedAlert[]): Promise<vo
     throw error
   }
 
-  console.log(`✅ Created ${newAlerts.length} new tax alerts`)
+  log.info('Created new tax alerts', { count: newAlerts.length })
 
   // Log alert creation in history
   for (const { alert } of newAlerts) {
@@ -528,7 +531,7 @@ export async function triggerAlertGeneration(
   financialYear: string,
   platform?: string
 ): Promise<number> {
-  console.log(`🔔 Generating alerts for ${tenantId}, FY ${financialYear}, platform ${platform}`)
+  log.info('Generating alerts', { tenantId, financialYear, platform })
 
   const supabase = await createClient()
 
@@ -551,7 +554,7 @@ export async function triggerAlertGeneration(
   }
 
   if (!analysisResults || analysisResults.length === 0) {
-    console.log('No analysis results found for alert generation')
+    log.info('No analysis results found for alert generation')
     return 0
   }
 

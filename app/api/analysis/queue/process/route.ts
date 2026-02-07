@@ -16,6 +16,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
 import { processAnalysisQueue } from '@/lib/analysis/reanalysis-worker';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('api:analysis:queue:process');
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +32,7 @@ export async function POST(request: NextRequest) {
       return createValidationError('maxJobs must be a number between 1 and 100');
     }
 
-    console.log(`Starting analysis queue processing (maxJobs: ${maxJobs})`);
+    log.info('Starting analysis queue processing', { maxJobs });
 
     // Process queue
     const result = await processAnalysisQueue(maxJobs);

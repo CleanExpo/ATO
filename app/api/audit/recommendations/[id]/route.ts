@@ -11,6 +11,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:recommendations:detail')
 
 export async function GET(
   request: NextRequest,
@@ -29,7 +32,7 @@ export async function GET(
       return createValidationError('Recommendation ID is required')
     }
 
-    console.log(`Getting recommendation ${recommendationId} for tenant ${tenantId}`)
+    log.info('Getting recommendation', { recommendationId, tenantId })
 
     const recommendation = await getRecommendation(tenantId, recommendationId)
 
@@ -89,7 +92,7 @@ export async function PATCH(
       }
     }
 
-    console.log(`Updating recommendation ${recommendationId} for tenant ${tenantId}`)
+    log.info('Updating recommendation', { recommendationId, tenantId })
 
     // In a full implementation, this would update the database
     // For now, return success response

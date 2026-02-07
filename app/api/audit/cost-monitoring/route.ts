@@ -20,6 +20,9 @@ import { createErrorResponse } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import cacheManager, { CacheTTL } from '@/lib/cache/cache-manager'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('api:audit:cost-monitoring')
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +34,7 @@ export async function GET(request: NextRequest) {
     const startDate = request.nextUrl.searchParams.get('startDate') || undefined
     const endDate = request.nextUrl.searchParams.get('endDate') || undefined
 
-    console.log(`Getting cost monitoring data for tenant ${tenantId}`)
+    log.info('Getting cost monitoring data', { tenantId })
 
     // Cache cost data for 5 minutes (costs update frequently during analysis)
     const cacheKey = `cost-monitoring:${tenantId}:${startDate || 'all'}:${endDate || 'all'}`

@@ -9,6 +9,9 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { analyzeFuelTaxCredits } from './fuel-tax-credits-analyzer';
 import { analyzeTrustDistributions } from './trust-distribution-analyzer';
 import { analyzeSuperannuationCaps } from './superannuation-cap-analyzer';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('analysis:reanalysis');
 
 interface AnalysisQueueJob {
   id: string;
@@ -55,11 +58,11 @@ export async function processAnalysisQueue(
   }
 
   if (!jobs || jobs.length === 0) {
-    console.log('No pending analysis jobs in queue');
+    log.info('No pending analysis jobs in queue');
     return { processed: 0, failed: 0, errors: [] };
   }
 
-  console.log(`Processing ${jobs.length} analysis queue jobs`);
+  log.info('Processing analysis queue jobs', { count: jobs.length });
 
   let processedCount = 0;
   let failedCount = 0;
@@ -67,7 +70,7 @@ export async function processAnalysisQueue(
 
   for (const job of jobs) {
     try {
-      console.log(`Processing job ${job.id}: ${job.analysis_type} for tenant ${job.tenant_id}`);
+      log.info('Processing job', { jobId: job.id, analysisType: job.analysis_type, tenantId: job.tenant_id });
 
       // Mark job as processing
       await supabase
@@ -94,7 +97,7 @@ export async function processAnalysisQueue(
           .eq('id', job.id);
 
         processedCount++;
-        console.log(`Job ${job.id} completed successfully`);
+        log.info('Job completed successfully', { jobId: job.id });
       } else {
         throw new Error(result.error_message || 'Re-analysis failed');
       }
@@ -126,7 +129,7 @@ export async function processAnalysisQueue(
           })
           .eq('id', job.id);
 
-        console.log(`Job ${job.id} will retry (attempt ${retryCount}/${maxRetries})`);
+        log.info('Job will retry', { jobId: job.id, attempt: retryCount, maxRetries });
       } else {
         // Max retries exceeded, mark as failed
         await supabase
@@ -145,9 +148,7 @@ export async function processAnalysisQueue(
     }
   }
 
-  console.log(
-    `Queue processing complete: ${processedCount} processed, ${failedCount} failed, ${errors.length} errors`
-  );
+  log.info('Queue processing complete', { processed: processedCount, failed: failedCount, errors: errors.length });
 
   return { processed: processedCount, failed: failedCount, errors };
 }

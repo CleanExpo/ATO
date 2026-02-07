@@ -9,6 +9,10 @@
  * - Separation of client/server/shared config
  */
 
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('config:env')
+
 class ConfigurationError extends Error {
   constructor(message: string) {
     super(message);
@@ -222,13 +226,14 @@ export function validateConfiguration(): {
  * Log configuration status (safe for production - no secrets)
  */
 export function logConfigurationStatus(): void {
-  console.log('=== Configuration Status ===');
-  console.log(`Environment: ${sharedConfig.isProduction ? 'Production' : 'Development'}`);
-  console.log(`Platform: ${sharedConfig.isVercel ? 'Vercel' : 'Local'}`);
-  console.log(`Base URL: ${sharedConfig.baseUrl}`);
-  console.log(`Supabase URL: ${clientConfig.supabase.url}`);
-  console.log(`Xero Client ID: ${serverConfig.xero.clientId ? serverConfig.xero.clientId.substring(0, 8) + '...' : 'Not configured'}`);
-  console.log(`Linear Team ID: ${serverConfig.linear.teamId}`);
+  log.info('Configuration status', {
+    environment: sharedConfig.isProduction ? 'Production' : 'Development',
+    platform: sharedConfig.isVercel ? 'Vercel' : 'Local',
+    baseUrl: sharedConfig.baseUrl,
+    supabaseUrl: clientConfig.supabase.url,
+    xeroClientId: serverConfig.xero.clientId ? serverConfig.xero.clientId.substring(0, 8) + '...' : 'Not configured',
+    linearTeamId: serverConfig.linear.teamId,
+  });
 
   const validation = validateConfiguration();
 
@@ -241,8 +246,6 @@ export function logConfigurationStatus(): void {
     console.error('\nErrors:');
     validation.errors.forEach(error => console.error(`  - ${error}`));
   } else {
-    console.log('\n✓ All required configuration valid');
+    log.info('All required configuration valid');
   }
-
-  console.log('===========================\n');
 }
