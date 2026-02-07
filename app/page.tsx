@@ -459,24 +459,24 @@ function ComplianceAuditCard() {
 
 export default function Home() {
   return (
-    <div className="min-h-screen text-white flex justify-center" style={{ background: '#050505' }}>
+    <div className="min-h-screen text-white" style={{ background: '#050505' }}>
       <LocalBusinessSchema />
       <FAQSchema />
 
-      <div className="max-w-[1920px] w-full">
+      <div className="w-full">
 
         {/* ── Section 1: Hero — "The Pain Killer" ── */}
-        <section className="pt-20 md:pt-28 pb-32 px-6">
-          <div className="max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <section className="min-h-screen flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-16">
+          <div className="max-w-7xl mx-auto w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
 
               {/* Left: Messaging */}
-              <div>
+              <div className="text-center lg:text-left">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, ease: EASING }}
-                  className="flex items-center gap-3 mb-8"
+                  className="flex items-center justify-center lg:justify-start gap-3 mb-8"
                 >
                   <MapPin className="w-3.5 h-3.5" style={{ color: SPECTRAL.cyan }} />
                   <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-medium">
@@ -499,7 +499,7 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.2, ease: EASING }}
-                  className="text-lg text-white/50 max-w-xl mb-4 font-light leading-relaxed"
+                  className="text-lg text-white/50 max-w-xl mx-auto lg:mx-0 mb-4 font-light leading-relaxed"
                 >
                   AI-powered forensic analysis scans 5 years of transactions to surface
                   R&D tax offsets, unclaimed deductions, and compliance gaps that your
@@ -519,11 +519,11 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.3, ease: EASING }}
-                  className="flex flex-col sm:flex-row items-start gap-4 mb-10"
+                  className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4 mb-10"
                 >
                   <Link
                     href="/api/auth/xero"
-                    className="group px-8 py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-semibold border-[0.5px] transition-all duration-300 hover:scale-[1.02]"
+                    className="group px-8 py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-semibold border-[0.5px] transition-all duration-300 hover:scale-[1.02] w-full sm:w-auto text-center"
                     style={{
                       borderColor: `${SPECTRAL.cyan}50`,
                       color: '#050505',
@@ -531,14 +531,14 @@ export default function Home() {
                       boxShadow: `0 0 60px ${SPECTRAL.cyan}25`,
                     }}
                   >
-                    <span className="flex items-center gap-3">
+                    <span className="flex items-center justify-center gap-3">
                       Connect Xero — Free Analysis
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </span>
                   </Link>
                   <Link
                     href="/dashboard"
-                    className="px-8 py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-medium border-[0.5px] border-white/[0.12] text-white/50 hover:text-white/80 hover:border-white/[0.25] transition-all duration-300"
+                    className="px-8 py-4 rounded-sm text-[11px] uppercase tracking-[0.2em] font-medium border-[0.5px] border-white/[0.12] text-white/50 hover:text-white/80 hover:border-white/[0.25] transition-all duration-300 w-full sm:w-auto text-center"
                     style={{ background: 'rgba(255,255,255,0.02)' }}
                   >
                     View Dashboard
@@ -550,7 +550,7 @@ export default function Home() {
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4, ease: EASING }}
-                  className="flex flex-wrap gap-6 text-[11px] text-white/30"
+                  className="flex flex-wrap justify-center lg:justify-start gap-6 text-[11px] text-white/30"
                 >
                   <div className="flex items-center gap-2">
                     <Shield className="w-3.5 h-3.5" style={{ color: SPECTRAL.emerald }} />
@@ -574,8 +574,8 @@ export default function Home() {
         </section>
 
         {/* ── Pain Killer: What You're Missing ── */}
-        <section className="px-6 py-20 md:py-28">
-          <div className="max-w-6xl mx-auto">
+        <section className="px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+          <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -647,8 +647,8 @@ export default function Home() {
         </section>
 
         {/* ── Section 2: How It Works ── */}
-        <section className="px-6 py-20 md:py-28">
-          <div className="max-w-5xl mx-auto">
+        <section className="px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+          <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -734,8 +734,8 @@ export default function Home() {
         </section>
 
         {/* ── Interactive R&D Offset Calculator ── */}
-        <section className="px-6 py-20 md:py-28">
-          <div className="max-w-4xl mx-auto">
+        <section className="px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+          <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -749,13 +749,15 @@ export default function Home() {
               </h2>
             </motion.div>
 
-            <OffsetCalculator />
+            <div className="max-w-4xl mx-auto">
+              <OffsetCalculator />
+            </div>
           </div>
         </section>
 
         {/* ── Section 3: Compliance Guarantee ── */}
-        <section className="px-6 py-20 md:py-28">
-          <div className="max-w-5xl mx-auto">
+        <section className="px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+          <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -836,8 +838,8 @@ export default function Home() {
         </section>
 
         {/* ── Pricing ── */}
-        <section id="pricing" className="px-6 py-20 md:py-28">
-          <div className="max-w-5xl mx-auto">
+        <section id="pricing" className="px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+          <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -966,8 +968,8 @@ export default function Home() {
         </section>
 
         {/* ── Final CTA ── */}
-        <section className="px-6 py-20 md:py-28">
-          <div className="max-w-4xl mx-auto text-center">
+        <section className="px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+          <div className="max-w-7xl mx-auto text-center">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -1004,7 +1006,7 @@ export default function Home() {
         </section>
 
         {/* ── Footer ── */}
-        <footer className="px-6 py-12 border-t border-white/[0.06]">
+        <footer className="px-4 sm:px-6 lg:px-8 py-12 border-t border-white/[0.06]">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-6">
               <p className="text-[11px] text-white/25 tracking-wider">
