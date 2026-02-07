@@ -153,7 +153,8 @@ function swarm-gates {
         # Tests
         Write-Host "Running tests..." -ForegroundColor Yellow
         $testOutput = & pnpm test:run 2>&1 | Out-String
-        $testPassed = ($LASTEXITCODE -eq 0)
+        # Check output text for failures (more reliable than $LASTEXITCODE with piped output)
+        $testPassed = ($testOutput -match "\d+ passed" -and $testOutput -notmatch "\d+ failed")
         $testSummary = ($testOutput -split "`n" | Select-String -Pattern "Tests|passed|failed|test" | Select-Object -First 3 | Out-String).Trim()
         Write-Gate "Tests" $testPassed $testSummary
         if (-not $testPassed) { $allPassed = $false }

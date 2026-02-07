@@ -31,7 +31,7 @@ export class GeminiMockFactory {
                             description.toLowerCase().includes('director') ||
                             description.toLowerCase().includes('distribution')
 
-    const category = this.determineTaxCategory(isRndCandidate, isDiv7aCandidate, amount)
+    const category = this.determineTaxCategory(isRndCandidate, isDiv7aCandidate, amount, description)
 
     return {
       transaction_id: transaction.transactionID || transaction.id,
@@ -137,18 +137,61 @@ export class GeminiMockFactory {
   private static determineTaxCategory(
     isRnd: boolean,
     isDiv7a: boolean,
-    amount: number
+    amount: number,
+    description: string = ''
   ): string {
-    if (isRnd && Math.random() > 0.3) {
+    const descLower = description.toLowerCase()
+
+    if (isRnd) {
       return 'R&D_TAX_INCENTIVE'
     }
 
-    if (isDiv7a && Math.random() > 0.4) {
+    if (isDiv7a) {
       return 'DIVISION_7A'
     }
 
-    if (amount > 20000 && Math.random() > 0.6) {
+    // Detect capital expenses (large asset purchases, property, building, equipment)
+    const isCapitalExpense = descLower.includes('building') ||
+                             descLower.includes('property') ||
+                             descLower.includes('capital') ||
+                             descLower.includes('acquisition') ||
+                             (descLower.includes('purchase') && amount > 100000)
+    if (isCapitalExpense) {
+      return 'CAPITAL_EXPENSE'
+    }
+
+    // Detect non-deductible expenses (entertainment, fines, penalties)
+    const isNonDeductible = descLower.includes('entertainment') ||
+                            descLower.includes('fine') ||
+                            descLower.includes('penalty') ||
+                            descLower.includes('donation') ||
+                            descLower.includes('political')
+    if (isNonDeductible) {
+      return 'NON_DEDUCTIBLE'
+    }
+
+    if (amount > 20000) {
       return 'INSTANT_ASSET_WRITEOFF'
+    }
+
+    // Detect general deductions (rent, office supplies, utilities, insurance)
+    const isGeneralDeduction = descLower.includes('rent') ||
+                               descLower.includes('office') ||
+                               descLower.includes('supplies') ||
+                               descLower.includes('utilities') ||
+                               descLower.includes('insurance') ||
+                               descLower.includes('telephone') ||
+                               descLower.includes('internet')
+    if (isGeneralDeduction) {
+      return 'GENERAL_DEDUCTION'
+    }
+
+    // Detect bad debts
+    const isBadDebt = descLower.includes('bad debt') ||
+                      descLower.includes('write-off') ||
+                      descLower.includes('write off')
+    if (isBadDebt) {
+      return 'BAD_DEBT'
     }
 
     const categories = [

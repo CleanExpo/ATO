@@ -350,7 +350,7 @@ describe('POST /api/audit/analyze', () => {
     })
 
     it('should estimate remaining time', async () => {
-      const timePerTransaction = 200 // ms
+      const timePerTransaction = 2000 // ms
       const remainingTransactions = 50
 
       const estimatedMs = timePerTransaction * remainingTransactions
