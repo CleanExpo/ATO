@@ -59,11 +59,11 @@ describe('Division7aAnalyzer', () => {
       const minimumRepayment = loanAmount * (benchmarkRate / (1 - Math.pow(1 + benchmarkRate, -term)))
 
       expect(minimumRepayment).toBeGreaterThan(0)
-      expect(minimumRepayment).toBeCloseTo(19344, 0) // ~$19,344 per year
+      expect(minimumRepayment).toBeCloseTo(19716, 0) // ~$19,716 per year
     })
 
     it('should fail if repayment below minimum', () => {
-      const correctMinRepayment = 19344
+      const correctMinRepayment = 100000 * (BENCHMARK_RATE_FY2024_25 / (1 - Math.pow(1 + BENCHMARK_RATE_FY2024_25, -LOAN_TERM_YEARS)))
       const result = ValidatorMockFactory.div7aResult(false, {
         amount: 100000,
         interestRate: 0.0877,
@@ -87,10 +87,10 @@ describe('Division7aAnalyzer', () => {
 
     // Test various loan amounts
     const loanTests = [
-      { amount: 50000, expectedMin: 9672 },
-      { amount: 100000, expectedMin: 19344 },
-      { amount: 250000, expectedMin: 48360 },
-      { amount: 500000, expectedMin: 96720 },
+      { amount: 50000, expectedMin: 9858 },
+      { amount: 100000, expectedMin: 19716 },
+      { amount: 250000, expectedMin: 49290 },
+      { amount: 500000, expectedMin: 98580 },
     ]
 
     loanTests.forEach(({ amount, expectedMin }) => {
@@ -197,7 +197,7 @@ describe('Division7aAnalyzer', () => {
       const result = ValidatorMockFactory.div7aResult(true, {
         amount: 150000,
         interestRate: 0.0877,
-        repayment: 29016, // Correct minimum
+        repayment: 29574, // Correct minimum
       })
 
       expect(result.passed).toBe(true)
@@ -232,7 +232,7 @@ describe('Division7aAnalyzer', () => {
       const minimumRepayment = loanAmount * (BENCHMARK_RATE_FY2024_25 / (1 - Math.pow(1 + BENCHMARK_RATE_FY2024_25, -LOAN_TERM_YEARS)))
 
       expect(minimumRepayment).toBeGreaterThan(0)
-      expect(minimumRepayment).toBeCloseTo(1934400, 0) // ~$1.93M per year
+      expect(minimumRepayment).toBeCloseTo(1971597, 0) // ~$1.97M per year
     })
 
     it('should handle negative interest rates (invalid)', () => {
@@ -247,17 +247,17 @@ describe('Division7aAnalyzer', () => {
       const result = ValidatorMockFactory.div7aResult(true, {
         amount: 100000,
         interestRate: 0.0877,
-        repayment: 19344.56, // Fractional cents
+        repayment: 19716.56, // Fractional cents
       })
 
-      expect(result.calculations.actualRepayment).toBeCloseTo(19344.56, 2)
+      expect(result.calculations.actualRepayment).toBeCloseTo(19716.56, 2)
     })
   })
 
   describe('Multi-Year Scenarios', () => {
     it('should track loan balance over time', () => {
       const initialLoan = 100000
-      const annualRepayment = 19344
+      const annualRepayment = 19716
       const interestRate = 0.0877
 
       // Year 1
@@ -266,7 +266,7 @@ describe('Division7aAnalyzer', () => {
       const year1Balance = initialLoan - year1Principal
 
       expect(year1Balance).toBeLessThan(initialLoan)
-      expect(year1Balance).toBeCloseTo(88433, 0)
+      expect(year1Balance).toBeCloseTo(89054, 0)
 
       // Year 2
       const year2Interest = year1Balance * interestRate
@@ -274,12 +274,12 @@ describe('Division7aAnalyzer', () => {
       const year2Balance = year1Balance - year2Principal
 
       expect(year2Balance).toBeLessThan(year1Balance)
-      expect(year2Balance).toBeCloseTo(76171, 0)
+      expect(year2Balance).toBeCloseTo(77148, 0)
     })
 
     it('should confirm loan fully repaid after term', () => {
       const loanAmount = 100000
-      const annualRepayment = 19344
+      const annualRepayment = 19716
       const interestRate = 0.0877
       const term = 7
 

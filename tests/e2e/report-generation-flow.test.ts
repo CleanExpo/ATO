@@ -111,7 +111,7 @@ test.describe('Report Generation Workflow', () => {
       // Verify filename
       expect(download.suggestedFilename()).toContain('RnD_Tax_Incentive')
       expect(download.suggestedFilename()).toMatch(/FY\d{4}-\d{2}/)
-      expect(download.suggestedFilename()).toEndWith('.pdf')
+      expect(download.suggestedFilename()).toMatch(/\.pdf$/)
 
       // Verify file size is reasonable (> 50KB for a real report)
       const path = await download.path()
@@ -277,7 +277,7 @@ test.describe('Report Generation Workflow', () => {
 
     test('should display executive summary with total recovery estimate', async ({ page }) => {
       await page.goto('/dashboard/reports')
-      await page.click('[data-report-type="comprehensive_audit"]').first()
+      await page.locator('[data-report-type="comprehensive_audit"]').first().click()
 
       await expect(page.locator('[data-testid="report-preview"]')).toBeVisible()
 
@@ -289,7 +289,7 @@ test.describe('Report Generation Workflow', () => {
 
     test('should show key findings from all tax modules', async ({ page }) => {
       await page.goto('/dashboard/reports')
-      await page.click('[data-report-type="comprehensive_audit"]').first()
+      await page.locator('[data-report-type="comprehensive_audit"]').first().click()
 
       await expect(page.locator('[data-testid="report-preview"]')).toBeVisible()
 
@@ -304,7 +304,7 @@ test.describe('Report Generation Workflow', () => {
 
     test('should include urgent actions section', async ({ page }) => {
       await page.goto('/dashboard/reports')
-      await page.click('[data-report-type="comprehensive_audit"]').first()
+      await page.locator('[data-report-type="comprehensive_audit"]').first().click()
 
       await expect(page.locator('[data-testid="report-preview"]')).toBeVisible()
 
@@ -369,7 +369,7 @@ test.describe('Report Generation Workflow', () => {
       await page.click('text=Disaster Recovery Group')
 
       // View existing group report
-      await page.click('[data-report-type="comprehensive_audit"][data-is-group="true"]').first()
+      await page.locator('[data-report-type="comprehensive_audit"][data-is-group="true"]').first().click()
 
       await expect(page.locator('[data-testid="report-preview"]')).toBeVisible()
 
@@ -385,7 +385,7 @@ test.describe('Report Generation Workflow', () => {
       await page.click('[data-testid="org-selector"]')
       await page.click('text=Disaster Recovery Group')
 
-      await page.click('[data-report-type="comprehensive_audit"][data-is-group="true"]').first()
+      await page.locator('[data-report-type="comprehensive_audit"][data-is-group="true"]').first().click()
 
       await expect(page.locator('[data-testid="report-preview"]')).toBeVisible()
 
@@ -399,7 +399,7 @@ test.describe('Report Generation Workflow', () => {
       await page.click('[data-testid="org-selector"]')
       await page.click('text=Disaster Recovery Group')
 
-      await page.click('[data-report-type="comprehensive_audit"][data-is-group="true"]').first()
+      await page.locator('[data-report-type="comprehensive_audit"][data-is-group="true"]').first().click()
 
       // Verify pricing appears in report metadata
       await expect(page.locator('text=/Service Fee: \\$1,393/i')).toBeVisible()
@@ -507,7 +507,7 @@ test.describe('Report Generation Workflow', () => {
       await page.goto('/dashboard/reports')
 
       // Open first report
-      await page.click('[data-testid="report-row"]').first()
+      await page.locator('[data-testid="report-row"]').first().click()
 
       await expect(page.locator('[data-testid="report-preview"]')).toBeVisible()
 
@@ -520,7 +520,7 @@ test.describe('Report Generation Workflow', () => {
 
     test('should include all legislative references', async ({ page }) => {
       await page.goto('/dashboard/reports')
-      await page.click('[data-testid="report-row"]').first()
+      await page.locator('[data-testid="report-row"]').first().click()
 
       await expect(page.locator('[data-testid="report-preview"]')).toBeVisible()
 

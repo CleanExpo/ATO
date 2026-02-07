@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 
     // If reportYear is specified, fetch all quarters for that financial year
     // Otherwise, fetch the most recent BAS period
-    let basReports: NormalizedBAS[] = [];
+    const basReports: NormalizedBAS[] = [];
 
     if (reportYear) {
       // Australian financial year: July 1 to June 30

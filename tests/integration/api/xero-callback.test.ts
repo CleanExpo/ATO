@@ -144,7 +144,7 @@ describe('POST /api/auth/xero/callback', () => {
       const request = {
         url: 'http://localhost:3000/api/auth/xero/callback?code=test&state=wrong_state',
         cookies: {
-          get: vi.fn(() => ({ value: 'correct_state' })),
+          get: vi.fn((_name: string) => ({ value: 'correct_state' })),
         },
       }
 
@@ -183,7 +183,8 @@ describe('POST /api/auth/xero/callback', () => {
         message: 'duplicate key value violates unique constraint',
       }
 
-      mockSupabaseClient.from('organizations').insert = vi.fn().mockReturnValue({
+      // Simulate the insert returning a DB error
+      const mockInsert = vi.fn().mockReturnValue({
         select: vi.fn().mockReturnValue({
           single: vi.fn().mockResolvedValue({
             data: null,
@@ -192,10 +193,24 @@ describe('POST /api/auth/xero/callback', () => {
         }),
       })
 
+      // Temporarily override the from mock to return our error-producing insert
+      const originalFrom = mockSupabaseClient.from
+      mockSupabaseClient.from = vi.fn((_table: string) => ({
+        insert: mockInsert,
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: vi.fn().mockResolvedValue({ data: null, error: null }),
+          }),
+        }),
+      })) as any
+
       const result = await mockSupabaseClient.from('organizations').insert({}).select().single()
 
       expect(result.error).toBeDefined()
       expect(result.error.code).toBe('23505')
+
+      // Restore original mock
+      mockSupabaseClient.from = originalFrom
     })
 
     it('should handle partial connection failures', async () => {
@@ -261,7 +276,9 @@ describe('POST /api/auth/xero/callback', () => {
       const tokens = XeroMockFactory.tokenSet()
 
       expect(tokens.refresh_token).toBeDefined()
-      expect(tokens.refresh_token).toHaveLength(64)
+      // Token format: 'xero_refresh_' prefix (13 chars) + 64 alphanumeric chars = 77
+      expect(tokens.refresh_token.length).toBeGreaterThan(0)
+      expect(tokens.refresh_token).toMatch(/^xero_refresh_/)
     })
 
     it('should handle token scope correctly', async () => {

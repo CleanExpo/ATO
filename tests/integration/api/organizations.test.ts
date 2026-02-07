@@ -383,7 +383,7 @@ describe('DELETE /api/organizations/:id', () => {
       const userRole = 'admin'
       const requiredRole = 'owner'
 
-      const canDelete = userRole === requiredRole
+      const canDelete = (userRole as string) === requiredRole
 
       expect(canDelete).toBe(false)
     })

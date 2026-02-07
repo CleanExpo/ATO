@@ -427,8 +427,8 @@ describe('Rate Caching', () => {
 describe('Rate Update Notifications', () => {
   describe('Rate Change Detection', () => {
     it('should detect when rate changes', () => {
-      const oldRate = 0.0827 // FY2023-24
-      const newRate = 0.0877 // FY2024-25
+      const oldRate: number = 0.0827 // FY2023-24
+      const newRate: number = 0.0877 // FY2024-25
 
       const hasChanged = oldRate !== newRate
 

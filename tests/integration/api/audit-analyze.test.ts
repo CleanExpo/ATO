@@ -47,7 +47,7 @@ describe('POST /api/audit/analyze', () => {
         tenantId: '4637fa53-23e4-49e3-8cce-3bca3a09def9',
       }
 
-      const batchSize = requestBody.batchSize || 50
+      const batchSize = (requestBody as any).batchSize || 50
 
       expect(batchSize).toBe(50)
     })
@@ -277,16 +277,16 @@ describe('POST /api/audit/analyze', () => {
 
   describe('Error Handling', () => {
     it('should handle Gemini API rate limit errors', async () => {
-      const error = GeminiMockFactory.error('rate_limit')
+      const error = GeminiMockFactory.error('rate_limit') as any
 
-      expect(error.type).toBe('rate_limit')
-      expect(error.message).toContain('rate limit')
+      expect(error.error.status).toBe('RESOURCE_EXHAUSTED')
+      expect(error.error.message).toContain('quota')
     })
 
     it('should handle Gemini API key errors', async () => {
-      const error = GeminiMockFactory.error('invalid_api_key')
+      const error = GeminiMockFactory.error('invalid_api_key') as any
 
-      expect(error.type).toBe('invalid_api_key')
+      expect(error.error.status).toBe('UNAUTHENTICATED')
     })
 
     it('should retry failed analysis with exponential backoff', async () => {

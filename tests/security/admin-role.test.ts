@@ -75,9 +75,11 @@ describe('Admin Role Middleware', () => {
     });
 
     it('should block access for non-admin users', async () => {
-      // Mock non-admin user
+      // Mock non-admin user - need to override TWICE because requireAdminRole()
+      // calls createClient() once for auth.getUser(), then isUserAdmin() calls
+      // createClient() again for the profile check
       const { createClient } = await import('@/lib/supabase/server');
-      vi.mocked(createClient).mockReturnValueOnce({
+      const nonAdminMock = {
         auth: {
           getUser: vi.fn(() =>
             Promise.resolve({
@@ -103,7 +105,11 @@ describe('Admin Role Middleware', () => {
             })),
           })),
         })),
-      } as any);
+      } as any;
+      // Override both calls to createClient
+      vi.mocked(createClient)
+        .mockReturnValueOnce(nonAdminMock)
+        .mockReturnValueOnce(nonAdminMock);
 
       const result = await requireAdminRole();
 

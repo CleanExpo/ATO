@@ -26,8 +26,8 @@ export class XeroMockFactory {
     const fyDates = this.parseFY(options?.financialYear || 'FY2023-24')
 
     return Array.from({ length: count }, (_, i) => {
-      const isRndCandidate = options?.includeRndCandidates && Math.random() > 0.7
-      const isDiv7aLoan = options?.includeDiv7aLoans && Math.random() > 0.85
+      const isRndCandidate = !!(options?.includeRndCandidates && Math.random() > 0.7)
+      const isDiv7aLoan = !!(options?.includeDiv7aLoans && Math.random() > 0.85)
 
       return {
         transactionID: `tx-${faker.string.alphanumeric(10)}`,
@@ -41,16 +41,16 @@ export class XeroMockFactory {
         },
         lineItems: [{
           description: this.randomDescription(isRndCandidate, isDiv7aLoan),
-          quantity: faker.number.float({ min: 1, max: 100, precision: 0.01 }),
-          unitAmount: faker.number.float({ min: 10, max: 10000, precision: 0.01 }),
-          lineAmount: faker.number.float({ min: 10, max: 100000, precision: 0.01 }),
+          quantity: faker.number.float({ min: 1, max: 100, fractionDigits: 2 }),
+          unitAmount: faker.number.float({ min: 10, max: 10000, fractionDigits: 2 }),
+          lineAmount: faker.number.float({ min: 10, max: 100000, fractionDigits: 2 }),
           accountCode: this.randomAccountCode(options?.accountTypes),
           taxType: this.randomTaxType(),
-          taxAmount: faker.number.float({ min: 0, max: 10000, precision: 0.01 }),
+          taxAmount: faker.number.float({ min: 0, max: 10000, fractionDigits: 2 }),
         }],
-        total: faker.number.float({ min: 10, max: 100000, precision: 0.01 }),
-        totalTax: faker.number.float({ min: 0, max: 10000, precision: 0.01 }),
-        subTotal: faker.number.float({ min: 10, max: 100000, precision: 0.01 }),
+        total: faker.number.float({ min: 10, max: 100000, fractionDigits: 2 }),
+        totalTax: faker.number.float({ min: 0, max: 10000, fractionDigits: 2 }),
+        subTotal: faker.number.float({ min: 10, max: 100000, fractionDigits: 2 }),
         updatedDateUTC: this.randomDateInRange(fyDates.start, fyDates.end),
       }
     })
@@ -157,7 +157,7 @@ export class XeroMockFactory {
               rowType: 'Row',
               cells: [
                 { value: 'Sales' },
-                { value: faker.number.float({ min: 100000, max: 1000000, precision: 0.01 }).toString() },
+                { value: faker.number.float({ min: 100000, max: 1000000, fractionDigits: 2 }).toString() },
               ],
             },
           ],
@@ -170,14 +170,14 @@ export class XeroMockFactory {
               rowType: 'Row',
               cells: [
                 { value: 'Cost of Goods Sold' },
-                { value: faker.number.float({ min: 50000, max: 500000, precision: 0.01 }).toString() },
+                { value: faker.number.float({ min: 50000, max: 500000, fractionDigits: 2 }).toString() },
               ],
             },
             {
               rowType: 'Row',
               cells: [
                 { value: 'Operating Expenses' },
-                { value: faker.number.float({ min: 20000, max: 200000, precision: 0.01 }).toString() },
+                { value: faker.number.float({ min: 20000, max: 200000, fractionDigits: 2 }).toString() },
               ],
             },
           ],

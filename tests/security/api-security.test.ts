@@ -80,8 +80,11 @@ describe('SQL Injection Prevention', () => {
       .replace(/_/g, '\\_')
       .replace(/'/g, "''") // Escape single quotes
 
-    expect(sanitized).not.toContain("SELECT")
+    // The sanitization escapes wildcards and quotes, but does not strip SQL keywords.
+    // The important thing is that special characters are escaped, preventing injection
+    // when used with parameterized queries.
     expect(sanitized).toContain('\\%')
+    expect(sanitized).toContain("''") // Single quotes are doubled
   })
 
   it('should validate tenant_id format before query', async () => {
@@ -97,11 +100,11 @@ describe('SQL Injection Prevention', () => {
   it('should prevent SQL injection in ORDER BY clauses', async () => {
     const maliciousOrderBy = "created_at; DROP TABLE transactions--"
 
-    // Whitelist allowed sort columns
+    // Whitelist allowed sort columns - the full malicious string should NOT be allowed
     const allowedColumns = ['created_at', 'amount', 'transaction_date']
-    const column = maliciousOrderBy.split(';')[0].trim()
 
-    const isAllowed = allowedColumns.includes(column)
+    // Validate the ENTIRE input against the whitelist (not just a substring)
+    const isAllowed = allowedColumns.includes(maliciousOrderBy)
     expect(isAllowed).toBe(false)
   })
 })
@@ -235,7 +238,7 @@ describe('Parameter Tampering Prevention', () => {
     const authenticatedUserId = 'user-123'
     const requestUserId = 'user-456' // Attempted tampering
 
-    const isValid = authenticatedUserId === requestUserId
+    const isValid = (authenticatedUserId as string) === requestUserId
     expect(isValid).toBe(false)
   })
 
@@ -253,7 +256,8 @@ describe('Parameter Tampering Prevention', () => {
     const validFY = 'FY2023-24'
     const invalidFY = 'FY9999-00' // Tampered FY
 
-    const fyRegex = /^FY(20\d{2})-(20\d{2})$/
+    // FY format: FY followed by 4-digit year, dash, 2-digit year
+    const fyRegex = /^FY(20\d{2})-(\d{2})$/
     const isValid = fyRegex.test(invalidFY)
 
     expect(fyRegex.test(validFY)).toBe(true)
@@ -325,10 +329,10 @@ describe('Mass Assignment Prevention', () => {
     }
 
     const currentUserRole = 'member'
-    const canChangeRole = currentUserRole === 'owner'
+    const canChangeRole = (currentUserRole as string) === 'owner'
 
     if (!canChangeRole) {
-      delete updateRequest.role
+      delete (updateRequest as any).role
     }
 
     expect(updateRequest).not.toHaveProperty('role')
@@ -427,11 +431,11 @@ describe('Authentication and Authorization', () => {
     mockSupabaseClient.auth.getUser.mockResolvedValue({
       data: { user: null },
       error: { message: 'Not authenticated' }
-    })
+    } as any)
 
     const result = await mockSupabaseClient.auth.getUser()
 
-    expect(result.error?.message).toBe('Not authenticated')
+    expect((result as any).error?.message).toBe('Not authenticated')
   })
 
   it('should verify JWT signature', async () => {
@@ -464,7 +468,7 @@ describe('Authentication and Authorization', () => {
     const ownerOnlyOperations = ['delete_organization', 'change_owner', 'billing']
     const requiresOwner = ownerOnlyOperations.includes(operation)
 
-    if (requiresOwner && userRole !== 'owner') {
+    if (requiresOwner && (userRole as string) !== 'owner') {
       const errorResponse = {
         error: 'Owner role required',
         code: 'INSUFFICIENT_PERMISSIONS',
@@ -642,10 +646,13 @@ describe('File Upload Security', () => {
   it('should sanitize uploaded filenames', async () => {
     const maliciousFilename = '../../../etc/passwd'
 
-    // Remove path traversal characters
-    const sanitized = maliciousFilename.replace(/[^a-zA-Z0-9._-]/g, '_')
+    // Remove path traversal and other dangerous characters
+    // First strip path separators and non-alphanumeric chars, then collapse consecutive dots
+    const sanitized = maliciousFilename
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/\.{2,}/g, '.') // Collapse multiple dots to single dot to prevent path traversal
 
     expect(sanitized).not.toContain('..')
-    expect(sanitized).toBe('_____etc_passwd')
+    expect(sanitized).toBe('._._._etc_passwd')
   })
 })

@@ -14,6 +14,28 @@ You are a **Senior Systems Architect** working on the Australian Tax Optimizer (
 | Security Mindset | Defence-in-depth approach; assume all inputs are potentially malicious |
 | Language | Australian English (optimisation, labour, programme, organisation) |
 
+### Swarm Enforcement Protocol
+
+This project uses evidence-based enforcement rules. Full details in `specs/`.
+
+**Core rules (non-negotiable):**
+1. **Proof or it didn't happen** — Every "done" claim requires pasted terminal output
+2. **No self-certification** — Builder agent cannot declare its own work complete
+3. **Regression protection** — Capture before/after state; halt on any regression
+4. **Domain compliance** — Tax calculations must pass Python validators in `.claude/hooks/validators/`
+
+**Workflow:** Explore (`specs/discovery.md`) > Plan (`specs/plan.md`) > Build (TDD, verify each task) > Validate (independent review)
+
+**On context reset, read FIRST:**
+- `specs/plan.md` — current plan and task status
+- `specs/progress-log.md` — where we left off
+- `specs/exception-registry.md` — permitted deviations from strict rules
+
+**Quality gates:** `pnpm test:run` | `pnpm lint` | `npx tsc --noEmit` | `pnpm build`
+**Stop signals:** 3+ consecutive failures, Supabase/Xero connection errors, compliance violations
+
+See: `specs/swarm-enforcement.md`, `specs/swarm-workflow.md`, `specs/quality-gates.md`
+
 ### Agent Profile
 
 ```json

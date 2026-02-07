@@ -286,6 +286,23 @@ function ForensicAuditDashboardEnhanced() {
     }
   }, [pollInterval])
 
+  // Chart data for opportunities by year - fetched from API
+  const [opportunitiesByYear, setOpportunitiesByYear] = useState<Array<{ name: string; value: number }>>([])
+
+  useEffect(() => {
+    if (!tenantId) return
+    async function fetchOpportunities() {
+      try {
+        const res = await fetch(`/api/audit/opportunities-by-year?tenantId=${tenantId}`)
+        const json = await res.json()
+        setOpportunitiesByYear(json.opportunities || [])
+      } catch (err) {
+        console.error('Failed to fetch opportunities by year:', err)
+      }
+    }
+    fetchOpportunities()
+  }, [tenantId, data?.analysisStatus.status])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -314,23 +331,6 @@ function ForensicAuditDashboardEnhanced() {
 
   const isReady = data?.syncStatus.status === 'complete' && data?.analysisStatus.status === 'complete'
   const isAnalyzing = data?.analysisStatus.status === 'analyzing'
-
-  // Chart data for opportunities by year - fetched from API
-  const [opportunitiesByYear, setOpportunitiesByYear] = useState<Array<{ name: string; value: number }>>([])
-
-  useEffect(() => {
-    if (!tenantId) return
-    async function fetchOpportunities() {
-      try {
-        const res = await fetch(`/api/audit/opportunities-by-year?tenantId=${tenantId}`)
-        const json = await res.json()
-        setOpportunitiesByYear(json.opportunities || [])
-      } catch (err) {
-        console.error('Failed to fetch opportunities by year:', err)
-      }
-    }
-    fetchOpportunities()
-  }, [tenantId, data?.analysisStatus.status])
 
   return (
     <div className="min-h-screen p-8">

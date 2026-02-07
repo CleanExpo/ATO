@@ -66,6 +66,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
+    "@faker-js/faker": "^10.3.0",
     "@next/eslint-plugin-next": "^16.1.4",
     "@playwright/test": "^1.58.0",
     "@tailwindcss/postcss": "^4",

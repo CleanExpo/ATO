@@ -261,7 +261,7 @@ describe('Division 7A Validator', () => {
 
       const minimumRepayment = principal * (rate / (1 - Math.pow(1 + rate, -term)))
 
-      expect(minimumRepayment).toBeCloseTo(19344, 0)
+      expect(minimumRepayment).toBeCloseTo(19716, 0)
     })
 
     it('should flag incorrect minimum repayment', () => {
@@ -286,22 +286,22 @@ describe('Division 7A Validator', () => {
       const securedRepayment = principal * (rate / (1 - Math.pow(1 + rate, -25)))
 
       expect(unsecuredRepayment).toBeGreaterThan(securedRepayment)
-      expect(unsecuredRepayment).toBeCloseTo(19344, 0)
-      expect(securedRepayment).toBeCloseTo(9337, 0)
+      expect(unsecuredRepayment).toBeCloseTo(19716, 0)
+      expect(securedRepayment).toBeCloseTo(9992, 0)
     })
   })
 
   describe('Deemed Dividend Calculation', () => {
     it('should calculate deemed dividend from shortfall', () => {
-      const minimumRepayment = 19344
+      const minimumRepayment = 19716
       const actualRepayment = 15000
       const shortfall = minimumRepayment - actualRepayment
 
-      expect(shortfall).toBeCloseTo(4344, 0)
+      expect(shortfall).toBeCloseTo(4716, 0)
     })
 
     it('should have zero deemed dividend when compliant', () => {
-      const minimumRepayment = 19344
+      const minimumRepayment = 19716
       const actualRepayment = 20000 // Overpayment
 
       const shortfall = Math.max(0, minimumRepayment - actualRepayment)
@@ -310,7 +310,7 @@ describe('Division 7A Validator', () => {
     })
 
     it('should flag incorrect deemed dividend calculation', () => {
-      const minimumRepayment = 19344
+      const minimumRepayment = 19716
       const actualRepayment = 15000
       const claimedDeemedDividend = 5000 // Wrong amount
 
@@ -389,7 +389,7 @@ describe('Tax Rate Validator', () => {
     })
 
     it('should flag incorrect FBT rate', () => {
-      const claimedRate = 0.45
+      const claimedRate: number = 0.45
 
       const isValid = claimedRate === 0.47
 
@@ -405,7 +405,7 @@ describe('Tax Rate Validator', () => {
     })
 
     it('should flag incorrect GST rate', () => {
-      const claimedRate = 0.15
+      const claimedRate: number = 0.15
 
       const isValid = claimedRate === 0.10
 

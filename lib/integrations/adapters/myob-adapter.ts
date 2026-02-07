@@ -128,7 +128,7 @@ export class MYOBAdapter implements PlatformAdapter {
     }
 
     const transactions: CanonicalTransaction[] = []
-    let syncProgress: SyncProgress = {
+    const syncProgress: SyncProgress = {
       progress: 0,
       transactionsSynced: 0,
       totalEstimated: 1000,

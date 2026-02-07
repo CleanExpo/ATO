@@ -459,7 +459,8 @@ test.describe('Settings Workflow', () => {
       await page.click('text=Billing History')
 
       // Verify invoice list
-      await expect(page.locator('[data-testid="invoice-row"]')).toHaveCount((count) => count > 0)
+      const invoiceCount = await page.locator('[data-testid="invoice-row"]').count()
+      expect(invoiceCount).toBeGreaterThan(0)
 
       // Verify invoice details
       const firstInvoice = page.locator('[data-testid="invoice-row"]').first()

@@ -211,7 +211,7 @@ function calculateScenario(
   let incomeAdjustment = -(changes.deferredIncome || 0) // Reduce income
   let deductionAdjustment =
     (changes.acceleratedDeductions || 0) + (changes.assetPurchases || 0) // Increase deductions
-  let rndOffsetAdjustment = (changes.additionalRndClaim || 0) * RND_OFFSET_RATE
+  const rndOffsetAdjustment = (changes.additionalRndClaim || 0) * RND_OFFSET_RATE
 
   // Apply Division 7A loan reduction (reduces deemed dividends)
   if (changes.div7aLoanReduction) {

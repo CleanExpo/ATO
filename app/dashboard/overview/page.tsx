@@ -118,17 +118,6 @@ export default function TaxOverviewPage() {
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [runningAnalysis, setRunningAnalysis] = useState(false)
 
-  // If user has multiple organizations, show consolidated dashboard
-  if (organizations && organizations.length > 1) {
-    return (
-      <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="max-w-7xl mx-auto">
-          <ConsolidatedDashboard />
-        </div>
-      </div>
-    )
-  }
-
   // Fetch tenant ID
   useEffect(() => {
     async function fetchTenant() {
@@ -240,6 +229,17 @@ export default function TaxOverviewPage() {
       count
     })).sort((a, b) => a.year.localeCompare(b.year))
   }, [overview])
+
+  // If user has multiple organizations, show consolidated dashboard
+  if (organizations && organizations.length > 1) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="max-w-7xl mx-auto">
+          <ConsolidatedDashboard />
+        </div>
+      </div>
+    )
+  }
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-[var(--bg-dashboard)]"><div className="loading-spinner" /></div>
 
@@ -450,7 +450,7 @@ export default function TaxOverviewPage() {
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">Verification Time</span>
-                <span className="text-xs font-mono text-white">{new Date(overview.taxRates?.verifiedAt!).toLocaleDateString()}</span>
+                <span className="text-xs font-mono text-white">{overview.taxRates?.verifiedAt ? new Date(overview.taxRates.verifiedAt).toLocaleDateString() : 'N/A'}</span>
                 <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-tight">System Validated</span>
               </div>
             </div>

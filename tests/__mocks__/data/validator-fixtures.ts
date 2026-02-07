@@ -234,7 +234,7 @@ export class ValidatorMockFactory {
         duplicates: checks?.duplicates || 0,
         missing_dates: checks?.missingDates || 0,
         invalid_amounts: checks?.invalidAmounts || 0,
-        data_quality_score: valid ? faker.number.float({ min: 90, max: 99, precision: 0.1 }) : faker.number.float({ min: 40, max: 70, precision: 0.1 }),
+        data_quality_score: valid ? faker.number.float({ min: 90, max: 99, fractionDigits: 1 }) : faker.number.float({ min: 40, max: 70, fractionDigits: 1 }),
       },
       timestamp: new Date().toISOString(),
     }
@@ -247,6 +247,11 @@ export class ValidatorMockFactory {
     amount?: number
     category?: string
     privateUse?: number
+    includedInIncome?: boolean
+    recoveryAttempts?: number
+    description?: string
+    hasBusinessPurpose?: boolean
+    [key: string]: any
   }) {
     const issues: string[] = []
 
@@ -256,6 +261,19 @@ export class ValidatorMockFactory {
       }
       if (expense?.privateUse && expense.privateUse > 0) {
         issues.push(`Private use component (${expense.privateUse}%) requires apportionment`)
+      }
+      if (expense?.includedInIncome === false) {
+        issues.push('Debt not previously included in assessable income')
+      }
+      if (expense?.recoveryAttempts !== undefined && expense.recoveryAttempts < 3) {
+        issues.push('Insufficient recovery attempts before write-off')
+      }
+      if (expense?.description?.toLowerCase().includes('entertainment')) {
+        issues.push('Entertainment expenses are generally non-deductible under Division 32 ITAA 1997')
+      }
+      // If no specific issue was generated, add a generic one
+      if (issues.length === 0) {
+        issues.push('Expense does not meet deductibility requirements under Section 8-1 ITAA 1997')
       }
     }
 
@@ -293,12 +311,20 @@ export class ValidatorMockFactory {
     carriedForward?: boolean
     cotPassed?: boolean
     sbtPassed?: boolean
+    [key: string]: any
   }) {
     const issues: string[] = []
 
     if (!valid) {
-      if (loss?.carriedForward && !loss?.cotPassed && !loss?.sbtPassed) {
-        issues.push('Failed both Continuity of Ownership Test (COT) and Same Business Test (SBT)')
+      if (loss?.cotPassed === false) {
+        issues.push('COT failed - ownership change detected')
+      }
+      if (loss?.sbtPassed === false) {
+        issues.push('SBT failed - business activities have materially changed')
+      }
+      // If no specific issue was generated, add a generic one
+      if (issues.length === 0) {
+        issues.push('Loss carry-forward eligibility requirements not met')
       }
     }
 

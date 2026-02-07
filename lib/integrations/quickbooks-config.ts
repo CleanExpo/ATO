@@ -76,6 +76,21 @@ export function validateQuickBooksConfig(): {
 }
 
 /**
+ * Generates the QuickBooks OAuth 2.0 authorization URL
+ * @param state CSRF state parameter
+ */
+export function getQuickBooksAuthorizationUrl(state: string): string {
+  const params = new URLSearchParams({
+    client_id: QUICKBOOKS_CONFIG.clientId || '',
+    redirect_uri: QUICKBOOKS_CONFIG.redirectUri,
+    response_type: 'code',
+    scope: QUICKBOOKS_CONFIG.scopes.join(' '),
+    state,
+  })
+  return `${QUICKBOOKS_CONFIG.authorizationUrl}?${params.toString()}`
+}
+
+/**
  * Gets the appropriate API base URL based on environment
  */
 export function getQuickBooksApiUrl(): string {

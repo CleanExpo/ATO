@@ -10,6 +10,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Set API key before importing the module so getResendInstance() does not throw
+process.env.RESEND_API_KEY = 'test-key-for-unit-tests';
+
 // Mock the Resend client
 vi.mock('resend', () => {
   return {

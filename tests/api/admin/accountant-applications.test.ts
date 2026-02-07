@@ -51,6 +51,35 @@ vi.mock('@/lib/supabase/server', () => ({
       })),
     })),
   })),
+  createClient: vi.fn(() => ({
+    auth: {
+      getUser: vi.fn(() =>
+        Promise.resolve({
+          data: { user: { id: 'admin-user-id', email: 'admin@test.com' } },
+          error: null,
+        })
+      ),
+    },
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          maybeSingle: vi.fn(() =>
+            Promise.resolve({
+              data: { is_admin: true },
+              error: null,
+            })
+          ),
+        })),
+      })),
+      insert: vi.fn(() => Promise.resolve({ error: null })),
+    })),
+  })),
+}));
+
+vi.mock('@/lib/audit/logger', () => ({
+  logAdminAction: vi.fn(() => Promise.resolve()),
+  getIpAddress: vi.fn(() => '127.0.0.1'),
+  getUserAgent: vi.fn(() => 'test-agent'),
 }));
 
 vi.mock('@/lib/email/resend-client', () => ({
@@ -98,9 +127,9 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await approveHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
-      expect(response.status).toBe(200);
+      expect(response!.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.accountant_id).toBeDefined();
       expect(sendAccountantWelcomeEmail).toHaveBeenCalledWith({
@@ -130,7 +159,7 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await approveHandler(request, { params });
-      await response.json();
+      await response!.json();
 
       expect(sendAccountantWelcomeEmail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -156,7 +185,7 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await approveHandler(request, { params });
-      await response.json();
+      await response!.json();
 
       expect(sendAccountantWelcomeEmail).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -182,7 +211,7 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await approveHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
       expect(data.success).toBe(true);
       expect(sendAccountantWelcomeEmail).not.toHaveBeenCalled();
@@ -212,7 +241,7 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await approveHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
       expect(data.success).toBe(true);
       expect(data.message).toContain('Warning');
@@ -233,9 +262,9 @@ describe('Accountant Application API Routes', () => {
       const params = Promise.resolve({ id: 'invalid-id' });
 
       const response = await approveHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
-      expect(response.status).toBe(400);
+      expect(response!.status).toBe(400);
       expect(data.error).toContain('Invalid application ID format');
       expect(data.errorId).toBeDefined();
     });
@@ -256,9 +285,9 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await approveHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
-      expect(response.status).toBe(400);
+      expect(response!.status).toBe(400);
       expect(data.error).toContain('wholesale_discount_rate must be between 0 and 1');
       expect(data.errorId).toBeDefined();
     });
@@ -284,9 +313,9 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await rejectHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
-      expect(response.status).toBe(200);
+      expect(response!.status).toBe(200);
       expect(data.success).toBe(true);
       expect(data.can_reapply).toBe(true);
       expect(sendAccountantRejectionEmail).toHaveBeenCalledWith({
@@ -315,7 +344,7 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await rejectHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
       expect(data.success).toBe(true);
       expect(data.can_reapply).toBe(false);
@@ -344,7 +373,7 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await rejectHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
       expect(data.success).toBe(true);
       expect(data.message).toContain('Warning');
@@ -365,9 +394,9 @@ describe('Accountant Application API Routes', () => {
       const params = Promise.resolve({ id: 'invalid' });
 
       const response = await rejectHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
-      expect(response.status).toBe(400);
+      expect(response!.status).toBe(400);
       expect(data.error).toContain('Invalid application ID format');
       expect(data.errorId).toBeDefined();
     });
@@ -388,9 +417,9 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await rejectHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
-      expect(response.status).toBe(400);
+      expect(response!.status).toBe(400);
       expect(data.error).toContain('rejection_reason must be at least 10 characters');
       expect(data.errorId).toBeDefined();
     });
@@ -409,9 +438,9 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await rejectHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
-      expect(response.status).toBe(400);
+      expect(response!.status).toBe(400);
       expect(data.error).toContain('rejection_reason is required');
       expect(data.errorId).toBeDefined();
     });
@@ -434,7 +463,7 @@ describe('Accountant Application API Routes', () => {
       });
 
       const response = await rejectHandler(request, { params });
-      const data = await response.json();
+      const data = await response!.json();
 
       expect(data.success).toBe(true);
       expect(data.reapply_after).toBeDefined();

@@ -202,7 +202,7 @@ export async function analyzeCGT(
   }
 
   // Get CGT discount rate
-  let cgtDiscountRate = FALLBACK_CGT_DISCOUNT_RATE
+  const cgtDiscountRate = FALLBACK_CGT_DISCOUNT_RATE
   let rateSource = 'ATO_FALLBACK_DEFAULT'
   try {
     const rates = await getCurrentTaxRates()

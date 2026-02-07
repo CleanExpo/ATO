@@ -125,7 +125,7 @@ test.describe('Multi-Organization Workflow', () => {
       await expect(page.locator('[data-testid="pricing-breakdown"]')).toContainText('Additional: $398')
 
       // Click "Create Group" button
-      await page.click('button:has-text("Create Group")').last()
+      await page.locator('button:has-text("Create Group")').last().click()
 
       // Verify success message
       await expect(page.locator('text=/Group created successfully/i')).toBeVisible()
@@ -273,9 +273,8 @@ test.describe('Multi-Organization Workflow', () => {
         await page.click('text=/Inter-Company Transactions/i')
 
         // Verify flagged transactions
-        await expect(page.locator('[data-testid="interco-transaction"]')).toHaveCount(
-          (count) => count > 0
-        )
+        const intercoCount = await page.locator('[data-testid="interco-transaction"]').count()
+        expect(intercoCount).toBeGreaterThan(0)
 
         // Verify warnings for potential issues
         await expect(page.locator('text=/Transfer Pricing/i')).toBeVisible()
@@ -339,7 +338,7 @@ test.describe('Multi-Organization Workflow', () => {
       await page.goto('/dashboard/reports')
 
       // Open existing group report
-      await page.click('[data-report-type="comprehensive_audit"][data-is-group="true"]').first()
+      await page.locator('[data-report-type="comprehensive_audit"][data-is-group="true"]').first().click()
 
       // Verify breakdown section
       await expect(page.locator('text=/Breakdown by Organization/i')).toBeVisible()
@@ -355,7 +354,7 @@ test.describe('Multi-Organization Workflow', () => {
       await page.click('text=Disaster Recovery Group')
 
       await page.goto('/dashboard/reports')
-      await page.click('[data-report-type="comprehensive_audit"][data-is-group="true"]').first()
+      await page.locator('[data-report-type="comprehensive_audit"][data-is-group="true"]').first().click()
 
       // Scroll to footer
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
@@ -496,9 +495,8 @@ test.describe('Multi-Organization Workflow', () => {
         await page.click('text=/Tax Planning Opportunities/i')
 
         // Verify opportunities are shown
-        await expect(page.locator('[data-testid="planning-opportunity"]')).toHaveCount(
-          (count) => count > 0
-        )
+        const planningCount = await page.locator('[data-testid="planning-opportunity"]').count()
+        expect(planningCount).toBeGreaterThan(0)
       }
     })
 

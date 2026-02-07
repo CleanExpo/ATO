@@ -211,11 +211,11 @@ describe('POST /api/reports/generate', () => {
           principal_amount: 100000,
           loan_date: '2023-07-01',
           benchmark_rate: 0.0877, // 8.77% for FY2024-25
-          minimum_repayment: 19344,
+          minimum_repayment: 19716,
           actual_repayment: 15000,
           compliant: false,
-          shortfall: 4344,
-          deemed_dividend: 4344 // Shortfall becomes dividend
+          shortfall: 4716,
+          deemed_dividend: 4716 // Shortfall becomes dividend
         }
       ]
 
@@ -243,7 +243,7 @@ describe('POST /api/reports/generate', () => {
 
       const loan = mockLoans[0]
       expect(loan.compliant).toBe(false)
-      expect(loan.deemed_dividend).toBe(4344)
+      expect(loan.deemed_dividend).toBe(4716)
       expect(loan.benchmark_rate).toBe(0.0877)
     })
 
@@ -255,16 +255,16 @@ describe('POST /api/reports/generate', () => {
       // Annuity formula: P * (r / (1 - (1 + r)^-n))
       const minimumRepayment = principal * (rate / (1 - Math.pow(1 + rate, -term)))
 
-      expect(minimumRepayment).toBeCloseTo(19344, 0) // ~$19,344 per year
+      expect(minimumRepayment).toBeCloseTo(19716, 0) // ~$19,716 per year at 8.77% benchmark rate
     })
 
     it('should flag non-compliant loans as deemed dividends', async () => {
-      const minimumRepayment = 19344
+      const minimumRepayment = 19716
       const actualRepayment = 15000
       const shortfall = minimumRepayment - actualRepayment
 
       const deemedDividend = shortfall > 0 ? shortfall : 0
-      expect(deemedDividend).toBe(4344)
+      expect(deemedDividend).toBe(4716)
     })
 
     it('should include Section 109N legislative reference', async () => {
@@ -440,11 +440,12 @@ describe('POST /api/reports/generate', () => {
     })
 
     it('should require formal write-off', async () => {
+      const writeOffDate = '2024-02-01'
       const debt = {
         debtor: 'Failed Startup Pty Ltd',
         amount: 30000,
-        write_off_date: '2024-02-01',
-        formally_written_off: !!debt.write_off_date
+        write_off_date: writeOffDate,
+        formally_written_off: !!writeOffDate
       }
 
       expect(debt.formally_written_off).toBe(true)
@@ -484,7 +485,7 @@ describe('POST /api/reports/generate', () => {
             loans_reviewed: 2,
             compliant: 1,
             non_compliant: 1,
-            deemed_dividends: 4344
+            deemed_dividends: 4716
           },
           general_deductions: {
             total_deductions: 450000,
@@ -517,7 +518,7 @@ describe('POST /api/reports/generate', () => {
         total_tax_recovery: 175000,
         key_findings: [
           'R&D Tax Incentive: $34,800 potential offset from 12 eligible activities',
-          'Division 7A: $4,344 deemed dividend from non-compliant shareholder loan',
+          'Division 7A: $4,716 deemed dividend from non-compliant shareholder loan',
           'General Deductions: $35,000 in unclaimed business expenses',
           'Tax Losses: $230,000 available for carry-forward',
           'Bad Debts: $55,000 in compliant write-offs'

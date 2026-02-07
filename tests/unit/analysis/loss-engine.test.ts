@@ -440,7 +440,7 @@ describe('LossEngine', () => {
         lossAmount: 80_000,
         cotPassed: true,
         sbtPassed: true,
-      })
+      } as any)
 
       expect(result.passed).toBe(true)
       expect(result.confidence).toBeGreaterThan(85)
@@ -452,7 +452,7 @@ describe('LossEngine', () => {
         lossAmount: 80_000,
         cotPassed: false,
         sbtPassed: false,
-      })
+      } as any)
 
       expect(result.passed).toBe(false)
       expect(result.issues.length).toBeGreaterThan(0)

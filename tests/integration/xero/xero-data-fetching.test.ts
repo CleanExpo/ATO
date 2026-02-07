@@ -165,8 +165,9 @@ describe('Bank Transactions Retrieval', () => {
       const result = await mockXeroClient.accountingApi.getBankTransactions(tenantId)
 
       expect(result.body.bankTransactions.length).toBe(100)
-      expect(result.body.bankTransactions[0]).toHaveProperty('transactionId')
-      expect(result.body.bankTransactions[0]).toHaveProperty('amount')
+      // Factory uses 'transactionID' and 'total' field names
+      expect(result.body.bankTransactions[0]).toHaveProperty('transactionID')
+      expect(result.body.bankTransactions[0]).toHaveProperty('total')
     })
 
     it('should filter transactions by date range', async () => {
@@ -192,8 +193,9 @@ describe('Bank Transactions Retrieval', () => {
       )
 
       // All transactions should fall within FY2023-24
+      // Factory uses 'date' field
       const allInRange = result.body.bankTransactions.every((tx: any) => {
-        const txDate = new Date(tx.transactionDate)
+        const txDate = new Date(tx.date)
         return txDate >= new Date('2023-07-01') && txDate <= new Date('2024-06-30')
       })
 

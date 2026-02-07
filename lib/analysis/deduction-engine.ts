@@ -630,7 +630,7 @@ function analyzeDeductionCategory(
     totalAmount += amount
 
     const isFullyDeductible = tx.is_fully_deductible || false
-    let rawDeductibleAmount = parseFloat(tx.claimable_amount) || (isFullyDeductible ? amount : 0)
+    const rawDeductibleAmount = parseFloat(tx.claimable_amount) || (isFullyDeductible ? amount : 0)
     const description = tx.transaction_description || ''
 
     // Fix 3c: Apply partial deductibility rules based on category

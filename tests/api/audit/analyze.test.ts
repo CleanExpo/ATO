@@ -7,18 +7,29 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-// Mock Supabase
+// Enable single-user mode so requireAuth is bypassed
+vi.mock('@/lib/auth/single-user-check', () => ({
+  isSingleUserMode: vi.fn(() => true)
+}))
+
+// Helper to create a chainable Supabase mock
+function createChainableMock(resolvedValue: any) {
+  const chain: any = {}
+  chain.select = vi.fn(() => chain)
+  chain.insert = vi.fn(() => chain)
+  chain.update = vi.fn(() => chain)
+  chain.eq = vi.fn(() => chain)
+  chain.single = vi.fn().mockResolvedValue(resolvedValue)
+  chain.maybeSingle = vi.fn().mockResolvedValue(resolvedValue)
+  return chain
+}
+
+// Mock Supabase with proper chaining
 vi.mock('@/lib/supabase/server', () => ({
   createServiceClient: vi.fn(() => ({
-    from: vi.fn(() => ({
-      select: vi.fn().mockReturnThis(),
-      insert: vi.fn().mockReturnThis(),
-      update: vi.fn().mockReturnThis(),
-      eq: vi.fn().mockReturnThis(),
-      single: vi.fn().mockResolvedValue({
-        data: { id: 'test-id', tenant_id: 'test-tenant' },
-        error: null
-      })
+    from: vi.fn(() => createChainableMock({
+      data: { id: 'test-id', tenant_id: 'test-tenant', sync_status: 'idle', transactions_synced: 0, total_transactions: 0 },
+      error: null
     }))
   }))
 }))
@@ -32,6 +43,29 @@ vi.mock('@/lib/ai/gemini-client', () => ({
     reasoning: 'Software development costs eligible for R&D',
     legislation: 'Division 355 ITAA 1997'
   })
+}))
+
+// Mock the historical fetcher to return cached transactions
+vi.mock('@/lib/xero/historical-fetcher', () => ({
+  getCachedTransactions: vi.fn().mockResolvedValue([
+    { id: 'tx-1', amount: 1000 },
+    { id: 'tx-2', amount: 2000 },
+  ])
+}))
+
+// Mock the batch processor
+vi.mock('@/lib/ai/batch-processor', () => ({
+  analyzeAllTransactions: vi.fn().mockResolvedValue(undefined),
+  getAnalysisStatus: vi.fn().mockResolvedValue(null)
+}))
+
+// Mock the forensic analyzer
+vi.mock('@/lib/ai/forensic-analyzer', () => ({
+  estimateAnalysisCost: vi.fn(() => ({
+    estimatedCostUSD: 0.05,
+    inputTokens: 1000,
+    outputTokens: 500
+  }))
 }))
 
 describe('POST /api/audit/analyze', () => {
@@ -53,7 +87,7 @@ describe('POST /api/audit/analyze', () => {
     const response = await POST(req)
     const data = await response.json()
 
-    // Should either succeed with mock auth or return 401
+    // In single-user mode, should succeed (200) or return 401 when auth is required
     expect([200, 201, 401]).toContain(response.status)
   })
 
@@ -91,12 +125,11 @@ describe('POST /api/audit/analyze', () => {
 
     const response = await POST(req)
 
-    // Should process without validation error
-    expect([200, 201, 400, 401, 500]).toContain(response.status)
-    if (response.status !== 400) {
-      const data = await response.json()
-      expect(data.batchSize).toBeLessThanOrEqual(100)
-    }
+    // Should process without validation error (batchSize 25 is valid)
+    expect([200, 201]).toContain(response.status)
+    const data = await response.json()
+    // Route returns analysis status, not batchSize -- verify it started analysing
+    expect(data.status).toBeDefined()
   })
 
   it('rejects batchSize over 100', async () => {
@@ -137,7 +170,7 @@ describe('POST /api/audit/analyze', () => {
     if (response.status === 200 || response.status === 201) {
       const data = await response.json()
       expect(data).toHaveProperty('status')
-      expect(['analysing', 'complete', 'pending']).toContain(data.status)
+      expect(['analysing', 'analyzing', 'complete', 'pending']).toContain(data.status)
     }
   })
 })
@@ -148,14 +181,11 @@ describe('POST /api/audit/analyze', () => {
 
 describe('Error Handling', () => {
   it('handles database errors gracefully', async () => {
-    // Mock database failure
-    vi.mocked(await import('@/lib/supabase/server')).createServiceClient.mockReturnValueOnce({
-      from: vi.fn(() => ({
-        select: vi.fn(() => {
-          throw new Error('Database connection failed')
-        })
-      }))
-    } as any)
+    // Mock database failure - override the batch-processor's getAnalysisStatus to throw
+    const batchProcessor = await import('@/lib/ai/batch-processor')
+    vi.mocked(batchProcessor.getAnalysisStatus).mockRejectedValueOnce(
+      new Error('Database connection failed')
+    )
 
     const { POST } = await import('@/app/api/audit/analyze/route')
 

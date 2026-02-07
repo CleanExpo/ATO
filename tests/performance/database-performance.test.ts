@@ -602,7 +602,7 @@ describe('Caching Performance', () => {
     for (let i = 0; i < maxCacheSize + 10; i++) {
       if (cache.size >= maxCacheSize) {
         // Remove oldest (first) entry
-        const firstKey = cache.keys().next().value
+        const firstKey = cache.keys().next().value!
         cache.delete(firstKey)
       }
 

@@ -461,7 +461,7 @@ describe('BadDebtAnalyzer', () => {
         includedInIncome: true,
         writtenOff: true,
         reasonableSteps: true,
-      })
+      } as any)
 
       expect(result.passed).toBe(true)
       expect(result.confidence).toBeGreaterThan(80)
@@ -472,7 +472,7 @@ describe('BadDebtAnalyzer', () => {
         description: 'Loan to employee',
         amount: 5_000,
         includedInIncome: false,
-      })
+      } as any)
 
       expect(result.passed).toBe(false)
       expect(result.issues).toContain('Debt not previously included in assessable income')
@@ -483,7 +483,7 @@ describe('BadDebtAnalyzer', () => {
         description: 'Trade debtor write-off',
         amount: 10_000,
         recoveryAttempts: 1, // Insufficient
-      })
+      } as any)
 
       expect(result.passed).toBe(false)
       expect(result.issues.length).toBeGreaterThan(0)

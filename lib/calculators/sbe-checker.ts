@@ -55,8 +55,8 @@ export async function checkSBEEligibility(entities: Entity[]): Promise<SBEEligib
   const recommendations: string[] = []
 
   // Fetch live thresholds if possible
-  let thresholdStandard = FALLBACK_SBE_THRESHOLD_STANDARD
-  let thresholdInstant = FALLBACK_SBE_THRESHOLD_INSTANT_WRITEOFF
+  const thresholdStandard = FALLBACK_SBE_THRESHOLD_STANDARD
+  const thresholdInstant = FALLBACK_SBE_THRESHOLD_INSTANT_WRITEOFF
   let rateSource = 'ATO_FALLBACK'
 
   try {

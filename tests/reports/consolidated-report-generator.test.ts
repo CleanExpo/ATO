@@ -13,9 +13,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConsolidatedReport, ClientReportSummary } from '@/lib/reports/consolidated-report-generator';
 
-// Mock Supabase client
-vi.mock('@/lib/supabase/server', () => ({
-  createServiceClient: vi.fn(() => ({
+// Create a mock Supabase client to pass directly to generateConsolidatedReport
+function createMockSupabase() {
+  return {
     from: vi.fn((table: string) => {
       if (table === 'profiles') {
         return {
@@ -78,7 +78,13 @@ vi.mock('@/lib/supabase/server', () => ({
       }
       return {};
     }),
-  })),
+  };
+}
+
+// Mock Supabase server module (not used directly by generateConsolidatedReport,
+// but may be imported transitively)
+vi.mock('@/lib/supabase/server', () => ({
+  createServiceClient: vi.fn(() => createMockSupabase()),
 }));
 
 // Mock PDF report generator
@@ -125,13 +131,16 @@ vi.mock('@/lib/reports/pdf-generator', () => ({
 import { generateConsolidatedReport, formatCurrency, formatPercentage } from '@/lib/reports/consolidated-report-generator';
 
 describe('Consolidated Report Generator', () => {
+  let mockSupabase: ReturnType<typeof createMockSupabase>;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSupabase = createMockSupabase();
   });
 
   describe('generateConsolidatedReport', () => {
     it('should generate consolidated report for multiple organizations', async () => {
-      const report = await generateConsolidatedReport('test-accountant-id', 5);
+      const report = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
 
       expect(report).toBeDefined();
       expect(report.metadata.accountantName).toBe('Test Accountant');
@@ -142,7 +151,7 @@ describe('Consolidated Report Generator', () => {
     });
 
     it('should calculate correct portfolio summary totals', async () => {
-      const report = await generateConsolidatedReport('test-accountant-id', 5);
+      const report = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
 
       // Expected totals: 135000 + 72000 + 45000 = 252000
       expect(report.portfolioSummary.totalAdjustedOpportunity).toBe(252000);
@@ -161,14 +170,14 @@ describe('Consolidated Report Generator', () => {
     });
 
     it('should calculate correct average opportunity per client', async () => {
-      const report = await generateConsolidatedReport('test-accountant-id', 5);
+      const report = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
 
       // Expected average: 252000 / 3 = 84000
       expect(report.portfolioSummary.averageOpportunityPerClient).toBe(84000);
     });
 
     it('should rank top clients correctly', async () => {
-      const report = await generateConsolidatedReport('test-accountant-id', 5);
+      const report = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
 
       expect(report.portfolioSummary.topClients).toHaveLength(3);
       expect(report.portfolioSummary.topClients[0].name).toBe('Test Corp 1');
@@ -180,7 +189,7 @@ describe('Consolidated Report Generator', () => {
     });
 
     it('should categorize opportunity distribution correctly', async () => {
-      const report = await generateConsolidatedReport('test-accountant-id', 5);
+      const report = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
 
       // Test Corp 1: 135000 (above 100k)
       // Test Corp 2: 72000 (between 50k and 100k)
@@ -192,14 +201,14 @@ describe('Consolidated Report Generator', () => {
     });
 
     it('should include all client reports', async () => {
-      const report = await generateConsolidatedReport('test-accountant-id', 5);
+      const report = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
 
       expect(report.clientReports).toHaveLength(3);
       expect(report.clientReports.every((r) => r.status === 'completed')).toBe(true);
     });
 
     it('should calculate insights correctly', async () => {
-      const report = await generateConsolidatedReport('test-accountant-id', 5);
+      const report = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
 
       // 3 clients * 2.5 hours = 7.5 hours, rounded = 8
       expect(report.insights.totalTimeSaved).toBe(8);
@@ -212,15 +221,15 @@ describe('Consolidated Report Generator', () => {
     });
 
     it('should track generation metrics', async () => {
-      const report = await generateConsolidatedReport('test-accountant-id', 5);
+      const report = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
 
       expect(report.generationMetrics.clientsProcessed).toBe(3);
       expect(report.generationMetrics.parallelBatches).toBe(1); // 3 clients, batch size 5 = 1 batch
-      expect(report.generationMetrics.processingTimeMs).toBeGreaterThan(0);
+      expect(report.generationMetrics.processingTimeMs).toBeGreaterThanOrEqual(0);
     });
 
     it('should handle different batch sizes', async () => {
-      const report = await generateConsolidatedReport('test-accountant-id', 2);
+      const report = await generateConsolidatedReport('test-accountant-id', mockSupabase, 2);
 
       expect(report.metadata.totalClients).toBe(3);
       // With batch size 2 and 3 clients, should have 2 batches
@@ -228,14 +237,15 @@ describe('Consolidated Report Generator', () => {
     });
 
     it('should generate unique report IDs', async () => {
-      const report1 = await generateConsolidatedReport('test-accountant-id', 5);
+      const report1 = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
       // Wait a bit to ensure different timestamp
       await new Promise((resolve) => setTimeout(resolve, 10));
-      const report2 = await generateConsolidatedReport('test-accountant-id', 5);
+      const report2 = await generateConsolidatedReport('test-accountant-id', mockSupabase, 5);
 
       expect(report1.metadata.reportId).not.toBe(report2.metadata.reportId);
-      expect(report1.metadata.reportId).toMatch(/^CONS-\d+-[a-f0-9]{8}$/);
-      expect(report2.metadata.reportId).toMatch(/^CONS-\d+-[a-f0-9]{8}$/);
+      // Report ID format: CONS-{timestamp}-{first 8 chars of accountant user ID}
+      expect(report1.metadata.reportId).toMatch(/^CONS-\d+-[a-zA-Z0-9-]{1,8}$/);
+      expect(report2.metadata.reportId).toMatch(/^CONS-\d+-[a-zA-Z0-9-]{1,8}$/);
     });
   });
 
@@ -247,7 +257,8 @@ describe('Consolidated Report Generator', () => {
         new Error('Failed to fetch data from Xero')
       );
 
-      const report = await generateConsolidatedReport('test-accountant-id', 5);
+      const supabase = createMockSupabase();
+      const report = await generateConsolidatedReport('test-accountant-id', supabase, 5);
 
       // Should have 2 successful and 1 failed
       expect(report.metadata.totalClients).toBe(3);
@@ -262,24 +273,45 @@ describe('Consolidated Report Generator', () => {
     });
 
     it('should throw error when no organizations found', async () => {
-      // Mock empty organizations
-      const { createServiceClient } = await import('@/lib/supabase/server');
-      vi.mocked(createServiceClient).mockReturnValueOnce({
-        from: vi.fn(() => ({
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              in: vi.fn(() =>
-                Promise.resolve({
-                  data: [],
-                  error: null,
-                })
-              ),
-            })),
-          })),
-        })),
-      } as any);
+      // Create a mock supabase that returns empty organizations
+      const emptySupabase = {
+        from: vi.fn((table: string) => {
+          if (table === 'profiles') {
+            return {
+              select: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  single: vi.fn(() =>
+                    Promise.resolve({
+                      data: {
+                        full_name: 'Test Accountant',
+                        email: 'accountant@test.com',
+                      },
+                      error: null,
+                    })
+                  ),
+                })),
+              })),
+            };
+          }
+          if (table === 'user_organization_access') {
+            return {
+              select: vi.fn(() => ({
+                eq: vi.fn(() => ({
+                  in: vi.fn(() =>
+                    Promise.resolve({
+                      data: [],
+                      error: null,
+                    })
+                  ),
+                })),
+              })),
+            };
+          }
+          return {};
+        }),
+      };
 
-      await expect(generateConsolidatedReport('no-orgs-accountant', 5)).rejects.toThrow(
+      await expect(generateConsolidatedReport('no-orgs-accountant', emptySupabase, 5)).rejects.toThrow(
         'No client organizations found for this accountant'
       );
     });

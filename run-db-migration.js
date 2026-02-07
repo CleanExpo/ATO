@@ -4,6 +4,7 @@
  * Uses Supabase REST API to execute raw SQL
  */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 require('dotenv').config({ path: '.env.local' });
 const fs = require('fs');
 const https = require('https');

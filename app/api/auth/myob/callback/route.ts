@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    let selectedCompanyFile = companyFiles[0]
+    const selectedCompanyFile = companyFiles[0]
 
     // If multiple company files, use the first one or redirect to selection
     if (companyFiles.length > 1) {

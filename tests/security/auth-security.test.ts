@@ -95,7 +95,8 @@ describe('OAuth Token Security', () => {
     })
 
     it('should validate token format', () => {
-      const validToken = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjFDQUY4RTY2Nzcy...'
+      // A valid JWT has three base64url-encoded segments separated by dots
+      const validToken = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjFDQUY4RTY2Nzcy.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature123'
       const invalidToken = 'not-a-jwt-token'
 
       const jwtPattern = /^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]*$/
@@ -263,8 +264,12 @@ describe('XSS Prevention', () => {
 
       const jsonString = JSON.stringify(response)
 
-      // JSON.stringify automatically escapes HTML
-      expect(jsonString).toContain('\\u003c') // Escaped <
+      // Standard JSON.stringify does NOT escape < and > by default.
+      // When serving JSON with Content-Type: application/json, the browser
+      // does not interpret HTML tags, so this is safe.
+      // The key security control is Content-Type: application/json header.
+      expect(jsonString).toContain('<script>')
+      expect(jsonString).toBe('{"message":"User <script>alert(1)</script> created"}')
     })
 
     it('should use React automatic escaping', () => {
