@@ -11,7 +11,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Shield, Database, Eye, Lock, ArrowLeft, ExternalLink } from 'lucide-react'
+import { Shield, Database, Eye, Lock, ArrowLeft, ExternalLink, Cpu, Globe } from 'lucide-react'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 export default function XeroConnectPage() {
@@ -111,6 +111,48 @@ export default function XeroConnectPage() {
               <li><strong>Deletion:</strong> You can request deletion of your data at any time via Settings</li>
             </ul>
           </div>
+
+          {/* Cross-border AI data processing disclosure (APP 8) */}
+          <div
+            style={{
+              padding: 'var(--space-md)',
+              border: '1px solid rgba(251, 191, 36, 0.3)',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'rgba(251, 191, 36, 0.05)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', marginBottom: 'var(--space-sm)' }}>
+              <Cpu size={16} style={{ color: '#FBBF24' }} />
+              <h3 className="typo-label" style={{ color: '#FBBF24' }}>AI Analysis &mdash; Cross-Border Data Processing</h3>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.7, marginBottom: 'var(--space-sm)' }}>
+              To provide forensic tax analysis, your financial transaction data is processed by
+              Google Gemini AI. This involves sending data to Google Cloud servers which{' '}
+              <strong>may be located outside Australia</strong>.
+            </p>
+            <div style={{ marginBottom: 'var(--space-sm)' }}>
+              <p className="typo-label" style={{ marginBottom: 'var(--space-xs)', fontSize: '0.8rem' }}>What data is sent to Google Gemini AI:</p>
+              <ul style={{ paddingLeft: 'var(--space-lg)', color: 'var(--text-secondary)', fontSize: '0.8125rem', lineHeight: 1.7 }}>
+                <li>Transaction descriptions (may include supplier and customer names)</li>
+                <li>Transaction amounts and dates</li>
+                <li>Account codes and categories</li>
+              </ul>
+            </div>
+            <div style={{ marginBottom: 'var(--space-sm)' }}>
+              <p className="typo-label" style={{ marginBottom: 'var(--space-xs)', fontSize: '0.8rem' }}>Why this data is processed externally:</p>
+              <ul style={{ paddingLeft: 'var(--space-lg)', color: 'var(--text-secondary)', fontSize: '0.8125rem', lineHeight: 1.7 }}>
+                <li>AI-powered classification of transactions for tax deduction identification</li>
+                <li>Forensic analysis to detect compliance issues and optimisation opportunities</li>
+              </ul>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', lineHeight: 1.6 }}>
+              <Globe size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
+              Under Australian Privacy Principle 8 (Privacy Act 1988), we are required to inform you of this
+              cross-border disclosure. You may choose not to connect your Xero account if you do not
+              consent to this processing. AI analysis is user-initiated and can be opted out of at any time
+              via your dashboard Settings.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -132,9 +174,10 @@ export default function XeroConnectPage() {
             aria-describedby="consent-description"
           />
           <span id="consent-description" className="typo-subtitle" style={{ lineHeight: 1.6 }}>
-            I have read and understand the data collection notice above. I consent to the
-            Australian Tax Optimizer accessing my Xero financial data for the purposes of
-            tax analysis as described.
+            I have read and understand the data collection notice above, including the cross-border
+            AI data processing disclosure. I consent to the Australian Tax Optimizer accessing my
+            Xero financial data and processing it via Google Gemini AI (which may operate outside
+            Australia) for the purposes of forensic tax analysis as described.
           </span>
         </label>
 

@@ -144,11 +144,12 @@ export function DynamicIsland({ showLogo = false, logo }: DynamicIslandProps) {
       <AnimatePresence>
         {expanded && (
           <motion.div
-            className="absolute top-full left-0 right-0 mt-2 p-2 rounded-2xl md:hidden"
+            className="absolute top-full left-0 right-0 mt-2 p-2 md:hidden"
             style={{
-              background: 'var(--void-elevated)',
-              border: '1px solid var(--glass-border)',
+              background: 'var(--bg-elevated)',
+              border: '0.5px solid var(--border-light)',
               backdropFilter: 'blur(40px)',
+              borderRadius: 'var(--radius-sm)',
             }}
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -164,7 +165,7 @@ export function DynamicIsland({ showLogo = false, logo }: DynamicIslandProps) {
                   href={item.href}
                   onClick={() => setExpanded(false)}
                   className={`dynamic-island__item w-full justify-start ${isActive ? 'dynamic-island__item--active' : ''}`}
-                  style={{ borderRadius: '8px', marginBottom: '4px' }}
+                  style={{ borderRadius: 'var(--radius-sm)', marginBottom: '4px' }}
                 >
                   <NavIcon name={item.icon} size={16} />
                   <span className="ml-3">{item.label}</span>

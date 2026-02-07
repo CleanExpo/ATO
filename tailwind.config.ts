@@ -66,6 +66,7 @@ const config: Config = {
         subtle: 'var(--bg-subtle)',
         card: 'var(--bg-card)',
         'card-hover': 'var(--bg-card-hover)',
+        elevated: 'var(--bg-elevated)',
         tertiary: 'var(--bg-tertiary)',
       },
       textColor: {

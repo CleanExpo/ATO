@@ -1189,7 +1189,7 @@ Backend_Dev has accepted ALL critical and high findings from this audit and inco
 | 7A-3: Amalgamated loans (s 109E(8)) | MEDIUM | DEFERRED | Serial borrowers may have incorrect minimum repayment calculations |
 | 7A-4: Safe harbour exclusions (s 109RB) | MEDIUM | DEFERRED | Compliant arrangements flagged as non-compliant (false positives) |
 | T-1: Ordinary family dealing exclusion | HIGH | DEFERRED | Family trusts receive false s 100A alerts for normal distributions |
-| T-2: Trustee penalty rate (47% not 45%) | LOW | DEFERRED | 2 percentage point error in trustee penalty calculations |
+| T-2: Trustee penalty rate (47% not 45%) | LOW | FIXED (2026-02-07) | Updated all references from 45% to 47% (45% top marginal + 2% Medicare Levy per s 99A ITAA 1936) |
 | L-2: SBT always returns 'unknown' | MEDIUM | DEFERRED | Similar business test never passes, overly conservative loss recommendations |
 
 #### Frontend Compliance Items (Reviewed 2026-02-07)
@@ -1198,9 +1198,9 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 
 | Item | Status | Detail |
 |------|--------|--------|
-| TPB disclaimer text | CONDITIONAL | Must add TASA 2009 reference, "registered tax practitioner" wording, and "not a registered tax/BAS agent" statement |
-| TPB disclaimer styling | CONDITIONAL | Current 10px/30% opacity is functionally invisible. Must be >= 12px, >= 60% opacity |
-| TPB disclaimer coverage | CONDITIONAL | Missing from main dashboard, 6 accountant pages, forensic sub-pages, shared report viewer. Shared viewer is CRITICAL (non-users see output) |
+| TPB disclaimer text | FIXED (2026-02-07) | Added TASA 2009 reference, "not a registered tax/BAS agent" statement, "registered tax practitioner" wording |
+| TPB disclaimer styling | FIXED (2026-02-07) | Updated to 12px (text-xs / 0.75rem), 60% opacity via inline styles |
+| TPB disclaimer coverage | PARTIAL FIX (2026-02-07) | Shared report viewer now has TaxDisclaimer on all states (success, password, error). Dashboard and other pages need separate verification |
 | Marginal vs effective rate | APPROVED | Waterfall chart shows both rates with explanatory text |
 | Projected savings disclaimers | APPROVED | "ESTIMATE" labels, sticky footer disclaimer, confidence percentages |
 | WCAG chart data tables | APPROVED (NOTE) | Hidden tables with proper markup. Suggested `role="region"` grouping for multiple charts |
@@ -1208,14 +1208,27 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | Dark mode contrast | APPROVED (NOTE) | Ratios documented. #F87171 on #050505 is 5.5:1 -- passes but borderline for small text |
 | Keyboard navigation | APPROVED | Calendar grid with arrow keys per WAI-ARIA |
 | Time-sensitive content | APPROVED | Icon + colour + text + aria-live pattern |
-| Pre-OAuth consent page | CONDITIONAL | Must be a real implementation at `/dashboard/connect`, not a placeholder. APP 1.4 requires notification at or before time of collection |
+| Pre-OAuth consent page | FIXED (2026-02-07) | Real implementation at `/dashboard/connect` with APP 1 Collection Notice, cross-border AI disclosure (APP 8), and Gemini AI consent |
 | Shared reports privacy | NOTED | No share functionality on new pages until privacy controls verified |
 
 #### Three Critical Frontend Corrections Required
 
-1. **TaxDisclaimer font size**: Increase from `text-[10px] text-white/30` to at least `text-xs text-white/60` (12px, 60% opacity)
-2. **Shared report viewer**: Add TaxDisclaimer to `/app/share/[token]/page.tsx` immediately -- external recipients currently see dollar estimates with zero legal qualification
-3. **Pre-OAuth consent interstitial**: Build real page at `/dashboard/connect` showing data scope, storage location, processing purpose, and APP 1 Collection Notice before Xero OAuth redirect
+1. **TaxDisclaimer font size**: ~~Increase from `text-[10px] text-white/30` to at least `text-xs text-white/60` (12px, 60% opacity)~~ **FIXED 2026-02-07** -- Updated to 0.75rem (12px) with 60% opacity, added TASA 2009 reference
+2. **Shared report viewer**: ~~Add TaxDisclaimer to `/app/share/[token]/page.tsx`~~ **FIXED 2026-02-07** -- TaxDisclaimer present on success, password, and error states
+3. **Pre-OAuth consent interstitial**: ~~Build real page at `/dashboard/connect`~~ **FIXED 2026-02-07** -- Added cross-border AI data processing disclosure (APP 8), Gemini AI consent, updated checkbox text
+
+#### Phase 0 Compliance Fixes Applied (2026-02-07)
+
+| Fix | File | Description |
+|-----|------|-------------|
+| FBT rate assignment bug | `lib/analysis/fbt-engine.ts:158-163` | Live rates now assigned to fbtRate, grossUpRate1, grossUpRate2 variables |
+| TaxDisclaimer styling | `components/dashboard/TaxDisclaimer.tsx:28` | 12px font, 60% opacity, TASA 2009 reference, "not a registered tax/BAS agent" |
+| Trust penalty rate | `lib/analysis/trust-distribution-analyzer.ts` | All 45% references updated to 47% (45% + 2% Medicare Levy per s 99A) |
+| APP 1 Collection Notice | `app/dashboard/connect/page.tsx` | Cross-border AI disclosure, Gemini data scope, APP 8 consent |
+| CSP headers | `next.config.ts` | Content-Security-Policy on all pages, stricter CSP on /share/* pages |
+| DATA_SOVEREIGNTY.md | `DATA_SOVEREIGNTY.md` | Consent notice marked as implemented, section 4.5 added |
+| FBT Type 1/Type 2 | `lib/analysis/fbt-engine.ts` | Per-item GST credit analysis replacing naive keyword matching |
+| Shared report disclaimer | `app/share/[token]/page.tsx` | TaxDisclaimer added to password-required state |
 
 ---
 
@@ -1313,3 +1326,159 @@ This wrapper provides:
 |------|-------|-------------|
 | Projections | `/dashboard/projections` | Real-time offset meters, concession impacts, timelines |
 | Calendar | `/dashboard/calendar` | Interactive tax compliance calendar with entity filtering |
+
+---
+
+## Design System Summary
+
+The full design specification is in `DESIGN_SYSTEM.md`. Key decisions:
+
+### Visual Language: "Professional Elegant"
+- **Dark-only**: OLED Black default + Tax-Time warm variant (no light mode)
+- **Minimal radius**: 2px on all rectangular containers; `9999px` only for circles
+- **0.5px borders**: Ultra-thin borders at low opacity for structure without weight
+- **Spectral cyan accent** (`#00F5FF`): Primary accent outside the traffic-light spectrum
+
+### Typography
+- **UI font**: Geist (via `--font-sans`)
+- **Data font**: JetBrains Mono (via `--font-mono`) with `font-variant-numeric: tabular-nums`
+- **Scale**: 1.25 ratio (Major Third), base 16px
+
+### Spacing & Grid
+- **8pt grid**: All spacing multiples of 8px (exception: 4px for tight internal gaps)
+- **12-column grid**: With asymmetric layouts preferred (40/60, 60/40, 30/70)
+- **Breakpoints**: 375 (mobile), 768 (tablet), 1024 (desktop), 1280 (wide)
+
+### Motion ("Seamless Ledger")
+- **Easing**: `cubic-bezier(0.19, 1, 0.22, 1)` for all transitions
+- **Loading**: Skeleton screens (not spinners) as primary loading state
+- **Numbers**: AnimatedCounter with count-up animation for dollar amounts
+- **Reduced motion**: All animations respect `prefers-reduced-motion`
+
+### Component Rules
+- Cards: `rgba(255,255,255,0.02)` background, `0.5px` border, `2px` radius
+- Buttons: Uppercase, 11px, `0.15em` letter-spacing, glow effect on primary
+- Semantic colours: Always paired with icon + text (never colour alone)
+- Charts: Recharts wrapped in `<AccessibleChart>`, using `--chart-1` to `--chart-6`
+- Disclaimer: Minimum 12px font, 60% opacity (compliance requirement)
+
+---
+
+## Compliance Risk Assessment v2 (2026-02-07)
+
+*Full assessment: `COMPLIANCE_RISK_ASSESSMENT.md`*
+*Audited by: The_Compliance_Skeptic*
+
+### Top 3 Compliance Risks
+
+#### RISK 1 (CRITICAL): Cross-Border Data Processing Without Informed Consent
+
+**Regulatory**: Privacy Act 1988 APP 1, APP 6, APP 8 | **Penalty**: Up to $50M or 30% adjusted turnover
+
+Financial transaction data (including supplier names = personal information) is sent to Google Gemini AI for forensic analysis without:
+- APP 1 Collection Notice before Xero OAuth connection
+- APP 8 cross-border disclosure consent for Gemini processing
+- Google Cloud Data Processing Agreement execution
+- Confirmed infrastructure regions (Supabase ap-southeast-2, Vercel syd1)
+
+**Files affected**: `lib/ai/gemini-client.ts`, `DATA_SOVEREIGNTY.md` (4 unchecked action items)
+
+**Remediation**: P0 -- add consent interstitial, APP 1 notice, confirm regions, execute DPA, appoint Privacy Officer.
+
+#### RISK 2 (CRITICAL): Unregistered Tax Agent Services Exposure
+
+**Regulatory**: Tax Agent Services Act 2009 s 50-5, s 90-5 | **Penalty**: Up to $262,500 per offence (body corporate)
+
+Platform outputs dollar estimates, legislative references, and filing instructions that may constitute "tax agent services" under s 90-5 TASA. Three compounding issues:
+1. TaxDisclaimer renders at 10px font (functionally invisible) -- `components/dashboard/TaxDisclaimer.tsx:28` still uses `text-[10px]` despite audit requiring 12px minimum
+2. Shared reports serve dollar estimates to unauthenticated external users with step-by-step filing instructions
+3. No professional indemnity insurance
+
+**Remediation**: P0 -- fix disclaimer to 12px, obtain legal opinion on TASA applicability, consider restructuring outputs.
+
+#### RISK 3 (HIGH): FBT Engine Systemic Miscalculation
+
+**Regulatory**: FBTAA 1986 s 67 (shortfall penalties) | **Impact**: Every FBT analysis uses wrong rates
+
+Code bug at `lib/analysis/fbt-engine.ts:152-163` -- live rates are fetched but NEVER assigned to calculation variables. Additional issues:
+- Type 1/Type 2 gross-up determination is keyword-based, not per-item GST credit analysis
+- Car fringe benefits (most common FBT item) have no valuation method
+- Otherwise deductible rule (s 24) classified but not applied as reduction
+
+**Remediation**: P0 -- fix rate assignment bug (30 minutes). P1 -- implement proper Type 1/Type 2 determination and car benefit valuation.
+
+### Secondary Findings Summary
+
+- **14 tax law accuracy findings** (A-1 through A-14) across trust distribution, cashflow forecast, fuel tax credits, CGT, loss, R&D, Div7A, and deduction engines
+- **10 security/privacy findings** (B-1 through B-10) including share password in URL query params, inconsistent RLS helper functions, no CSP headers, in-memory rate limiting
+- **7 professional liability findings** (C-1 through C-7) including missing APP 1 collection notice, no PI insurance, no NDB technical implementation
+
+### Remediation Phases
+
+- **Phase 0** (BEFORE production): 8 items -- consent notices, region confirmation, disclaimer fix, FBT rate bug, legal opinion, Privacy Officer
+- **Phase 1** (within 30 days): 8 items -- DPA execution, FBT Type 1/2 determination, CSP headers, distributed rate limiting, trust penalty rate fix, SG rate update
+- **Phase 2** (within 90 days): 8 items -- data minimisation for Gemini, CGT connected entities, s 100A family dealing, quarterly fuel rates, amendment period checks, R&D clawback, retention policy, NDB detection
+
+---
+
+## Architecture Decisions
+
+> Added 2026-02-07. Full architecture document: `ARCHITECTURE.md`
+
+### AD-1: Engine Independence
+
+Each of the 16 analysis engines in `lib/analysis/` is a standalone module with no import dependencies on other engines. Cross-engine data flows through Supabase, not direct function calls. This allows engines to be run independently via their API routes and parallelised in Tier 1 of the calculation pipeline.
+
+**Consequence**: When an engine needs data that another engine produces (e.g., cashflow-forecast needs FBT liability), it re-queries the database rather than importing the FBT engine directly. This trades some efficiency for fault isolation.
+
+### AD-2: Decimal.js for All Monetary Arithmetic
+
+All engines use `decimal.js` instead of native JavaScript `number` for monetary calculations. This avoids IEEE 754 floating-point errors that would produce incorrect tax amounts.
+
+**Consequence**: All monetary values must be wrapped in `new Decimal()` before arithmetic. Return types use `number` (via `.toNumber()`) for JSON serialisation, but internal calculations must never use native arithmetic operators on money.
+
+### AD-3: Conservative Default (All Deductions are "Potential")
+
+The deduction engine marks every identified deduction as `status='potential'` rather than `status='confirmed'`. This is a deliberate legal safety decision -- the platform is not a registered tax agent and cannot definitively classify deductions.
+
+**Consequence**: UI must present deductions as opportunities requiring professional review, never as confirmed savings.
+
+### AD-4: Zero TFN Storage
+
+The platform does not store, transmit, or process Tax File Numbers server-side. TFN input (if ever required) must be client-side only, with no TFN data crossing the API boundary. See `ARCHITECTURE.md` Section C for full design.
+
+**Consequence**: Any future ATO SBR2 integration requiring TFN must use a client-side-to-ATO direct channel, not route through our API.
+
+### AD-5: Tax Rate Provenance
+
+Every engine returns `taxRateSource` (URL or 'fallback') and `taxRateVerifiedAt` (timestamp) metadata. This creates an audit trail showing whether the engine used live-scraped ATO rates or hardcoded fallback defaults.
+
+**Consequence**: UI should display provenance indicators (e.g., "Rates verified from ATO.gov.au at [timestamp]" vs "Using default rates -- verify manually").
+
+### AD-6: Audit Risk Benchmarks are Descriptive, Not Normative
+
+The audit-risk-engine compares client expense ratios against ATO industry benchmarks but NEVER recommends changing expenses to match benchmarks. This is a critical compliance decision -- recommending benchmark manipulation could constitute aiding tax evasion.
+
+**Consequence**: Audit risk output must be presented as informational context ("Your expenses are outside typical industry range") not as action items ("Reduce your motor vehicle expenses to match the benchmark").
+
+### AD-7: Shared Financial Year Utility
+
+All date-based tax calculations use `lib/utils/financial-year.ts` rather than inline date logic. This single source of truth handles:
+- Australian FY (Jul-Jun) vs FBT year (Apr-Mar) vs calendar year
+- Amendment period calculations
+- BAS quarter determination
+- Prior year lookback
+
+**Consequence**: Never write inline FY date logic in engines. Always import from `financial-year.ts`.
+
+### AD-8: RLS via Security Definer Function
+
+Row-Level Security uses a `check_tenant_access()` function with `SECURITY DEFINER` that joins `user_tenant_access`. This centralises the access check so that adding new tables only requires `USING (check_tenant_access(tenant_id))` in the RLS policy.
+
+**Consequence**: All new tenant-scoped tables must use this pattern. Public data tables (ABN cache, benchmarks) use `auth.uid() IS NOT NULL` for authenticated-only SELECT.
+
+### AD-9: Xero READ-ONLY Access
+
+The Xero OAuth integration requests only `*.read` scopes for accounting data. Write scopes are limited to `accounting.attachments` (attach findings to transactions) and `files` (upload reports). The platform never modifies accounting data.
+
+**Consequence**: Any feature that requires writing back to Xero (e.g., journal entries, invoice corrections) is out of scope. The platform is an analysis tool, not an accounting tool.

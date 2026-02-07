@@ -157,9 +157,13 @@ export async function analyzeFBT(
 
   try {
     const rates = await getCurrentTaxRates()
-    if (rates.sources.corporateTax) rateSource = rates.sources.corporateTax
+    if (rates.fbtRate) fbtRate = rates.fbtRate
+    if (rates.fbtType1GrossUpRate) grossUpRate1 = rates.fbtType1GrossUpRate
+    if (rates.fbtType2GrossUpRate) grossUpRate2 = rates.fbtType2GrossUpRate
+    if (rates.sources.fbt) rateSource = rates.sources.fbt
+    else if (rates.sources.corporateTax) rateSource = rates.sources.corporateTax
   } catch (err) {
-    console.warn('Failed to fetch live FBT rates', err)
+    console.warn('Failed to fetch live FBT rates, using fallback defaults', err)
   }
 
   // Classify and calculate FBT for each transaction
@@ -253,8 +257,9 @@ function classifyAndCalculateFBT(
   const category = classifyFBTCategory(description, tx.primary_category)
 
   // Determine benefit type (Type 1 = GST-creditable, Type 2 = not)
-  // Type 1 if the employer can claim a GST credit on the benefit
-  const benefitType: 'type_1' | 'type_2' = category === 'meal_entertainment' ? 'type_2' : 'type_1'
+  // Type 1: employer is entitled to a GST input tax credit on the benefit
+  // Type 2: no GST credit available (GST-free, input-taxed, or no ABN supplier)
+  const benefitType = determineBenefitType(category, description, tx)
 
   // Check for exemptions
   const exemption = checkFBTExemptions(category, amount, description)
@@ -317,6 +322,85 @@ function classifyFBTCategory(description: string, primaryCategory: string | null
   if (FBT_EDUCATION_KEYWORDS.some(kw => desc.includes(kw) || cat.includes(kw))) return 'otherwise_deductible'
 
   return 'residual_fringe_benefit'
+}
+
+/**
+ * Determine Type 1 vs Type 2 benefit based on GST input tax credit entitlement
+ *
+ * Type 1 (GST-creditable): Employer is entitled to GST input tax credit on the benefit.
+ *   Applies when the supply is taxable (GST-inclusive) and the employer can claim the credit.
+ *
+ * Type 2 (no GST credit): No GST credit available. Applies when:
+ *   - Supply is GST-free (e.g. basic food, medical, education, childcare)
+ *   - Supply is input-taxed (e.g. residential rent, financial supplies)
+ *   - Supplier is not registered for GST (no ABN or under $75K threshold)
+ *   - Benefit is meal entertainment (Division 9A -- typically no GST credit)
+ *   - Benefit is a living-away-from-home allowance
+ *
+ * Per-item analysis based on available transaction data. Falls back to Type 1
+ * (conservative -- higher gross-up) when GST status cannot be determined.
+ */
+function determineBenefitType(
+  category: FBTCategory,
+  description: string,
+  tx: any
+): 'type_1' | 'type_2' {
+  const desc = description.toLowerCase()
+
+  // Division 9A meal entertainment -- typically Type 2 (no GST credit on entertainment)
+  if (category === 'meal_entertainment') return 'type_2'
+
+  // Living-away-from-home allowances -- Type 2 (no GST on allowances)
+  if (category === 'living_away_from_home') return 'type_2'
+
+  // GST-free supplies are Type 2 (no input tax credit available)
+  // Health/medical services (GST-free under Division 38 GST Act)
+  const GST_FREE_KEYWORDS = [
+    'medical', 'health', 'dental', 'hospital', 'doctor', 'physiotherapy',
+    'childcare', 'child care', 'daycare', 'day care',
+    'education', 'school fees', 'university', 'tuition',
+    'fresh food', 'basic food',
+  ]
+  if (GST_FREE_KEYWORDS.some(kw => desc.includes(kw))) return 'type_2'
+
+  // Input-taxed supplies are Type 2 (no input tax credit available)
+  // Residential accommodation, financial supplies
+  const INPUT_TAXED_KEYWORDS = [
+    'residential rent', 'residential accommodation',
+    'interest on loan', 'bank charges', 'financial',
+  ]
+  if (INPUT_TAXED_KEYWORDS.some(kw => desc.includes(kw))) return 'type_2'
+
+  // Housing benefits -- residential accommodation is input-taxed (Type 2)
+  if (category === 'housing_benefit') return 'type_2'
+
+  // Loan fringe benefits -- no GST on loans (Type 2)
+  if (category === 'loan_fringe_benefit') return 'type_2'
+
+  // Check transaction-level GST data if available from Xero
+  if (tx.tax_type) {
+    const taxType = String(tx.tax_type).toUpperCase()
+    // Xero tax types: GST-free = 'EXEMPTOUTPUT' or 'BASEXCLUDED', Input-taxed = 'INPUTTAXED'
+    if (taxType.includes('EXEMPT') || taxType.includes('BASEXCLUDED') || taxType.includes('INPUTTAXED')) {
+      return 'type_2'
+    }
+    // Standard GST (10%) = 'OUTPUT' or 'OUTPUT2'
+    if (taxType.includes('OUTPUT') || taxType.includes('GST')) {
+      return 'type_1'
+    }
+  }
+
+  // If GST amount data is available, use it
+  if (tx.gst_amount !== undefined && tx.gst_amount !== null) {
+    const gstAmount = parseFloat(tx.gst_amount) || 0
+    // Zero GST amount on a taxable transaction indicates GST-free or input-taxed
+    if (gstAmount === 0) return 'type_2'
+    if (gstAmount > 0) return 'type_1'
+  }
+
+  // Default to Type 1 (conservative -- higher gross-up rate produces higher FBT liability)
+  // This ensures we do not understate FBT liability when GST status is unknown
+  return 'type_1'
 }
 
 /**

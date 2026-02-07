@@ -310,7 +310,7 @@ function generateSection100AFlags(
       beneficiary_id: beneficiaryId,
       beneficiary_name: beneficiaryName,
       amount: totalAmount,
-      recommendation: 'URGENT: Review for Section 100A reimbursement agreement. If ATO determines agreement exists, distribution may be assessed to trustee at 45% tax rate. Obtain legal advice immediately.',
+      recommendation: 'URGENT: Review for Section 100A reimbursement agreement. If ATO determines agreement exists, distribution may be assessed to trustee at 47% (top marginal rate 45% + 2% Medicare Levy per s 99A ITAA 1936). Obtain legal advice immediately.',
     });
   }
 
@@ -441,7 +441,7 @@ function generateComplianceSummary(
 
     const criticalFlags = flags.filter(f => f.severity === 'critical');
     if (criticalFlags.length > 0) {
-      summary += `URGENT: ${criticalFlags.length} critical issues require immediate professional review to avoid potential 45% tax assessment to trustee.`;
+      summary += `URGENT: ${criticalFlags.length} critical issues require immediate professional review to avoid potential 47% tax assessment to trustee (top marginal rate 45% + 2% Medicare Levy per s 99A ITAA 1936).`;
     }
   }
 

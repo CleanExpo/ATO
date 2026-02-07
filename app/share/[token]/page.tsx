@@ -234,45 +234,48 @@ export default function SharePage() {
   // Password required
   if (state.status === 'password_required') {
     return (
-      <div className="max-w-md mx-auto">
-        <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-8">
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 mx-auto mb-4 bg-amber-500/10 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
+      <>
+        <div className="max-w-md mx-auto">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-lg p-8">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 bg-amber-500/10 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-white mb-2">Password Protected</h2>
+              <p className="text-white/50 text-sm">
+                This report is password protected. Enter the password provided by the report owner.
+              </p>
             </div>
-            <h2 className="text-xl font-semibold text-white mb-2">Password Protected</h2>
-            <p className="text-white/50 text-sm">
-              This report is password protected. Enter the password provided by the report owner.
-            </p>
-          </div>
 
-          <form onSubmit={handlePasswordSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="password" className="block text-sm text-white/70 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                id="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter password"
-                required
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isSubmitting || !password}
-              className="w-full px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSubmitting ? 'Verifying...' : 'Access Report'}
-            </button>
-          </form>
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="password" className="block text-sm text-white/70 mb-2">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  id="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter password"
+                  required
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting || !password}
+                className="w-full px-4 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Verifying...' : 'Access Report'}
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
+        <TaxDisclaimer sticky />
+      </>
     );
   }
 

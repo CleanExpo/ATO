@@ -376,8 +376,8 @@ function DashboardContent() {
               padding: 'var(--space-sm) var(--space-md)',
               marginBottom: 'var(--space-lg)',
               background: 'linear-gradient(90deg, var(--color-success-dim) 0%, rgba(16, 185, 129, 0.05) 100%)',
-              borderRadius: '12px',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: 'var(--radius-sm)',
+              border: '0.5px solid rgba(16, 185, 129, 0.3)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
@@ -462,7 +462,7 @@ function DashboardContent() {
               style={{
                 width: 80,
                 height: 80,
-                borderRadius: 20,
+                borderRadius: 'var(--radius-sm)',
                 background: 'var(--accent-xero-dim)',
                 display: 'flex',
                 alignItems: 'center',
@@ -500,8 +500,8 @@ function DashboardContent() {
                     marginBottom: 'var(--space-xl)',
                     padding: 'var(--space-md)',
                     background: 'var(--color-indigo-dim)',
-                    borderRadius: '16px',
-                    border: '1px solid rgba(99, 102, 241, 0.2)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '0.5px solid rgba(99, 102, 241, 0.2)',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>

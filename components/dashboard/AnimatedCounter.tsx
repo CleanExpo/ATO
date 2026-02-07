@@ -59,6 +59,22 @@ const variantColors = {
   success: 'var(--color-success)',
 }
 
+// Hook to detect prefers-reduced-motion
+function useReducedMotion(): boolean {
+  const [prefersReduced, setPrefersReduced] = useState(false)
+
+  useEffect(() => {
+    const mql = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setPrefersReduced(mql.matches)
+
+    const handler = (e: MediaQueryListEvent) => setPrefersReduced(e.matches)
+    mql.addEventListener('change', handler)
+    return () => mql.removeEventListener('change', handler)
+  }, [])
+
+  return prefersReduced
+}
+
 export default function AnimatedCounter({
   value,
   duration = 800,
@@ -77,8 +93,16 @@ export default function AnimatedCounter({
   const frameRef = useRef<number | undefined>(undefined)
   const startTimeRef = useRef<number | undefined>(undefined)
   const startValueRef = useRef(0)
+  const prefersReducedMotion = useReducedMotion()
 
   useEffect(() => {
+    // Skip animation if user prefers reduced motion
+    if (prefersReducedMotion) {
+      setDisplayValue(value)
+      setIsInitialized(true)
+      return
+    }
+
     // Initialize with current value on mount without animation
     if (!isInitialized) {
       setDisplayValue(value)
@@ -122,7 +146,7 @@ export default function AnimatedCounter({
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, duration, isInitialized])
+  }, [value, duration, isInitialized, prefersReducedMotion])
 
   // Format the display value
   const formatValue = (val: number): string => {

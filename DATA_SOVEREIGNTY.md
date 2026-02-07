@@ -107,7 +107,16 @@ This includes:
 - [ ] Review Google Cloud Terms of Service for Gemini API data handling
 - [ ] Confirm Gemini API does not retain input data beyond request processing
 - [ ] Consider Google Cloud Australia region for API routing if available
-- [ ] Add user consent notice before first AI analysis: "Transaction data will be processed by Google AI services"
+- [x] Add user consent notice before first AI analysis -- Implemented in `/dashboard/connect` page (APP 1 Collection Notice with cross-border AI data processing disclosure, 2026-02-07)
+
+### 4.5 Gemini AI Consent Implementation (2026-02-07)
+
+The pre-OAuth connection page (`/dashboard/connect`) now includes:
+- Explicit disclosure that financial transaction data (descriptions, amounts, dates) is sent to Google Gemini AI
+- Warning that Google Cloud servers may be located outside Australia
+- Reference to Australian Privacy Principle 8 (Privacy Act 1988)
+- Consent checkbox updated to include cross-border AI processing acknowledgement
+- User's right to opt out of AI analysis via dashboard Settings
 
 ---
 
@@ -121,7 +130,7 @@ recipient does not breach the APPs.
 |-------------|--------|-------|
 | Database in Australia | VERIFY | Must confirm ap-southeast-2 |
 | Functions in Australia | VERIFY | Must confirm syd1 |
-| Cross-border disclosure notice | REQUIRED | For Gemini AI processing |
+| Cross-border disclosure notice | IMPLEMENTED | Added to /dashboard/connect page (2026-02-07) |
 | Contractual protections | REQUIRED | Google Cloud DPA review |
 | Data minimisation | IMPLEMENTED | Minimal data sent to external APIs |
 | Encryption in transit | IMPLEMENTED | TLS 1.3 for all API calls |
