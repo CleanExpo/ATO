@@ -301,7 +301,7 @@ function DashboardPreview() {
       initial={{ opacity: 0, x: 40 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 1, delay: 0.4, ease: EASING }}
-      className="relative hidden lg:block"
+      className="relative"
     >
       <div
         className="rounded-sm border-[0.5px] overflow-hidden"
@@ -467,16 +467,12 @@ export default function Home() {
 
         {/* ── Section 1: Hero — "The Pain Killer" ── */}
         <section className="min-h-screen flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-16">
-          <div className="max-w-7xl mx-auto w-full">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-
-              {/* Left: Messaging */}
-              <div className="text-center lg:text-left">
+          <div className="max-w-4xl mx-auto w-full text-center">
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, ease: EASING }}
-                  className="flex items-center justify-center lg:justify-start gap-3 mb-8"
+                  className="flex items-center justify-center gap-3 mb-8"
                 >
                   <MapPin className="w-3.5 h-3.5" style={{ color: SPECTRAL.cyan }} />
                   <span className="text-[11px] uppercase tracking-[0.3em] text-white/40 font-medium">
@@ -499,7 +495,7 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.2, ease: EASING }}
-                  className="text-lg text-white/50 max-w-xl mx-auto lg:mx-0 mb-4 font-light leading-relaxed"
+                  className="text-lg text-white/50 max-w-xl mx-auto mb-4 font-light leading-relaxed"
                 >
                   AI-powered forensic analysis scans 5 years of transactions to surface
                   R&D tax offsets, unclaimed deductions, and compliance gaps that your
@@ -519,7 +515,7 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.3, ease: EASING }}
-                  className="flex flex-col sm:flex-row items-center lg:items-start justify-center lg:justify-start gap-4 mb-10"
+                  className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10"
                 >
                   <Link
                     href="/api/auth/xero"
@@ -550,7 +546,7 @@ export default function Home() {
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4, ease: EASING }}
-                  className="flex flex-wrap justify-center lg:justify-start gap-6 text-[11px] text-white/30"
+                  className="flex flex-wrap justify-center gap-6 text-[11px] text-white/30"
                 >
                   <div className="flex items-center gap-2">
                     <Shield className="w-3.5 h-3.5" style={{ color: SPECTRAL.emerald }} />
@@ -565,11 +561,11 @@ export default function Home() {
                     <span>Australian Data Centres</span>
                   </div>
                 </motion.div>
-              </div>
+          </div>
 
-              {/* Right: Dashboard Preview */}
-              <DashboardPreview />
-            </div>
+          {/* Dashboard Preview — below hero text, centered */}
+          <div className="max-w-3xl mx-auto w-full mt-16 hidden lg:block">
+            <DashboardPreview />
           </div>
         </section>
 
