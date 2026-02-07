@@ -132,10 +132,12 @@ export default function TaxReportingDashboard() {
         if (data.connections && data.connections.length > 0) {
           setTenantId(data.connections[0].tenant_id);
         } else {
-          setError('No Xero connections found');
+          setError('No Xero connections found. Connect your Xero organisation to view tax reporting data.');
+          setLoading(false);
         }
       } catch (err) {
         setError('Failed to load Xero connection');
+        setLoading(false);
       }
     }
     fetchTenantId();

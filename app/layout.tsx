@@ -19,10 +19,36 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "ATO Tax Optimizer | Australian Tax Intelligence",
-  description: "Deep analysis of Australian Business Taxation Laws to identify every legal avenue for tax recovery, correction, and optimization.",
-  keywords: ["Australian Tax", "R&D Tax Incentive", "Tax Optimization", "Xero Integration", "Division 355"],
-  authors: [{ name: "ATO Agent Suite" }],
+  title: "ATO Tax Optimizer | AI-Powered Tax Recovery for Australian Businesses",
+  description: "Forensic AI analysis of your Xero data to recover $200K-$500K in R&D tax offsets, unclaimed deductions, and Division 7A compliance gaps. Built for Australian SMEs under ITAA 1997.",
+  keywords: [
+    "Australian tax recovery",
+    "R&D Tax Incentive Division 355",
+    "Xero tax audit",
+    "Australian business tax optimisation",
+    "Division 7A compliance",
+    "tax deduction recovery Australia",
+    "ITAA 1997",
+    "SME tax refund",
+    "forensic tax analysis",
+    "Australian tax agent software"
+  ],
+  authors: [{ name: "ATO Tax Optimizer" }],
+  openGraph: {
+    title: "ATO Tax Optimizer | AI-Powered Tax Recovery",
+    description: "Forensic AI analysis of your Xero data to recover unclaimed tax benefits worth $200K-$500K for Australian businesses.",
+    type: "website",
+    locale: "en_AU",
+    siteName: "ATO Tax Optimizer",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  other: {
+    "geo.region": "AU",
+    "geo.country": "AU",
+  },
 }
 
 // Inline script to prevent flash of wrong theme on load

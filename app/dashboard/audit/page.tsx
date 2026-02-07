@@ -15,8 +15,6 @@ import {
     Play,
     AlertTriangle
 } from 'lucide-react'
-import { MobileNav } from '@/components/ui/MobileNav'
-import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
 
 type Connection = {
     tenant_id: string
@@ -204,15 +202,6 @@ export default function TaxAuditPage() {
 
     return (
         <div className="min-h-screen">
-            {/* Dynamic Island Navigation */}
-            <DynamicIsland showLogo />
-
-            {/* Vertical Navigation (Desktop) */}
-            <VerticalNav />
-
-            {/* Mobile Navigation */}
-            <MobileNav />
-
             {/* Main Content */}
             <main className="main-content" style={{ paddingTop: 'var(--space-3xl)' }}>
                 {/* Header */}
@@ -461,8 +450,6 @@ export default function TaxAuditPage() {
                 )}
             </main>
 
-            {/* Mobile Bottom Navigation */}
-            <MobileNav />
         </div>
     )
 }

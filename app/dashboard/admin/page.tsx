@@ -68,17 +68,23 @@ export default function AdminDashboard() {
     const [activity, setActivity] = useState<ActivityLog[]>([]);
     const [health, setHealth] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchData() {
             try {
                 const res = await fetch('/api/admin/system-stats');
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    setError(errData.error || `Access denied (${res.status})`);
+                    return;
+                }
                 const data = await res.json();
                 setStats(data.stats);
-                setActivity(data.recentActivity);
+                setActivity(data.recentActivity || []);
                 setHealth(data.systemHealth);
             } catch (err) {
-                console.error('Failed to fetch admin stats');
+                setError('Failed to connect to system stats');
             } finally {
                 setLoading(false);
             }
@@ -89,6 +95,26 @@ export default function AdminDashboard() {
     if (loading) return (
         <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center">
             <div className="loading-spinner" />
+        </div>
+    );
+
+    if (error || !stats) return (
+        <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center px-4">
+            <div className="text-center max-w-md">
+                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-6">
+                    <Lock className="w-8 h-8 text-amber-400" />
+                </div>
+                <h2 className="text-2xl font-black text-white mb-3">Admin Access Required</h2>
+                <p className="text-sm text-white/40 mb-8 leading-relaxed">
+                    {error || 'System stats are not available. This page requires administrator privileges to view global platform metrics.'}
+                </p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white hover:bg-white/10 transition-colors"
+                >
+                    Retry
+                </button>
+            </div>
         </div>
     );
 
@@ -149,7 +175,7 @@ export default function AdminDashboard() {
                         <div className="mt-6 pt-6 border-t border-white/5">
                             <div className="flex justify-between items-center text-xs">
                                 <span className="text-white/30">Adjusted Benefit</span>
-                                <span className="text-emerald-400 font-mono font-bold">${stats?.totalBenefitAdjusted.toLocaleString()}</span>
+                                <span className="text-emerald-400 font-mono font-bold">${(stats?.totalBenefitAdjusted ?? 0).toLocaleString()}</span>
                             </div>
                         </div>
                     </GlassCard>

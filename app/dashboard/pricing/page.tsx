@@ -21,7 +21,6 @@ import {
     Calculator,
     Loader2
 } from 'lucide-react'
-import { DynamicIsland, VerticalNav } from '@/components/ui/DynamicIsland'
 
 interface PricingCardProps {
     title: string
@@ -164,9 +163,6 @@ export default function PricingPage() {
 
     return (
         <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-            <DynamicIsland />
-            <VerticalNav />
-
             <div className="max-w-6xl mx-auto space-y-8 sm:space-y-12 py-6 sm:py-12">
                 {/* Header Block */}
                 <div className="text-center space-y-4 max-w-3xl mx-auto">
