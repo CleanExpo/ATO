@@ -1062,6 +1062,8 @@ function TransactionsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <TaxDisclaimer />
     </div>
   )
 }

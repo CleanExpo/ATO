@@ -111,6 +111,8 @@ export default function HistoricalAnalysisPage() {
           )}
         </div>
       </div>
+
+      <TaxDisclaimer />
     </div>
   )
 }
