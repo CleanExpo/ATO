@@ -6,6 +6,7 @@
  */
 
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import {
   ArrowLeft,
   Building2,
@@ -208,6 +209,8 @@ export default async function Div7AWorkflowPage() {
           </div>
         </div>
       </div>
+
+      <TaxDisclaimer />
     </div>
   )
 }

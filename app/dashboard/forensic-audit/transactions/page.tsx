@@ -9,6 +9,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MobileNav } from '@/components/ui/MobileNav'

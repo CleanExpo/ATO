@@ -9,6 +9,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import Link from 'next/link'
 import { MobileNav } from '@/components/ui/MobileNav'
 import {
@@ -610,6 +611,7 @@ export default function RndDetailPage() {
       </div>
 
       {/* Mobile Bottom Navigation */}
+      <TaxDisclaimer />
       <MobileNav />
     </div>
   )

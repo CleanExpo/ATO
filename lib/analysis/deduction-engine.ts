@@ -13,6 +13,7 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
+import { checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
 
 // Deduction thresholds and rates
@@ -59,6 +60,20 @@ export interface DeductionAnalysisOptions {
   isSmallBusiness?: boolean
   /** Annual turnover (used to auto-determine entity type if not specified) */
   annualTurnover?: number
+  /**
+   * Percentage of assessable income that is base rate entity passive income (0-100).
+   * s 23AA ITAA 1997 requires BOTH turnover < $50M AND passive income <= 80%
+   * for the 25% base rate to apply.
+   * Passive income includes: dividends, franking credits, interest, royalties,
+   * rent, net capital gains, and certain trust distributions.
+   * If not provided, a warning will be included when base rate is applied.
+   */
+  passiveIncomePercentage?: number
+  /**
+   * Entity type for amendment period checks (maps to shared utility).
+   * If not provided, derived from entityType.
+   */
+  entityTypeForAmendment?: EntityTypeForAmendment
 }
 
 // Cache for tax rates (refreshed per function invocation)
@@ -239,13 +254,29 @@ export async function determineTaxRate(options?: DeductionAnalysisOptions): Prom
     console.warn('Failed to fetch live corporate rates for deduction engine', err)
   }
 
+  // Helper: check passive income test (s 23AA ITAA 1997)
+  // Base rate entity requires BOTH: turnover < $50M AND passive income <= 80%
+  const passiveIncome = options?.passiveIncomePercentage
+  const passiveIncomeFailsTest = passiveIncome !== undefined && passiveIncome > 80
+
   // Auto-determine from turnover if available
   if (options?.annualTurnover !== undefined && entityType === 'unknown') {
     if (options.annualTurnover < 50_000_000) {
+      // Check passive income test before applying base rate
+      if (passiveIncomeFailsTest) {
+        return {
+          rate: new Decimal(rateStandard),
+          rateNumber: rateStandard,
+          note: `Turnover < $50M but passive income is ${passiveIncome}% (>80%) - does NOT qualify as base rate entity. Standard ${rateStandard * 100}% rate applies (s 23AA ITAA 1997 passive income test failed).`,
+        }
+      }
+      const passiveNote = passiveIncome !== undefined
+        ? ` Passive income: ${passiveIncome}% (passes <= 80% test).`
+        : ' WARNING: Passive income percentage not provided - base rate entity status unverified. s 23AA requires passive income <= 80%.'
       return {
         rate: new Decimal(rateBase),
         rateNumber: rateBase,
-        note: `Base rate entity (turnover < $50M) - ${rateBase * 100}% tax rate (s 23AA ITAA 1997)`,
+        note: `Base rate entity (turnover < $50M) - ${rateBase * 100}% tax rate (s 23AA ITAA 1997).${passiveNote}`,
       }
     }
     return {
@@ -256,10 +287,21 @@ export async function determineTaxRate(options?: DeductionAnalysisOptions): Prom
   }
 
   if (entityType === 'base_rate_entity' || isBaseRate) {
+    // Check passive income test before applying base rate
+    if (passiveIncomeFailsTest) {
+      return {
+        rate: new Decimal(rateStandard),
+        rateNumber: rateStandard,
+        note: `Entity marked as base rate but passive income is ${passiveIncome}% (>80%) - does NOT qualify. Standard ${rateStandard * 100}% rate applies (s 23AA ITAA 1997 passive income test failed).`,
+      }
+    }
+    const passiveNote = passiveIncome !== undefined
+      ? ` Passive income: ${passiveIncome}% (passes <= 80% test).`
+      : ' WARNING: Passive income percentage not provided - base rate entity status unverified. s 23AA requires passive income <= 80%.'
     return {
       rate: new Decimal(rateBase),
       rateNumber: rateBase,
-      note: `Base rate entity - ${rateBase * 100}% tax rate (s 23AA ITAA 1997)`,
+      note: `Base rate entity - ${rateBase * 100}% tax rate (s 23AA ITAA 1997).${passiveNote}`,
     }
   }
 

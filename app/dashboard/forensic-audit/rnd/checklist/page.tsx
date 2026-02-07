@@ -12,6 +12,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { ClaimChecklist } from '@/components/rnd'
 
@@ -218,6 +219,8 @@ export default function RndChecklistPage() {
           intelligence and estimates, not binding financial advice.
         </div>
       </div>
+
+      <TaxDisclaimer />
     </div>
   )
 }

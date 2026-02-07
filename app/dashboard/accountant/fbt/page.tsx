@@ -6,6 +6,7 @@
  */
 
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import {
   ArrowLeft,
   Car,
@@ -210,6 +211,8 @@ export default async function FBTWorkflowPage() {
           </div>
         </div>
       </div>
+
+      <TaxDisclaimer />
     </div>
   )
 }

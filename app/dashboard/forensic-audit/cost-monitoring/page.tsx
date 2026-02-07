@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { MobileNav } from '@/components/ui/MobileNav'
 import StatCard from '@/components/audit/StatCard'
 
@@ -334,6 +335,8 @@ export default function CostMonitoringPage() {
           <li>• <strong>Monitor trends:</strong> Watch for cost spikes that may indicate inefficient analysis</li>
         </ul>
       </div>
+
+      <TaxDisclaimer />
 
       {/* Mobile Bottom Navigation */}
       <MobileNav />

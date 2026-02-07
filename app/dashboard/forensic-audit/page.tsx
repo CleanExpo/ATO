@@ -7,6 +7,7 @@
 'use client'
 
 import React, { Suspense, useEffect, useState, useCallback, useRef } from 'react'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -31,9 +32,12 @@ type Platform = 'xero' | 'myob' | 'quickbooks'
 
 export default function ForensicAuditPageWrapper() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[var(--bg-dashboard)]"><Loader /></div>}>
-      <ForensicAuditPage />
-    </Suspense>
+    <>
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[var(--bg-dashboard)]"><Loader /></div>}>
+        <ForensicAuditPage />
+      </Suspense>
+      <TaxDisclaimer sticky />
+    </>
   )
 }
 

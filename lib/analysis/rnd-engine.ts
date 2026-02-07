@@ -13,33 +13,133 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
+import { getCurrentFinancialYear, checkAmendmentPeriod } from '@/lib/utils/financial-year'
+import Decimal from 'decimal.js'
 
 // R&D Tax Incentive Rates (Division 355)
 // NOTE: These are fallback values - actual values fetched from ATO.gov.au
-const FALLBACK_RND_OFFSET_RATE = 0.435 // 43.5% refundable offset (2024-25 fallback)
+// Since FY2021-22, offset is tiered: corporate tax rate + premium
+const FALLBACK_RND_OFFSET_RATE = 0.435 // 43.5% refundable offset (25% + 18.5% premium)
+const FALLBACK_RND_OFFSET_RATE_LARGE = 0.385 // 38.5% non-refundable offset (30% + 8.5% premium)
+const RND_REFUNDABLE_CAP = 4_000_000 // $4M annual refundable offset cap (s 355-100(3) ITAA 1997)
 const MIN_CONFIDENCE_FOR_RECOMMENDATION = 70 // Minimum confidence to recommend claiming
 const REGISTRATION_DEADLINE_MONTHS = 10 // 10 months after end of financial year
+
+// R&D offset premium rates by FY (added on top of corporate tax rate)
+// Pre-FY2021-22: flat 43.5% for <$20M turnover
+// FY2021-22 onwards: corporate_rate + 18.5% (<$20M) or corporate_rate + 8.5% (>=$20M)
+const RND_PREMIUM_SMALL = 0.185 // 18.5% premium for turnover < $20M (s 355-100 ITAA 1997)
+const RND_PREMIUM_LARGE = 0.085 // 8.5% premium for turnover >= $20M (s 355-105 ITAA 1997)
+const RND_TURNOVER_THRESHOLD = 20_000_000 // $20M aggregated turnover threshold
+
+/** Entity context for R&D offset rate calculation */
+export interface RndEntityContext {
+  /** Aggregated turnover for offset rate determination. < $20M = refundable offset. */
+  aggregatedTurnover?: number
+  /** Corporate tax rate for the entity (25% base rate or 30% standard). */
+  corporateTaxRate?: number
+  /** Entity type for amendment period checks. */
+  entityType?: 'company' | 'trust' | 'partnership' | 'individual' | 'unknown'
+}
 
 // Cache for R&D offset rate (refreshed per function invocation)
 let cachedRndRate: number | null = null
 let cachedRndSource: string = 'fallback'
 
 /**
- * Get current R&D offset rate from ATO (cached for 24 hours)
+ * Calculate R&D offset rate based on entity context.
+ *
+ * Since FY2021-22 (Treasury Laws Amendment (A Tax Plan for the COVID-19
+ * Economic Recovery) Act 2021):
+ * - Turnover < $20M: refundable offset at corporate tax rate + 18.5%
+ *   (e.g., 25% + 18.5% = 43.5% for base rate entities)
+ *   (e.g., 30% + 18.5% = 48.5% for standard rate entities)
+ * - Turnover >= $20M: non-refundable offset at corporate tax rate + 8.5%
+ *
+ * Refundable offset capped at $4M per year (s 355-100(3) ITAA 1997).
  */
-async function getRndOffsetRate(): Promise<{ rate: number; source: string }> {
+function calculateRndOffsetRate(entityContext?: RndEntityContext): {
+  rate: number
+  isRefundable: boolean
+  source: string
+  note: string
+} {
+  const turnover = entityContext?.aggregatedTurnover
+  const corpRate = entityContext?.corporateTaxRate ?? 0.25
+
+  if (turnover !== undefined && turnover >= RND_TURNOVER_THRESHOLD) {
+    // Large entity: non-refundable offset
+    const rate = corpRate + RND_PREMIUM_LARGE
+    return {
+      rate,
+      isRefundable: false,
+      source: 'calculated_tiered',
+      note: `Non-refundable offset: ${(corpRate * 100).toFixed(1)}% corporate rate + 8.5% premium = ${(rate * 100).toFixed(1)}% (s 355-105 ITAA 1997). Turnover >= $20M.`,
+    }
+  }
+
+  // Small entity or unknown: refundable offset (conservative for unknown)
+  const rate = corpRate + RND_PREMIUM_SMALL
+  return {
+    rate,
+    isRefundable: true,
+    source: 'calculated_tiered',
+    note: `Refundable offset: ${(corpRate * 100).toFixed(1)}% corporate rate + 18.5% premium = ${(rate * 100).toFixed(1)}% (s 355-100 ITAA 1997). Capped at $4M/year.`,
+  }
+}
+
+/**
+ * Get current R&D offset rate from ATO (cached for 24 hours).
+ * Falls back to tiered calculation if entity context is provided.
+ */
+async function getRndOffsetRate(entityContext?: RndEntityContext): Promise<{
+  rate: number
+  isRefundable: boolean
+  source: string
+  note: string
+}> {
+  // If entity context is provided, use tiered calculation (more accurate)
+  if (entityContext?.aggregatedTurnover !== undefined || entityContext?.corporateTaxRate !== undefined) {
+    return calculateRndOffsetRate(entityContext)
+  }
+
+  // Fall back to cached/fetched rate for backward compatibility
   if (cachedRndRate !== null) {
-    return { rate: cachedRndRate, source: cachedRndSource }
+    return { rate: cachedRndRate, isRefundable: true, source: cachedRndSource, note: 'Cached rate (entity context not provided)' }
   }
 
   try {
     const rates = await getCurrentTaxRates()
     cachedRndRate = rates.rndOffsetRate || FALLBACK_RND_OFFSET_RATE
     cachedRndSource = rates.sources.rndIncentive || 'ATO_FALLBACK_DEFAULT'
-    return { rate: cachedRndRate, source: cachedRndSource }
+    return { rate: cachedRndRate, isRefundable: true, source: cachedRndSource, note: 'ATO fetched rate' }
   } catch (error) {
     console.warn('Failed to fetch R&D offset rate, using fallback value:', error)
-    return { rate: FALLBACK_RND_OFFSET_RATE, source: 'ERROR_FALLBACK' }
+    return { rate: FALLBACK_RND_OFFSET_RATE, isRefundable: true, source: 'ERROR_FALLBACK', note: 'Error fallback - 43.5%' }
+  }
+}
+
+/**
+ * Apply $4M annual refundable offset cap (s 355-100(3) ITAA 1997).
+ * Only applies to refundable offsets (turnover < $20M).
+ * Excess above $4M becomes a non-refundable tax offset.
+ */
+function applyRefundableCap(
+  totalOffset: number,
+  isRefundable: boolean
+): { refundableAmount: number; nonRefundableAmount: number; capApplied: boolean } {
+  if (!isRefundable) {
+    return { refundableAmount: 0, nonRefundableAmount: totalOffset, capApplied: false }
+  }
+
+  if (totalOffset <= RND_REFUNDABLE_CAP) {
+    return { refundableAmount: totalOffset, nonRefundableAmount: 0, capApplied: false }
+  }
+
+  return {
+    refundableAmount: RND_REFUNDABLE_CAP,
+    nonRefundableAmount: totalOffset - RND_REFUNDABLE_CAP,
+    capApplied: true,
   }
 }
 
@@ -116,6 +216,12 @@ export interface RndSummary {
   totalProjects: number
   totalEligibleExpenditure: number
   totalEstimatedOffset: number
+  /** Refundable portion of offset (capped at $4M for turnover < $20M) */
+  refundableOffset: number
+  /** Non-refundable portion (excess above $4M cap, or all of it for turnover >= $20M) */
+  nonRefundableOffset: number
+  /** Whether the $4M refundable cap was applied (s 355-100(3) ITAA 1997) */
+  refundableCapApplied: boolean
   projectsByYear: Record<string, number>
   expenditureByYear: Record<string, number>
   offsetByYear: Record<string, number>
@@ -127,6 +233,8 @@ export interface RndSummary {
   taxRateSource: string
   /** Timestamp of when the tax rate was verified */
   taxRateVerifiedAt: string
+  /** Explanation of R&D offset rate used */
+  taxRateNote: string
 
   /** Projects excluded due to insufficient evidence or failed eligibility (Division 355 s 355-25) */
   excludedProjects: BorderlineProject[]
@@ -135,12 +243,18 @@ export interface RndSummary {
 }
 
 /**
- * Analyze all R&D opportunities for a tenant across multiple years
+ * Analyze all R&D opportunities for a tenant across multiple years.
+ *
+ * @param tenantId - Xero tenant ID
+ * @param startYear - Start financial year filter (e.g., 'FY2022-23')
+ * @param endYear - End financial year filter
+ * @param entityContext - Entity context for tiered R&D offset calculation
  */
 export async function analyzeRndOpportunities(
   tenantId: string,
   startYear?: string,
-  endYear?: string
+  endYear?: string,
+  entityContext?: RndEntityContext
 ): Promise<RndSummary> {
   const supabase = await createServiceClient()
 
@@ -172,6 +286,9 @@ export async function analyzeRndOpportunities(
       totalProjects: 0,
       totalEligibleExpenditure: 0,
       totalEstimatedOffset: 0,
+      refundableOffset: 0,
+      nonRefundableOffset: 0,
+      refundableCapApplied: false,
       projectsByYear: {},
       expenditureByYear: {},
       offsetByYear: {},
@@ -183,20 +300,21 @@ export async function analyzeRndOpportunities(
       excludedProjectsNote: '',
       taxRateSource: 'none',
       taxRateVerifiedAt: new Date().toISOString(),
+      taxRateNote: '',
     }
   }
 
   console.log(`Found ${rndCandidates.length} R&D candidate transactions`)
 
-  // Get current R&D offset rate from ATO
-  const { rate: rndOffsetRate, source: rndOffsetSource } = await getRndOffsetRate()
-  console.log(`Using R&D offset rate: ${(rndOffsetRate * 100).toFixed(1)}% [Source: ${rndOffsetSource}]`)
+  // Get current R&D offset rate (tiered if entity context provided)
+  const rndRateInfo = await getRndOffsetRate(entityContext)
+  console.log(`Using R&D offset rate: ${(rndRateInfo.rate * 100).toFixed(1)}% [Source: ${rndRateInfo.source}] ${rndRateInfo.note}`)
 
   // Group transactions into projects (returns both eligible and excluded)
-  const { eligible, excluded } = groupIntoProjects(rndCandidates, rndOffsetRate)
+  const { eligible, excluded } = groupIntoProjects(rndCandidates, rndRateInfo.rate)
 
   // Calculate summary statistics (includes excluded projects for user visibility)
-  const summary = calculateRndSummary(eligible, excluded, rndOffsetRate, rndOffsetSource)
+  const summary = calculateRndSummary(eligible, excluded, rndRateInfo)
 
   return summary
 }
@@ -662,7 +780,7 @@ function generateRecommendations(
     recommendations.push('✅ Registration window is open - register R&D activities with AusIndustry')
   }
 
-  recommendations.push(`💰 Estimated R&D offset: $${estimatedOffset.toFixed(2)} (43.5% refundable)`)
+  recommendations.push(`💰 Estimated R&D offset: $${estimatedOffset.toFixed(2)} (Division 355 ITAA 1997)`)
   recommendations.push(`📋 Lodge Schedule 16N for ${financialYears.join(', ')}`)
   recommendations.push('Ensure all four-element test criteria are documented in technical reports')
   recommendations.push('Maintain detailed project records (timesheets, invoices, technical documentation)')
@@ -707,8 +825,7 @@ function generateProjectDescription(
 function calculateRndSummary(
   projects: RndProjectAnalysis[],
   excludedProjects: BorderlineProject[],
-  rndOffsetRate: number,
-  rndOffsetSource: string
+  rndRateInfo: { rate: number; isRefundable: boolean; source: string; note: string }
 ): RndSummary {
   let totalEligibleExpenditure = 0
   let totalEstimatedOffset = 0
@@ -741,11 +858,17 @@ function calculateRndSummary(
         .reduce((sum, tx) => sum + tx.amount, 0)
 
       expenditureByYear[year] = (expenditureByYear[year] || 0) + yearExpenditure
-      offsetByYear[year] = (offsetByYear[year] || 0) + (yearExpenditure * rndOffsetRate)
+      offsetByYear[year] = (offsetByYear[year] || 0) + (yearExpenditure * rndRateInfo.rate)
     })
   })
 
   const averageConfidence = projects.length > 0 ? Math.round(totalConfidence / projects.length) : 0
+
+  // Apply $4M refundable offset cap (s 355-100(3) ITAA 1997)
+  const { refundableAmount, nonRefundableAmount, capApplied } = applyRefundableCap(
+    totalEstimatedOffset,
+    rndRateInfo.isRefundable
+  )
 
   // Generate summary note for excluded projects (Division 355 s 355-25 ITAA 1997)
   const excludedNote = excludedProjects.length > 0
@@ -757,6 +880,9 @@ function calculateRndSummary(
     totalProjects: projects.length,
     totalEligibleExpenditure,
     totalEstimatedOffset,
+    refundableOffset: refundableAmount,
+    nonRefundableOffset: nonRefundableAmount,
+    refundableCapApplied: capApplied,
     projectsByYear,
     expenditureByYear,
     offsetByYear,
@@ -766,8 +892,9 @@ function calculateRndSummary(
     projects,
     excludedProjects,
     excludedProjectsNote: excludedNote,
-    taxRateSource: rndOffsetSource,
+    taxRateSource: rndRateInfo.source,
     taxRateVerifiedAt: new Date().toISOString(),
+    taxRateNote: rndRateInfo.note,
   }
 }
 

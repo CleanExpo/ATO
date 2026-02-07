@@ -279,6 +279,158 @@ export class JinaScraper {
       return null
     }
   }
+
+  /**
+   * Scrape and parse FBT rate and gross-up rates
+   *
+   * @param url - ATO page URL
+   * @returns FBT rates or null
+   */
+  async parseFBTRates(url: string): Promise<{
+    fbtRate: number | null
+    type1GrossUp: number | null
+    type2GrossUp: number | null
+  } | null> {
+    try {
+      const result = await this.scrape(url)
+
+      // FBT rate: typically "47%"
+      const fbtRateMatch = result.markdown.match(/(\d+)%\s*(?:FBT|fringe\s+benefits?\s+tax)\s+rate/i) ||
+        result.markdown.match(/FBT\s+rate[^%]*?(\d+)%/i)
+
+      // Gross-up rates: "2.0802" (type 1), "1.8868" (type 2)
+      const grossUpMatches = result.markdown.match(/(\d+\.\d{4})/g)
+
+      let fbtRate: number | null = null
+      let type1GrossUp: number | null = null
+      let type2GrossUp: number | null = null
+
+      if (fbtRateMatch) {
+        fbtRate = parseInt(fbtRateMatch[1]) / 100
+      }
+
+      if (grossUpMatches) {
+        const grossUpRates = grossUpMatches
+          .map(g => parseFloat(g))
+          .filter(n => n >= 1.5 && n <= 2.5) // Reasonable gross-up range
+
+        if (grossUpRates.length >= 2) {
+          // Type 1 is the higher rate (GST-creditable)
+          type1GrossUp = Math.max(...grossUpRates)
+          type2GrossUp = Math.min(...grossUpRates)
+        } else if (grossUpRates.length === 1) {
+          // If only one found, assume type 1
+          type1GrossUp = grossUpRates[0]
+        }
+      }
+
+      if (!fbtRate && !type1GrossUp) {
+        console.warn('No FBT rates found in page')
+        return null
+      }
+
+      console.log(`Parsed FBT rate: ${fbtRate ? (fbtRate * 100) + '%' : 'N/A'}, Type 1: ${type1GrossUp}, Type 2: ${type2GrossUp}`)
+      return { fbtRate, type1GrossUp, type2GrossUp }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to parse FBT rates:', message)
+      return null
+    }
+  }
+
+  /**
+   * Scrape and parse superannuation guarantee rate
+   *
+   * @param url - ATO page URL
+   * @returns SG rate as decimal (e.g. 0.115 for 11.5%) or null
+   */
+  async parseSuperGuaranteeRate(url: string): Promise<number | null> {
+    try {
+      const result = await this.scrape(url)
+
+      // Look for SG rate percentages: "11.5%", "12%"
+      const percentages = result.markdown.match(/(\d+\.?\d*)%/g)
+
+      if (!percentages || percentages.length === 0) {
+        console.warn('No percentages found in super guarantee page')
+        return null
+      }
+
+      // SG rate is typically 9-12%
+      const sgRates = percentages
+        .map(p => parseFloat(p.replace('%', '')))
+        .filter(n => n >= 9 && n <= 15)
+
+      if (sgRates.length === 0) {
+        return null
+      }
+
+      // Use the highest current rate (most recent)
+      const rate = Math.max(...sgRates) / 100
+
+      console.log(`Parsed super guarantee rate: ${(rate * 100).toFixed(1)}%`)
+      return rate
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to parse super guarantee rate:', message)
+      return null
+    }
+  }
+
+  /**
+   * Scrape and parse fuel tax credit rates (quarterly)
+   *
+   * @param url - ATO page URL
+   * @returns Fuel tax credit rates per litre or null
+   */
+  async parseFuelTaxCreditRates(url: string): Promise<{
+    onRoad: number | null
+    offRoad: number | null
+    quarter: string | null
+  } | null> {
+    try {
+      const result = await this.scrape(url)
+
+      // Look for cents per litre rates: "20.8 cents", "48.8 cents"
+      const centsMatches = result.markdown.match(/(\d+\.?\d*)\s*cents?\s*(?:per\s+litre)?/gi)
+
+      if (!centsMatches || centsMatches.length === 0) {
+        console.warn('No fuel tax credit rates found in page')
+        return null
+      }
+
+      const rates = centsMatches
+        .map(m => {
+          const match = m.match(/(\d+\.?\d*)/)
+          return match ? parseFloat(match[1]) : 0
+        })
+        .filter(n => n >= 5 && n <= 60) // Reasonable range in cents
+
+      // Determine quarter from page content
+      const quarterMatch = result.markdown.match(/(1\s+(?:July|August|September|October|November|December|January|February|March|April|May|June)\s+\d{4})/i) ||
+        result.markdown.match(/(\d{4}[-–]\d{2,4})/i)
+
+      let onRoad: number | null = null
+      let offRoad: number | null = null
+
+      if (rates.length >= 2) {
+        // Off-road is typically the higher rate (full excise credit)
+        offRoad = Math.max(...rates) / 100 // Convert cents to dollars
+        onRoad = Math.min(...rates) / 100
+      } else if (rates.length === 1) {
+        offRoad = rates[0] / 100
+      }
+
+      const quarter = quarterMatch ? quarterMatch[1] : null
+
+      console.log(`Parsed fuel tax credit rates: on-road ${onRoad ? (onRoad * 100).toFixed(1) + 'c' : 'N/A'}, off-road ${offRoad ? (offRoad * 100).toFixed(1) + 'c' : 'N/A'}`)
+      return { onRoad, offRoad, quarter }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      console.error('Failed to parse fuel tax credit rates:', message)
+      return null
+    }
+  }
 }
 
 // Singleton instance

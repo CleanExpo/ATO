@@ -6,6 +6,7 @@
  */
 
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -209,6 +210,8 @@ export default async function ReconciliationWorkflowPage() {
           </div>
         </div>
       </div>
+
+      <TaxDisclaimer />
     </div>
   )
 }

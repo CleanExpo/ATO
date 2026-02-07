@@ -36,6 +36,19 @@ export async function POST(_request: Request) {
         // Division 7A
         division7ABenchmarkRate: rates.division7ABenchmarkRate,
 
+        // FBT
+        fbtRate: rates.fbtRate,
+        fbtType1GrossUpRate: rates.fbtType1GrossUpRate,
+        fbtType2GrossUpRate: rates.fbtType2GrossUpRate,
+
+        // Superannuation Guarantee
+        superGuaranteeRate: rates.superGuaranteeRate,
+
+        // Fuel Tax Credits
+        fuelTaxCreditOnRoad: rates.fuelTaxCreditOnRoad,
+        fuelTaxCreditOffRoad: rates.fuelTaxCreditOffRoad,
+        fuelTaxCreditQuarter: rates.fuelTaxCreditQuarter,
+
         // Metadata
         fetchedAt: rates.fetchedAt,
         sources: rates.sources,

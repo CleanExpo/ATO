@@ -160,6 +160,71 @@
   --signal-info: var(--color-info);
   --glass-border: var(--border-light);
   --glass-border-hover: var(--border-medium);
+
+  /* Compliance status colours */
+  --compliance-ok: #34D399;
+  --compliance-ok-dim: rgba(52, 211, 153, 0.08);
+  --compliance-warn: #FBBF24;
+  --compliance-warn-dim: rgba(251, 191, 36, 0.08);
+  --compliance-risk: #F87171;
+  --compliance-risk-dim: rgba(248, 113, 113, 0.08);
+}
+
+/* ============================================
+   Tax-Time Dark Mode - Warmer tones for
+   extended tax-season sessions (July-October)
+   ============================================ */
+
+[data-theme="tax-time"] {
+  /* Warmer dark backgrounds */
+  --bg-base: #0B0B0F;
+  --bg-subtle: #0F0F14;
+  --bg-card: rgba(255, 255, 255, 0.03);
+  --bg-card-hover: rgba(255, 255, 255, 0.05);
+  --bg-gradient-start: #0B0B0F;
+  --bg-gradient-end: #0B0B0F;
+  --bg-tertiary: #111118;
+
+  /* Reduced glare text */
+  --text-primary: rgba(255, 255, 255, 0.87);
+  --text-secondary: rgba(255, 255, 255, 0.55);
+  --text-tertiary: rgba(255, 255, 255, 0.35);
+  --text-muted: rgba(255, 255, 255, 0.18);
+
+  /* Warmer accent glow - reduced 20% */
+  --accent-primary-dim: rgba(0, 245, 255, 0.06);
+  --accent-primary-glow: rgba(0, 245, 255, 0.12);
+
+  /* Slightly warmer borders */
+  --border-light: rgba(255, 255, 255, 0.07);
+  --border-medium: rgba(255, 255, 255, 0.11);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Warmer semantic dim colours */
+  --color-success-dim: rgba(52, 211, 153, 0.08);
+  --color-warning-dim: rgba(251, 191, 36, 0.08);
+  --color-error-dim: rgba(248, 113, 113, 0.08);
+  --color-info-dim: rgba(0, 245, 255, 0.06);
+  --color-xero-dim: rgba(19, 181, 234, 0.06);
+  --color-indigo-dim: rgba(129, 140, 248, 0.06);
+
+  /* Reduced shadow intensity */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.6);
+
+  /* Compliance colours - verified WCAG AA on #0B0B0F */
+  --compliance-ok: #34D399;
+  --compliance-ok-dim: rgba(52, 211, 153, 0.10);
+  --compliance-warn: #FBBF24;
+  --compliance-warn-dim: rgba(251, 191, 36, 0.10);
+  --compliance-risk: #F87171;
+  --compliance-risk-dim: rgba(248, 113, 113, 0.10);
+}
+
+[data-theme="tax-time"] body {
+  background: #0B0B0F;
 }
 
 /* ============================================
@@ -1855,4 +1920,124 @@ img, video, canvas, svg {
 ::selection {
   background: var(--accent-primary);
   color: #050505;
+}
+
+/* ============================================
+   Accessibility Utilities
+   ============================================ */
+
+/* Screen reader only - visually hidden but accessible */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus indicators - visible only on keyboard navigation */
+*:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skip link for keyboard users */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--space-md);
+  z-index: 9999;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+  top: var(--space-md);
+}
+
+/* Compliance status indicators - icon + colour + text */
+.compliance-ok {
+  color: var(--compliance-ok);
+}
+
+.compliance-warn {
+  color: var(--compliance-warn);
+}
+
+.compliance-risk {
+  color: var(--compliance-risk);
+}
+
+.compliance-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.5625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+
+.compliance-badge--ok {
+  background: var(--compliance-ok-dim);
+  color: var(--compliance-ok);
+}
+
+.compliance-badge--warn {
+  background: var(--compliance-warn-dim);
+  color: var(--compliance-warn);
+}
+
+.compliance-badge--risk {
+  background: var(--compliance-risk-dim);
+  color: var(--compliance-risk);
+}
+
+/* Estimate label - for projected dollar amounts */
+.estimate-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.5625rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-tertiary);
+  padding: 2px 6px;
+  border: 0.5px solid var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+/* Theme transition */
+html.theme-transitioning,
+html.theme-transitioning *,
+html.theme-transitioning *::before,
+html.theme-transitioning *::after {
+  transition: background-color 200ms ease, color 200ms ease, border-color 200ms ease, box-shadow 200ms ease !important;
+}
+
+/* Sticky disclaimer footer */
+.sticky-disclaimer {
+  position: sticky;
+  bottom: 0;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-base);
+  border-top: 0.5px solid var(--border-light);
+  z-index: 10;
 }

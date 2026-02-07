@@ -7,6 +7,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { TrendsAnalysis } from '@/components/forensic-audit/TrendsAnalysis'
 import { YearComparison } from '@/components/forensic-audit/YearComparison'
 import { BarChart3, GitCompare, Calendar, TrendingUp } from 'lucide-react'

@@ -10,6 +10,8 @@ export type IconName =
   | 'Search'
   | 'FileSearch'
   | 'Calendar'
+  | 'CalendarClock'
+  | 'Gauge'
   | 'Beaker'
   | 'TrendingDown'
   | 'Settings'
@@ -93,6 +95,24 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'R&D',
     icon: 'Beaker',
     matchPaths: ['/dashboard/rnd'],
+    showInMobile: true,
+    showInDesktop: true,
+  },
+  {
+    href: '/dashboard/projections',
+    label: 'Tax Projections',
+    shortLabel: 'Projections',
+    icon: 'Gauge',
+    matchPaths: ['/dashboard/projections'],
+    showInMobile: true,
+    showInDesktop: true,
+  },
+  {
+    href: '/dashboard/calendar',
+    label: 'Compliance Calendar',
+    shortLabel: 'Calendar',
+    icon: 'CalendarClock',
+    matchPaths: ['/dashboard/calendar'],
     showInMobile: true,
     showInDesktop: true,
   },

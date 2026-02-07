@@ -713,3 +713,603 @@ does not constitute tax advice. All recommendations should be reviewed by
 a qualified tax professional before implementation. The software provides
 'intelligence' and 'estimates', not binding financial advice.
 ```
+
+---
+
+## Compliance Audit Report (2026-02-07)
+
+*Audited by: The_Compliance_Skeptic*
+*Status: ACTIVE - Findings require action before production deployment*
+
+---
+
+### 1. Privacy Act 1988 Compliance Checklist
+
+#### 1.1 Tax File Number (TFN) Handling - Schedule 1
+
+- [ ] **TFN NOT collected or stored by this application** - VERIFY: Confirm no TFN fields exist in any Supabase tables or form inputs. TFN collection requires registration as a tax agent under Tax Agent Services Act 2009 (TASA).
+- [ ] **If TFN is ever added**: Must comply with Privacy (Tax File Number) Rule 2015 - encryption, access logging, destruction after use, no disclosure except to ATO.
+- [ ] **TFN must never appear in**: logs, error messages, shared reports, URLs, browser localStorage, or client-side state.
+
+#### 1.2 Australian Privacy Principles (APPs)
+
+- [ ] **APP 1 - Collection Notice**: Users must be informed what data is collected from Xero and how it is used BEFORE OAuth connection. Current OAuth flow needs a data collection notice.
+- [ ] **APP 3 - Collection of Personal Information**: Only collect data reasonably necessary for tax analysis. Verify Xero scopes are truly minimal (currently uses READ_ONLY which is good).
+- [ ] **APP 6 - Use or Disclosure**: Financial data must not be used for purposes other than tax analysis. Verify no analytics/tracking on financial data.
+- [ ] **APP 8 - Cross-Border Disclosure**: If Supabase or Vercel servers are outside Australia, a cross-border data flow assessment is required. **CRITICAL: Verify Supabase region is ap-southeast-2 (Sydney).**
+- [ ] **APP 11 - Security**: Reasonable steps to protect personal information. Token encryption (AES-256-GCM) is good. Verify database-level encryption and RLS policies.
+- [ ] **APP 12 - Access**: Users must be able to access and correct their data. Verify data export and deletion capabilities exist.
+
+#### 1.3 Notifiable Data Breaches (NDB) Scheme
+
+- [ ] **Breach Response Plan**: Document a breach response procedure (assessment within 30 days, notification to OAIC and affected individuals if likely serious harm).
+- [ ] **Data Breach Register**: Maintain a register of all data breaches (even non-notifiable ones).
+- [ ] **Contact Details**: Display Privacy Officer contact details in the application.
+- **FINDING**: No breach response plan or NDB compliance documentation found in the codebase.
+
+---
+
+### 2. Tax Practitioners Board (TPB) Requirements
+
+#### 2.1 Registration Obligation Analysis
+
+- **CRITICAL QUESTION**: Does this application provide "tax agent services" under TASA 2009?
+  - Section 90-5 TASA: A "tax agent service" includes preparing or lodging returns, or giving advice about tax obligations.
+  - This application provides "recommendations" and "analysis" -- if users rely on these to amend returns, the TPB may consider this a tax agent service.
+- [ ] **Required Disclaimers**: Every page showing tax recommendations MUST display:
+  - "This is not tax advice. Consult a registered tax agent."
+  - "This software is an analytical tool, not a registered tax agent."
+  - "Do not amend your tax return based solely on this analysis."
+- [ ] **Section 50-5 TASA Penalty**: Providing tax agent services without registration carries penalties up to $52,500 (individual) or $262,500 (body corporate) per offence.
+- **FINDING**: The CLAUDE.md disclaimer exists but it is unclear whether it appears on every recommendation screen in the UI. Frontend_Dev must verify.
+
+#### 2.2 Professional Indemnity
+
+- [ ] If operating as or alongside a tax agent practice, PI insurance is mandatory.
+- [ ] The application should clearly state it does NOT hold PI insurance and users should ensure their own tax advisor has appropriate cover.
+
+---
+
+### 3. Tax Law Edge Cases - CRITICAL FINDINGS
+
+#### 3.1 Deduction Engine (lib/analysis/deduction-engine.ts)
+
+**FINDING D-1: Entertainment deductibility is oversimplified**
+- Line 323-329: Flat 50% deductibility for all entertainment. In reality:
+  - Meal entertainment: employer election under s 37AA FBTAA determines treatment
+  - Recreational entertainment: generally non-deductible unless exemptions apply
+  - Seminars/conferences with incidental meals: 100% deductible
+  - Taxi travel to/from work-related entertainment: 100% deductible
+- **Risk**: Over-claiming entertainment deductions; ATO scrutiny area.
+
+**FINDING D-2: Instant asset write-off threshold history not tracked**
+- Lines 20-21: Uses $20,000 fallback. But threshold has changed multiple times:
+  - Pre-2023: $150,000 (COVID temporary full expensing)
+  - FY2023-24: $20,000
+  - FY2024-25: $20,000
+- Historical transactions from COVID years may be assessed against wrong threshold.
+- **Risk**: Understating eligible write-offs for FY2020-21 through FY2022-23.
+
+**FINDING D-3: Base rate entity test is incomplete**
+- Line 244: Uses turnover < $50M as sole test. But s 23AA ITAA 1997 also requires:
+  - No more than 80% of assessable income is base rate entity passive income
+  - This is the "passive income" test -- rental income, interest, dividends, royalties
+- A company with $40M turnover but 90% passive income pays 30%, not 25%.
+- **Risk**: Understating tax liability; incorrect tax saving estimates.
+
+**FINDING D-4: No handling of prepaid expenses**
+- Section 82KZM ITAA 1936: Prepaid expenses over 12 months must be apportioned.
+- The engine treats all expenses at face value without checking prepayment periods.
+- **Risk**: Overstating deductions in the year of payment.
+
+#### 3.2 Division 7A Engine (lib/analysis/div7a-engine.ts)
+
+**FINDING 7A-1: Benchmark interest rate hardcoded for current FY**
+- Line 962: `const currentFY = 'FY2024-25'` is hardcoded. When FY2025-26 begins (1 July 2025), this will silently use the wrong rate.
+- **Risk**: Incorrect interest calculations after 30 June 2025. MUST be dynamic.
+
+**FINDING 7A-2: Minimum repayment formula may be incorrect for part-year loans**
+- Line 712-724: Uses full-year amortisation. But s 109E(5) ITAA 1936 provides that for loans made part-way through a year, the minimum repayment is proportionally reduced.
+- **Risk**: Overstating minimum repayment shortfall for mid-year loans.
+
+**FINDING 7A-3: Amalgamated loan provisions not handled**
+- Section 109E(8) ITAA 1936: Multiple loans to the same entity can be amalgamated for minimum repayment purposes. The engine treats each loan independently.
+- **Risk**: Incorrect compliance assessment when multiple loans exist.
+
+**FINDING 7A-4: Section 109RB safe harbour exclusions missing**
+- Payments made under genuine commercial terms (e.g., arm's length salary) are excluded from Division 7A. The engine does not check for these exclusions.
+- **Risk**: False positive Division 7A flags for legitimate commercial payments.
+
+**FINDING 7A-5: Distributable surplus not calculated**
+- Section 109Y ITAA 1936: A deemed dividend cannot exceed the company's distributable surplus. The engine does not check this cap.
+- **Risk**: Overstating deemed dividend exposure.
+
+#### 3.3 Loss Engine (lib/analysis/loss-engine.ts)
+
+**FINDING L-1: Capital losses not distinguished from revenue losses**
+- The engine treats all losses as revenue losses. Capital losses can only offset capital gains (s 102-5 ITAA 1997), not ordinary income.
+- **Risk**: Incorrectly suggesting capital losses can reduce taxable income.
+
+**FINDING L-2: Similar Business Test (SBT) not implemented**
+- Lines 449-518: COT/SBT analysis returns 'unknown' for everything. While flagged for professional review, the engine still assumes eligibility.
+- The new SBT (effective from FY2022-23 under Treasury Laws Amendment) is broader than the old SBT - considers similar business, not identical.
+- **Risk**: Users may assume losses are available when they have been forfeited.
+
+**FINDING L-3: Trust losses have different rules**
+- Division 266/267 ITAA 1997 applies to trust losses, not Division 165. The engine uses the same analysis for all entity types.
+- Trust income injection test (Division 270) and family trust election implications are not considered.
+- **Risk**: Incorrect loss carry-forward advice for trust entities.
+
+#### 3.4 R&D Engine (lib/analysis/rnd-engine.ts)
+
+**FINDING R-1: R&D offset rate depends on aggregated turnover, not just turnover**
+- Line 19: Uses flat 43.5%. But since FY2021-22:
+  - Turnover < $20M: Refundable offset at corporate tax rate + 18.5% (= 43.5% for 25% entities)
+  - Turnover >= $20M: Non-refundable offset at corporate tax rate + 8.5%
+- For entities paying 30% corporate tax rate with turnover < $20M, the offset is actually 48.5%.
+- **Risk**: Understating R&D benefit for some entities; overstating for others.
+
+**FINDING R-2: $4M annual R&D tax offset cap not enforced**
+- From FY2021-22, refundable R&D tax offset is capped at $4M per year (s 355-100(3) ITAA 1997).
+- The engine calculates uncapped offsets.
+- **Risk**: Overstating R&D benefit for large claimants.
+
+**FINDING R-3: Clawback provisions not checked**
+- Section 355-450 ITAA 1997: If R&D results are subsequently commercialised, clawback of offset applies.
+- **Risk**: Users unaware of potential clawback obligations.
+
+#### 3.5 Trust Distribution Analyzer (lib/analysis/trust-distribution-analyzer.ts)
+
+**FINDING T-1: Section 100A "ordinary family dealing" exclusion not implemented**
+- TR 2022/4 clarifies that distributions between family members for ordinary family purposes are excluded from s 100A. The analyzer flags all distributions without checking this exclusion.
+- **Risk**: Excessive false positive flags causing unnecessary alarm.
+
+**FINDING T-2: Trustee penalty tax rate is incorrect**
+- Line 313: References "45% tax rate" for trustee assessment. Under s 99A ITAA 1936, the trustee rate is the top marginal rate (currently 45%) PLUS Medicare Levy (2%) = 47%.
+- **Risk**: Understating worst-case tax exposure.
+
+#### 3.6 Superannuation Cap Analyzer (lib/analysis/superannuation-cap-analyzer.ts)
+
+**FINDING S-1: Carry-forward concessional contributions not handled**
+- From FY2018-19, unused concessional cap amounts can be carried forward for up to 5 years if total super balance < $500,000.
+- The analyzer uses a flat single-year cap without checking carry-forward eligibility.
+- **Risk**: False breach alerts for employees legitimately using carry-forward.
+
+**FINDING S-2: FY2025-26 cap increase not pre-loaded**
+- The concessional cap increases to $30,000 for FY2024-25 and may increase further. No mechanism to fetch or alert about cap changes.
+- **Risk**: Stale cap data leading to incorrect analysis.
+
+#### 3.7 Fuel Tax Credits Analyzer (lib/analysis/fuel-tax-credits-analyzer.ts)
+
+**FINDING F-1: Credit rates are quarterly, not annual**
+- Lines 120-124: Uses single annual rates. ATO updates fuel tax credit rates EVERY quarter (Feb, Apr, Aug, Nov typically).
+- A transaction from Q1 FY2024-25 may have a different rate than Q3.
+- **Risk**: Incorrect credit calculations when rates change mid-year.
+
+**FINDING F-2: Road user charge deduction not applied**
+- For heavy vehicles on public roads, the fuel tax credit is reduced by the road user charge. The analyzer does not distinguish on-road vs off-road heavy vehicle use.
+- **Risk**: Overstating fuel tax credits for on-road heavy vehicles.
+
+---
+
+### 4. Security & Privacy Vulnerabilities
+
+#### 4.1 Confirmed Strengths
+
+- OAuth tokens encrypted at rest (AES-256-GCM with salt-derived keys) - GOOD
+- Tenant isolation via user_tenant_access table with IDOR protection - GOOD
+- Rate limiting on API endpoints - GOOD (but in-memory only, see 4.2)
+- Xero data is read-only - GOOD
+- Token truncation in logs - GOOD
+- Zod validation on API inputs - GOOD
+
+#### 4.2 Identified Vulnerabilities
+
+**VULN-1: Rate limiting is in-memory only (MEDIUM)**
+- File: lib/middleware/rate-limit.ts
+- In a serverless/edge environment (Vercel), each function instance has its own memory. Rate limits are NOT shared across instances.
+- An attacker can bypass rate limits by distributing requests across function instances.
+- **Fix**: Use Upstash Redis or Vercel KV for distributed rate limiting.
+
+**VULN-2: Dev auth bypass exists in production-accessible code (LOW)**
+- File: lib/auth/require-auth.ts lines 145-168
+- `devBypassAuth()` function exists with a runtime check for NODE_ENV. While it checks for production, the function is exported and available.
+- **Fix**: Use build-time elimination (e.g., conditional import) rather than runtime check.
+
+**VULN-3: Share token modulo bias (LOW)**
+- File: lib/share/token-generator.ts line 29
+- `bytes[i] % URL_SAFE_CHARS.length` (56 chars) introduces modulo bias since 256 is not divisible by 56. Characters at positions 0-31 are ~1.6% more likely.
+- For a 32-character token this is negligible but not cryptographically ideal.
+- **Fix**: Use rejection sampling instead of modulo.
+
+**VULN-4: No Content Security Policy headers (MEDIUM)**
+- Shared report pages are accessible without authentication. Without CSP headers, they are vulnerable to XSS if user-controlled data (e.g., supplier names from Xero) is rendered unsanitised.
+- **Fix**: Add CSP headers in next.config.js middleware.
+
+**VULN-5: Supabase service role key used in dev encryption fallback (MEDIUM)**
+- File: lib/crypto/token-encryption.ts line 32
+- In development, `SUPABASE_SERVICE_ROLE_KEY` is used as the encryption key seed. If dev database tokens are migrated to production, they would be encrypted with a predictable key.
+- **Fix**: Never allow dev-encrypted tokens in production; add migration check.
+
+**VULN-6: IP address spoofing in audit logs (LOW)**
+- File: lib/audit/logger.ts lines 89-113
+- `X-Forwarded-For` header is user-controllable in many proxy configurations. An attacker can spoof their IP in audit logs.
+- **Fix**: Use only the rightmost trusted proxy IP from X-Forwarded-For chain.
+
+#### 4.3 Data Sovereignty
+
+- [ ] **CRITICAL**: Verify Supabase project region is in Australia (ap-southeast-2). Australian financial data subject to data sovereignty requirements under Privacy Act 1988 APP 8.
+- [ ] **CRITICAL**: Verify Vercel deployment region. Edge functions may execute in non-Australian regions.
+- [ ] Verify Gemini AI API does not store or retain Australian financial data. Google Cloud data processing terms must be reviewed.
+- [ ] If any data transits through non-Australian servers, a cross-border data flow risk assessment is required.
+
+---
+
+### 5. Record-Keeping Requirements
+
+#### ATO Record-Keeping (5-Year Retention)
+
+- [ ] All financial records must be retained for at least 5 years from the date the record was prepared or the transaction completed (s 262A ITAA 1936).
+- [ ] The application must NOT auto-delete historical data within the 5-year window.
+- [ ] If Supabase has data retention/TTL policies, verify they respect the 5-year minimum.
+- [ ] Shared report links should either persist for 5 years or be downloadable as permanent records.
+- [ ] CGT records must be kept for the life of the asset PLUS 5 years after disposal.
+
+---
+
+### 6. WCAG 2.1 AA Accessibility Requirements
+
+- [ ] All financial data tables must have proper `<th>` scope attributes and `<caption>` elements.
+- [ ] Currency values must be readable by screen readers (e.g., "$10,000" not "$10k").
+- [ ] Tax bracket visualisations must have text alternatives (not colour-dependent).
+- [ ] Error messages must be programmatically associated with form fields.
+- [ ] Focus management: after form submission or data loading, focus must move to results.
+- [ ] Minimum contrast ratio: 4.5:1 for normal text, 3:1 for large text. Verify Tax-Time dark mode meets this.
+- [ ] All interactive elements must be keyboard accessible (Tab, Enter, Space, Escape).
+- [ ] Time-sensitive content (e.g., "registration deadline approaching") must be announced by screen readers.
+
+---
+
+### 7. Required UI Disclaimers (Frontend_Dev Action Required)
+
+Every page or component displaying tax recommendations MUST show:
+
+```
+DISCLAIMER: This analysis is generated by automated software and does not
+constitute tax, financial, or legal advice. It is provided for informational
+purposes only. All findings and recommendations should be reviewed by a
+registered tax agent or qualified tax professional before any action is taken.
+This software is not registered with the Tax Practitioners Board and does
+not provide tax agent services within the meaning of the Tax Agent Services
+Act 2009 (TASA).
+```
+
+Pages requiring this disclaimer:
+- [ ] Dashboard overview (estimated savings summary)
+- [ ] Deduction opportunities page
+- [ ] R&D Tax Incentive analysis page
+- [ ] Division 7A compliance page
+- [ ] Loss carry-forward page
+- [ ] Trust distribution analysis page
+- [ ] Superannuation cap analysis page
+- [ ] Fuel tax credits page
+- [ ] All generated PDF/Excel reports
+- [ ] Shared report viewer pages
+- [ ] Amendment schedule recommendations
+
+---
+
+### 8. Mid-Financial-Year Rate Change Handling
+
+**CRITICAL QUESTION FOR BACKEND_DEV**:
+
+What happens when tax rates change mid-financial-year? Scenarios:
+
+1. **Budget announcement changes rates retroactively**: The application must invalidate cached rates and re-analyse all affected transactions.
+2. **Division 7A benchmark rate**: Published annually by ATO. If the rate changes, all existing compliance assessments become stale.
+3. **Fuel tax credit rates**: Change quarterly. Current implementation uses annual rates.
+4. **Instant asset write-off threshold**: Has changed 7 times since 2019. Historical analyses must use the threshold applicable at the date of purchase.
+5. **Superannuation guarantee rate**: 11.5% from 1 Jul 2024, 12% from 1 Jul 2025. Must be date-aware.
+
+The `lib/tax-data/cache-manager.ts` with 24-hour TTL is insufficient for rate change scenarios. Consider:
+- Webhook/polling for ATO rate changes
+- Version-stamping all analyses with the rates used
+- Re-analysis trigger when rates are updated
+
+---
+
+### 9. Amendment Period Calculations
+
+**FINDING**: The loss engine (line 63-105) correctly identifies amendment periods but the deduction engine does NOT check amendment periods at all.
+
+Amendment periods by entity type (s 170 TAA 1953):
+- Individuals/small business: 2 years from date of assessment
+- Companies/partnerships/trusts: 4 years from date of assessment
+- Fraud or evasion: Unlimited
+- Transfer pricing: 7 years
+
+**RISK**: The deduction engine may recommend amending returns that are outside the amendment period. This is particularly relevant for FY2020-21 which may now be outside the 4-year window for companies (assessment issued ~early 2022, expiry ~early 2026).
+
+---
+
+### 10. Entity Type Gaps
+
+The application handles: company, trust, partnership, individual.
+
+**Missing entity types**:
+- Superannuation funds (SMSF) - different tax rates (15% accumulation, 0% pension phase)
+- Government entities - exempt from income tax
+- Non-profit organisations - special concessions and thresholds
+- Foreign companies - different rules under Division 820 (thin capitalisation)
+- Joint ventures - not a separate entity, but common in mining/resources
+
+---
+
+### Audit Conclusion
+
+**Overall Risk Rating: MEDIUM-HIGH**
+
+The codebase demonstrates good engineering practices (encryption, validation, tenant isolation, legislative references). However, several tax law edge cases could lead to materially incorrect recommendations. The most critical findings are:
+
+1. **7A-1**: Hardcoded financial year will break after 30 June 2025
+2. **R-1/R-2**: R&D offset calculations may be significantly wrong for some entities
+3. **L-1**: Capital vs revenue loss distinction is fundamental and missing
+4. **D-3**: Base rate entity passive income test missing
+5. **Privacy**: Data sovereignty verification needed urgently
+6. **TPB**: Disclaimer placement in UI must be verified
+
+*This audit should be repeated when major features are added or tax law changes occur.*
+
+---
+
+### 11. Plan Review Findings - New Engines (2026-02-07)
+
+*Review of: C:/ATO/plan.md (Backend_Dev architecture plan for 9 new engines)*
+
+#### 11.1 CGT Engine + Division 152 - CRITICAL Issues
+
+**CR-1: Division 152 net asset test requires connected entity aggregation**
+- Subdivision 152-15 ITAA 1997 includes net assets of connected entities and affiliates in the $6M threshold.
+- A sole trader with $4M in personal assets and a connected trust with $3M FAILS ($7M > $6M).
+- The plan does not describe how connected entity assets will be identified.
+- The $6M threshold is a CLIFF EDGE -- users near this boundary (within 10%) must be warned.
+
+**CR-2: CGT event interactions on same asset**
+- Section 112-30 ITAA 1997: prior CGT events modify cost base of subsequent events.
+- E.g., CGT C2 (asset destruction) preceding CGT A1 (disposal) affects cost base.
+- The plan treats each event independently.
+
+**CR-3: Capital loss quarantining**
+- Collectable losses can ONLY offset collectable gains (s 108-10(1) ITAA 1997).
+- Personal use asset losses are DISREGARDED entirely (s 108-20(1)).
+- The plan does not distinguish asset categories.
+
+**H-4: CGT discount not available to companies**
+- Companies cannot access the 50% CGT discount (s 115-25(1) ITAA 1997).
+- Non-residents ineligible for post-8 May 2012 gains on non-TAP assets.
+- Entity type must be checked, not just holding period.
+
+#### 11.2 FBT Engine - CRITICAL Issues
+
+**CR-4: Type 1 vs Type 2 gross-up determination missing**
+- Type 1 (GST-creditable): gross-up rate 2.0802 -- applies when employer entitled to GST credit.
+- Type 2 (no GST credit): gross-up rate 1.8868.
+- Per-item determination required; cannot use aggregate amounts.
+
+**CR-5: Car fringe benefit methods not designed**
+- Division 2 FBTAA provides statutory formula method (s 9) and operating cost method (s 10).
+- Statutory rate depends on kilometres driven.
+- `FBTItem` type lacks fields for kilometres, log book data, or method selection.
+- This is the single most common FBT item.
+
+**M-3: FBT lodgement deadline varies by lodger type**
+- Self-lodger: 21 May.
+- Tax agent: typically 25 June or later.
+- Engine must check agent vs self-lodger status.
+
+#### 11.3 PSI Engine - CRITICAL Issue
+
+**CR-6: Results test has 3 sub-requirements**
+- Section 87-18 ITAA 1997 requires ALL THREE:
+  - (a) 75%+ of PSI is for producing a result
+  - (b) Individual provides own tools/equipment
+  - (c) Individual is liable for defective work
+- Common scenario: passing (a) but failing (b) when using client equipment.
+- `resultsTest` type needs separate tracking of each sub-requirement.
+
+#### 11.4 Payroll Tax Engine - HIGH Issues
+
+**H-1: Contractor deeming provisions not addressed**
+- All states deem certain contractor payments as "wages" (e.g., NSW s 37 Payroll Tax Act 2007).
+- Most common payroll tax audit issue.
+- Engine must analyse contractor payments or flag them for review.
+
+**H-2: NSW payroll tax rate may be incorrect**
+- Plan states 5.45%, but NSW rate has been 4.85% since 1 July 2022 (threshold $1.2M).
+- COVID surcharge of 0.75% applies for wages over $10M.
+- Verify current rate schedule.
+
+**H-3: Grouping rules substantially more complex than shown**
+- Must consider: related bodies corporate, common employees, common premises, tracing provisions.
+- Need reason for grouping and ability to contest incorrect grouping.
+
+#### 11.5 PAYG Instalment Engine - HIGH Issue
+
+**H-5: Varied instalment penalty risk**
+- Section 45-235 TAA 1953: if varied amount is less than 85% of actual liability, GIC penalty applies (~10%+ per annum).
+- Engine must warn users about penalty risk when recommending downward variations.
+
+#### 11.6 Audit Risk Engine - HIGH Issue
+
+**H-6: Benchmark comparison framing**
+- ATO benchmarks are DESCRIPTIVE, not NORMATIVE.
+- Being outside benchmark is not illegal; it increases audit probability.
+- Must NOT recommend "reduce expenses to match benchmark" -- that could constitute improper advice.
+- Correct framing: "Your figures deviate from ATO industry benchmarks. This may increase audit likelihood."
+
+#### 11.7 Database/Security - MEDIUM Issues
+
+**M-1: RLS policy uses wrong identifier**
+- Template uses `auth.uid()::text = tenant_id` but tenant_id is Xero org ID, not Supabase user ID.
+- Must join through `user_tenant_access` table or use security definer function.
+
+**M-2: ABN Lookup cache privacy**
+- ABR responses may contain individual names for sole traders/partnerships.
+- `abn_lookup_cache` has no RLS -- all users can access.
+- While ABR data is public, caching and re-serving has different privacy implications under APP 11.
+
+**M-4: Cash flow forecast disclaimer required**
+- Projections are not financial advice under Corporations Act 2001.
+- Must include assumptions list, "estimates only" disclaimer, and ASIC RG 234 compliance note.
+
+### 12. Remediation Status Tracker (Updated 2026-02-07)
+
+Backend_Dev has accepted ALL critical and high findings from this audit and incorporated them into a Phase 0 remediation plan (see `plan.md` sections 13-16). Phase 0 executes BEFORE any new engine development.
+
+#### Phase 0 Remediation (ACCEPTED -- In Progress)
+
+| Finding | Severity | Status | Notes |
+|---------|----------|--------|-------|
+| 7A-1: Hardcoded FY | CRITICAL | ACCEPTED | New `lib/utils/financial-year.ts` with `getCurrentFinancialYear()` and `getCurrentFBTYear()` |
+| RND-1: R&D offset rate | CRITICAL | ACCEPTED (CLARIFICATION NEEDED) | Tiered offset implemented. Must confirm 18.5% premium is FY-dependent (was 13.5% pre-FY2022-23) |
+| LOSS-1: Capital vs revenue losses | CRITICAL | ACCEPTED | `lossType: 'revenue' \| 'capital'` field added, capital losses constrained to offset capital gains only |
+| DED-1: Base rate entity test | HIGH | ACCEPTED | `passiveIncomePercentage` parameter added, warning when data unavailable |
+| 7A-2: Distributable surplus cap | HIGH | ACCEPTED | `Math.min(closingBalance, distributableSurplus)` per s 109Y |
+| SUPER-1: Carry-forward | HIGH | ACCEPTED | 5-year lookback with $500K balance threshold, `CarryForwardAllowance` type |
+| Amendment period consistency | HIGH | ACCEPTED | Extracted to `lib/utils/financial-year.ts`, applied to ALL engines |
+| Mid-year rate changes | HIGH | ACCEPTED | `POST /api/tax-data/refresh` endpoint + `forceRefresh` parameter |
+| Quarterly fuel rates | MEDIUM | ACCEPTED | Per-quarter rate lookup replacing annual rate |
+| Data sovereignty | MEDIUM | ACCEPTED | `DATA_SOVEREIGNTY.md` documenting ap-southeast-2 + syd1 deployment |
+
+#### Deferred Findings (Not Yet in Phase 0 -- Tracked for Phase 1+)
+
+| Finding | Severity | Status | Risk if Deferred |
+|---------|----------|--------|-----------------|
+| R-3: R&D clawback (s 355-450) | HIGH | DEFERRED | Clients selling R&D results may miss clawback obligations |
+| 7A-3: Amalgamated loans (s 109E(8)) | MEDIUM | DEFERRED | Serial borrowers may have incorrect minimum repayment calculations |
+| 7A-4: Safe harbour exclusions (s 109RB) | MEDIUM | DEFERRED | Compliant arrangements flagged as non-compliant (false positives) |
+| T-1: Ordinary family dealing exclusion | HIGH | DEFERRED | Family trusts receive false s 100A alerts for normal distributions |
+| T-2: Trustee penalty rate (47% not 45%) | LOW | DEFERRED | 2 percentage point error in trustee penalty calculations |
+| L-2: SBT always returns 'unknown' | MEDIUM | DEFERRED | Similar business test never passes, overly conservative loss recommendations |
+
+#### Frontend Compliance Items (Reviewed 2026-02-07)
+
+Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 noted.
+
+| Item | Status | Detail |
+|------|--------|--------|
+| TPB disclaimer text | CONDITIONAL | Must add TASA 2009 reference, "registered tax practitioner" wording, and "not a registered tax/BAS agent" statement |
+| TPB disclaimer styling | CONDITIONAL | Current 10px/30% opacity is functionally invisible. Must be >= 12px, >= 60% opacity |
+| TPB disclaimer coverage | CONDITIONAL | Missing from main dashboard, 6 accountant pages, forensic sub-pages, shared report viewer. Shared viewer is CRITICAL (non-users see output) |
+| Marginal vs effective rate | APPROVED | Waterfall chart shows both rates with explanatory text |
+| Projected savings disclaimers | APPROVED | "ESTIMATE" labels, sticky footer disclaimer, confidence percentages |
+| WCAG chart data tables | APPROVED (NOTE) | Hidden tables with proper markup. Suggested `role="region"` grouping for multiple charts |
+| Colour-independent info | APPROVED | Pattern fills + icons + text alongside colour |
+| Dark mode contrast | APPROVED (NOTE) | Ratios documented. #F87171 on #050505 is 5.5:1 -- passes but borderline for small text |
+| Keyboard navigation | APPROVED | Calendar grid with arrow keys per WAI-ARIA |
+| Time-sensitive content | APPROVED | Icon + colour + text + aria-live pattern |
+| Pre-OAuth consent page | CONDITIONAL | Must be a real implementation at `/dashboard/connect`, not a placeholder. APP 1.4 requires notification at or before time of collection |
+| Shared reports privacy | NOTED | No share functionality on new pages until privacy controls verified |
+
+#### Three Critical Frontend Corrections Required
+
+1. **TaxDisclaimer font size**: Increase from `text-[10px] text-white/30` to at least `text-xs text-white/60` (12px, 60% opacity)
+2. **Shared report viewer**: Add TaxDisclaimer to `/app/share/[token]/page.tsx` immediately -- external recipients currently see dollar estimates with zero legal qualification
+3. **Pre-OAuth consent interstitial**: Build real page at `/dashboard/connect` showing data scope, storage location, processing purpose, and APP 1 Collection Notice before Xero OAuth redirect
+
+---
+
+## Frontend Design System: Tax UI & Accessibility
+
+### Theme Architecture
+
+The application uses a **dual dark theme** system:
+
+| Theme | CSS Selector | Purpose |
+|-------|-------------|---------|
+| OLED Black (default) | `:root` | Standard dark theme, pure black backgrounds |
+| Tax-Time | `[data-theme="tax-time"]` | Warmer dark variant for long tax-season sessions |
+
+**Key design decision:** No light mode. Financial professionals work on dark screens; the "Tax-Time" variant reduces eye strain during the July-October lodgement season through warmer tones and reduced glow intensity.
+
+Theme is controlled via:
+- `localStorage` key: `ato-theme` (values: `default` | `tax-time`)
+- `data-theme` attribute on `<html>` element
+- `ThemeToggle` component in DynamicIsland header
+- Keyboard shortcut: `Ctrl+Shift+T`
+
+### Compliance Status Colour System
+
+All compliance indicators use icon + colour + text (never colour alone):
+
+| Status | Colour | Icon | WCAG Contrast |
+|--------|--------|------|---------------|
+| Compliant | `#34D399` (green) | Checkmark | 4.5:1+ on both themes |
+| Warning | `#FBBF24` (amber) | Warning triangle | 4.5:1+ on both themes |
+| Non-compliant | `#F87171` (red) | X mark | 4.5:1+ on both themes |
+
+### Component Architecture
+
+#### Tax Visualisation Components (`components/tax/`)
+
+| Component | Chart Type | Data Source |
+|-----------|-----------|-------------|
+| `TaxBracketWaterfall` | Recharts BarChart | `lib/tax-visualisation/brackets.ts` |
+| `CompanyRateComparison` | Recharts BarChart | Static rates with FY attribution |
+| `CGTDiscountChart` | Recharts BarChart | `/api/analysis/cgt` |
+| `DeductionImpactCalculator` | Recharts AreaChart | Client-side calculation |
+
+#### Projection Components (`components/projections/`)
+
+| Component | Visualisation | Data Source |
+|-----------|--------------|-------------|
+| `OffsetMeter` | SVG arc gauge | Reusable (no data) |
+| `RnDOffsetProjection` | OffsetMeter | `/api/audit/recommendations` |
+| `SmallBusinessCGTConcession` | DataStrip list | `/api/analysis/cgt` |
+| `LossCarryForwardTimeline` | Recharts LineChart | `/api/analysis/losses` |
+| `FBTLiabilityProjection` | OffsetMeter | `/api/analysis/fbt` |
+| `SuperCapUsage` | Progress bars | `/api/analysis/super` |
+
+#### Calendar Components (`components/calendar/`)
+
+| Component | Purpose |
+|-----------|---------|
+| `TaxCalendar` | Monthly grid with deadline dots, entity-type filter |
+| `DeadlineCard` | Expandable deadline info with countdown indicator |
+
+### Accessibility Standards (WCAG 2.1 AA)
+
+All new components MUST meet these requirements:
+
+1. **Colour contrast:** 4.5:1 minimum for normal text, 3:1 for large text
+2. **Keyboard navigation:** All interactive elements focusable via Tab, charts via arrow keys
+3. **Screen reader:** `aria-label` on all financial data, hidden data tables for charts
+4. **Focus indicators:** 2px solid accent ring on `:focus-visible`
+5. **No colour-only information:** Pattern fills + icons alongside colour
+6. **Dynamic updates:** `aria-live="polite"` on calculated values
+7. **Skip links:** At top of dashboard layout for keyboard users
+
+### Chart Accessibility Pattern
+
+Every Recharts chart must be wrapped with `AccessibleChart`:
+
+```typescript
+<AccessibleChart
+  label="Individual tax brackets for FY2024-25"
+  data={bracketData}  // Rendered as hidden table
+>
+  <BarChart data={bracketData}>...</BarChart>
+</AccessibleChart>
+```
+
+This wrapper provides:
+- `role="img"` with descriptive `aria-label` on the chart container
+- Hidden `<table>` with `.sr-only` class containing all chart data
+- `aria-live` region for tooltip/hover data
+
+### New Dashboard Pages
+
+| Page | Route | Description |
+|------|-------|-------------|
+| Projections | `/dashboard/projections` | Real-time offset meters, concession impacts, timelines |
+| Calendar | `/dashboard/calendar` | Interactive tax compliance calendar with entity filtering |

@@ -11,6 +11,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { AccountantReportView } from '@/components/share/AccountantReportView';
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer';
 import type { AccessShareLinkResponse, ShareLinkError } from '@/lib/types/shared-reports';
 import type { FeedbackThread } from '@/lib/types/share-feedback';
 import type { RecommendationStatus, StatusHistory } from '@/lib/types/recommendation-status';
@@ -357,16 +358,19 @@ export default function SharePage() {
 
   // Success state - show report
   return (
-    <AccountantReportView
-      data={state.data}
-      token={token}
-      feedbackThreads={feedbackThreads}
-      onFeedbackSubmit={fetchFeedback}
-      statusMap={statusMap}
-      onStatusChange={handleStatusChange}
-      documentsMap={documentsMap}
-      onDocumentUpload={handleDocumentUpload}
-      onDocumentRefresh={fetchDocumentsForRecommendation}
-    />
+    <>
+      <AccountantReportView
+        data={state.data}
+        token={token}
+        feedbackThreads={feedbackThreads}
+        onFeedbackSubmit={fetchFeedback}
+        statusMap={statusMap}
+        onStatusChange={handleStatusChange}
+        documentsMap={documentsMap}
+        onDocumentUpload={handleDocumentUpload}
+        onDocumentRefresh={fetchDocumentsForRecommendation}
+      />
+      <TaxDisclaimer sticky />
+    </>
   );
 }

@@ -19,6 +19,10 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
+import {
+  getCurrentFinancialYear,
+  getPriorFinancialYear as sharedGetPriorFinancialYear,
+} from '@/lib/utils/financial-year'
 
 // Division 7A benchmark interest rates (ATO published rates, per s 109N ITAA 1936)
 // Now fetched dynamically, falling back to these historical values if API fails
@@ -686,22 +690,10 @@ async function calculateOpeningBalance(
 
 /**
  * Get the prior financial year string.
- * e.g., 'FY2023-24' -> 'FY2022-23'
+ * Delegates to shared utility in lib/utils/financial-year.ts
  */
 function getPriorFinancialYear(financialYear: string): string | null {
-  const match = financialYear.match(/^FY(\d{4})-(\d{2})$/)
-  if (!match) return null
-
-  const startYearNum = parseInt(match[1], 10)
-  const endYearNum = parseInt(match[2], 10)
-
-  const priorStart = startYearNum - 1
-  const priorEnd = endYearNum - 1
-
-  // Handle century boundary (e.g., FY2000-01 -> FY1999-00)
-  const priorEndStr = priorEnd.toString().padStart(2, '0')
-
-  return `FY${priorStart}-${priorEndStr}`
+  return sharedGetPriorFinancialYear(financialYear)
 }
 
 /**
@@ -959,7 +951,7 @@ function createEmptyDiv7aSummary(): Div7aSummary {
  * Get Division 7A benchmark interest rate for a financial year
  */
 export async function getBenchmarkRate(financialYear: string): Promise<number> {
-  const currentFY = 'FY2024-25' // Should ideally match current system FY
+  const currentFY = getCurrentFinancialYear()
 
   if (financialYear === currentFY) {
     try {

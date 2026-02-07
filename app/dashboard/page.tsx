@@ -15,6 +15,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { apiRequest, ApiRequestError } from '@/lib/api/client'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import {
   DollarSign,
   Beaker,
@@ -810,8 +811,11 @@ function DashboardLoading() {
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<DashboardLoading />}>
-      <DashboardContent />
-    </Suspense>
+    <>
+      <Suspense fallback={<DashboardLoading />}>
+        <DashboardContent />
+      </Suspense>
+      <TaxDisclaimer sticky />
+    </>
   )
 }

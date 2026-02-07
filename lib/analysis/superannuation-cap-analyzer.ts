@@ -22,6 +22,20 @@
 
 import { Decimal } from 'decimal.js';
 
+/**
+ * Carry-forward concessional contribution allowance.
+ * From FY2018-19, unused concessional cap amounts can be carried forward
+ * for up to 5 years if total super balance < $500,000 (s 291-20 ITAA 1997).
+ */
+export interface CarryForwardAllowance {
+  /** Financial year the unused amount is from */
+  fromYear: string;
+  /** Unused cap amount from that year */
+  unusedAmount: number;
+  /** Whether this year is within the 5-year carry-forward window */
+  isWithinWindow: boolean;
+}
+
 // Superannuation contribution
 export interface SuperContribution {
   employee_id: string;
@@ -33,6 +47,10 @@ export interface SuperContribution {
   financial_year: string;
   super_fund_id?: string;
   super_fund_name?: string;
+  /** Total super balance (needed for carry-forward eligibility). Optional. */
+  total_super_balance?: number;
+  /** Prior year contributions for carry-forward calculation. Optional. */
+  prior_year_contributions?: Record<string, number>;
 }
 
 // Employee super contribution summary
@@ -47,10 +65,18 @@ export interface EmployeeSuperSummary {
   salary_sacrifice: number;
   employer_additional: number;
 
-  // Cap analysis
-  concessional_cap: number; // $30,000 for FY2024-25
-  cap_usage_percentage: number; // (total_concessional / cap) × 100
-  excess_contributions: number; // Amount over cap (triggers Division 291)
+  // Cap analysis (including carry-forward)
+  concessional_cap: number; // Base cap for this FY ($30,000 for FY2024-25)
+  /** Effective cap including carry-forward allowance (s 291-20 ITAA 1997) */
+  effective_cap: number;
+  /** Carry-forward amounts from prior years (if eligible) */
+  carry_forward_amounts: CarryForwardAllowance[];
+  /** Total carry-forward available */
+  total_carry_forward: number;
+  /** Whether carry-forward is eligible (balance < $500K, FY2018-19 onwards) */
+  carry_forward_eligible: boolean;
+  cap_usage_percentage: number; // (total_concessional / effective_cap) × 100
+  excess_contributions: number; // Amount over effective cap (triggers Division 291)
 
   // Division 291 tax
   division_291_tax_payable: number; // Excess × 15%
@@ -86,12 +112,20 @@ export interface SuperannuationCapAnalysis {
  * Concessional contributions cap by financial year
  */
 const CONCESSIONAL_CAP_BY_FY: Record<string, Decimal> = {
+  'FY2025-26': new Decimal('30000'), // Confirmed $30,000
   'FY2024-25': new Decimal('30000'),
   'FY2023-24': new Decimal('27500'),
   'FY2022-23': new Decimal('27500'),
   'FY2021-22': new Decimal('27500'),
   'FY2020-21': new Decimal('25000'),
+  'FY2019-20': new Decimal('25000'),
+  'FY2018-19': new Decimal('25000'), // Carry-forward starts from this FY
 };
+
+// Carry-forward constants (s 291-20 ITAA 1997)
+const CARRY_FORWARD_BALANCE_THRESHOLD = 500_000; // $500K total super balance
+const CARRY_FORWARD_MAX_YEARS = 5; // Up to 5 prior years
+const CARRY_FORWARD_START_FY = 'FY2018-19'; // Carry-forward available from this FY
 
 /**
  * Division 291 additional tax rate (on excess contributions)
@@ -218,6 +252,75 @@ function analyzeOneTenant(
 /**
  * Analyze one employee's contributions
  */
+/**
+ * Calculate carry-forward allowance for an employee.
+ * s 291-20 ITAA 1997: Unused concessional cap from up to 5 prior years
+ * can be used if total super balance < $500,000 at 30 June of prior year.
+ * Available from FY2018-19 onwards.
+ */
+function calculateCarryForward(
+  fy: string,
+  contributions: SuperContribution[],
+  baseCap: Decimal
+): { amounts: CarryForwardAllowance[]; totalCarryForward: number; eligible: boolean } {
+  // Check if any contribution has balance data
+  const balanceData = contributions.find(c => c.total_super_balance !== undefined);
+  const totalBalance = balanceData?.total_super_balance;
+
+  // Cannot apply carry-forward without balance data or if balance >= $500K
+  if (totalBalance === undefined) {
+    return {
+      amounts: [],
+      totalCarryForward: 0,
+      eligible: false, // Unknown - no balance data
+    };
+  }
+
+  if (totalBalance >= CARRY_FORWARD_BALANCE_THRESHOLD) {
+    return {
+      amounts: [],
+      totalCarryForward: 0,
+      eligible: false, // Balance too high
+    };
+  }
+
+  // Get prior year contributions data
+  const priorYearData = contributions.find(c => c.prior_year_contributions !== undefined);
+  const priorContributions = priorYearData?.prior_year_contributions || {};
+
+  // Calculate unused amounts from up to 5 prior years
+  const fyMatch = fy.match(/^FY(\d{4})-(\d{2})$/);
+  if (!fyMatch) return { amounts: [], totalCarryForward: 0, eligible: true };
+
+  const fyStartYear = parseInt(fyMatch[1], 10);
+  const amounts: CarryForwardAllowance[] = [];
+  let totalCarryForward = 0;
+
+  for (let i = 1; i <= CARRY_FORWARD_MAX_YEARS; i++) {
+    const priorStartYear = fyStartYear - i;
+    const priorEndShort = String(priorStartYear + 1).slice(-2);
+    const priorFY = `FY${priorStartYear}-${priorEndShort}`;
+
+    // Carry-forward only available from FY2018-19 onwards
+    if (priorFY < CARRY_FORWARD_START_FY) continue;
+
+    const priorCap = CONCESSIONAL_CAP_BY_FY[priorFY] || baseCap;
+    const priorContrib = priorContributions[priorFY] || 0;
+    const unused = Math.max(0, priorCap.toNumber() - priorContrib);
+
+    if (unused > 0) {
+      amounts.push({
+        fromYear: priorFY,
+        unusedAmount: unused,
+        isWithinWindow: true,
+      });
+      totalCarryForward += unused;
+    }
+  }
+
+  return { amounts, totalCarryForward, eligible: true };
+}
+
 function analyzeEmployee(
   employeeId: string,
   fy: string,
@@ -241,12 +344,16 @@ function analyzeEmployee(
 
   const totalConcessional = sgContributions + salarySacrifice + employerAdditional;
 
-  // Cap analysis
-  const capUsagePercentage = concessionalCap.toNumber() > 0
-    ? new Decimal(totalConcessional).div(concessionalCap).times(100).toNumber()
+  // Calculate carry-forward allowance (s 291-20 ITAA 1997)
+  const carryForward = calculateCarryForward(fy, contributions, concessionalCap);
+  const effectiveCap = concessionalCap.toNumber() + carryForward.totalCarryForward;
+
+  // Cap analysis using effective cap (base + carry-forward)
+  const capUsagePercentage = effectiveCap > 0
+    ? new Decimal(totalConcessional).div(new Decimal(effectiveCap)).times(100).toNumber()
     : 0;
 
-  const excessContributions = Math.max(0, totalConcessional - concessionalCap.toNumber());
+  const excessContributions = Math.max(0, totalConcessional - effectiveCap);
   const breachesCap = excessContributions > 0;
 
   // Division 291 tax calculation
@@ -262,7 +369,10 @@ function analyzeEmployee(
   const recommendations: string[] = [];
 
   if (breachesCap) {
-    warnings.push(`Exceeded concessional cap by $${excessContributions.toLocaleString()}`);
+    warnings.push(`Exceeded effective concessional cap by $${excessContributions.toLocaleString()}`);
+    if (carryForward.totalCarryForward > 0) {
+      warnings.push(`Cap included $${carryForward.totalCarryForward.toLocaleString()} carry-forward from prior years`);
+    }
     warnings.push(`Division 291 tax of $${division291TaxPayable.toLocaleString()} will be assessed by ATO`);
     recommendations.push(
       'URGENT: Request release of excess contributions from super fund within 60 days of assessment notice to avoid higher tax rate.'
@@ -271,12 +381,24 @@ function analyzeEmployee(
       'Reduce salary sacrifice or employer additional contributions for remainder of FY to avoid further excess.'
     );
   } else if (capUsagePercentage > 80) {
-    warnings.push(`Approaching cap (${capUsagePercentage.toFixed(0)}% of $${concessionalCap.toNumber().toLocaleString()} cap used)`);
+    warnings.push(`Approaching cap (${capUsagePercentage.toFixed(0)}% of $${effectiveCap.toLocaleString()} effective cap used)`);
     recommendations.push(
-      `Monitor remaining contributions. Cap space available: $${(concessionalCap.toNumber() - totalConcessional).toLocaleString()}.`
+      `Monitor remaining contributions. Cap space available: $${(effectiveCap - totalConcessional).toLocaleString()}.`
     );
     recommendations.push(
       'Consider pausing salary sacrifice or employer additional contributions to stay within cap.'
+    );
+  }
+
+  if (carryForward.eligible && carryForward.totalCarryForward > 0 && !breachesCap) {
+    recommendations.push(
+      `Carry-forward available: $${carryForward.totalCarryForward.toLocaleString()} from ${carryForward.amounts.length} prior year(s) (s 291-20 ITAA 1997). Consider additional contributions to utilise before expiry.`
+    );
+  }
+
+  if (!carryForward.eligible && contributions.some(c => c.total_super_balance === undefined)) {
+    recommendations.push(
+      'Carry-forward eligibility unknown - provide total super balance to check s 291-20 carry-forward (requires balance < $500K).'
     );
   }
 
@@ -295,6 +417,10 @@ function analyzeEmployee(
     salary_sacrifice: salarySacrifice,
     employer_additional: employerAdditional,
     concessional_cap: concessionalCap.toNumber(),
+    effective_cap: effectiveCap,
+    carry_forward_amounts: carryForward.amounts,
+    total_carry_forward: carryForward.totalCarryForward,
+    carry_forward_eligible: carryForward.eligible,
     cap_usage_percentage: capUsagePercentage,
     excess_contributions: excessContributions,
     division_291_tax_payable: division291TaxPayable,

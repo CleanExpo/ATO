@@ -6,6 +6,7 @@
  */
 
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import {
   ArrowLeft,
   Receipt,
@@ -201,6 +202,8 @@ export default async function DeductionsWorkflowPage() {
           </div>
         </div>
       </div>
+
+      <TaxDisclaimer />
     </div>
   )
 }

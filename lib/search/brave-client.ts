@@ -175,6 +175,27 @@ export class BraveSearchClient {
   async findCorporateTaxRatesPage(): Promise<string | null> {
     return this.searchATO('company tax rates small business')
   }
+
+  /**
+   * Find FBT rates and gross-up rates
+   */
+  async findFBTRatesPage(): Promise<string | null> {
+    return this.searchATO('fringe benefits tax rate gross-up rates')
+  }
+
+  /**
+   * Find superannuation guarantee rate
+   */
+  async findSuperGuaranteeRatePage(): Promise<string | null> {
+    return this.searchATO('super guarantee percentage rate')
+  }
+
+  /**
+   * Find fuel tax credit rates (current quarter)
+   */
+  async findFuelTaxCreditRatesPage(): Promise<string | null> {
+    return this.searchATO('fuel tax credit rates current')
+  }
 }
 
 // Singleton instance

@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { OperationProviderWrapper } from "@/components/providers/OperationProvider"
+import { SkipLink } from "@/components/ui/SkipLink"
 
 // Editorial typography - clean, modern sans-serif
 const geist = Geist({
@@ -24,6 +25,16 @@ export const metadata: Metadata = {
   authors: [{ name: "ATO Agent Suite" }],
 }
 
+// Inline script to prevent flash of wrong theme on load
+const themeInitScript = `
+(function(){
+  try {
+    var t = localStorage.getItem('ato-theme');
+    if (t === 'tax-time') document.documentElement.setAttribute('data-theme', 'tax-time');
+  } catch(e) {}
+})();
+`
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -31,7 +42,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${geist.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className={geist.className} suppressHydrationWarning>
+        <SkipLink />
         <OperationProviderWrapper>
           {children}
         </OperationProviderWrapper>

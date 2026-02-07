@@ -9,6 +9,8 @@ import {
   Search,
   FileSearch,
   Calendar,
+  CalendarClock,
+  Gauge,
   Beaker,
   TrendingDown,
   Settings,
@@ -30,6 +32,7 @@ import {
 } from '@/lib/config/navigation'
 import { OrganizationSwitcher } from '@/components/dashboard/OrganizationSwitcher'
 import NotificationBell from '@/components/collaboration/NotificationBell'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
 
 // Icon mapping for rendering
 const iconMap: Record<IconName, React.ComponentType<{ size?: number }>> = {
@@ -37,6 +40,8 @@ const iconMap: Record<IconName, React.ComponentType<{ size?: number }>> = {
   Search,
   FileSearch,
   Calendar,
+  CalendarClock,
+  Gauge,
   Beaker,
   TrendingDown,
   Settings,
@@ -114,9 +119,10 @@ export function DynamicIsland({ showLogo = false, logo }: DynamicIslandProps) {
         })}
       </div>
 
-      {/* Notification Bell & Organization Switcher */}
+      {/* Theme Toggle, Notification Bell & Organization Switcher */}
       <div className="hidden md:flex items-center">
         <div className="dynamic-island__divider" />
+        <ThemeToggle />
         <div className="px-2">
           <NotificationBell />
         </div>

@@ -6,6 +6,7 @@
  */
 
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import {
   FileText,
   Receipt,
@@ -259,6 +260,8 @@ export default async function AccountantWorkflowPage() {
           <ArrowRight size={16} />
         </Link>
       </div>
+
+      <TaxDisclaimer />
     </div>
   )
 }

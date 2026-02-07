@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer';
 import { motion } from 'framer-motion';
 import { ShareLinkManager } from '@/components/share';
 
@@ -155,6 +156,8 @@ export default function SharedLinksPage() {
           <ShareLinkManager tenantId={tenantId} />
         ) : null}
       </motion.div>
+
+      <TaxDisclaimer />
     </div>
   );
 }

@@ -13,6 +13,7 @@
 
 import { Suspense, useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MobileNav } from '@/components/ui/MobileNav'
@@ -199,16 +200,19 @@ function ExternalLinkIcon({ className = 'w-3.5 h-3.5' }: { className?: string })
 
 export default function ReconciliationPageWrapper() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen" style={{ background: '#050505' }}>
-        <div className="flex flex-col items-center gap-4">
-          <BreathingOrb colour={SPECTRAL.cyan} isActive size="md" />
-          <p className="text-white/40 text-[10px] uppercase tracking-[0.3em]">Loading Reconciliation</p>
+    <>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen" style={{ background: '#050505' }}>
+          <div className="flex flex-col items-center gap-4">
+            <BreathingOrb colour={SPECTRAL.cyan} isActive size="md" />
+            <p className="text-white/40 text-[10px] uppercase tracking-[0.3em]">Loading Reconciliation</p>
+          </div>
         </div>
-      </div>
-    }>
-      <ReconciliationPage />
-    </Suspense>
+      }>
+        <ReconciliationPage />
+      </Suspense>
+      <TaxDisclaimer sticky />
+    </>
   )
 }
 

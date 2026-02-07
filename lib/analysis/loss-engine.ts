@@ -12,6 +12,7 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
+import { checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
 
 // Fallback tax rates - s 23AA and s 23 ITAA 1997
@@ -21,88 +22,16 @@ const FALLBACK_CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% standard corporate rate
 // Entity types for tax rate determination
 export type EntityType = 'company' | 'trust' | 'partnership' | 'individual' | 'unknown'
 
+/**
+ * Loss type classification.
+ * Capital losses can ONLY offset capital gains (s 102-5 ITAA 1997).
+ * Revenue losses can offset assessable income (Division 36 ITAA 1997).
+ */
+export type LossType = 'revenue' | 'capital'
+
 // COT/SBT thresholds
 const _COT_OWNERSHIP_THRESHOLD = 0.50 // 50% ownership continuity required (reserved for future use)
 const _SBT_LOOKBACK_YEARS = 3 // Look back 3 years to determine "same business" (reserved for future use)
-
-/**
- * Calculate the end date of a financial year from its FY string.
- * e.g., 'FY2020-21' → 30 June 2021, '2020-21' → 30 June 2021
- */
-function getFYEndDate(financialYear: string): Date | null {
-  // Extract the end year from formats like 'FY2020-21', '2020-21', 'FY2020-2021'
-  const match = financialYear.match(/(\d{4})-(\d{2,4})/)
-  if (!match) return null
-
-  const startYearStr = match[1]
-  const endYearStr = match[2]
-
-  let endYear: number
-  if (endYearStr.length === 2) {
-    // e.g., '2020-21' → end year is 2021
-    const century = startYearStr.substring(0, 2)
-    endYear = parseInt(`${century}${endYearStr}`, 10)
-  } else {
-    endYear = parseInt(endYearStr, 10)
-  }
-
-  // Australian FY ends 30 June
-  return new Date(endYear, 5, 30) // Month is 0-indexed, so 5 = June
-}
-
-/**
- * Check if a financial year is outside the amendment period.
- * Taxation Administration Act 1953, s 170:
- * - Individuals/small businesses: 2 years from date of assessment
- * - Companies/trusts: 4 years from date of assessment
- *
- * Assessment is typically issued shortly after the return due date,
- * which is generally within a few months after FY end. We use FY end
- * date as a conservative approximation.
- */
-function checkAmendmentPeriod(
-  financialYear: string,
-  entityType: EntityType = 'unknown'
-): string | undefined {
-  const fyEndDate = getFYEndDate(financialYear)
-  if (!fyEndDate) return undefined
-
-  // Determine amendment period length based on entity type
-  // Taxation Administration Act 1953, s 170
-  // - Individuals/small businesses: 2 years
-  // - Companies/trusts/other: 4 years
-  let amendmentYears: number
-  switch (entityType) {
-    case 'individual':
-      amendmentYears = 2
-      break
-    case 'company':
-    case 'trust':
-    case 'partnership':
-      amendmentYears = 4
-      break
-    case 'unknown':
-    default:
-      amendmentYears = 4 // Conservative: use longer period when unknown
-      break
-  }
-
-  const amendmentExpiryDate = new Date(fyEndDate)
-  amendmentExpiryDate.setFullYear(amendmentExpiryDate.getFullYear() + amendmentYears)
-
-  const now = new Date()
-
-  if (now > amendmentExpiryDate) {
-    const expiryStr = amendmentExpiryDate.toISOString().split('T')[0]
-    return (
-      `Loss from ${financialYear} may be outside the ${amendmentYears}-year amendment period ` +
-      `(expired approx. ${expiryStr}). Verify ability to amend with tax agent. ` +
-      `Taxation Administration Act 1953, s 170.`
-    )
-  }
-
-  return undefined
-}
 
 /**
  * Determine the applicable corporate tax rate based on entity type.
@@ -182,6 +111,13 @@ export interface LossPosition {
   closingLossBalance: number // Carried forward to next year
   taxableIncome: number // After loss utilisation
   amendmentPeriodWarning?: string // Warning if FY is outside amendment period
+  /**
+   * Loss type classification (s 102-5 ITAA 1997).
+   * - 'revenue': Can offset assessable income (Division 36)
+   * - 'capital': Can ONLY offset capital gains, never assessable income
+   * Defaults to 'revenue' for backward compatibility.
+   */
+  lossType: LossType
 }
 
 export interface CotSbtAnalysis {
@@ -206,6 +142,11 @@ export interface LossAnalysis {
   cotSbtAnalysis: CotSbtAnalysis
   isEligibleForCarryforward: boolean
   futureTaxValue: number // Value of carried forward losses at corporate rate
+  /**
+   * Loss type classification (s 102-5 ITAA 1997).
+   * Capital losses can ONLY offset capital gains, never assessable income.
+   */
+  lossType: LossType
   optimization: {
     currentStrategy: string
     recommendedStrategy: string
@@ -220,6 +161,10 @@ export interface LossSummary {
   totalUtilizedLosses: number
   totalExpiredLosses: number
   totalFutureTaxValue: number
+  /** Revenue losses available to offset assessable income (Division 36 ITAA 1997) */
+  revenueLosses: number
+  /** Capital losses available to offset ONLY capital gains (s 102-5 ITAA 1997) */
+  capitalLosses: number
   lossesByYear: Record<string, number>
   utilizationRate: number // Percentage of losses utilized
   averageRiskLevel: string
@@ -376,13 +321,15 @@ async function fetchLossPositions(
 
     // Division 36 ITAA 1997 - Tax losses carried forward indefinitely if COT/SBT met
     // However, check amendment period for ability to amend prior returns
+    // Uses shared checkAmendmentPeriod from financial-year utility
     const amendmentWarning = currentYearLoss > 0
-      ? checkAmendmentPeriod(year, entityType)
+      ? checkAmendmentPeriod(year, entityType as EntityTypeForAmendment)
       : undefined
 
     // Tax losses do not expire in Australia (Division 36 ITAA 1997) provided
     // COT/SBT tests are satisfied. lossesExpired remains 0 as expiry depends
     // on COT/SBT analysis which is performed separately.
+    // Default lossType to 'revenue' - capital loss detection requires CGT event analysis
     lossPositions.push({
       financialYear: year,
       openingLossBalance: runningLossBalance,
@@ -393,6 +340,7 @@ async function fetchLossPositions(
       closingLossBalance,
       taxableIncome,
       amendmentPeriodWarning: amendmentWarning,
+      lossType: 'revenue', // Default to revenue; CGT engine handles capital loss classification
     })
 
     runningLossBalance = closingLossBalance
@@ -438,6 +386,7 @@ function analyzeSingleYearLoss(
     cotSbtAnalysis,
     isEligibleForCarryforward: cotSbtAnalysis.isEligibleForCarryforward,
     futureTaxValue,
+    lossType: currentYear.lossType,
     optimization,
     recommendations,
   }
@@ -677,6 +626,8 @@ function calculateLossSummary(
   let totalUtilizedLosses = 0
   let totalExpiredLosses = 0
   let totalFutureTaxValue = 0
+  let revenueLosses = 0
+  let capitalLosses = 0
 
   const lossesByYear: Record<string, number> = {}
   const riskLevels: string[] = []
@@ -690,6 +641,13 @@ function calculateLossSummary(
 
     if (!analysis.isEligibleForCarryforward) {
       totalExpiredLosses += analysis.closingLossBalance
+    }
+
+    // Separate capital vs revenue losses (s 102-5 ITAA 1997)
+    if (analysis.lossType === 'capital') {
+      capitalLosses += analysis.closingLossBalance
+    } else {
+      revenueLosses += analysis.closingLossBalance
     }
 
     riskLevels.push(analysis.cotSbtAnalysis.riskLevel)
@@ -722,6 +680,8 @@ function calculateLossSummary(
     totalUtilizedLosses,
     totalExpiredLosses,
     totalFutureTaxValue,
+    revenueLosses,
+    capitalLosses,
     lossesByYear,
     utilizationRate: Math.round(utilizationRate * 10) / 10,
     averageRiskLevel,
@@ -741,6 +701,8 @@ function createEmptyLossSummary(): LossSummary {
     totalUtilizedLosses: 0,
     totalExpiredLosses: 0,
     totalFutureTaxValue: 0,
+    revenueLosses: 0,
+    capitalLosses: 0,
     lossesByYear: {},
     utilizationRate: 0,
     averageRiskLevel: 'low',

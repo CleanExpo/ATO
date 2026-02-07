@@ -11,6 +11,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import Link from 'next/link'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { EvidenceWizard } from '@/components/rnd'
@@ -192,6 +193,7 @@ function EvidencePageContent() {
 
 export default function EvidencePage() {
   return (
+    <>
     <Suspense
       fallback={
         <div className="flex items-center justify-center min-h-screen">
@@ -207,5 +209,7 @@ export default function EvidencePage() {
     >
       <EvidencePageContent />
     </Suspense>
+    <TaxDisclaimer />
+    </>
   )
 }
