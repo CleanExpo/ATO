@@ -11,6 +11,7 @@ import { motion } from 'framer-motion'
 import { Building2, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { PlatformSyncButton } from './PlatformSyncButton'
+import { SyncAllButton } from './SyncAllButton'
 
 interface XeroConnection {
   tenant_id: string
@@ -126,6 +127,20 @@ export function PlatformConnections({
             <span>Connect MYOB Account</span>
           </Link>
         </div>
+
+        {/* Sync All Organisations Button */}
+        {normalizedConnections.filter(c => !c.isExpired).length > 1 && (
+          <SyncAllButton
+            organisations={normalizedConnections
+              .filter(c => !c.isExpired)
+              .map(c => ({
+                platform: c.platform,
+                tenantId: c.tenantId || c.companyFileId || c.id,
+                companyFileId: c.companyFileId,
+                name: c.name,
+              }))}
+          />
+        )}
 
         {normalizedConnections.map((conn) => {
           const isActive = activeConnectionId === conn.id
