@@ -19,7 +19,7 @@ interface DeductionForensicRow extends ForensicAnalysisRow {
   deduction_reasoning?: string
 }
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
-import { type EntityTypeForAmendment } from '@/lib/utils/financial-year'
+import { type EntityTypeForAmendment, checkAmendmentPeriod } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
 import { createLogger } from '@/lib/logger'
 
@@ -551,10 +551,23 @@ export async function analyzeDeductionOpportunities(
   const rateSource = (await getDeductionThresholds()).source
 
   // Calculate summary statistics
-  // Calculate summary statistics
   const summary = calculateDeductionSummary(opportunities, rateSource)
 
-  return summary
+  // Check amendment periods for each FY in the results (s 170 TAA 1953)
+  const entityTypeForAmendment = options?.entityTypeForAmendment
+    ?? (options?.entityType === 'trust' ? 'trust' as const
+      : options?.entityType === 'base_rate_entity' || options?.entityType === 'standard_company' ? 'company' as const
+      : 'unknown' as const)
+
+  for (const opp of summary.opportunities) {
+    const warning = checkAmendmentPeriod(opp.financialYear, entityTypeForAmendment)
+    if (warning) {
+      opp.recommendations.push(
+        `⚠ Amendment period: ${opp.financialYear} may be outside the statutory amendment window. ` +
+        `Verify with your tax agent before amending (s 170 TAA 1953).`
+      )
+    }
+  }
 
   return summary
 }

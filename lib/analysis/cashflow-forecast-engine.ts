@@ -212,8 +212,11 @@ export async function generateCashFlowForecast(
       ? new Decimal(projectedIncome).times(new Decimal('0.1')).toDecimalPlaces(2).toNumber() // Simplified: 1/11 of income
       : 0
 
+    // SG rate: 11.5% FY2024-25, 12% from FY2025-26 (s 19 SGAA 1992)
+    const currentFY = getCurrentFinancialYear()
+    const sgRate = currentFY >= 'FY2025-26' ? '0.12' : '0.115'
     const superGuarantee = options?.monthlyPayroll
-      ? new Decimal(options.monthlyPayroll).times(new Decimal('0.115')).toDecimalPlaces(2).toNumber() // 11.5% SG rate FY2024-25
+      ? new Decimal(options.monthlyPayroll).times(new Decimal(sgRate)).toDecimalPlaces(2).toNumber()
       : monthlyAverages.superGuarantee
 
     const fbtInstalment = (options?.estimatedFBTLiability ?? 0) / 4 / 3 // Monthly portion of quarterly FBT
@@ -476,7 +479,8 @@ function buildAssumptions(
   }
 
   if (options?.monthlyPayroll) {
-    assumptions.push(`Monthly payroll: $${options.monthlyPayroll.toLocaleString()} (SG at 11.5%)`)
+    const sgRateDisplay = getCurrentFinancialYear() >= 'FY2025-26' ? '12' : '11.5'
+    assumptions.push(`Monthly payroll: $${options.monthlyPayroll.toLocaleString()} (SG at ${sgRateDisplay}%)`)
   }
 
   assumptions.push('Projections assume consistent business performance')
