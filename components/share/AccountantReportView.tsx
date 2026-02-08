@@ -172,7 +172,7 @@ export function AccountantReportView({
               icon="📊"
             />
             <MetricCard
-              label="Potential Benefit"
+              label="Potential Benefit (Est.)"
               value={formatCurrency(executiveSummary.totalPotentialBenefit)}
               icon="💰"
               highlight
@@ -204,6 +204,11 @@ export function AccountantReportView({
                 </li>
               ))}
             </ul>
+            {executiveSummary.estimateDisclaimer && (
+              <p className="mt-4 text-xs text-amber-400/70 print:text-amber-700 border-t border-white/5 pt-3">
+                {executiveSummary.estimateDisclaimer}
+              </p>
+            )}
           </div>
         </motion.div>
       )}

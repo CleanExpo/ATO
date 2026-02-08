@@ -290,12 +290,12 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 
 | ID | Component | Finding | Severity |
 |----|-----------|---------|----------|
-| B-1 | Share API | Password sent as URL query parameter (`?password=xxx`) -- appears in server access logs, browser history, and referrer headers | MEDIUM |
+| B-1 | Share API | ~~Password sent as URL query parameter~~ **FIXED** (2026-02-08): Password now sent via POST body, GET no longer accepts password | MEDIUM |
 | B-2 | Xero OAuth | CSRF state token returned to client in JSON but not stored server-side for verification -- relies entirely on client-side storage | MEDIUM |
 | B-3 | Share documents | Unauthenticated file upload via share token -- file type/size validated but no virus/malware scanning | MEDIUM |
 | B-4 | Share API | Uses `createServiceClient()` (service role, bypasses all RLS) for public share endpoint -- any SQL injection or filter bypass would expose all tenant data | HIGH |
 | B-5 | IP logging | ~~`getClientIp()` uses first value from `X-Forwarded-For`~~ **FIXED** (2026-02-08): Uses rightmost (trusted proxy) IP | LOW |
-| B-6 | RLS migration | Two different RLS helper functions exist: `get_user_tenant_ids()` (joins `xero_connections`) and `check_tenant_access()` (joins `user_tenant_access`) -- inconsistent access model | MEDIUM |
+| B-6 | RLS migration | ~~Two different RLS helper functions~~ **FIXED** (2026-02-08): Migration `20260208_rls_standardize.sql` replaces all `get_user_tenant_ids()` policies with `check_tenant_access()` per AD-8; deprecated function dropped | MEDIUM |
 | B-7 | Rate limiting | In-memory rate limiting ineffective in serverless environment (each function instance has isolated memory) | MEDIUM |
 | B-8 | Dev auth bypass | ~~`devBypassAuth()` exported with runtime check~~ **FIXED** (2026-02-08): Unexported, renamed to `_devBypassAuth` | LOW |
 | B-9 | Token generator | ~~Modulo bias in share token generation (256 mod 56 is non-zero)~~ **FIXED** (2026-02-08): Rejection sampling | LOW |
@@ -306,7 +306,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | ID | Component | Finding | Severity |
 |----|-----------|---------|----------|
 | C-1 | TaxDisclaimer | Font size is 10px, required minimum is 12px per platform's own audit | HIGH |
-| C-2 | Shared reports | Dollar estimates calculated with rough 25% flat rate -- misleading for companies (25-30%), trusts, and individuals (0-45%) | MEDIUM |
+| C-2 | Shared reports | ~~Dollar estimates with no disclaimer~~ **FIXED** (2026-02-08): Added `estimateDisclaimer` field to ExecutiveSummary, MetricCard labelled "(Est.)", disclaimer rendered in UI | MEDIUM |
 | C-3 | Pre-OAuth flow | No APP 1 Collection Notice shown before Xero OAuth connection -- users not informed of data collection scope | HIGH |
 | C-4 | Data retention | No mechanism prevents auto-deletion within 5-year statutory retention window (s 262A ITAA 1936) | MEDIUM |
 | C-5 | Entity coverage | Missing entity types: SMSF (15% tax rate), non-profit organisations, foreign companies | LOW |
@@ -373,7 +373,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | P1-3 | Implement car fringe benefit statutory formula | Risk 3 | 3-5 days |
 | P1-4 | Add CSP headers to shared report pages | B-10 | 1 day |
 | P1-5 | Implement distributed rate limiting (Redis/KV) | B-7 | 2 days |
-| P1-6 | Move share password from query param to POST body | B-1 | 1 day |
+| ~~P1-6~~ | ~~Move share password from query param to POST body~~ **DONE** (2026-02-08) | B-1 | ~~1 day~~ |
 | P1-7 | Fix trust distribution trustee penalty rate to 47% | A-1 | 30 minutes |
 | P1-8 | Update SG rate to 12% for FY2025-26 | A-3 | 30 minutes |
 

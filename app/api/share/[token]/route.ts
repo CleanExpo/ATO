@@ -2,11 +2,15 @@
  * GET /api/share/[token]
  *
  * Access a shared report using token. Public endpoint (no auth required).
+ * If the report is password protected, returns 401 PASSWORD_REQUIRED.
+ * Use POST to submit the password.
  *
- * Query params:
- * - password?: string (required if link is password protected)
+ * POST /api/share/[token]
  *
- * Response:
+ * Access a password-protected shared report.
+ * Body: { password: string }
+ *
+ * Response (both methods):
  * - success: true
  * - title: string
  * - description: string | null
@@ -32,130 +36,159 @@ import type {
   ReportMetadata,
 } from '@/lib/types/shared-reports';
 
+/**
+ * Core logic for accessing a shared report.
+ * Used by both GET (no password) and POST (with password).
+ */
+async function handleShareAccess(
+  request: NextRequest,
+  token: string,
+  password: string | null
+): Promise<NextResponse> {
+  // Validate token format
+  if (!isValidTokenFormat(token)) {
+    const error: ShareLinkError = {
+      success: false,
+      error: 'Invalid share link format',
+      code: 'INVALID_TOKEN',
+    };
+    return NextResponse.json(error, { status: 400 });
+  }
+
+  const supabase = await createServiceClient();
+
+  // Fetch share record
+  const { data: shareRecord, error: fetchError } = await supabase
+    .from('shared_reports')
+    .select('*')
+    .eq('token', token)
+    .single();
+
+  if (fetchError || !shareRecord) {
+    const error: ShareLinkError = {
+      success: false,
+      error: 'This share link does not exist or has been removed',
+      code: 'NOT_FOUND',
+    };
+    return NextResponse.json(error, { status: 404 });
+  }
+
+  const share = shareRecord as SharedReport;
+
+  // Check if revoked
+  if (share.is_revoked) {
+    const error: ShareLinkError = {
+      success: false,
+      error: 'Access to this report has been revoked',
+      code: 'REVOKED',
+    };
+    return NextResponse.json(error, { status: 403 });
+  }
+
+  // Check if expired
+  if (isExpired(share.expires_at)) {
+    const error: ShareLinkError = {
+      success: false,
+      error: 'This share link has expired. Please request a new one.',
+      code: 'EXPIRED',
+    };
+    return NextResponse.json(error, { status: 403 });
+  }
+
+  // Check password if protected
+  if (share.password_hash) {
+    if (!password) {
+      const error: ShareLinkError = {
+        success: false,
+        error: 'This report is password protected',
+        code: 'PASSWORD_REQUIRED',
+      };
+      return NextResponse.json(error, { status: 401 });
+    }
+
+    const isValidPassword = await compare(password, share.password_hash);
+    if (!isValidPassword) {
+      // Log failed access attempt
+      await logAccessAttempt(supabase, share.id, request, false, 'Invalid password');
+
+      const error: ShareLinkError = {
+        success: false,
+        error: 'Incorrect password',
+        code: 'INVALID_PASSWORD',
+      };
+      return NextResponse.json(error, { status: 401 });
+    }
+  }
+
+  // Log successful access
+  await logAccessAttempt(supabase, share.id, request, true);
+
+  // Update access statistics
+  const clientIp = getClientIp(request);
+  await supabase
+    .from('shared_reports')
+    .update({
+      access_count: share.access_count + 1,
+      last_accessed_at: new Date().toISOString(),
+      last_accessed_ip: clientIp,
+    })
+    .eq('id', share.id);
+
+  // Fetch organisation name
+  const { data: tenant } = await supabase
+    .from('xero_tenants')
+    .select('organisation_name')
+    .eq('tenant_id', share.tenant_id)
+    .single();
+
+  const organisationName = tenant?.organisation_name || 'Unknown Organisation';
+
+  // Generate report data based on type
+  const reportData = await generateReportData(supabase, share);
+
+  const response: AccessShareLinkResponse = {
+    success: true,
+    title: share.title,
+    description: share.description,
+    reportType: share.report_type as AccessShareLinkResponse['reportType'],
+    organisationName,
+    generatedAt: new Date().toISOString(),
+    expiresAt: share.expires_at,
+    data: reportData,
+  };
+
+  return NextResponse.json(response);
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
     const { token } = await params;
-    const { searchParams } = new URL(request.url);
-    const password = searchParams.get('password');
-
-    // Validate token format
-    if (!isValidTokenFormat(token)) {
-      const error: ShareLinkError = {
-        success: false,
-        error: 'Invalid share link format',
-        code: 'INVALID_TOKEN',
-      };
-      return NextResponse.json(error, { status: 400 });
-    }
-
-    const supabase = await createServiceClient();
-
-    // Fetch share record
-    const { data: shareRecord, error: fetchError } = await supabase
-      .from('shared_reports')
-      .select('*')
-      .eq('token', token)
-      .single();
-
-    if (fetchError || !shareRecord) {
-      const error: ShareLinkError = {
-        success: false,
-        error: 'This share link does not exist or has been removed',
-        code: 'NOT_FOUND',
-      };
-      return NextResponse.json(error, { status: 404 });
-    }
-
-    const share = shareRecord as SharedReport;
-
-    // Check if revoked
-    if (share.is_revoked) {
-      const error: ShareLinkError = {
-        success: false,
-        error: 'Access to this report has been revoked',
-        code: 'REVOKED',
-      };
-      return NextResponse.json(error, { status: 403 });
-    }
-
-    // Check if expired
-    if (isExpired(share.expires_at)) {
-      const error: ShareLinkError = {
-        success: false,
-        error: 'This share link has expired. Please request a new one.',
-        code: 'EXPIRED',
-      };
-      return NextResponse.json(error, { status: 403 });
-    }
-
-    // Check password if protected
-    if (share.password_hash) {
-      if (!password) {
-        const error: ShareLinkError = {
-          success: false,
-          error: 'This report is password protected',
-          code: 'PASSWORD_REQUIRED',
-        };
-        return NextResponse.json(error, { status: 401 });
-      }
-
-      const isValidPassword = await compare(password, share.password_hash);
-      if (!isValidPassword) {
-        // Log failed access attempt
-        await logAccessAttempt(supabase, share.id, request, false, 'Invalid password');
-
-        const error: ShareLinkError = {
-          success: false,
-          error: 'Incorrect password',
-          code: 'INVALID_PASSWORD',
-        };
-        return NextResponse.json(error, { status: 401 });
-      }
-    }
-
-    // Log successful access
-    await logAccessAttempt(supabase, share.id, request, true);
-
-    // Update access statistics
-    const clientIp = getClientIp(request);
-    await supabase
-      .from('shared_reports')
-      .update({
-        access_count: share.access_count + 1,
-        last_accessed_at: new Date().toISOString(),
-        last_accessed_ip: clientIp,
-      })
-      .eq('id', share.id);
-
-    // Fetch organisation name
-    const { data: tenant } = await supabase
-      .from('xero_tenants')
-      .select('organisation_name')
-      .eq('tenant_id', share.tenant_id)
-      .single();
-
-    const organisationName = tenant?.organisation_name || 'Unknown Organisation';
-
-    // Generate report data based on type
-    const reportData = await generateReportData(supabase, share);
-
-    const response: AccessShareLinkResponse = {
-      success: true,
-      title: share.title,
-      description: share.description,
-      reportType: share.report_type as AccessShareLinkResponse['reportType'],
-      organisationName,
-      generatedAt: new Date().toISOString(),
-      expiresAt: share.expires_at,
-      data: reportData,
-    };
-
-    return NextResponse.json(response);
+    // GET does not accept password — use POST to submit a password
+    return handleShareAccess(request, token, null);
   } catch (error) {
     console.error('Error in GET /api/share/[token]:', error);
+    return createErrorResponse(
+      error,
+      { operation: 'accessShareLink' },
+      500
+    );
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ token: string }> }
+) {
+  try {
+    const { token } = await params;
+    const body = await request.json();
+    const password = typeof body.password === 'string' ? body.password : null;
+    return handleShareAccess(request, token, password);
+  } catch (error) {
+    console.error('Error in POST /api/share/[token]:', error);
     return createErrorResponse(
       error,
       { operation: 'accessShareLink' },
@@ -187,12 +220,15 @@ async function logAccessAttempt(
 }
 
 /**
- * Get client IP from request headers
+ * Get client IP from request headers.
+ * Uses the rightmost X-Forwarded-For IP (appended by trusted proxy, e.g. Vercel).
+ * The leftmost value is user-controllable and can be spoofed.
  */
 function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');
   if (forwarded) {
-    return forwarded.split(',')[0].trim();
+    const ips = forwarded.split(',').map(ip => ip.trim()).filter(Boolean);
+    return ips[ips.length - 1];
   }
   return request.headers.get('x-real-ip') || 'unknown';
 }
@@ -299,10 +335,11 @@ function calculateExecutiveSummary(
     ? Array.from(fys).sort().join(' to ')
     : 'No period data';
 
-  // Calculate total potential benefit
+  // Calculate total potential benefit (ESTIMATE ONLY — uses flat 25% indicative rate;
+  // actual benefit depends on entity type, tax rate, and specific provisions)
   const totalPotentialBenefit = results.reduce((sum, r) => {
     const amount = (r.potential_benefit as number) || (r.transaction_amount as number) || 0;
-    return sum + Math.abs(amount) * 0.25; // Rough estimate at 25% tax rate
+    return sum + Math.abs(amount) * 0.25;
   }, 0);
 
   // Count high priority items (high confidence R&D or large deductions)
@@ -344,6 +381,7 @@ function calculateExecutiveSummary(
     totalPotentialBenefit: Math.round(totalPotentialBenefit * 100) / 100,
     highPriorityItems,
     keyFindings,
+    estimateDisclaimer: 'ESTIMATE ONLY — Dollar amounts are indicative estimates calculated at a flat 25% rate. Actual benefit depends on entity type, applicable tax rate, and specific legislative provisions. This is not financial advice. Consult a registered tax agent.',
   };
 }
 

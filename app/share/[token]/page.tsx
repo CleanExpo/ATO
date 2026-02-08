@@ -160,12 +160,18 @@ export default function SharePage() {
     setState({ status: 'loading' });
 
     try {
-      const url = new URL(`/api/share/${token}`, window.location.origin);
-      if (passwordAttempt) {
-        url.searchParams.set('password', passwordAttempt);
-      }
+      // Use POST with password in body (not query params) to avoid leaking
+      // credentials in server logs, browser history, and Referer headers.
+      const url = `/api/share/${token}`;
+      const fetchOptions: RequestInit = passwordAttempt
+        ? {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: passwordAttempt }),
+          }
+        : { method: 'GET' };
 
-      const response = await fetch(url.toString());
+      const response = await fetch(url, fetchOptions);
       const data = await response.json();
 
       if (!response.ok) {

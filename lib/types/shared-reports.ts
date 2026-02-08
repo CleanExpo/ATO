@@ -130,6 +130,7 @@ export interface ExecutiveSummary {
   totalPotentialBenefit: number;
   highPriorityItems: number;
   keyFindings: string[];               // Top 3-5 bullet points
+  estimateDisclaimer?: string;         // "ESTIMATE ONLY" notice for dollar amounts
 }
 
 /**

@@ -1261,6 +1261,10 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | IP spoofing fix (B-5) | `lib/audit/logger.ts:99-103` | Use rightmost X-Forwarded-For IP (trusted proxy) not leftmost (user-controllable) (2026-02-08) |
 | Dev auth bypass (B-8) | `lib/auth/require-auth.ts:145` | `devBypassAuth` unexported and renamed to `_devBypassAuth` (2026-02-08) |
 | Token modulo bias (B-9) | `lib/share/token-generator.ts:22-35` | Rejection sampling eliminates modulo bias (256 mod 56 != 0) (2026-02-08) |
+| Share password in POST body (B-1) | `app/api/share/[token]/route.ts`, `app/share/[token]/page.tsx` | Password moved from URL query param to POST body; prevents leaking in logs/history/Referer (2026-02-08) |
+| RLS function standardised (B-6) | `supabase/migrations/20260208_rls_standardize.sql` | All RLS policies now use `check_tenant_access()` per AD-8; `get_user_tenant_ids()` dropped (2026-02-08) |
+| Estimate disclaimer (C-2) | `app/api/share/[token]/route.ts`, `components/share/AccountantReportView.tsx`, `lib/types/shared-reports.ts` | "ESTIMATE ONLY" disclaimer on dollar amounts; MetricCard labelled "(Est.)" (2026-02-08) |
+| Share route IP spoofing (B-5) | `app/api/share/[token]/route.ts:194-199` | `getClientIp()` uses rightmost X-Forwarded-For IP, consistent with `lib/audit/logger.ts` (2026-02-08) |
 
 ---
 
@@ -1442,14 +1446,14 @@ Code bug at `lib/analysis/fbt-engine.ts:152-163` -- live rates are fetched but N
 ### Secondary Findings Summary
 
 - **14 tax law accuracy findings** (A-1 through A-14) across trust distribution, cashflow forecast, fuel tax credits, CGT, loss, R&D, Div7A, and deduction engines
-- **10 security/privacy findings** (B-1 through B-10) including share password in URL query params, inconsistent RLS helper functions, no CSP headers, in-memory rate limiting
+- **10 security/privacy findings** (B-1 through B-10) -- B-1 (share password), B-5 (IP spoofing), B-6 (RLS consistency), B-8 (dev bypass), B-9 (token bias) FIXED; remaining: B-2 (OAuth CSRF), B-3, B-4, B-7 (rate limiting), B-10 (CSP)
 - **7 professional liability findings** (C-1 through C-7) including missing APP 1 collection notice, no PI insurance, no NDB technical implementation
 
 ### Remediation Phases
 
 - **Phase 0** (BEFORE production): 8 items -- consent notices, region confirmation, disclaimer fix, FBT rate bug, legal opinion, Privacy Officer
-- **Phase 1** (within 30 days): 8 items -- DPA execution, FBT Type 1/2 determination, CSP headers, distributed rate limiting, trust penalty rate fix, SG rate update
-- **Phase 2** (within 90 days): 5 items remaining -- ~~data minimisation for Gemini~~ (DONE), CGT connected entities, s 100A family dealing, ~~quarterly fuel rates~~ (DONE), ~~amendment period checks~~ (DONE), R&D clawback, retention policy, NDB detection
+- **Phase 1** (within 30 days): 7 items remaining -- DPA execution, FBT Type 1/2 determination, CSP headers, distributed rate limiting, ~~trust penalty rate fix~~ (DONE), ~~SG rate update~~ (DONE), ~~share password B-1~~ (DONE)
+- **Phase 2** (within 90 days): 5 items remaining -- CGT connected entities, s 100A family dealing, R&D clawback, retention policy, NDB detection
 
 ---
 
