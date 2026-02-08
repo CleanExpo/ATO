@@ -247,7 +247,7 @@ export async function analyzeTransaction(
 
         // Call Google AI (Gemini 2.0 Flash Exp - FREE and Available)
         const model = getGoogleAI().getGenerativeModel({
-            model: 'gemini-2.0-flash', // Using available free model
+            model: optionalConfig.googleAiModel,
             generationConfig: {
                 temperature: 0.1, // Ultra-low temperature for maximum consistency and accuracy
                 maxOutputTokens: 8000, // Detailed analysis with comprehensive reasoning

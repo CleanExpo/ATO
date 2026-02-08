@@ -28,7 +28,7 @@ export async function validateAIConfiguration(): Promise<HealthCheckResult> {
     const warnings: string[] = []
     const details = {
         apiKeyConfigured: false,
-        modelName: 'gemini-2.0-flash-exp',
+        modelName: optionalConfig.googleAiModel,
         modelAccessible: false,
         testResponseReceived: false
     }
@@ -62,7 +62,7 @@ export async function validateAIConfiguration(): Promise<HealthCheckResult> {
 
         if (errorMessage.includes('404') || errorMessage.includes('not found')) {
             errors.push(`AI model '${details.modelName}' does not exist or is not accessible`)
-            errors.push('Available free models: gemini-2.0-flash-exp (experimental)')
+            errors.push('Available free models: gemini-2.0-flash (experimental)')
             errors.push('Gemini 3 models require Vertex AI (paid)')
         } else if (errorMessage.includes('API key') || errorMessage.includes('401') || errorMessage.includes('403')) {
             errors.push('GOOGLE_AI_API_KEY is invalid or lacks permissions')
@@ -118,9 +118,9 @@ export function quickHealthCheck(): { valid: boolean; errors: string[] } {
  */
 export function getModelInfo() {
     return {
-        model: 'gemini-2.0-flash-exp',
+        model: optionalConfig.googleAiModel,
         provider: 'Google AI (Free API)',
-        description: 'Gemini 2.0 Flash Experimental - Fast, FREE during preview period',
+        description: `Gemini Flash - Fast, FREE during preview period (model: ${optionalConfig.googleAiModel})`,
         pricing: 'FREE (experimental period)',
         limitations: [
             'Experimental model - may change without notice',

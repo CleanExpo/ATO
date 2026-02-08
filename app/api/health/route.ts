@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { validateConfiguration } from '@/lib/config/env'
+import { validateConfiguration, optionalConfig } from '@/lib/config/env'
 import { createServiceClient } from '@/lib/supabase/server'
 import { validateAIConfiguration, quickHealthCheck } from '@/lib/ai/health-check'
 
@@ -112,7 +112,7 @@ export async function GET(request: Request) {
                 result.status = 'unhealthy'
             } else {
                 result.checks.aiModel.message = 'Configuration valid (not tested)'
-                result.checks.aiModel.modelName = 'gemini-2.0-flash-exp'
+                result.checks.aiModel.modelName = optionalConfig.googleAiModel
             }
         } else {
             const aiCheck = await validateAIConfiguration()

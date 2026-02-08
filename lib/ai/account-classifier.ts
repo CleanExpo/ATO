@@ -176,7 +176,7 @@ export async function classifyTransaction(
 
         // Call Gemini API (using LATEST Gemini 2.0 Flash Exp - FREE)
         const model = genAI.getGenerativeModel({
-            model: 'gemini-2.0-flash-exp',
+            model: optionalConfig.googleAiModel,
             generationConfig: {
                 temperature: 0.1,  // Low temperature for consistent, deterministic results
                 topP: 0.95,
