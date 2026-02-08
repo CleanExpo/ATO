@@ -13,6 +13,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { optionalConfig } from '@/lib/config/env'
+import { createSupplierAnonymiser } from './pii-sanitizer'
 
 // Initialize Google AI lazily to avoid errors when API key is missing
 let genAI: GoogleGenerativeAI | null = null
@@ -227,11 +228,15 @@ export async function analyzeTransaction(
     business: BusinessContext
 ): Promise<ForensicAnalysis> {
     try {
+        // Anonymise supplier name before sending to Gemini (APP 8 data minimisation)
+        const anonymiser = createSupplierAnonymiser()
+        const anonymisedSupplier = anonymiser.anonymise(transaction.supplier)
+
         // Prepare prompt with transaction details
         const prompt = FORENSIC_ANALYSIS_PROMPT
             .replace('{description}', transaction.description || 'No description')
             .replace('{amount}', transaction.amount.toString())
-            .replace('{supplier}', transaction.supplier || 'Unknown')
+            .replace('{supplier}', anonymisedSupplier)
             .replace('{date}', transaction.date)
             .replace('{accountCode}', transaction.accountCode || 'N/A')
             .replace('{lineItems}', JSON.stringify(transaction.lineItems || [], null, 2))

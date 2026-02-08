@@ -97,7 +97,7 @@ This includes:
 
 ### 4.3 Mitigations
 
-1. **Minimisation**: Only transaction descriptions and amounts are sent, not entity details, TFN, or account credentials
+1. **Minimisation**: Supplier names are anonymised (`Supplier_1`, `Supplier_2` tokens) before Gemini API calls. TFN, account credentials, and entity identifiers are never sent
 2. **Ephemeral processing**: Gemini API calls use streaming mode; Google states API data is not used for model training (verify current terms)
 3. **Aggregation**: Where possible, transactions are batched and anonymised before AI analysis
 4. **Opt-in**: AI analysis is user-initiated, not automatic
@@ -118,6 +118,12 @@ The pre-OAuth connection page (`/dashboard/connect`) now includes:
 - Consent checkbox updated to include cross-border AI processing acknowledgement
 - User's right to opt out of AI analysis via dashboard Settings
 
+### 4.6 Data Minimisation Implementation (2026-02-08)
+
+Supplier names in transaction data are replaced with anonymous tokens before
+being sent to Google Gemini AI. Implementation: `lib/ai/pii-sanitizer.ts`.
+Files updated: `lib/ai/forensic-analyzer.ts`, `lib/ai/account-classifier.ts`.
+
 ---
 
 ## 5. APP 8 Compliance Checklist
@@ -132,7 +138,7 @@ recipient does not breach the APPs.
 | Functions in Australia | VERIFY | Must confirm syd1 |
 | Cross-border disclosure notice | IMPLEMENTED | Added to /dashboard/connect page (2026-02-07) |
 | Contractual protections | REQUIRED | Google Cloud DPA review |
-| Data minimisation | IMPLEMENTED | Minimal data sent to external APIs |
+| Data minimisation | IMPLEMENTED | Supplier names anonymised via `lib/ai/pii-sanitizer.ts` (2026-02-08) |
 | Encryption in transit | IMPLEMENTED | TLS 1.3 for all API calls |
 | Encryption at rest | IMPLEMENTED | AES-256-GCM for tokens, Supabase encryption for database |
 

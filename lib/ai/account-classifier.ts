@@ -13,6 +13,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { optionalConfig } from '@/lib/config/env'
+import { createSupplierAnonymiser } from './pii-sanitizer'
 
 // Initialize Google AI
 const genAI = new GoogleGenerativeAI(optionalConfig.googleAiApiKey)
@@ -140,6 +141,9 @@ export async function classifyTransaction(
     context: ClassificationContext
 ): Promise<ClassificationResult> {
     try {
+        // Anonymise supplier names before sending to Gemini (APP 8 data minimisation)
+        const anonymiser = createSupplierAnonymiser()
+
         // Prepare prompt with transaction data
         const lineItemsText = transaction.lineItems
             ?.map((item, idx) =>
@@ -153,13 +157,13 @@ export async function classifyTransaction(
 
         const similarText = context.similarTransactions
             ?.map(txn =>
-                `- "${txn.description}" from ${txn.supplier || 'Unknown'} → ${txn.accountCode} (${txn.accountName})`
+                `- "${txn.description}" from ${anonymiser.anonymise(txn.supplier)} → ${txn.accountCode} (${txn.accountName})`
             )
             .join('\n') || 'No historical transactions available';
 
         const prompt = ACCOUNT_CLASSIFICATION_PROMPT
             .replace('{description}', transaction.description || 'No description')
-            .replace('{supplier}', transaction.supplier || 'Unknown')
+            .replace('{supplier}', anonymiser.anonymise(transaction.supplier))
             .replace('{amount}', transaction.amount.toFixed(2))
             .replace('{currentAccountCode}', transaction.currentAccountCode)
             .replace('{currentAccountName}', transaction.currentAccountName)
