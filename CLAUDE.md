@@ -1270,6 +1270,7 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | CSP headers (B-10) | `next.config.ts` | Already fixed 2026-02-07; marked in tracker (2026-02-08) |
 | Family dealing exclusion (T-1) | `lib/analysis/trust-distribution-analyzer.ts` | `generateSection100AFlags()` downgrades severity for non-resident (high→medium) and minor (high→low) when family dealing exclusion applies (s 100A(13), TR 2022/4). Risk reduction 20→40 points. Compliance summary notes reduced flags. (2026-02-08) |
 | R&D clawback (R-3) | `lib/analysis/rnd-engine.ts` | Already implemented: per-project `clawbackWarning` (line 594-598), recommendation (810-815), summary warning (920-923). Marked as done in tracker. (2026-02-08) |
+| Share endpoint scoping (B-4) | `app/api/share/[token]/route.ts`, `supabase/migrations/20260208_share_scoped_function.sql` | Report data fetched via `get_shared_report_analysis()` SECURITY DEFINER function (validates share, scopes by tenant_id, returns only safe columns). `select('*')` replaced with explicit columns. Column name bugs fixed (`tax_category`→`primary_category`, `classification_confidence`→`category_confidence`, `description`→`transaction_description`). (2026-02-08) |
 
 ---
 
@@ -1451,7 +1452,7 @@ Code bug at `lib/analysis/fbt-engine.ts:152-163` -- live rates are fetched but N
 ### Secondary Findings Summary
 
 - **14 tax law accuracy findings** (A-1 through A-14) across trust distribution, cashflow forecast, fuel tax credits, CGT, loss, R&D, Div7A, and deduction engines
-- **10 security/privacy findings** (B-1 through B-10) -- 8 FIXED: B-1, B-2, B-5, B-6, B-7, B-8, B-9, B-10; remaining: B-3 (file upload scanning), B-4 (share docs)
+- **10 security/privacy findings** (B-1 through B-10) -- 9 FIXED: B-1, B-2, B-4, B-5, B-6, B-7, B-8, B-9, B-10; remaining: B-3 (file upload scanning)
 - **7 professional liability findings** (C-1 through C-7) including missing APP 1 collection notice, no PI insurance, no NDB technical implementation
 
 ### Remediation Phases

@@ -37,6 +37,20 @@ import type {
 } from '@/lib/types/shared-reports';
 
 /**
+ * Row shape returned by the get_shared_report_analysis() DB function.
+ * Only the columns needed for report generation are included (B-4 fix).
+ */
+type AnalysisRow = {
+  transaction_date: string | null;
+  transaction_amount: number | null;
+  transaction_description: string | null;
+  primary_category: string | null;
+  category_confidence: number | null;
+  is_rnd_candidate: boolean;
+  financial_year: string | null;
+};
+
+/**
  * Core logic for accessing a shared report.
  * Used by both GET (no password) and POST (with password).
  */
@@ -57,10 +71,10 @@ async function handleShareAccess(
 
   const supabase = await createServiceClient();
 
-  // Fetch share record
+  // Fetch share record — explicit column list (B-4: no select('*') on public endpoint)
   const { data: shareRecord, error: fetchError } = await supabase
     .from('shared_reports')
-    .select('*')
+    .select('id, tenant_id, token, title, description, report_type, filters, is_revoked, expires_at, password_hash, access_count, last_accessed_at, last_accessed_ip')
     .eq('token', token)
     .single();
 
@@ -234,7 +248,15 @@ function getClientIp(request: NextRequest): string {
 }
 
 /**
- * Generate report data based on share configuration
+ * Generate report data based on share configuration.
+ *
+ * B-4 fix: Uses the `get_shared_report_analysis()` SECURITY DEFINER function
+ * instead of querying forensic_analysis_results directly with the service client.
+ * The function validates the share, scopes by tenant_id, applies filters, and
+ * returns only the columns needed for report generation. This moves tenant
+ * isolation to the database layer, reducing blast radius if app code is compromised.
+ *
+ * @see supabase/migrations/20260208_share_scoped_function.sql
  */
 async function generateReportData(
   supabase: Awaited<ReturnType<typeof createServiceClient>>,
@@ -242,43 +264,24 @@ async function generateReportData(
 ): Promise<SharedReportData> {
   const filters = share.filters || {};
 
-  // Build query for analysis results
-  let query = supabase
-    .from('forensic_analysis_results')
-    .select('*')
-    .eq('tenant_id', share.tenant_id);
-
-  // Apply financial year filters
-  if (filters.financialYears && filters.financialYears.length > 0) {
-    query = query.in('financial_year', filters.financialYears);
-  }
-
-  // Apply confidence filter
-  if (filters.confidenceLevel && filters.confidenceLevel !== 'all') {
-    const minConfidence =
-      filters.confidenceLevel === 'high' ? 0.8 :
-      filters.confidenceLevel === 'medium' ? 0.6 : 0.4;
-    query = query.gte('classification_confidence', minConfidence);
-  }
-
-  // Apply report type specific filters
-  if (share.report_type === 'rnd') {
-    query = query.eq('is_rnd_candidate', true);
-  } else if (share.report_type === 'deductions') {
-    query = query.in('tax_category', ['business_expense', 'travel', 'professional_development', 'home_office']);
-  } else if (share.report_type === 'div7a') {
-    query = query.or('tax_category.eq.div7a_loan,tax_category.eq.shareholder_loan');
-  } else if (share.report_type === 'losses') {
-    query = query.in('tax_category', ['loss', 'carry_forward_loss']);
-  }
-
-  const { data: results, error } = await query.order('transaction_date', { ascending: false });
+  // Call scoped DB function — all filtering and tenant scoping happens in SQL
+  const { data: results, error } = await supabase.rpc('get_shared_report_analysis', {
+    p_share_id: share.id,
+  });
 
   if (error) {
-    console.error('Error fetching analysis results:', error);
+    console.error('Error fetching shared report analysis:', error);
   }
 
-  const analysisResults = results || [];
+  const analysisResults = (results || []) as Array<{
+    transaction_date: string | null;
+    transaction_amount: number | null;
+    transaction_description: string | null;
+    primary_category: string | null;
+    category_confidence: number | null;
+    is_rnd_candidate: boolean;
+    financial_year: string | null;
+  }>;
 
   // Calculate executive summary
   const executiveSummary = calculateExecutiveSummary(analysisResults, share.report_type);
@@ -286,15 +289,15 @@ async function generateReportData(
   // Generate findings
   const findings = generateFindings(analysisResults, share.report_type);
 
-  // Generate transaction samples if requested
+  // Generate transaction samples if requested (using correct column names from DB function)
   const transactions = filters.includeTransactionDetails
     ? analysisResults.slice(0, 50).map(r => ({
-        date: r.transaction_date,
-        description: r.description || '',
+        date: r.transaction_date || '',
+        description: r.transaction_description || '',
         amount: r.transaction_amount || 0,
-        category: r.tax_category || 'uncategorised',
-        classification: r.ai_classification || 'unknown',
-        confidence: r.classification_confidence || 0,
+        category: r.primary_category || 'uncategorised',
+        classification: r.primary_category || 'unknown',
+        confidence: r.category_confidence || 0,
       }))
     : undefined;
 
@@ -324,13 +327,13 @@ async function generateReportData(
  * Calculate executive summary from analysis results
  */
 function calculateExecutiveSummary(
-  results: Array<Record<string, unknown>>,
+  results: AnalysisRow[],
   _reportType: string
 ): ExecutiveSummary {
   const totalTransactions = results.length;
 
   // Get unique financial years
-  const fys = new Set(results.map(r => r.financial_year as string).filter(Boolean));
+  const fys = new Set(results.map(r => r.financial_year).filter(Boolean));
   const periodCovered = fys.size > 0
     ? Array.from(fys).sort().join(' to ')
     : 'No period data';
@@ -338,14 +341,14 @@ function calculateExecutiveSummary(
   // Calculate total potential benefit (ESTIMATE ONLY — uses flat 25% indicative rate;
   // actual benefit depends on entity type, tax rate, and specific provisions)
   const totalPotentialBenefit = results.reduce((sum, r) => {
-    const amount = (r.potential_benefit as number) || (r.transaction_amount as number) || 0;
+    const amount = r.transaction_amount || 0;
     return sum + Math.abs(amount) * 0.25;
   }, 0);
 
   // Count high priority items (high confidence R&D or large deductions)
   const highPriorityItems = results.filter(r =>
-    (r.is_rnd_candidate && (r.classification_confidence as number) >= 0.8) ||
-    (Math.abs((r.transaction_amount as number) || 0) > 10000)
+    (r.is_rnd_candidate && (r.category_confidence ?? 0) >= 0.8) ||
+    (Math.abs(r.transaction_amount || 0) > 10000)
   ).length;
 
   // Generate key findings
@@ -357,15 +360,15 @@ function calculateExecutiveSummary(
   }
 
   const deductionSum = results
-    .filter(r => ['business_expense', 'travel'].includes(r.tax_category as string))
-    .reduce((sum, r) => sum + Math.abs((r.transaction_amount as number) || 0), 0);
+    .filter(r => ['business_expense', 'travel'].includes(r.primary_category || ''))
+    .reduce((sum, r) => sum + Math.abs(r.transaction_amount || 0), 0);
   if (deductionSum > 0) {
     keyFindings.push(`$${deductionSum.toLocaleString()} in potential deductions identified`);
   }
 
   const div7aCount = results.filter(r =>
-    (r.tax_category as string)?.includes('div7a') ||
-    (r.tax_category as string)?.includes('loan')
+    r.primary_category?.includes('div7a') ||
+    r.primary_category?.includes('loan')
   ).length;
   if (div7aCount > 0) {
     keyFindings.push(`${div7aCount} Division 7A compliance items require review`);
@@ -389,15 +392,15 @@ function calculateExecutiveSummary(
  * Generate findings from analysis results
  */
 function generateFindings(
-  results: Array<Record<string, unknown>>,
+  results: AnalysisRow[],
   _reportType: string
 ): ReportFinding[] {
   const findings: ReportFinding[] = [];
 
   // Group results by category
-  const grouped = new Map<string, Array<Record<string, unknown>>>();
+  const grouped = new Map<string, AnalysisRow[]>();
   for (const r of results) {
-    const category = (r.tax_category as string) || 'uncategorised';
+    const category = r.primary_category || 'uncategorised';
     if (!grouped.has(category)) {
       grouped.set(category, []);
     }
@@ -409,10 +412,10 @@ function generateFindings(
     if (items.length === 0) continue;
 
     const totalAmount = items.reduce((sum, r) =>
-      sum + Math.abs((r.transaction_amount as number) || 0), 0);
+      sum + Math.abs(r.transaction_amount || 0), 0);
 
     const avgConfidence = items.reduce((sum, r) =>
-      sum + ((r.classification_confidence as number) || 0), 0) / items.length;
+      sum + (r.category_confidence || 0), 0) / items.length;
 
     findings.push({
       id: `finding-${category}`,
