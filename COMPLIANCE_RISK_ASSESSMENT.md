@@ -273,7 +273,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 |----|--------|---------|----------|--------|
 | A-1 | trust-distribution | Trustee penalty rate references 45% but correct rate is 47% (45% + 2% Medicare Levy) | MEDIUM | Unfixed (deferred T-2) |
 | A-2 | trust-distribution | Ordinary family dealing exclusion (TR 2022/4) not implemented -- excessive false s 100A flags | HIGH | Unfixed (deferred T-1) |
-| A-3 | cashflow-forecast | Super guarantee rate hardcoded at 11.5% (line 198) -- rate is 12% from 1 July 2025 | MEDIUM | New finding |
+| A-3 | cashflow-forecast | ~~Super guarantee rate hardcoded at 11.5%~~ **FIXED** (2026-02-08): FY-aware SG rate, 12% from FY2025-26 (s 19 SGAA 1992) | MEDIUM | Fixed |
 | A-4 | fuel-tax-credits | Uses single annual rate instead of quarterly rates (rates change Feb/Apr/Aug/Nov) | MEDIUM | Unfixed (F-1) |
 | A-5 | fuel-tax-credits | Road user charge deduction not applied for heavy vehicles on public roads | MEDIUM | Unfixed (F-2) |
 | A-6 | cgt-engine | Connected entity aggregation for $6M net asset test (Subdivision 152-15) not implemented | HIGH | Known (CR-1) |
@@ -283,8 +283,8 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | A-10 | loss-engine | Similar Business Test always returns 'unknown' -- overly conservative | MEDIUM | Unfixed (L-2) |
 | A-11 | rnd-engine | R&D clawback provisions (s 355-450) not checked | HIGH | Deferred (R-3) |
 | A-12 | div7a-engine | Distributable surplus cap (s 109Y) -- deemed dividend cannot exceed distributable surplus | HIGH | Accepted but verify implementation |
-| A-13 | deduction-engine | Amendment period not checked before recommending amended returns | HIGH | Unfixed |
-| A-14 | deduction-engine | Duplicate `return summary` statements at lines 549-551 | LOW | Code quality |
+| A-13 | deduction-engine | ~~Amendment period not checked before recommending amended returns~~ **FIXED** (2026-02-08): `checkAmendmentPeriod()` applied to all FYs in results (s 170 TAA 1953) | HIGH | Fixed |
+| A-14 | deduction-engine | ~~Duplicate `return summary` statements at lines 549-551~~ **FIXED** (2026-02-08): Dead code removed | LOW | Fixed |
 
 ### Category B: Security and Privacy
 

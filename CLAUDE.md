@@ -1198,7 +1198,7 @@ Backend_Dev has accepted ALL critical and high findings from this audit and inco
 | DED-1: Base rate entity test | HIGH | ACCEPTED | `passiveIncomePercentage` parameter added, warning when data unavailable |
 | 7A-2: Distributable surplus cap | HIGH | ACCEPTED | `Math.min(closingBalance, distributableSurplus)` per s 109Y |
 | SUPER-1: Carry-forward | HIGH | ACCEPTED | 5-year lookback with $500K balance threshold, `CarryForwardAllowance` type |
-| Amendment period consistency | HIGH | ACCEPTED | Extracted to `lib/utils/financial-year.ts`, applied to ALL engines |
+| Amendment period consistency | HIGH | FIXED (2026-02-08) | Extracted to `lib/utils/financial-year.ts`, now applied in deduction engine via `checkAmendmentPeriod()` (s 170 TAA 1953) |
 | Mid-year rate changes | HIGH | ACCEPTED | `POST /api/tax-data/refresh` endpoint + `forceRefresh` parameter |
 | Quarterly fuel rates | MEDIUM | ACCEPTED | Per-quarter rate lookup replacing annual rate |
 | Data sovereignty | MEDIUM | ACCEPTED | `DATA_SOVEREIGNTY.md` documenting ap-southeast-2 + syd1 deployment |
@@ -1253,6 +1253,9 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | FBT Type 1/Type 2 | `lib/analysis/fbt-engine.ts` | Per-item GST credit analysis replacing naive keyword matching |
 | Shared report disclaimer | `app/share/[token]/page.tsx` | TaxDisclaimer added to password-required state |
 | APP 8 data minimisation | `lib/ai/pii-sanitizer.ts`, `lib/ai/forensic-analyzer.ts`, `lib/ai/account-classifier.ts` | Supplier names anonymised with `Supplier_N` tokens before Gemini API calls (2026-02-08) |
+| SG rate FY-aware | `lib/analysis/cashflow-forecast-engine.ts:215-219` | SG rate now 12% from FY2025-26, was hardcoded 11.5% (s 19 SGAA 1992) (2026-02-08) |
+| Deduction amendment period | `lib/analysis/deduction-engine.ts:556-569` | Amendment period check added using `checkAmendmentPeriod()`, warns on out-of-window FYs (2026-02-08) |
+| Deduction dead code | `lib/analysis/deduction-engine.ts:553-559` | Removed duplicate comment and unreachable `return summary` (2026-02-08) |
 
 ---
 
