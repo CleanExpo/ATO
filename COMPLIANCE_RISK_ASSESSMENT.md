@@ -274,8 +274,8 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | A-1 | trust-distribution | Trustee penalty rate references 45% but correct rate is 47% (45% + 2% Medicare Levy) | MEDIUM | Unfixed (deferred T-2) |
 | A-2 | trust-distribution | Ordinary family dealing exclusion (TR 2022/4) not implemented -- excessive false s 100A flags | HIGH | Unfixed (deferred T-1) |
 | A-3 | cashflow-forecast | ~~Super guarantee rate hardcoded at 11.5%~~ **FIXED** (2026-02-08): FY-aware SG rate, 12% from FY2025-26 (s 19 SGAA 1992) | MEDIUM | Fixed |
-| A-4 | fuel-tax-credits | Uses single annual rate instead of quarterly rates (rates change Feb/Apr/Aug/Nov) | MEDIUM | Unfixed (F-1) |
-| A-5 | fuel-tax-credits | Road user charge deduction not applied for heavy vehicles on public roads | MEDIUM | Unfixed (F-2) |
+| A-4 | fuel-tax-credits | ~~Uses single annual rate instead of quarterly rates~~ **FIXED** (2026-02-08): Per-quarter rate lookup via `FUEL_TAX_CREDIT_RATES` map | MEDIUM | Fixed |
+| A-5 | fuel-tax-credits | ~~Road user charge deduction not applied for heavy vehicles on public roads~~ **FIXED** (2026-02-08): Road user charge deducted for on-road use per s 43-10 | MEDIUM | Fixed |
 | A-6 | cgt-engine | Connected entity aggregation for $6M net asset test (Subdivision 152-15) not implemented | HIGH | Known (CR-1) |
 | A-7 | cgt-engine | Collectable/personal use asset loss quarantining (s 108-10, s 108-20) not distinguished | MEDIUM | Known (CR-3) |
 | A-8 | cgt-engine | Cost base always initialised at 0 -- no asset register integration | MEDIUM | By design (requires data) |
@@ -294,11 +294,11 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | B-2 | Xero OAuth | CSRF state token returned to client in JSON but not stored server-side for verification -- relies entirely on client-side storage | MEDIUM |
 | B-3 | Share documents | Unauthenticated file upload via share token -- file type/size validated but no virus/malware scanning | MEDIUM |
 | B-4 | Share API | Uses `createServiceClient()` (service role, bypasses all RLS) for public share endpoint -- any SQL injection or filter bypass would expose all tenant data | HIGH |
-| B-5 | IP logging | `getClientIp()` uses first value from `X-Forwarded-For` which is user-controllable -- audit logs can be spoofed | LOW |
+| B-5 | IP logging | ~~`getClientIp()` uses first value from `X-Forwarded-For`~~ **FIXED** (2026-02-08): Uses rightmost (trusted proxy) IP | LOW |
 | B-6 | RLS migration | Two different RLS helper functions exist: `get_user_tenant_ids()` (joins `xero_connections`) and `check_tenant_access()` (joins `user_tenant_access`) -- inconsistent access model | MEDIUM |
 | B-7 | Rate limiting | In-memory rate limiting ineffective in serverless environment (each function instance has isolated memory) | MEDIUM |
-| B-8 | Dev auth bypass | `devBypassAuth()` function exists with runtime NODE_ENV check -- should use build-time elimination | LOW |
-| B-9 | Token generator | Modulo bias in share token generation (256 mod 56 is non-zero) | LOW |
+| B-8 | Dev auth bypass | ~~`devBypassAuth()` exported with runtime check~~ **FIXED** (2026-02-08): Unexported, renamed to `_devBypassAuth` | LOW |
+| B-9 | Token generator | ~~Modulo bias in share token generation (256 mod 56 is non-zero)~~ **FIXED** (2026-02-08): Rejection sampling | LOW |
 | B-10 | CSP headers | No Content-Security-Policy headers on shared report pages -- XSS risk from Xero-sourced data | MEDIUM |
 
 ### Category C: Professional Liability and Regulatory
@@ -384,8 +384,8 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | ~~P2-1~~ | ~~Implement transaction description sanitisation for Gemini~~ **DONE** (2026-02-08) -- Supplier names anonymised via `lib/ai/pii-sanitizer.ts` | ~~3-5 days~~ |
 | P2-2 | Implement connected entity aggregation for CGT $6M test | 5 days |
 | P2-3 | Implement ordinary family dealing exclusion for s 100A | 3 days |
-| P2-4 | Implement quarterly fuel tax credit rates | 2 days |
-| P2-5 | Add amendment period check to deduction engine | 2 days |
+| ~~P2-4~~ | ~~Implement quarterly fuel tax credit rates~~ **DONE** (2026-02-08) -- Per-quarter rates + road user charge (F-1, F-2) | ~~2 days~~ |
+| ~~P2-5~~ | ~~Add amendment period check to deduction engine~~ **DONE** (2026-02-08) -- `checkAmendmentPeriod()` applied (A-13) | ~~2 days~~ |
 | P2-6 | Implement R&D clawback warning (s 355-450) | 3 days |
 | P2-7 | Implement data retention policy with automated lifecycle | 5 days |
 | P2-8 | Implement NDB technical detection and notification | 5 days |

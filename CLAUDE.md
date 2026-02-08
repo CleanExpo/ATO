@@ -1200,7 +1200,7 @@ Backend_Dev has accepted ALL critical and high findings from this audit and inco
 | SUPER-1: Carry-forward | HIGH | ACCEPTED | 5-year lookback with $500K balance threshold, `CarryForwardAllowance` type |
 | Amendment period consistency | HIGH | FIXED (2026-02-08) | Extracted to `lib/utils/financial-year.ts`, now applied in deduction engine via `checkAmendmentPeriod()` (s 170 TAA 1953) |
 | Mid-year rate changes | HIGH | ACCEPTED | `POST /api/tax-data/refresh` endpoint + `forceRefresh` parameter |
-| Quarterly fuel rates | MEDIUM | ACCEPTED | Per-quarter rate lookup replacing annual rate |
+| Quarterly fuel rates (F-1) | MEDIUM | FIXED (2026-02-08) | Per-quarter rate lookup with `FUEL_TAX_CREDIT_RATES` map; fallback for unknown quarters |
 | Data sovereignty | MEDIUM | ACCEPTED | `DATA_SOVEREIGNTY.md` documenting ap-southeast-2 + syd1 deployment |
 | Data minimisation (APP 8) | MEDIUM | FIXED (2026-02-08) | Supplier names anonymised via `lib/ai/pii-sanitizer.ts` before Gemini API calls. Applied in `forensic-analyzer.ts` and `account-classifier.ts` |
 
@@ -1256,6 +1256,11 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | SG rate FY-aware | `lib/analysis/cashflow-forecast-engine.ts:215-219` | SG rate now 12% from FY2025-26, was hardcoded 11.5% (s 19 SGAA 1992) (2026-02-08) |
 | Deduction amendment period | `lib/analysis/deduction-engine.ts:556-569` | Amendment period check added using `checkAmendmentPeriod()`, warns on out-of-window FYs (2026-02-08) |
 | Deduction dead code | `lib/analysis/deduction-engine.ts:553-559` | Removed duplicate comment and unreachable `return summary` (2026-02-08) |
+| Fuel tax quarterly rates (F-1) | `lib/analysis/fuel-tax-credits-analyzer.ts` | Per-quarter rate lookup replacing single annual rate (2026-02-08) |
+| Road user charge (F-2) | `lib/analysis/fuel-tax-credits-analyzer.ts` | On-road heavy vehicle credit reduced by road user charge per s 43-10 (2026-02-08) |
+| IP spoofing fix (B-5) | `lib/audit/logger.ts:99-103` | Use rightmost X-Forwarded-For IP (trusted proxy) not leftmost (user-controllable) (2026-02-08) |
+| Dev auth bypass (B-8) | `lib/auth/require-auth.ts:145` | `devBypassAuth` unexported and renamed to `_devBypassAuth` (2026-02-08) |
+| Token modulo bias (B-9) | `lib/share/token-generator.ts:22-35` | Rejection sampling eliminates modulo bias (256 mod 56 != 0) (2026-02-08) |
 
 ---
 
@@ -1444,7 +1449,7 @@ Code bug at `lib/analysis/fbt-engine.ts:152-163` -- live rates are fetched but N
 
 - **Phase 0** (BEFORE production): 8 items -- consent notices, region confirmation, disclaimer fix, FBT rate bug, legal opinion, Privacy Officer
 - **Phase 1** (within 30 days): 8 items -- DPA execution, FBT Type 1/2 determination, CSP headers, distributed rate limiting, trust penalty rate fix, SG rate update
-- **Phase 2** (within 90 days): 7 items -- ~~data minimisation for Gemini~~ (DONE 2026-02-08), CGT connected entities, s 100A family dealing, quarterly fuel rates, amendment period checks, R&D clawback, retention policy, NDB detection
+- **Phase 2** (within 90 days): 5 items remaining -- ~~data minimisation for Gemini~~ (DONE), CGT connected entities, s 100A family dealing, ~~quarterly fuel rates~~ (DONE), ~~amendment period checks~~ (DONE), R&D clawback, retention policy, NDB detection
 
 ---
 
