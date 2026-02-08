@@ -73,6 +73,7 @@ export default function NotificationBell() {
     try {
       setLoading(true);
       const response = await fetch('/api/notifications?limit=10');
+      if (response.status === 401) return; // Not authenticated yet
       if (!response.ok) throw new Error('Failed to fetch notifications');
 
       const data = await response.json();

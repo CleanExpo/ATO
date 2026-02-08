@@ -39,7 +39,7 @@ export function PlatformSyncButton({
       let syncBody: { tenantId?: string; companyFileId?: string }
 
       if (platform === 'xero') {
-        syncEndpoint = '/api/audit/sync'
+        syncEndpoint = '/api/audit/sync-historical'
         syncBody = { tenantId }
       } else if (platform === 'myob') {
         syncEndpoint = '/api/myob/sync'
@@ -57,8 +57,12 @@ export function PlatformSyncButton({
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `Sync failed: ${response.status}`)
+        let errorMsg = `Sync failed: ${response.status}`
+        try {
+          const errorData = await response.json()
+          errorMsg = errorData.error || errorMsg
+        } catch { /* non-JSON response */ }
+        throw new Error(errorMsg)
       }
 
       const data = await response.json()
