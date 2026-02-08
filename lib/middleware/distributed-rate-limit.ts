@@ -12,6 +12,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { rateLimit as inMemoryRateLimit, type RateLimitConfig, type RateLimitResult } from './rate-limit'
+import { logRateLimitExceeded } from '@/lib/security/security-event-logger'
 
 /**
  * Check rate limit using Supabase-backed distributed store.
@@ -37,12 +38,19 @@ export async function distributedRateLimit(config: RateLimitConfig): Promise<Rat
 
     const row = data[0] as { allowed: boolean; current_count: number; reset_at: string }
 
-    return {
+    const result = {
       success: row.allowed,
       limit,
       remaining: Math.max(0, limit - row.current_count),
       reset: Math.floor(new Date(row.reset_at).getTime() / 1000),
     }
+
+    // Log rate limit breaches for NDB detection (P2-8)
+    if (!result.success) {
+      logRateLimitExceeded(null, identifier, limit).catch(() => {})
+    }
+
+    return result
   } catch (err) {
     // Fallback to in-memory on any error
     console.warn('[rate-limit] Distributed rate limit error, using in-memory fallback:', err)

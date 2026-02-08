@@ -764,10 +764,10 @@ a qualified tax professional before implementation. The software provides
 
 #### 1.3 Notifiable Data Breaches (NDB) Scheme
 
-- [ ] **Breach Response Plan**: Document a breach response procedure (assessment within 30 days, notification to OAIC and affected individuals if likely serious harm).
-- [ ] **Data Breach Register**: Maintain a register of all data breaches (even non-notifiable ones).
-- [ ] **Contact Details**: Display Privacy Officer contact details in the application.
-- **FINDING**: No breach response plan or NDB compliance documentation found in the codebase.
+- [x] **Breach Response Plan**: Technical detection implemented via `lib/security/security-event-logger.ts` (anomaly thresholds) and `lib/security/breach-detector.ts` (assessment workflow). 30-day assessment deadline enforced per s 26WH(2). **FIXED 2026-02-08**.
+- [x] **Data Breach Register**: `data_breaches` table maintains register of all breaches (detected, assessing, notifiable, not_notifiable, remediated). Includes OAIC notification tracking. **FIXED 2026-02-08**.
+- [ ] **Contact Details**: Display Privacy Officer contact details in the application. (Requires Privacy Officer appointment — non-code item.)
+- ~~**FINDING**: No breach response plan or NDB compliance documentation found in the codebase.~~ **FIXED 2026-02-08**: Automated breach detection, breach register, and 30-day assessment workflow implemented.
 
 ---
 
@@ -1277,6 +1277,7 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | Collectable/personal use loss quarantining (A-7) | `lib/analysis/cgt-engine.ts` | `classifyAssetCategory()` classifies CGT events as collectable/personal_use/other via keyword matching. Collectable losses quarantined per s 108-10(1), personal use losses disregarded per s 108-20(1). `CGTEvent` gains `assetCategory` + `assetCategoryNote`. `CGTSummary` gains 5 quarantined loss tracking fields. (2026-02-08) |
 | Connected entity aggregation (A-6/CR-1) | `lib/analysis/cgt-engine.ts` | `CGTAnalysisOptions.connectedEntities` array for Subdivision 152-15 ITAA 1997 net asset aggregation. `analyzeDivision152()` sums connected entity + own assets for $6M test. `Div152Analysis.netAssetTest` expanded with `connectedEntityAssets`, `aggregatedNetAssets`, `cliffEdgeWarning` (10% of $6M), and `breakdown`. Warns when no connected entities provided but net asset value given. (2026-02-08) |
 | Trust losses Division 266/267 (A-9/L-3) | `lib/analysis/loss-engine.ts` | `analyzeCotSbt()` now entity-type-aware: trust entities routed to `analyzeTrustLossRecoupment()` using Division 266/267 Schedule 2F ITAA 1936 instead of Division 165. `CotSbtAnalysis` gains `trustLossRule`, `familyTrustElection`, `trustNotes`. Recommendations reference family trust election (s 272-75), pattern of distributions test (s 269-60), income injection test (Division 270). (2026-02-08) |
+| NDB breach detection (P2-8/C-6) | `lib/security/security-event-logger.ts`, `lib/security/breach-detector.ts`, `supabase/migrations/20260208_ndb_security_events.sql` | `security_events` table logs auth failures, rate limit breaches, unauthorized access, bulk data access, etc. Anomaly thresholds auto-create `data_breaches` records when exceeded. Breach register with 30-day assessment deadline (s 26WH(2) Privacy Act 1988). `getBreachSummary()` and `getOverdueAssessments()` for admin dashboard. Integrated into distributed rate limiter and share password endpoint. (2026-02-08) |
 
 ---
 
@@ -1465,7 +1466,7 @@ Code bug at `lib/analysis/fbt-engine.ts:152-163` -- live rates are fetched but N
 
 - **Phase 0** (BEFORE production): 8 items -- consent notices, region confirmation, disclaimer fix, FBT rate bug, legal opinion, Privacy Officer
 - **Phase 1** (within 30 days): 4 items remaining -- DPA execution, FBT Type 1/2 determination, ~~CSP headers~~ (DONE), ~~distributed rate limiting~~ (DONE), ~~trust penalty rate fix~~ (DONE), ~~SG rate update~~ (DONE), ~~share password B-1~~ (DONE)
-- **Phase 2** (within 90 days): 0 code items remaining -- ~~CGT connected entities~~ (DONE), retention policy, NDB detection. ~~s 100A family dealing~~ (DONE), ~~R&D clawback~~ (DONE), ~~SBT implementation~~ (DONE), ~~file upload scanning~~ (DONE), ~~trust losses Division 266/267~~ (DONE)
+- **Phase 2** (within 90 days): 0 code items remaining -- ~~CGT connected entities~~ (DONE), retention policy, ~~NDB detection~~ (DONE). ~~s 100A family dealing~~ (DONE), ~~R&D clawback~~ (DONE), ~~SBT implementation~~ (DONE), ~~file upload scanning~~ (DONE), ~~trust losses Division 266/267~~ (DONE)
 
 ---
 

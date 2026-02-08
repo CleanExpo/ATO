@@ -310,7 +310,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | C-3 | Pre-OAuth flow | No APP 1 Collection Notice shown before Xero OAuth connection -- users not informed of data collection scope | HIGH |
 | C-4 | Data retention | No mechanism prevents auto-deletion within 5-year statutory retention window (s 262A ITAA 1936) | MEDIUM |
 | C-5 | Entity coverage | Missing entity types: SMSF (15% tax rate), non-profit organisations, foreign companies | LOW |
-| C-6 | NDB scheme | No breach detection or automated notification system implemented -- DATA_SOVEREIGNTY.md lists manual process only | MEDIUM |
+| C-6 | NDB scheme | ~~No breach detection or automated notification system implemented~~ **FIXED** (2026-02-08): `security_events` + `data_breaches` tables, `lib/security/security-event-logger.ts` (event logging with anomaly thresholds), `lib/security/breach-detector.ts` (breach register, overdue assessments, admin dashboard summary). Integrated into rate limiter and share endpoint. 30-day assessment deadline enforced per s 26WH(2). | MEDIUM | Fixed |
 | C-7 | PI insurance | Platform explicitly states no professional indemnity insurance | HIGH |
 
 ---
@@ -388,7 +388,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | ~~P2-5~~ | ~~Add amendment period check to deduction engine~~ **DONE** (2026-02-08) -- `checkAmendmentPeriod()` applied (A-13) | ~~2 days~~ |
 | ~~P2-6~~ | ~~Implement R&D clawback warning (s 355-450)~~ **DONE** (2026-02-08) -- Already implemented in rnd-engine.ts (R-3) | ~~3 days~~ |
 | P2-7 | Implement data retention policy with automated lifecycle | 5 days |
-| P2-8 | Implement NDB technical detection and notification | 5 days |
+| ~~P2-8~~ | ~~Implement NDB technical detection and notification~~ **DONE** (2026-02-08) -- `security_events` + `data_breaches` tables, anomaly threshold detection, breach register with 30-day assessment workflow | ~~5 days~~ |
 
 ---
 

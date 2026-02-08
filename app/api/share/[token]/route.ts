@@ -26,6 +26,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse } from '@/lib/api/errors';
 import { isValidTokenFormat, isExpired } from '@/lib/share/token-generator';
 import { compare } from 'bcryptjs';
+import { logShareBruteForce } from '@/lib/security/security-event-logger';
 import type {
   AccessShareLinkResponse,
   ShareLinkError,
@@ -124,6 +125,9 @@ async function handleShareAccess(
     if (!isValidPassword) {
       // Log failed access attempt
       await logAccessAttempt(supabase, share.id, request, false, 'Invalid password');
+
+      // Log security event for NDB breach detection (P2-8)
+      logShareBruteForce(getClientIp(request), token).catch(() => {});
 
       const error: ShareLinkError = {
         success: false,
