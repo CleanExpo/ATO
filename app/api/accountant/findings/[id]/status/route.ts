@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { sendAlertEmail } from '@/lib/alerts/email-notifier'
 
 export const dynamic = 'force-dynamic'
 
@@ -94,8 +95,37 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }, 500)
     }
 
-    // TODO: Trigger notification if status changed to approved (for client report inclusion)
-    // TODO: If status is rejected, may want to trigger ML retraining or feedback loop
+    // Send email notification when a finding is approved
+    if (body.status === 'approved' && updatedFinding.tenant_id) {
+      try {
+        const { data: prefs } = await supabase
+          .from('tax_alert_preferences')
+          .select('notification_email, email_notifications')
+          .eq('tenant_id', updatedFinding.tenant_id)
+          .eq('email_notifications', true)
+          .single()
+
+        if (prefs?.notification_email) {
+          await sendAlertEmail(
+            {
+              id: updatedFinding.id,
+              tenant_id: updatedFinding.tenant_id,
+              alert_type: 'finding_approved',
+              title: `Finding Approved: ${updatedFinding.title || 'Untitled Finding'}`,
+              message: body.accountantNotes || 'A finding has been approved by your accountant and will be included in your next client report.',
+              severity: 'info',
+              category: 'Accountant Review',
+              action_url: `/dashboard/findings/${updatedFinding.id}`,
+              action_label: 'View Finding',
+            },
+            prefs.notification_email
+          )
+        }
+      } catch (notifyError) {
+        // Log but do not fail the request if notification fails
+        console.error('Failed to send approval notification:', notifyError)
+      }
+    }
 
     return NextResponse.json({
       id: updatedFinding.id,

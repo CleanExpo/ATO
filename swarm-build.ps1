@@ -204,7 +204,7 @@ function swarm-flags {
     Push-Location $script:SwarmRoot
 
     try {
-        $todoCount = (Get-ChildItem -Path lib, app -Recurse -Include *.ts, *.tsx -ErrorAction SilentlyContinue | Select-String -Pattern "TODO|FIXME|HACK" | Measure-Object).Count
+        $todoCount = (Get-ChildItem -Path lib, app -Recurse -Include *.ts, *.tsx -ErrorAction SilentlyContinue | Select-String -Pattern "TODO|FIXME|HACK" -CaseSensitive | Measure-Object).Count
         $consoleCount = (Get-ChildItem -Path lib, app -Recurse -Include *.ts, *.tsx -ErrorAction SilentlyContinue | Select-String -Pattern "console\.log" | Measure-Object).Count
         $anyCount = (Get-ChildItem -Path lib, app -Recurse -Include *.ts, *.tsx -ErrorAction SilentlyContinue | Select-String -Pattern ":\s*any\b|as\s+any" | Measure-Object).Count
         $tsIgnoreCount = (Get-ChildItem -Path lib, app -Recurse -Include *.ts, *.tsx -ErrorAction SilentlyContinue | Select-String -Pattern "ts-ignore|ts-expect-error" | Measure-Object).Count

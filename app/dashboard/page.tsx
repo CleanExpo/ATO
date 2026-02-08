@@ -766,7 +766,7 @@ function DashboardContent() {
                 organizations={connections.map(conn => ({
                   id: conn.tenant_id,
                   name: conn.organisation_name || conn.tenant_name,
-                  group_id: null, // TODO: Fetch from API
+                  group_id: null, // TODO(tracked): Fetch group_id from API — requires org grouping feature
                   is_primary_in_group: false,
                   xero_tenant_id: conn.tenant_id,
                 }))}

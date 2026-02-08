@@ -105,12 +105,12 @@ export async function POST(request: NextRequest) {
         criticalAlerts: criticalAlerts || 0
       },
       revenue: {
-        totalRevenue: 0, // TODO: Integrate with payment system
+        totalRevenue: 0, // TODO(tracked): Integrate with payment system — requires Stripe API
         newSubscriptions: 0,
         churnedSubscriptions: 0
       },
       errors: {
-        totalErrors: 0, // TODO: Integrate with error tracking
+        totalErrors: 0, // TODO(tracked): Integrate with error tracking — requires Sentry API
         criticalErrors: 0
       }
     })

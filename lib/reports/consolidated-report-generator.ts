@@ -12,7 +12,7 @@
  * - Portfolio health dashboard
  */
 
-import { generatePDFReportData, type PDFReport, type ExecutiveSummary } from './pdf-generator';
+import { generatePDFReportData } from './pdf-generator';
 import { createLogger } from '@/lib/logger';
 import type { SupabaseServiceClient } from '@/lib/supabase/server';
 // Note: Supabase client must be passed in from API routes, not imported here
@@ -36,6 +36,7 @@ export interface ClientReportSummary {
   status: 'completed' | 'in_progress' | 'failed';
   errorMessage?: string;
   reportId?: string;
+  deadlines?: Array<{ action: string; deadline: Date }>;
 }
 
 export interface ConsolidatedReportMetadata {
@@ -163,6 +164,7 @@ async function generateClientReport(
       confidence: reportData.executiveSummary.overallConfidence,
       status: 'completed',
       reportId: reportData.metadata.reportId,
+      deadlines: reportData.executiveSummary.criticalDeadlines,
     };
   } catch (error) {
     console.error(`Failed to generate report for ${organizationName}:`, error)
@@ -332,7 +334,7 @@ export async function generateConsolidatedReport(
       averageConfidence,
       criticalActionItems: successfulReports.filter((r) => r.adjustedOpportunity > 50000)
         .length,
-      upcomingDeadlines: [], // TODO: Extract from individual reports
+      upcomingDeadlines: extractUpcomingDeadlines(successfulReports)
     },
     generationMetrics: {
       processingTimeMs,
@@ -344,6 +346,43 @@ export async function generateConsolidatedReport(
   log.info('Consolidated report generated', { processingTimeMs, clientCount: organizations.length, batches });
 
   return consolidatedReport;
+}
+
+/**
+ * Extract and deduplicate upcoming deadlines from successful client reports.
+ * Collects deadlines from each report's criticalDeadlines, deduplicates by
+ * action text, and sorts by deadline date (soonest first).
+ */
+function extractUpcomingDeadlines(
+  reports: ClientReportSummary[]
+): Array<{ clientName: string; action: string; deadline: Date }> {
+  const allDeadlines: Array<{ clientName: string; action: string; deadline: Date }> = [];
+
+  for (const report of reports) {
+    if (!report.deadlines || report.deadlines.length === 0) continue;
+
+    for (const dl of report.deadlines) {
+      allDeadlines.push({
+        clientName: report.organizationName,
+        action: dl.action,
+        deadline: dl.deadline,
+      });
+    }
+  }
+
+  // Deduplicate by clientName + action combination
+  const seen = new Set<string>();
+  const deduplicated = allDeadlines.filter((dl) => {
+    const key = `${dl.clientName}::${dl.action}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Sort by deadline date (soonest first)
+  deduplicated.sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+
+  return deduplicated;
 }
 
 // Re-export formatting utilities for backwards compatibility

@@ -14,6 +14,7 @@ import type { PDFReport } from './pdf-generator'
 import { generatePDFReportData } from './pdf-generator'
 import { createLogger } from '@/lib/logger'
 import type { RndProjectAnalysis } from '@/lib/analysis/rnd-engine'
+import type { LossAnalysis } from '@/lib/analysis/loss-engine'
 import type { ActionableRecommendation } from '@/lib/recommendations/recommendation-engine'
 import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 
@@ -38,8 +39,7 @@ export async function generateExcelReport(reportData: PDFReport): Promise<Buffer
   await createExecutiveSummarySheet(workbook, reportData)
   await createRndAnalysisSheet(workbook, reportData)
   await createDeductionsSheet(workbook, reportData)
-  // TODO: Implement createLossesSheet
-  // await createLossesSheet(workbook, reportData)
+  await createLossesSheet(workbook, reportData)
   await createRecommendationsSheet(workbook, reportData)
   await createTransactionDetailSheet(workbook, reportData)
 
@@ -313,6 +313,134 @@ async function createDeductionsSheet(
 }
 
 /**
+ * Create Losses worksheet
+ * Shows loss carry-forward history, COT/SBT status, and future tax value
+ */
+async function createLossesSheet(
+  workbook: ExcelJS.Workbook,
+  report: PDFReport
+): Promise<void> {
+  const sheet = workbook.addWorksheet('Loss Analysis', {
+    views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
+  })
+
+  sheet.columns = [
+    { header: 'Financial Year', key: 'year', width: 15 },
+    { header: 'Loss Type', key: 'lossType', width: 12 },
+    { header: 'Opening Balance', key: 'opening', width: 18 },
+    { header: 'Current Year Loss', key: 'currentLoss', width: 18 },
+    { header: 'Losses Utilised', key: 'utilised', width: 18 },
+    { header: 'Closing Balance', key: 'closing', width: 18 },
+    { header: 'Future Tax Value', key: 'taxValue', width: 18 },
+    { header: 'COT/SBT Status', key: 'cotSbt', width: 18 },
+    { header: 'Risk Level', key: 'risk', width: 12 },
+  ]
+
+  // Style header
+  const headerRow = sheet.getRow(1)
+  headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF8B5CF6' },
+  }
+
+  // Add loss history rows
+  const lossHistory = report.lossAnalysis.lossHistory || []
+  lossHistory.forEach((analysis: LossAnalysis) => {
+    const cotStatus = analysis.cotSbtAnalysis.cotSatisfied === true
+      ? 'COT Satisfied'
+      : analysis.cotSbtAnalysis.cotSatisfied === false
+        ? 'COT Failed'
+        : 'Review Required'
+
+    const row = sheet.addRow({
+      year: analysis.financialYear,
+      lossType: analysis.lossType === 'capital' ? 'Capital' : 'Revenue',
+      opening: analysis.openingLossBalance,
+      currentLoss: analysis.currentYearLoss,
+      utilised: analysis.lossesUtilized,
+      closing: analysis.closingLossBalance,
+      taxValue: analysis.futureTaxValue,
+      cotSbt: cotStatus,
+      risk: analysis.cotSbtAnalysis.riskLevel.toUpperCase(),
+    })
+
+    // Color-code risk level
+    const riskCell = row.getCell('risk')
+    if (analysis.cotSbtAnalysis.riskLevel === 'high') {
+      riskCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFECACA' },
+      }
+      riskCell.font = { bold: true, color: { argb: 'FFDC2626' } }
+    } else if (analysis.cotSbtAnalysis.riskLevel === 'medium') {
+      riskCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFFED7AA' },
+      }
+      riskCell.font = { bold: true, color: { argb: 'FFEA580C' } }
+    }
+  })
+
+  // Add totals row
+  if (lossHistory.length > 0) {
+    const totalRow = sheet.addRow({
+      year: 'TOTAL',
+      lossType: '',
+      opening: '',
+      currentLoss: { formula: `SUM(D2:D${sheet.lastRow!.number})` },
+      utilised: { formula: `SUM(E2:E${sheet.lastRow!.number})` },
+      closing: report.lossAnalysis.totalAvailableLosses - report.lossAnalysis.totalUtilizedLosses,
+      taxValue: { formula: `SUM(G2:G${sheet.lastRow!.number})` },
+      cotSbt: '',
+      risk: '',
+    })
+    totalRow.font = { bold: true }
+    totalRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF3F4F6' },
+    }
+  }
+
+  // Add summary section below data
+  const summaryStartRow = sheet.lastRow!.number + 2
+  const summaryHeaderRow = sheet.getRow(summaryStartRow)
+  summaryHeaderRow.getCell(1).value = 'Loss Summary'
+  summaryHeaderRow.font = { size: 12, bold: true }
+
+  sheet.getRow(summaryStartRow + 1).values = ['Revenue Losses', report.lossAnalysis.revenueLosses]
+  sheet.getRow(summaryStartRow + 2).values = ['Capital Losses', report.lossAnalysis.capitalLosses]
+  sheet.getRow(summaryStartRow + 3).values = ['Utilisation Rate', report.lossAnalysis.utilizationRate / 100]
+  sheet.getRow(summaryStartRow + 4).values = ['Total Future Tax Value', report.lossAnalysis.totalFutureTaxValue]
+  sheet.getRow(summaryStartRow + 5).values = ['Rate Source', report.lossAnalysis.taxRateSource]
+
+  // Format columns
+  sheet.getColumn('opening').numFmt = '$#,##0.00'
+  sheet.getColumn('currentLoss').numFmt = '$#,##0.00'
+  sheet.getColumn('utilised').numFmt = '$#,##0.00'
+  sheet.getColumn('closing').numFmt = '$#,##0.00'
+  sheet.getColumn('taxValue').numFmt = '$#,##0.00'
+
+  // Format summary cells
+  sheet.getCell(`B${summaryStartRow + 1}`).numFmt = '$#,##0.00'
+  sheet.getCell(`B${summaryStartRow + 2}`).numFmt = '$#,##0.00'
+  sheet.getCell(`B${summaryStartRow + 3}`).numFmt = '0.0%'
+  sheet.getCell(`B${summaryStartRow + 4}`).numFmt = '$#,##0.00'
+
+  // Add auto-filter
+  if (lossHistory.length > 0) {
+    sheet.autoFilter = {
+      from: 'A1',
+      to: 'I1',
+    }
+  }
+}
+
+/**
  * Create Recommendations worksheet
  */
 async function createRecommendationsSheet(
@@ -380,12 +508,16 @@ async function createRecommendationsSheet(
   sheet.getColumn('confidence').numFmt = '0%'
   sheet.getColumn('deadline').numFmt = 'dd/mm/yyyy'
 
-  // TODO: Add data validation for priority when supported
-  // sheet.dataValidations.add('A2:A100', {
-  //   type: 'list',
-  //   allowBlank: false,
-  //   formulae: ['"CRITICAL,HIGH,MEDIUM,LOW"'],
-  // })
+  // Apply data validation for priority column using per-cell property
+  // (ExcelJS dataValidations.add() may not exist; use per-cell dataValidation)
+  for (let rowNum = 2; rowNum <= sheet.rowCount; rowNum++) {
+    const cell = sheet.getCell(`A${rowNum}`)
+    cell.dataValidation = {
+      type: 'list',
+      allowBlank: false,
+      formulae: ['"CRITICAL,HIGH,MEDIUM,LOW"'],
+    }
+  }
 }
 
 /**

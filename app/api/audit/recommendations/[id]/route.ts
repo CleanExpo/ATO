@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
+import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:audit:recommendations:detail')
@@ -94,9 +95,33 @@ export async function PATCH(
 
     log.info('Updating recommendation', { recommendationId, tenantId })
 
-    // In a full implementation, this would update the database
-    // For now, return success response
-    // TODO: Implement database storage for recommendation status
+    // Map incoming status values to recommendation_status table's allowed values
+    const statusMap: Record<string, string> = {
+      identified: 'pending_review',
+      in_progress: 'under_review',
+      completed: 'approved',
+      rejected: 'rejected',
+    }
+    const dbStatus = status ? (statusMap[status] || status) : undefined
+
+    const supabase = await createServiceClient()
+
+    // Insert a new status row (append-only status history)
+    const { error: insertError } = await supabase
+      .from('recommendation_status')
+      .insert({
+        recommendation_id: recommendationId,
+        tenant_id: tenantId,
+        status: dbStatus || 'pending_review',
+        updated_by_name: 'system',
+        updated_by_type: 'owner',
+        notes: notes || null,
+      })
+
+    if (insertError) {
+      log.error('Failed to persist recommendation status', { insertError, recommendationId })
+      return createErrorResponse(insertError, { operation: 'updateRecommendation' }, 500)
+    }
 
     return NextResponse.json({
       success: true,

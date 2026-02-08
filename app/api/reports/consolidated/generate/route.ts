@@ -67,8 +67,33 @@ export async function POST(request: NextRequest) {
 
     const { batchSize, organizationIds } = validation.data;
 
-    // TODO: If organizationIds provided, validate user has access to all of them
-    // For now, generateConsolidatedReport will only return orgs the user has access to
+    // Validate user has access to all requested organizations
+    if (organizationIds && organizationIds.length > 0) {
+      const { data: accessibleOrgs, error: accessError } = await supabase
+        .from('user_tenant_access')
+        .select('tenant_id')
+        .eq('user_id', user.id)
+        .in('tenant_id', organizationIds);
+
+      if (accessError) {
+        log.error('Failed to validate org access', { error: accessError });
+        return createErrorResponse(
+          new Error('Failed to validate organisation access'),
+          { operation: 'validate_org_access', userId: user.id },
+          500
+        );
+      }
+
+      const accessibleIds = new Set((accessibleOrgs || []).map((o) => o.tenant_id));
+      const unauthorizedIds = organizationIds.filter((id) => !accessibleIds.has(id));
+
+      if (unauthorizedIds.length > 0) {
+        log.warn('Unauthorized org access attempt', { userId: user.id, unauthorizedIds });
+        return createAuthError(
+          `Access denied to ${unauthorizedIds.length} organisation(s)`
+        );
+      }
+    }
 
     log.info('Generating report', { batchSize, filteredOrgs: organizationIds?.length });
 

@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
 
     // If multiple company files, use the first one or redirect to selection
     if (companyFiles.length > 1) {
-      // TODO: Implement company file selection UI
+      // TODO(tracked): Implement company file selection UI — requires new UI page
       // For now, use the first one
       log.info('Multiple MYOB company files found, using first', { companyName: selectedCompanyFile.Name })
     }

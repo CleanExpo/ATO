@@ -87,7 +87,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         name: (userMeta as Record<string, unknown>).full_name || (userMeta as Record<string, unknown>).name || null,
         role: m.role,
         joinedAt: m.created_at,
-        lastActiveAt: null, // TODO: Track last activity
+        lastActiveAt: null, // TODO(tracked): Track last activity — requires migration + middleware
       }
     })
 

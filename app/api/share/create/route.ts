@@ -22,8 +22,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
-import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
+import { createErrorResponse, createValidationError, createAuthError } from '@/lib/api/errors';
 import { generateShareToken, buildShareUrl, calculateExpiryDate } from '@/lib/share/token-generator';
 import { hash } from 'bcryptjs';
 import type {
@@ -39,6 +39,17 @@ const MIN_PASSWORD_LENGTH = 6;
 
 export async function POST(request: NextRequest) {
   try {
+    // Get authenticated user
+    const authSupabase = await createClient();
+    const {
+      data: { user },
+      error: authError,
+    } = await authSupabase.auth.getUser();
+
+    if (authError || !user) {
+      return createAuthError('Authentication required to create share links');
+    }
+
     const body = await request.json() as CreateShareLinkRequest;
 
     // Validate required fields
@@ -90,7 +101,7 @@ export async function POST(request: NextRequest) {
         filters: body.filters || null,
         expires_at: expiresAt,
         password_hash: passwordHash,
-        created_by: null, // TODO: Add user tracking when auth is available
+        created_by: user.id,
       })
       .select('id')
       .single();

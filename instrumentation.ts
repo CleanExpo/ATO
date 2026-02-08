@@ -10,7 +10,7 @@
 export async function register() {
     // Only run on Node.js runtime (server-side)
     if (process.env.NEXT_RUNTIME === 'nodejs') {
-        // TODO: Initialize error tracking service when configured
+        // TODO(tracked): Initialize error tracking service when configured — requires Sentry setup
 
         const { validateConfiguration, logConfigurationStatus } = await import('@/lib/config/env')
 

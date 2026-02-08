@@ -218,7 +218,7 @@ export function mapQueueStatusToLinearState(
 export function buildLinearIssueUrl(teamKey: string, identifier: string): string {
   // Extract workspace slug from team key (e.g., "UNI" -> "unite-hub")
   // For now, use environment config for workspace slug
-  const workspaceSlug = 'unite-hub'; // TODO: Make this configurable
+  const workspaceSlug = process.env.LINEAR_WORKSPACE_SLUG ?? 'unite-hub';
   return `https://linear.app/${workspaceSlug}/issue/${identifier}`;
 }
 
@@ -370,7 +370,7 @@ export async function getOrCreateLabels(
 
   // Cache miss - would need to fetch labels from Linear
   // For now, return empty array
-  // TODO: Implement label fetching and creation
+  // TODO(tracked): Implement label fetching and creation — Linear API enhancement
   return [];
 }
 
