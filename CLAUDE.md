@@ -1209,11 +1209,11 @@ Backend_Dev has accepted ALL critical and high findings from this audit and inco
 | Finding | Severity | Status | Risk if Deferred |
 |---------|----------|--------|-----------------|
 | R-3: R&D clawback (s 355-450) | HIGH | FIXED (2026-02-08) | Clawback warning already implemented per-project (line 594-598), in recommendations (810-815), and summary-level (920-923). Marked as done. |
-| 7A-3: Amalgamated loans (s 109E(8)) | MEDIUM | DEFERRED | Serial borrowers may have incorrect minimum repayment calculations |
-| 7A-4: Safe harbour exclusions (s 109RB) | MEDIUM | DEFERRED | Compliant arrangements flagged as non-compliant (false positives) |
+| 7A-3: Amalgamated loans (s 109E(8)) | MEDIUM | FIXED (2026-02-08) | Already implemented: `checkAmalgamationProvisions()` groups loans by shareholder, warns on multiple loans (lines 880-913). `amalgamationNotes` on Div7aSummary. |
+| 7A-4: Safe harbour exclusions (s 109RB) | MEDIUM | FIXED (2026-02-08) | Already implemented: `identifySafeHarbourExclusions()` matches transactions against `SAFE_HARBOUR_KEYWORDS` (lines 920-963). `safeHarbourExclusions` on Div7aSummary. |
 | T-1: Ordinary family dealing exclusion | HIGH | FIXED (2026-02-08) | `generateSection100AFlags()` downgrades severity when family dealing exclusion applies (s 100A(13), TR 2022/4). Risk reduction increased to 40 points. |
 | T-2: Trustee penalty rate (47% not 45%) | LOW | FIXED (2026-02-07) | Updated all references from 45% to 47% (45% top marginal + 2% Medicare Levy per s 99A ITAA 1936) |
-| L-2: SBT always returns 'unknown' | MEDIUM | DEFERRED | Similar business test never passes, overly conservative loss recommendations |
+| L-2: SBT always returns 'unknown' | MEDIUM | FIXED (2026-02-08) | Already implemented: `enrichSbtWithTransactionEvidence()` (lines 640-771) compares expense categories across FYs. 70%+ consistency = SBT satisfied, 40-69% = uncertain, <40% = likely not satisfied. Evidence-based assessment replaces 'unknown'. |
 
 #### Frontend Compliance Items (Reviewed 2026-02-07)
 
@@ -1271,6 +1271,10 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | Family dealing exclusion (T-1) | `lib/analysis/trust-distribution-analyzer.ts` | `generateSection100AFlags()` downgrades severity for non-resident (high→medium) and minor (high→low) when family dealing exclusion applies (s 100A(13), TR 2022/4). Risk reduction 20→40 points. Compliance summary notes reduced flags. (2026-02-08) |
 | R&D clawback (R-3) | `lib/analysis/rnd-engine.ts` | Already implemented: per-project `clawbackWarning` (line 594-598), recommendation (810-815), summary warning (920-923). Marked as done in tracker. (2026-02-08) |
 | Share endpoint scoping (B-4) | `app/api/share/[token]/route.ts`, `supabase/migrations/20260208_share_scoped_function.sql` | Report data fetched via `get_shared_report_analysis()` SECURITY DEFINER function (validates share, scopes by tenant_id, returns only safe columns). `select('*')` replaced with explicit columns. Column name bugs fixed (`tax_category`→`primary_category`, `classification_confidence`→`category_confidence`, `description`→`transaction_description`). (2026-02-08) |
+| File upload scanning (B-3) | `lib/uploads/file-scanner.ts`, `app/api/share/[token]/documents/route.ts`, `app/api/recommendations/[id]/documents/route.ts` | Magic number validation (file signature must match claimed MIME type), dangerous executable signature detection (MZ/ELF/Mach-O/shebang), double extension attack prevention, null byte injection prevention. Applied to both upload endpoints. (2026-02-08) |
+| Div7A amalgamated loans (7A-3) | `lib/analysis/div7a-engine.ts` | Already implemented: `checkAmalgamationProvisions()` (lines 880-913) groups loans by shareholder name, warns when multiple loans exist to same shareholder per s 109E(8). Marked as done. (2026-02-08) |
+| Div7A safe harbour exclusions (7A-4) | `lib/analysis/div7a-engine.ts` | Already implemented: `identifySafeHarbourExclusions()` (lines 920-963) matches transactions against `SAFE_HARBOUR_KEYWORDS` per s 109RB. Marked as done. (2026-02-08) |
+| SBT transaction evidence (L-2) | `lib/analysis/loss-engine.ts` | Already implemented: `enrichSbtWithTransactionEvidence()` (lines 640-771) compares expense categories across FYs. Evidence-based SBT assessment replaces 'unknown'. Marked as done. (2026-02-08) |
 
 ---
 
@@ -1452,14 +1456,14 @@ Code bug at `lib/analysis/fbt-engine.ts:152-163` -- live rates are fetched but N
 ### Secondary Findings Summary
 
 - **14 tax law accuracy findings** (A-1 through A-14) across trust distribution, cashflow forecast, fuel tax credits, CGT, loss, R&D, Div7A, and deduction engines
-- **10 security/privacy findings** (B-1 through B-10) -- 9 FIXED: B-1, B-2, B-4, B-5, B-6, B-7, B-8, B-9, B-10; remaining: B-3 (file upload scanning)
+- **10 security/privacy findings** (B-1 through B-10) -- ALL 10 FIXED: B-1, B-2, B-3, B-4, B-5, B-6, B-7, B-8, B-9, B-10
 - **7 professional liability findings** (C-1 through C-7) including missing APP 1 collection notice, no PI insurance, no NDB technical implementation
 
 ### Remediation Phases
 
 - **Phase 0** (BEFORE production): 8 items -- consent notices, region confirmation, disclaimer fix, FBT rate bug, legal opinion, Privacy Officer
 - **Phase 1** (within 30 days): 4 items remaining -- DPA execution, FBT Type 1/2 determination, ~~CSP headers~~ (DONE), ~~distributed rate limiting~~ (DONE), ~~trust penalty rate fix~~ (DONE), ~~SG rate update~~ (DONE), ~~share password B-1~~ (DONE)
-- **Phase 2** (within 90 days): 5 items remaining -- CGT connected entities, s 100A family dealing, R&D clawback, retention policy, NDB detection
+- **Phase 2** (within 90 days): 2 items remaining -- CGT connected entities, retention policy, NDB detection. ~~s 100A family dealing~~ (DONE), ~~R&D clawback~~ (DONE), ~~SBT implementation~~ (DONE), ~~file upload scanning~~ (DONE)
 
 ---
 

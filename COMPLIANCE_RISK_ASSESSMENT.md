@@ -280,7 +280,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | A-7 | cgt-engine | Collectable/personal use asset loss quarantining (s 108-10, s 108-20) not distinguished | MEDIUM | Known (CR-3) |
 | A-8 | cgt-engine | Cost base always initialised at 0 -- no asset register integration | MEDIUM | By design (requires data) |
 | A-9 | loss-engine | Trust losses (Division 266/267) not distinguished from company losses (Division 165) | MEDIUM | Unfixed (L-3) |
-| A-10 | loss-engine | Similar Business Test always returns 'unknown' -- overly conservative | MEDIUM | Unfixed (L-2) |
+| A-10 | loss-engine | ~~Similar Business Test always returns 'unknown' -- overly conservative~~ **FIXED** (2026-02-08): Already implemented: `enrichSbtWithTransactionEvidence()` (lines 640-771) compares expense categories across FYs. 70%+ consistency = SBT satisfied, 40-69% = uncertain, <40% = likely not satisfied. Evidence-based assessment replaces 'unknown'. | MEDIUM | Fixed |
 | A-11 | rnd-engine | ~~R&D clawback provisions (s 355-450) not checked~~ **FIXED** (2026-02-08): Already implemented -- per-project `clawbackWarning` (line 594-598), recommendation text (810-815), summary-level warning (920-923). Marked as done. | HIGH | Fixed |
 | A-12 | div7a-engine | Distributable surplus cap (s 109Y) -- deemed dividend cannot exceed distributable surplus | HIGH | Accepted but verify implementation |
 | A-13 | deduction-engine | ~~Amendment period not checked before recommending amended returns~~ **FIXED** (2026-02-08): `checkAmendmentPeriod()` applied to all FYs in results (s 170 TAA 1953) | HIGH | Fixed |
@@ -292,7 +292,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 |----|-----------|---------|----------|
 | B-1 | Share API | ~~Password sent as URL query parameter~~ **FIXED** (2026-02-08): Password now sent via POST body, GET no longer accepts password | MEDIUM |
 | B-2 | OAuth CSRF | ~~CSRF state not verified server-side~~ **FIXED** (2026-02-08): Xero already used httpOnly cookie. QuickBooks now uses crypto nonce in cookie. MYOB now uses random state + cookie (was raw user.id) | MEDIUM |
-| B-3 | Share documents | Unauthenticated file upload via share token -- file type/size validated but no virus/malware scanning | MEDIUM |
+| B-3 | Share documents | ~~Unauthenticated file upload via share token -- file type/size validated but no virus/malware scanning~~ **FIXED** (2026-02-08): `lib/uploads/file-scanner.ts` validates magic numbers (file signature must match claimed MIME type), rejects dangerous executable signatures (MZ, ELF, Mach-O, shebang), prevents double extension attacks and null byte injection. Applied to both share and recommendation document upload routes. | MEDIUM |
 | B-4 | Share API | ~~Uses `createServiceClient()` (service role, bypasses all RLS) for public share endpoint~~ **FIXED** (2026-02-08): Report data now fetched via `get_shared_report_analysis()` SECURITY DEFINER function that validates share, scopes by tenant_id, returns only safe columns. Explicit column selection on `shared_reports`. Column name bugs fixed. Migration: `20260208_share_scoped_function.sql` | HIGH |
 | B-5 | IP logging | ~~`getClientIp()` uses first value from `X-Forwarded-For`~~ **FIXED** (2026-02-08): Uses rightmost (trusted proxy) IP | LOW |
 | B-6 | RLS migration | ~~Two different RLS helper functions~~ **FIXED** (2026-02-08): Migration `20260208_rls_standardize.sql` replaces all `get_user_tenant_ids()` policies with `check_tenant_access()` per AD-8; deprecated function dropped | MEDIUM |

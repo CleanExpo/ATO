@@ -20,6 +20,7 @@ import {
   type DocumentUploadResponse,
   type DocumentErrorResponse,
 } from '@/lib/types/recommendation-documents';
+import { scanFile } from '@/lib/uploads/file-scanner';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -167,15 +168,26 @@ export async function POST(
       );
     }
 
+    // Scan file content for safety (B-3: file upload scanning)
+    const fileBuffer = await file.arrayBuffer();
+    const scanResult = scanFile(file.name, file.type, fileBuffer);
+    if (!scanResult.safe) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `File rejected: ${scanResult.reason}`,
+          code: 'INVALID_FILE_TYPE',
+        },
+        { status: 400 }
+      );
+    }
+
     const supabase = await createServiceClient();
 
     // Generate unique storage path
     const timestamp = Date.now();
     const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const storagePath = `${tenantId}/${recommendationId}/${timestamp}_${sanitizedName}`;
-
-    // Upload file to storage
-    const fileBuffer = await file.arrayBuffer();
     const { error: uploadError } = await supabase.storage
       .from('recommendation-documents')
       .upload(storagePath, fileBuffer, {
