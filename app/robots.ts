@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/dashboard/', '/share/'],
     },
-    sitemap: 'https://atotaxoptimizer.com.au/sitemap.xml',
+    sitemap: 'https://ato-ai.app/sitemap.xml',
   }
 }

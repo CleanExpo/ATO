@@ -110,7 +110,7 @@ export function OrganizationSchema() {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'ATO Tax Optimizer',
-    url: 'https://atotaxoptimizer.com.au',
+    url: 'https://ato-ai.app',
     areaServed: {
       '@type': 'Country',
       name: 'Australia',
@@ -141,7 +141,7 @@ export function BreadcrumbSchema() {
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: 'https://atotaxoptimizer.com.au',
+        item: 'https://ato-ai.app',
       },
     ],
   }

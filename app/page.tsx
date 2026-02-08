@@ -54,7 +54,7 @@ export const metadata: Metadata = {
   description:
     'Forensic AI analysis of your Xero data to recover $200K-$500K in R&D tax offsets, unclaimed deductions, and Division 7A compliance gaps. Built for Australian SMEs under ITAA 1997.',
   alternates: {
-    canonical: 'https://atotaxoptimizer.com.au',
+    canonical: 'https://ato-ai.app',
   },
 }
 

@@ -397,7 +397,7 @@ export function ProductShowcase() {
               <div className="w-2.5 h-2.5 rounded-full bg-white/10" />
             </div>
             <div className="flex-1 mx-4 px-3 py-1 rounded-sm bg-white/[0.04] text-[10px] text-white/30 font-mono">
-              app.atotaxoptimizer.com.au/dashboard
+              ato-ai.app/dashboard
             </div>
           </div>
 
