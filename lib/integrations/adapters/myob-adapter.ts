@@ -23,6 +23,15 @@ import type {
   TransactionType,
   TransactionStatus,
 } from '../canonical-schema'
+import type {
+  MYOBInvoice,
+  MYOBBankTransaction,
+  MYOBGeneralJournal,
+  MYOBContact,
+  MYOBLine,
+  MYOBAddress,
+  MYOBAccount,
+} from './myob-types'
 import { getFinancialYearFromDate } from '@/lib/types'
 
 /**
@@ -242,8 +251,8 @@ export class MYOBAdapter implements PlatformAdapter {
     const invoices = data.Items || []
 
     return invoices
-      .filter((inv: any) => this.matchesDateFilter(inv.Date, options))
-      .map((inv: any) => this.normalizeMYOBInvoice(inv, 'invoice'))
+      .filter((inv: MYOBInvoice) => this.matchesDateFilter(inv.Date, options))
+      .map((inv: MYOBInvoice) => this.normalizeMYOBInvoice(inv, 'invoice'))
   }
 
   /**
@@ -261,8 +270,8 @@ export class MYOBAdapter implements PlatformAdapter {
     const bills = data.Items || []
 
     return bills
-      .filter((bill: any) => this.matchesDateFilter(bill.Date, options))
-      .map((bill: any) => this.normalizeMYOBInvoice(bill, 'bill'))
+      .filter((bill: MYOBInvoice) => this.matchesDateFilter(bill.Date, options))
+      .map((bill: MYOBInvoice) => this.normalizeMYOBInvoice(bill, 'bill'))
   }
 
   /**
@@ -280,8 +289,8 @@ export class MYOBAdapter implements PlatformAdapter {
     const transactions = data.Items || []
 
     return transactions
-      .filter((txn: any) => this.matchesDateFilter(txn.Date, options))
-      .map((txn: any) => this.normalizeMYOBBankTransaction(txn, 'spend'))
+      .filter((txn: MYOBBankTransaction) => this.matchesDateFilter(txn.Date, options))
+      .map((txn: MYOBBankTransaction) => this.normalizeMYOBBankTransaction(txn, 'spend'))
   }
 
   /**
@@ -299,8 +308,8 @@ export class MYOBAdapter implements PlatformAdapter {
     const transactions = data.Items || []
 
     return transactions
-      .filter((txn: any) => this.matchesDateFilter(txn.Date, options))
-      .map((txn: any) => this.normalizeMYOBBankTransaction(txn, 'receive'))
+      .filter((txn: MYOBBankTransaction) => this.matchesDateFilter(txn.Date, options))
+      .map((txn: MYOBBankTransaction) => this.normalizeMYOBBankTransaction(txn, 'receive'))
   }
 
   /**
@@ -318,15 +327,15 @@ export class MYOBAdapter implements PlatformAdapter {
     const journals = data.Items || []
 
     return journals
-      .filter((journal: any) => this.matchesDateFilter(journal.DateOccurred, options))
-      .map((journal: any) => this.normalizeMYOBGeneralJournal(journal))
+      .filter((journal: MYOBGeneralJournal) => this.matchesDateFilter(journal.DateOccurred, options))
+      .map((journal: MYOBGeneralJournal) => this.normalizeMYOBGeneralJournal(journal))
   }
 
   /**
    * Normalize MYOB invoice/bill to canonical format
    */
-  private normalizeMYOBInvoice(invoice: any, type: 'invoice' | 'bill'): CanonicalTransaction {
-    const lineItems: CanonicalLineItem[] = (invoice.Lines || []).map((line: any) => {
+  private normalizeMYOBInvoice(invoice: MYOBInvoice, type: 'invoice' | 'bill'): CanonicalTransaction {
+    const lineItems: CanonicalLineItem[] = (invoice.Lines || []).map((line: MYOBLine) => {
       const quantity = line.ShipQuantity || line.BillQuantity || 1
       const unitPrice = line.UnitPrice || 0
       const lineAmount = line.Total || (quantity * unitPrice)
@@ -355,16 +364,18 @@ export class MYOBAdapter implements PlatformAdapter {
     const subtotal = lineItems.reduce((sum, item) => sum + item.lineAmount, 0)
     const totalTax = lineItems.reduce((sum, item) => sum + item.taxAmount, 0)
 
+    const contactData = invoice.Customer || invoice.Supplier
+
     return {
-      id: invoice.UID,
+      id: invoice.UID || '',
       platform: 'myob',
       type,
-      date: invoice.Date,
+      date: invoice.Date || '',
       dueDate: invoice.DueDate || invoice.PromisedDate,
       reference: invoice.Number,
-      financialYear: getFinancialYearFromDate(new Date(invoice.Date)),
-      contact: invoice.Customer || invoice.Supplier ? this.normalizeMYOBContact(
-        invoice.Customer || invoice.Supplier,
+      financialYear: getFinancialYearFromDate(new Date(invoice.Date || '')),
+      contact: contactData ? this.normalizeMYOBContact(
+        contactData,
         type === 'invoice' ? 'customer' : 'supplier'
       ) : undefined,
       lineItems,
@@ -373,7 +384,7 @@ export class MYOBAdapter implements PlatformAdapter {
       total: invoice.TotalAmount || (subtotal + totalTax),
       currency: invoice.ForeignCurrency?.Code || 'AUD',
       exchangeRate: invoice.ForeignCurrency?.CurrencyRate,
-      status: this.mapMYOBStatusToCanonical(invoice.Status),
+      status: this.mapMYOBStatusToCanonical(invoice.Status || ''),
       isPaid: invoice.Status === 'Closed',
       paidDate: invoice.Status === 'Closed' ? invoice.LastModified : undefined,
       hasAttachments: false, // MYOB API v2 doesn't expose attachments easily
@@ -381,7 +392,7 @@ export class MYOBAdapter implements PlatformAdapter {
       sourceUrl: invoice.URI,
       createdAt: invoice.DateOccurred,
       updatedAt: invoice.LastModified,
-      rawData: invoice,
+      rawData: invoice as unknown as Record<string, unknown>,
       metadata: {
         myobUID: invoice.UID,
         myobNumber: invoice.Number,
@@ -393,8 +404,8 @@ export class MYOBAdapter implements PlatformAdapter {
   /**
    * Normalize MYOB bank transaction
    */
-  private normalizeMYOBBankTransaction(txn: any, txnType: 'spend' | 'receive' = 'spend'): CanonicalTransaction {
-    const lineItems: CanonicalLineItem[] = (txn.Lines || []).map((line: any) => ({
+  private normalizeMYOBBankTransaction(txn: MYOBBankTransaction, txnType: 'spend' | 'receive' = 'spend'): CanonicalTransaction {
+    const lineItems: CanonicalLineItem[] = (txn.Lines || []).map((line: MYOBLine) => ({
       description: line.Description || '',
       quantity: 1,
       unitPrice: line.Amount || 0,
@@ -414,12 +425,12 @@ export class MYOBAdapter implements PlatformAdapter {
     const totalTax = lineItems.reduce((sum, item) => sum + item.taxAmount, 0)
 
     return {
-      id: txn.UID,
+      id: txn.UID || '',
       platform: 'myob',
       type: txnType === 'receive' ? 'payment' : 'bank_transaction',
-      date: txn.Date,
+      date: txn.Date || '',
       reference: txn.PaymentNumber || txn.Memo || txn.ReceiptNumber,
-      financialYear: getFinancialYearFromDate(new Date(txn.Date)),
+      financialYear: getFinancialYearFromDate(new Date(txn.Date || '')),
       contact: txn.Payee ? this.normalizeMYOBContact(txn.Payee, txnType === 'receive' ? 'customer' : 'supplier') : undefined,
       lineItems,
       subtotal,
@@ -434,7 +445,7 @@ export class MYOBAdapter implements PlatformAdapter {
       sourceUrl: txn.URI,
       createdAt: txn.Date,
       updatedAt: txn.LastModified,
-      rawData: txn,
+      rawData: txn as unknown as Record<string, unknown>,
       metadata: {
         myobUID: txn.UID,
         myobPaymentNumber: txn.PaymentNumber || txn.ReceiptNumber,
@@ -446,8 +457,8 @@ export class MYOBAdapter implements PlatformAdapter {
   /**
    * Normalize MYOB general journal
    */
-  private normalizeMYOBGeneralJournal(journal: any): CanonicalTransaction {
-    const lineItems: CanonicalLineItem[] = (journal.Lines || []).map((line: any) => ({
+  private normalizeMYOBGeneralJournal(journal: MYOBGeneralJournal): CanonicalTransaction {
+    const lineItems: CanonicalLineItem[] = (journal.Lines || []).map((line: MYOBLine) => ({
       description: line.Description || line.Memo || '',
       quantity: 1,
       unitPrice: Math.abs(line.Amount || 0),
@@ -466,12 +477,12 @@ export class MYOBAdapter implements PlatformAdapter {
     const totalTax = lineItems.reduce((sum, item) => sum + item.taxAmount, 0)
 
     return {
-      id: journal.UID,
+      id: journal.UID || '',
       platform: 'myob',
       type: 'journal_entry',
-      date: journal.DateOccurred,
+      date: journal.DateOccurred || '',
       reference: journal.GSTReportingMethod || journal.Memo,
-      financialYear: getFinancialYearFromDate(new Date(journal.DateOccurred)),
+      financialYear: getFinancialYearFromDate(new Date(journal.DateOccurred || '')),
       lineItems,
       subtotal,
       totalTax,
@@ -484,7 +495,7 @@ export class MYOBAdapter implements PlatformAdapter {
       sourceUrl: journal.URI,
       createdAt: journal.DateOccurred,
       updatedAt: journal.LastModified,
-      rawData: journal,
+      rawData: journal as unknown as Record<string, unknown>,
       metadata: {
         myobUID: journal.UID,
         myobGSTReportingMethod: journal.GSTReportingMethod,
@@ -495,13 +506,13 @@ export class MYOBAdapter implements PlatformAdapter {
   /**
    * Normalize MYOB contact
    */
-  private normalizeMYOBContact(contact: any, type: 'customer' | 'supplier' | 'other'): CanonicalContact {
+  private normalizeMYOBContact(contact: MYOBContact, type: 'customer' | 'supplier' | 'other'): CanonicalContact {
     const addresses = contact.Addresses || []
-    const primaryAddress = addresses.find((a: any) => a.Location === 1) || addresses[0]
+    const primaryAddress = addresses.find((a: MYOBAddress) => a.Location === 1) || addresses[0]
 
     return {
-      id: contact.UID,
-      name: contact.DisplayID || contact.CompanyName || contact.LastName,
+      id: contact.UID || '',
+      name: contact.DisplayID || contact.CompanyName || contact.LastName || '',
       type,
       email: contact.Email,
       taxNumber: contact.ABN,
@@ -554,7 +565,8 @@ export class MYOBAdapter implements PlatformAdapter {
   /**
    * Check if date matches filter
    */
-  private matchesDateFilter(date: string, options: SyncOptions): boolean {
+  private matchesDateFilter(date: string | undefined, options: SyncOptions): boolean {
+    if (!date) return false
     if (!options.startDate && !options.endDate) return true
 
     const txnDate = new Date(date)
@@ -587,7 +599,7 @@ export class MYOBAdapter implements PlatformAdapter {
     const data = await response.json()
     const accounts = data.Items || []
 
-    return accounts.map((acc: any) => ({
+    return accounts.map((acc: MYOBAccount) => ({
       code: acc.DisplayID || acc.Number || '',
       name: acc.Name || '',
       type: this.mapMYOBAccountType(acc.Classification),

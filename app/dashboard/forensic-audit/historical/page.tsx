@@ -32,7 +32,7 @@ export default function HistoricalAnalysisPage() {
       if (response.ok) {
         const data = await response.json()
         const years = data.yearlyMetrics
-          .map((m: any) => m.financialYear)
+          .map((m: { financialYear: string }) => m.financialYear)
           .sort()
         setAvailableYears(years)
       }

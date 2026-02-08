@@ -6,6 +6,14 @@
 
 import { XeroClient } from 'xero-node'
 import type {
+  Invoice,
+  BankTransaction,
+  Contact as XeroSDKContact,
+  LineItem as XeroLineItem,
+  LineItemTracking,
+  Attachment as XeroAttachment,
+} from 'xero-node'
+import type {
   PlatformAdapter,
   AuthCredentials,
   SyncOptions,
@@ -24,6 +32,7 @@ import type {
   ContactType,
 } from '../canonical-schema'
 import { createXeroClient, refreshXeroTokens, isTokenExpired } from '@/lib/xero/client'
+import type { TokenSetInput } from '@/lib/xero/client'
 import { withRetry } from '@/lib/xero/retry'
 import { getFinancialYearFromDate } from '@/lib/types'
 
@@ -47,7 +56,12 @@ export class XeroAdapter implements PlatformAdapter {
     await this.xero.initialize()
 
     // Check if token needs refresh
-    if (isTokenExpired(credentials as any)) {
+    const tokenSetInput: TokenSetInput = {
+      access_token: credentials.accessToken,
+      refresh_token: credentials.refreshToken,
+      expires_at: credentials.expiresAt,
+    }
+    if (isTokenExpired(tokenSetInput)) {
       const newCreds = await this.refreshToken(credentials)
       this.credentials = newCreds
     }
@@ -79,7 +93,12 @@ export class XeroAdapter implements PlatformAdapter {
    * Refresh token
    */
   async refreshToken(credentials: AuthCredentials): Promise<AuthCredentials> {
-    const newTokens = await refreshXeroTokens(credentials as any)
+    const tokenSetInput: TokenSetInput = {
+      access_token: credentials.accessToken,
+      refresh_token: credentials.refreshToken,
+      expires_at: credentials.expiresAt,
+    }
+    const newTokens = await refreshXeroTokens(tokenSetInput)
 
     return {
       ...credentials,
@@ -188,21 +207,24 @@ export class XeroAdapter implements PlatformAdapter {
     const response = await withRetry(() =>
       this.xero!.accountingApi.getInvoices(
         this.credentials!.tenantId,
-        undefined, // modifiedSince
+        undefined, // ifModifiedSince
         options.startDate, // where clause for date filtering
         undefined, // order
         undefined, // IDs
         undefined, // invoice numbers
         undefined, // contact IDs
         undefined, // statuses
-        1 as any, // page
-        100 as any, // page size
-        true as any // includeArchived
+        1,         // page
+        true,      // includeArchived
+        undefined, // createdByMyApp
+        undefined, // unitdp
+        undefined, // summaryOnly
+        100        // pageSize
       )
     )
 
     const invoices = response.body.invoices || []
-    return invoices.map((inv) => this.normalizeXeroInvoice(inv))
+    return invoices.map((inv: Invoice) => this.normalizeXeroInvoice(inv))
   }
 
   /**
@@ -221,14 +243,17 @@ export class XeroAdapter implements PlatformAdapter {
         undefined,
         undefined,
         undefined,
-        1 as any,
-        100 as any,
-        true as any
+        1,         // page
+        true,      // includeArchived
+        undefined, // createdByMyApp
+        undefined, // unitdp
+        undefined, // summaryOnly
+        100        // pageSize
       )
     )
 
     const bills = response.body.invoices || []
-    return bills.map((bill) => this.normalizeXeroInvoice(bill))
+    return bills.map((bill: Invoice) => this.normalizeXeroInvoice(bill))
   }
 
   /**
@@ -249,14 +274,14 @@ export class XeroAdapter implements PlatformAdapter {
     )
 
     const bankTxns = response.body.bankTransactions || []
-    return bankTxns.map((txn) => this.normalizeXeroBankTransaction(txn))
+    return bankTxns.map((txn: BankTransaction) => this.normalizeXeroBankTransaction(txn))
   }
 
   /**
    * Normalize Xero invoice/bill to canonical format
    */
-  private normalizeXeroInvoice(invoice: any): CanonicalTransaction {
-    const lineItems: CanonicalLineItem[] = (invoice.lineItems || []).map((line: any) => ({
+  private normalizeXeroInvoice(invoice: Invoice): CanonicalTransaction {
+    const lineItems: CanonicalLineItem[] = (invoice.lineItems || []).map((line: XeroLineItem) => ({
       id: line.lineItemID,
       description: line.description || '',
       quantity: line.quantity || 1,
@@ -268,9 +293,9 @@ export class XeroAdapter implements PlatformAdapter {
       taxType: line.taxType,
       taxRate: this.getTaxRate(line.taxType),
       itemCode: line.itemCode,
-      tracking: (line.tracking || []).map((t: any) => ({
-        category: t.name,
-        option: t.option,
+      tracking: (line.tracking || []).map((t: LineItemTracking) => ({
+        category: t.name || '',
+        option: t.option || '',
       })),
       metadata: { xeroLineItemID: line.lineItemID },
     }))
@@ -279,36 +304,36 @@ export class XeroAdapter implements PlatformAdapter {
     const totalTax = lineItems.reduce((sum, item) => sum + item.taxAmount, 0)
 
     return {
-      id: invoice.invoiceID,
+      id: invoice.invoiceID || '',
       platform: 'xero',
-      type: this.mapXeroTypeToCanonical(invoice.type),
-      date: invoice.date || invoice.dateString,
-      dueDate: invoice.dueDate || invoice.dueDateString,
+      type: this.mapXeroTypeToCanonical(invoice.type ? String(invoice.type) : ''),
+      date: invoice.date || '',
+      dueDate: invoice.dueDate,
       reference: invoice.invoiceNumber || invoice.reference,
-      financialYear: getFinancialYearFromDate(new Date(invoice.date || invoice.dateString)),
+      financialYear: getFinancialYearFromDate(new Date(invoice.date || '')),
       contact: invoice.contact ? this.normalizeXeroContact(invoice.contact) : undefined,
       lineItems,
       subtotal,
       totalTax,
       total: invoice.total || subtotal + totalTax,
-      currency: invoice.currencyCode || 'AUD',
+      currency: invoice.currencyCode ? String(invoice.currencyCode) : 'AUD',
       exchangeRate: invoice.currencyRate,
-      status: this.mapXeroStatusToCanonical(invoice.status),
-      isPaid: invoice.status === 'PAID',
+      status: this.mapXeroStatusToCanonical(invoice.status ? String(invoice.status) : ''),
+      isPaid: invoice.status ? String(invoice.status) === 'PAID' : false,
       paidDate: invoice.fullyPaidOnDate,
       hasAttachments: invoice.hasAttachments || false,
       attachmentCount: invoice.attachments?.length || 0,
-      attachments: invoice.attachments?.map((att: any) => ({
-        id: att.attachmentID,
-        filename: att.fileName,
+      attachments: invoice.attachments?.map((att: XeroAttachment) => ({
+        id: att.attachmentID || '',
+        filename: att.fileName || '',
         mimeType: att.mimeType,
         size: att.contentLength,
         url: att.url,
       })),
-      sourceUrl: `https://go.xero.com/app/!${invoice.type === 'ACCPAY' ? 'bills' : 'invoices'}/${invoice.invoiceID}`,
-      createdAt: invoice.createdDateUTC,
-      updatedAt: invoice.updatedDateUTC,
-      rawData: invoice,
+      sourceUrl: `https://go.xero.com/app/!${invoice.type ? String(invoice.type) === 'ACCPAY' ? 'bills' : 'invoices' : 'invoices'}/${invoice.invoiceID}`,
+      createdAt: invoice.updatedDateUTC?.toISOString(),
+      updatedAt: invoice.updatedDateUTC?.toISOString(),
+      rawData: invoice as unknown as Record<string, unknown>,
       metadata: {
         xeroInvoiceID: invoice.invoiceID,
         xeroInvoiceNumber: invoice.invoiceNumber,
@@ -319,8 +344,8 @@ export class XeroAdapter implements PlatformAdapter {
   /**
    * Normalize Xero bank transaction
    */
-  private normalizeXeroBankTransaction(txn: any): CanonicalTransaction {
-    const lineItems: CanonicalLineItem[] = (txn.lineItems || []).map((line: any) => ({
+  private normalizeXeroBankTransaction(txn: BankTransaction): CanonicalTransaction {
+    const lineItems: CanonicalLineItem[] = (txn.lineItems || []).map((line: XeroLineItem) => ({
       description: line.description || '',
       quantity: 1,
       unitPrice: line.lineAmount || 0,
@@ -337,26 +362,26 @@ export class XeroAdapter implements PlatformAdapter {
     const totalTax = lineItems.reduce((sum, item) => sum + item.taxAmount, 0)
 
     return {
-      id: txn.bankTransactionID,
+      id: txn.bankTransactionID || '',
       platform: 'xero',
       type: 'bank_transaction',
-      date: txn.date || txn.dateString,
+      date: txn.date || '',
       reference: txn.reference,
-      financialYear: getFinancialYearFromDate(new Date(txn.date || txn.dateString)),
+      financialYear: getFinancialYearFromDate(new Date(txn.date || '')),
       contact: txn.contact ? this.normalizeXeroContact(txn.contact) : undefined,
       lineItems,
       subtotal,
       totalTax,
       total: txn.total || subtotal + totalTax,
-      currency: txn.currencyCode || 'AUD',
-      status: this.mapXeroStatusToCanonical(txn.status),
+      currency: txn.currencyCode ? String(txn.currencyCode) : 'AUD',
+      status: this.mapXeroStatusToCanonical(txn.status ? String(txn.status) : ''),
       isPaid: true,
       hasAttachments: txn.hasAttachments || false,
-      attachmentCount: txn.attachments?.length || 0,
+      attachmentCount: 0,
       sourceUrl: `https://go.xero.com/Bank/ViewTransaction.aspx?bankTransactionID=${txn.bankTransactionID}`,
-      createdAt: txn.updatedDateUTC,
-      updatedAt: txn.updatedDateUTC,
-      rawData: txn,
+      createdAt: txn.updatedDateUTC?.toISOString(),
+      updatedAt: txn.updatedDateUTC?.toISOString(),
+      rawData: txn as unknown as Record<string, unknown>,
       metadata: {
         xeroBankTransactionID: txn.bankTransactionID,
       },
@@ -366,10 +391,10 @@ export class XeroAdapter implements PlatformAdapter {
   /**
    * Normalize Xero contact
    */
-  private normalizeXeroContact(contact: any): CanonicalContact {
+  private normalizeXeroContact(contact: XeroSDKContact): CanonicalContact {
     return {
-      id: contact.contactID,
-      name: contact.name,
+      id: contact.contactID || '',
+      name: contact.name || '',
       type: contact.isSupplier ? 'supplier' : contact.isCustomer ? 'customer' : 'other',
       email: contact.emailAddress,
       taxNumber: contact.taxNumber,

@@ -11,7 +11,7 @@ interface ActivityItem {
   action: string;
   entity_type: string | null;
   entity_id: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
   user?: {
     id: string;

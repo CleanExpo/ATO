@@ -11,10 +11,18 @@
 
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
 
+/** Slack Block Kit element */
+interface SlackBlock {
+  type: string
+  text?: { type: string; text: string; emoji?: boolean }
+  fields?: Array<{ type: string; text: string }>
+  elements?: Array<{ type: string; text: string }>
+}
+
 interface SlackMessage {
   text: string
-  blocks?: any[]
-  attachments?: any[]
+  blocks?: SlackBlock[]
+  attachments?: Array<Record<string, unknown>>
 }
 
 /**

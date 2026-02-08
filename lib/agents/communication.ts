@@ -92,6 +92,7 @@ export class AgentCommunicationBus {
     if (['CRITICAL', 'URGENT'].includes(message.priority) && message.linearIssueUrl) {
       const issueId = this.extractIssueId(message.linearIssueUrl);
       if (issueId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Linear SDK private property access
         await (this.linearOrchestrator as any).client.createComment({
           issueId,
           body: this.formatMessageForLinear(fullMessage),

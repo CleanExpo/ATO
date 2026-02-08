@@ -11,7 +11,7 @@
  * - Never touch low-confidence (<70%) - just report
  */
 
-import { createXeroClient, refreshXeroTokens, isTokenExpired } from '@/lib/xero/client'
+import { createXeroClient, refreshXeroTokens, isTokenExpired, type TokenSetInput } from '@/lib/xero/client'
 import { createClient } from '@/lib/supabase/server'
 import type { DataQualityIssue } from '@/lib/xero/data-quality-validator'
 import { createLogger } from '@/lib/logger'
@@ -268,9 +268,9 @@ async function createReclassificationJournal(
         // Check if token needs refresh
         let currentAccessToken = accessToken
          
-        if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)) {
+        if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as TokenSetInput)) {
              
-            const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)
+            const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as TokenSetInput)
             currentAccessToken = newTokens.access_token || accessToken
         }
 
@@ -470,9 +470,9 @@ export async function revertCorrection(
 
             let currentAccessToken = accessToken
              
-            if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)) {
+            if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as TokenSetInput)) {
                  
-                const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)
+                const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as TokenSetInput)
                 currentAccessToken = newTokens.access_token || accessToken
             }
 

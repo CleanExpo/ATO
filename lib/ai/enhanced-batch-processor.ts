@@ -11,7 +11,7 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
-import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
+import { getCachedTransactions, type HistoricalTransaction } from '@/lib/xero/historical-fetcher'
 import {
   analyzeTransactionBatch,
   estimateAnalysisCost,
@@ -217,24 +217,31 @@ export async function analyzeAllTransactionsOptimized(
       }
 
       // Convert to analysis format
-      const transactionContexts: TransactionContext[] = batchTransactions.map((txn) => ({
-        transactionID:
-          (txn as any).bankTransactionID ||
-          (txn as any).invoiceID ||
-          (txn as any).transactionID ||
-          'unknown',
-        date: txn.date || '',
-        description: buildDescription(txn),
-        amount: txn.total || 0,
-        supplier: txn.contact?.name,
-        accountCode: txn.lineItems?.[0]?.accountCode,
-        lineItems: txn.lineItems?.map((li) => ({
-          description: li.description,
-          quantity: li.quantity,
-          unitAmount: li.unitAmount,
-          accountCode: li.accountCode,
-        })),
-      }))
+      const transactionContexts: TransactionContext[] = batchTransactions.map((txn) => {
+        // HistoricalTransaction has transactionID as a direct field
+        // but may also have bankTransactionID or invoiceID in the raw data
+        const rec = txn as unknown as Record<string, unknown>
+        const transactionId =
+          txn.transactionID ||
+          (rec.bankTransactionID as string) ||
+          (rec.invoiceID as string) ||
+          'unknown'
+
+        return {
+          transactionID: transactionId,
+          date: txn.date || '',
+          description: buildDescription(txn),
+          amount: txn.total || 0,
+          supplier: txn.contact?.name,
+          accountCode: txn.lineItems?.[0]?.accountCode,
+          lineItems: txn.lineItems?.map((li) => ({
+            description: li.description,
+            quantity: li.quantity,
+            unitAmount: li.unitAmount,
+            accountCode: li.accountCode,
+          })),
+        }
+      })
 
       // Analyze batch
       let analyses: ForensicAnalysis[]
@@ -342,7 +349,7 @@ export async function analyzeAllTransactionsOptimized(
 }
 
 // Import helper functions from batch-processor
-function buildDescription(transaction: any): string {
+function buildDescription(transaction: HistoricalTransaction): string {
   const parts: string[] = []
 
   if (transaction.reference) {
@@ -355,7 +362,7 @@ function buildDescription(transaction: any): string {
 
   if (transaction.lineItems && transaction.lineItems.length > 0) {
     const descriptions = transaction.lineItems
-      .map((li: any) => li.description)
+      .map((li) => li.description)
       .filter(Boolean)
       .join('; ')
 
@@ -370,7 +377,7 @@ function buildDescription(transaction: any): string {
 async function storeAnalysisResults(
   tenantId: string,
   analyses: ForensicAnalysis[],
-  originalTransactions: any[]
+  originalTransactions: HistoricalTransaction[]
 ): Promise<void> {
   const supabase = await createServiceClient()
 

@@ -8,7 +8,10 @@
  * All queries include metadata for audit trails
  */
 
-// Linear SDK types imported as needed
+import type { LinearClient } from '@linear/sdk'
+
+/** IssueCreateInput type derived from Linear SDK (not directly exported) */
+export type LinearIssueCreateInput = Parameters<LinearClient['createIssue']>[0]
 
 /**
  * Queue Item to Linear Issue Mapping
@@ -38,7 +41,7 @@ export function buildIssueFromQueue(
   teamId: string,
   projectId: string | undefined,
   data: QueueToLinearMapping
-): any {
+): LinearIssueCreateInput {
   // Map priority to Linear's priority system
   const priorityMap: Record<string, number> = {
     'P0': 1, // Urgent
@@ -83,7 +86,7 @@ export function buildIssueFromQueue(
     '_Created by ATO Idea Intake Workflow_'
   );
 
-  const input: any = {
+  const input: LinearIssueCreateInput = {
     teamId,
     title: data.title,
     description: descriptionParts.join('\n'),
@@ -147,7 +150,7 @@ export function extractSearchKeywords(title: string, description: string): strin
  */
 export function formatDuplicateComment(
   queueId: string,
-  validationResult: any
+  validationResult: { complexity?: string; priority?: string; notes?: string }
 ): string {
   return `
 ## Duplicate Idea Detected
@@ -379,7 +382,7 @@ export interface IssueSearchResult {
     id: string;
     identifier: string;
     title: string;
-    description?: string;
+    description?: string | null;
     url: string;
   };
   similarityScore: number; // 0-100
@@ -395,8 +398,17 @@ export interface IssueSearchResult {
  * @param threshold - Minimum similarity threshold (default: 70)
  * @returns Array of potential duplicates sorted by similarity
  */
+/** Minimal issue shape for duplicate detection (compatible with Linear SDK Issue class) */
+interface DuplicateCheckIssue {
+  id: string
+  identifier: string
+  title: string
+  description?: string | null | undefined
+  url: string
+}
+
 export function findPotentialDuplicates(
-  existingIssues: any[],
+  existingIssues: DuplicateCheckIssue[],
   title: string,
   description: string,
   threshold: number = 70

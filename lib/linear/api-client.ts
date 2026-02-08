@@ -38,7 +38,10 @@ export function createLinearClient(): LinearClient {
  * @param data - Issue creation input
  * @returns Created issue with ID and URL
  */
-export async function createIssue(data: any): Promise<any> {
+/** Issue type inferred from Linear SDK */
+type LinearIssue = NonNullable<Awaited<Awaited<ReturnType<LinearClient['createIssue']>>['issue']>>
+
+export async function createIssue(data: Parameters<LinearClient['createIssue']>[0]): Promise<LinearIssue> {
   return retry(
     async () => {
       const client = createLinearClient();
@@ -74,7 +77,7 @@ export async function createIssue(data: any): Promise<any> {
  * @param query - Search query (title keywords, description text)
  * @returns Array of matching issues
  */
-export async function searchIssues(query: string): Promise<any[]> {
+export async function searchIssues(query: string): Promise<LinearIssue[]> {
   return retry(
     async () => {
       const client = createLinearClient();
@@ -117,8 +120,8 @@ export async function searchIssues(query: string): Promise<any[]> {
  */
 export async function updateIssue(
   issueId: string,
-  updates: any
-): Promise<any> {
+  updates: Parameters<LinearClient['updateIssue']>[1]
+): Promise<LinearIssue> {
   return retry(
     async () => {
       const client = createLinearClient();
@@ -186,7 +189,10 @@ export async function addComment(issueId: string, body: string): Promise<void> {
  *
  * @returns Team details
  */
-export async function getTeam(): Promise<any> {
+/** Team type inferred from Linear SDK */
+type LinearTeam = Awaited<ReturnType<LinearClient['team']>>
+
+export async function getTeam(): Promise<LinearTeam> {
   const client = createLinearClient();
   const team = await client.team(serverConfig.linear.teamId);
 
@@ -204,7 +210,10 @@ export async function getTeam(): Promise<any> {
  *
  * @returns Array of workflow states
  */
-export async function getWorkflowStates(): Promise<any[]> {
+/** WorkflowState type inferred from Linear SDK */
+type LinearWorkflowStateNode = Awaited<ReturnType<Awaited<ReturnType<LinearClient['team']>>['states']>>['nodes'][number]
+
+export async function getWorkflowStates(): Promise<LinearWorkflowStateNode[]> {
   const client = createLinearClient();
   const team = await client.team(serverConfig.linear.teamId);
 

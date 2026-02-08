@@ -11,6 +11,33 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse } from '@/lib/api/errors';
 import Decimal from 'decimal.js';
 
+/** Shape of a line item from Xero raw_data */
+interface XeroLineItem {
+  AccountCode?: string;
+  [key: string]: unknown;
+}
+
+/** Shape of raw_data from Xero transaction */
+interface XeroRawData {
+  TotalTax?: number;
+  totalTax?: number;
+  taxAmount?: number;
+  AccountCode?: string;
+  LineItems?: XeroLineItem[];
+  Description?: string;
+  Reference?: string;
+  [key: string]: unknown;
+}
+
+/** Shape of a row from historical_transactions_cache table */
+interface HistoricalTransactionRow {
+  transaction_type: string | null;
+  transaction_date: string | null;
+  total_amount: number | null;
+  raw_data: XeroRawData | null;
+  financial_year: string | null;
+}
+
 interface TaxObligation {
   id: string;
   type: 'BAS' | 'PAYG' | 'ANNUAL_RETURN' | 'STP';
@@ -144,7 +171,7 @@ function getFinancialYearEnd(fy: string): Date {
  * Calculate quarterly GST summaries
  */
 function calculateQuarterlySummaries(
-  transactions: any[],
+  transactions: HistoricalTransactionRow[],
   fy: string
 ): QuarterlySummary[] {
   const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
@@ -154,6 +181,7 @@ function calculateQuarterlySummaries(
     const [start, end] = getQuarterDates(fy, quarter);
 
     const quarterTransactions = transactions.filter(t => {
+      if (!t.transaction_date) return false;
       const date = new Date(t.transaction_date);
       return date >= start && date <= end;
     });
@@ -180,7 +208,7 @@ function calculateQuarterlySummaries(
       // Account 825 is usually PAYG Withholding Payable in standard Xero Chart of Accounts
       const isPaygAccount = raw.AccountCode === '825' ||
         raw.AccountCode === '820' ||
-        (raw.LineItems && raw.LineItems.some((li: any) => li.AccountCode === '825' || li.AccountCode === '820')) ||
+        (raw.LineItems && raw.LineItems.some((li: XeroLineItem) => li.AccountCode === '825' || li.AccountCode === '820')) ||
         raw.Description?.includes('PAYG') ||
         raw.Reference?.includes('PAYG') ||
         tx.transaction_type === 'PAYG'; // Some might be directly typed

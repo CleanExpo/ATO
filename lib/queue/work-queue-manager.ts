@@ -44,7 +44,7 @@ export interface QueueItem {
   queue_item_type: QueueItemType;
   title: string;
   description: string;
-  payload: any; // Full user context (JSON)
+  payload: Record<string, unknown>; // Full user context (JSON)
   validation_result?: ValidationResult;
   complexity?: Complexity;
   priority?: Priority;
@@ -105,7 +105,7 @@ export async function addToQueue(
     title: string;
     description: string;
     queue_item_type: QueueItemType;
-    payload?: any;
+    payload?: Record<string, unknown>;
   }
 ): Promise<QueueItem> {
   const supabase = await createServiceClient();

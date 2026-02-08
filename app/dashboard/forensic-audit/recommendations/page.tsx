@@ -170,7 +170,7 @@ function RecommendationsPage() {
       try {
         const response = await fetch('/api/xero/organizations')
         const data = await response.json()
-        const org = data.connections?.find((c: any) => c.tenant_id === tenantId)
+        const org = data.connections?.find((c: { tenant_id: string; organisation_name?: string; tenant_name?: string }) => c.tenant_id === tenantId)
         if (org) {
           setOrganizationName(org.organisation_name || org.tenant_name || '')
         }

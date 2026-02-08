@@ -11,6 +11,7 @@ import { createValidationError } from '@/lib/api/errors'
 import { z } from 'zod'
 import Decimal from 'decimal.js'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 
 // Tax rates for FY2024-25
 const CORPORATE_TAX_RATE = 0.25 // 25% for base rate entities
@@ -36,6 +37,8 @@ const scenarioSchema = z.object({
     })
   ),
 })
+
+type ScenarioInput = z.infer<typeof scenarioSchema>['scenarios'][number]
 
 interface ScenarioResult {
   name: string
@@ -154,15 +157,17 @@ export async function POST(request: NextRequest) {
 /**
  * Calculate base scenario from actual data
  */
-function calculateBaseScenario(results: any[]) {
+function calculateBaseScenario(results: ForensicAnalysisRow[]) {
   const totalIncome = results.reduce((sum, r) => {
     // Positive amounts are income
-    return r.transaction_amount > 0 ? sum + r.transaction_amount : sum
+    const amount = r.transaction_amount ?? 0
+    return amount > 0 ? sum + amount : sum
   }, 0)
 
   const totalExpenses = results.reduce((sum, r) => {
     // Negative amounts are expenses
-    return r.transaction_amount < 0 ? sum + Math.abs(r.transaction_amount) : sum
+    const amount = r.transaction_amount ?? 0
+    return amount < 0 ? sum + Math.abs(amount) : sum
   }, 0)
 
   const rndCandidates = results.filter((r) => r.is_rnd_candidate)
@@ -200,8 +205,8 @@ function calculateBaseScenario(results: any[]) {
  */
 function calculateScenario(
   base: ReturnType<typeof calculateBaseScenario>,
-  scenario: any,
-  results: any[]
+  scenario: ScenarioInput,
+  results: ForensicAnalysisRow[]
 ): ScenarioResult {
   const changes = scenario.changes
   const warnings: string[] = []

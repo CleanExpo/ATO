@@ -460,6 +460,7 @@ ${result.recommendations.join('\n')}`
 ---
 *Quality gate evaluated: ${new Date(result.timestamp).toLocaleString()}*`;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Accessing private LinearClient on orchestrator
     await (this.linearOrchestrator as any).client.commentCreate({
       issueId,
       body: comment,

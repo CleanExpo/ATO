@@ -30,7 +30,7 @@ import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
-const SectionHeading = ({ icon: Icon, title, badge }: any) => (
+const SectionHeading = ({ icon: Icon, title, badge }: { icon: React.ComponentType<{ className?: string }>; title: string; badge?: string }) => (
     <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
         <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-sky-500/10 flex items-center justify-center">
@@ -49,7 +49,7 @@ const SectionHeading = ({ icon: Icon, title, badge }: any) => (
     </div>
 );
 
-const CriteriaPill = ({ label, score, max = 3 }: any) => (
+const CriteriaPill = ({ label, score, max = 3 }: { label: string; score: number; max?: number }) => (
     <div className="space-y-2">
         <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
             <span className="text-white/60">{label}</span>

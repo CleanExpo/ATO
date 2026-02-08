@@ -90,8 +90,8 @@ export default function SignupPage() {
       })
 
       if (error) throw error
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign up with Google')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to sign up with Google')
       setLoading(false)
     }
   }
@@ -124,8 +124,8 @@ export default function SignupPage() {
 
       // Show success message or redirect to verification page
       router.push('/auth/verify-email')
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign up')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to sign up')
       setLoading(false)
     }
   }

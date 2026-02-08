@@ -100,7 +100,7 @@ const GlassCard = ({ children, className = '', highlight = false }: { children: 
   </motion.div>
 );
 
-const SectionHeader = ({ title, subtitle, icon: Icon }: { title: string, subtitle?: string, icon?: any }) => (
+const SectionHeader = ({ title, subtitle, icon: Icon }: { title: string, subtitle?: string, icon?: React.ComponentType<{ className?: string }> }) => (
   <div className="flex items-center gap-4 mb-6">
     {Icon && (
       <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center border border-white/10">
@@ -153,8 +153,8 @@ export default function TaxReportingDashboard() {
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Failed to fetch data');
         setData(result.data);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch data');
       } finally {
         setLoading(false);
       }

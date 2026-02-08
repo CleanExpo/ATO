@@ -10,7 +10,7 @@
  * - Future tax value calculation
  */
 
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, type SupabaseServiceClient } from '@/lib/supabase/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import { checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
@@ -224,7 +224,7 @@ export async function analyzeLossPosition(
  * This would ideally pull from P&L reports stored in cache
  */
 async function fetchLossPositions(
-  supabase: any,
+  supabase: SupabaseServiceClient,
   tenantId: string,
   startYear?: string,
   endYear?: string,
@@ -261,8 +261,8 @@ async function fetchLossPositions(
   }
 
   // Group by year and calculate P&L
-  const yearMap = new Map<string, any[]>()
-  data.forEach((record: any) => {
+  const yearMap = new Map<string, Record<string, unknown>[]>()
+  data.forEach((record: { financial_year: string; raw_data: Record<string, unknown> }) => {
     const year = record.financial_year
     if (!yearMap.has(year)) {
       yearMap.set(year, [])
@@ -283,8 +283,8 @@ async function fetchLossPositions(
     let income = 0
     let expenses = 0
 
-    transactions.forEach((tx: any) => {
-      const rawAmount = parseFloat(tx.Total) || 0
+    transactions.forEach((tx: Record<string, unknown>) => {
+      const rawAmount = parseFloat(String(tx.Total)) || 0
       const absAmount = Math.abs(rawAmount)
       const type = tx.Type
 

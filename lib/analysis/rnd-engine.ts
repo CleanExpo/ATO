@@ -12,6 +12,13 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
+
+/** Extended forensic row with optional R&D-specific fields */
+interface RndForensicRow extends ForensicAnalysisRow {
+  rnd_four_element_test?: Record<string, unknown>
+  supporting_evidence?: string | string[] | Record<string, unknown>
+}
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import { getCurrentFinancialYear, checkAmendmentPeriod } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
@@ -332,10 +339,10 @@ export async function analyzeRndOpportunities(
  * Division 355 ITAA 1997 (s 355-25, s 355-30)
  */
 function groupIntoProjects(
-  transactions: any[],
+  transactions: RndForensicRow[],
   rndOffsetRate: number
 ): { eligible: RndProjectAnalysis[]; excluded: BorderlineProject[] } {
-  const projectMap = new Map<string, any[]>()
+  const projectMap = new Map<string, RndForensicRow[]>()
 
   // Group by primary category and supplier patterns
   transactions.forEach((tx) => {
@@ -414,8 +421,8 @@ function groupIntoProjects(
 /**
  * Analyze a group of related transactions as a single R&D project
  */
-function analyzeProject(projectName: string, transactions: any[], rndOffsetRate: number): RndProjectAnalysis {
-  const financialYears = Array.from(new Set(transactions.map((tx) => tx.financial_year))).sort()
+function analyzeProject(projectName: string, transactions: RndForensicRow[], rndOffsetRate: number): RndProjectAnalysis {
+  const financialYears = Array.from(new Set(transactions.map((tx) => tx.financial_year).filter((fy): fy is string => fy !== null))).sort()
 
   // Calculate expenditure and eligibility
   let totalExpenditure = 0
@@ -424,11 +431,11 @@ function analyzeProject(projectName: string, transactions: any[], rndOffsetRate:
   let supportingRndExpenditure = 0
 
   const rndTransactions: RndTransaction[] = transactions.map((tx) => {
-    const amount = parseFloat(tx.transaction_amount) || 0
+    const amount = parseFloat(String(tx.transaction_amount)) || 0
     totalExpenditure += amount
 
     // Only include in eligible expenditure if meets Division 355 criteria
-    if (tx.meets_div355_criteria && tx.rnd_confidence >= MIN_CONFIDENCE_FOR_RECOMMENDATION) {
+    if (tx.meets_div355_criteria && (tx.rnd_confidence ?? 0) >= MIN_CONFIDENCE_FOR_RECOMMENDATION) {
       eligibleExpenditure += amount
 
       if (tx.rnd_activity_type === 'core_rnd') {
@@ -440,13 +447,13 @@ function analyzeProject(projectName: string, transactions: any[], rndOffsetRate:
 
     return {
       transactionId: tx.transaction_id,
-      transactionDate: tx.transaction_date,
-      description: tx.transaction_description,
+      transactionDate: tx.transaction_date || '',
+      description: tx.transaction_description || '',
       amount,
       supplier: tx.supplier_name,
-      activityType: tx.rnd_activity_type,
-      confidence: tx.rnd_confidence,
-      reasoning: tx.rnd_reasoning,
+      activityType: (tx.rnd_activity_type || 'not_eligible') as RndTransaction['activityType'],
+      confidence: tx.rnd_confidence ?? 0,
+      reasoning: tx.rnd_reasoning || '',
       fourElementTest: parseFourElementTest(tx),
     }
   })
@@ -587,10 +594,10 @@ function analyzeProject(projectName: string, transactions: any[], rndOffsetRate:
 /**
  * Parse four-element test from forensic analysis result
  */
-function parseFourElementTest(tx: any): FourElementTest {
+function parseFourElementTest(tx: RndForensicRow): FourElementTest {
   // Try to parse from JSON if stored as object
   if (tx.rnd_four_element_test && typeof tx.rnd_four_element_test === 'object') {
-    return tx.rnd_four_element_test as FourElementTest
+    return tx.rnd_four_element_test as unknown as FourElementTest
   }
 
   // Fallback: create basic structure from available fields
@@ -626,9 +633,9 @@ function parseFourElementTest(tx: any): FourElementTest {
  * Elements are weighted by dollar value, not transaction count, to prevent
  * many small irrelevant transactions from outvoting significant expenditure.
  */
-function aggregateFourElementTest(transactions: any[]): FourElementTest {
+function aggregateFourElementTest(transactions: RndForensicRow[]): FourElementTest {
   const allTests = transactions.map(parseFourElementTest)
-  const amounts = transactions.map((tx) => Math.abs(parseFloat(tx.transaction_amount) || 0))
+  const amounts = transactions.map((tx) => Math.abs(parseFloat(String(tx.transaction_amount)) || 0))
 
   return {
     outcomeUnknown: aggregateElement(allTests.map((t) => t.outcomeUnknown), amounts),
@@ -799,7 +806,7 @@ function generateRecommendations(
  * Generate project description from transactions
  */
 function generateProjectDescription(
-  transactions: any[],
+  transactions: RndForensicRow[],
   coreRndExpenditure: number,
   supportingRndExpenditure: number
 ): string {

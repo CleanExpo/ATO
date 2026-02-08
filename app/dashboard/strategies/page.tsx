@@ -18,7 +18,7 @@ import {
 import Link from 'next/link'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
-const GlassCard = ({ children, className = '', highlight = false }: any) => (
+const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode; className?: string; highlight?: boolean }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -28,7 +28,27 @@ const GlassCard = ({ children, className = '', highlight = false }: any) => (
   </motion.div>
 );
 
-const StrategyItem = ({ title, status, impact, category, deadline, action, description, href }: any) => (
+interface StrategyItemProps {
+  title: string
+  status: string
+  impact: number | string
+  category: string
+  deadline?: string
+  action: string
+  description: string
+  href?: string
+}
+
+interface Recommendation {
+  title: string
+  description: string
+  taxArea?: string
+  priority?: string
+  estimatedBenefit?: number
+  deadline?: string
+}
+
+const StrategyItem = ({ title, status, impact, category, deadline, action, description, href }: StrategyItemProps) => (
   <div className="p-6 border-b border-white/5 hover:bg-white/[0.02] transition-colors relative group">
     <div className="flex justify-between items-start mb-4">
       <div className="space-y-1">
@@ -70,8 +90,8 @@ const StrategyItem = ({ title, status, impact, category, deadline, action, descr
 
 export default function StrategiesPage() {
   const [activeTab, setActiveTab] = useState('active')
-  const [recommendations, setRecommendations] = useState<any[]>([])
-  const [summary, setSummary] = useState<any>(null)
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([])
+  const [summary, setSummary] = useState<{ totalEstimatedBenefit?: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tenantId, setTenantId] = useState<string | null>(null)
@@ -226,8 +246,8 @@ export default function StrategiesPage() {
                     key={i}
                     category={rec.taxArea === 'rnd' ? 'Tax Incentive' : rec.taxArea === 'div7a' ? 'Compliance' : 'Deduction'}
                     title={rec.title}
-                    status={rec.priority}
-                    impact={rec.estimatedBenefit}
+                    status={rec.priority || 'medium'}
+                    impact={rec.estimatedBenefit || 0}
                     deadline={rec.deadline || 'JUN 30, 2026'}
                     action="Execute Strategy"
                     href={rec.taxArea === 'rnd' ? '/dashboard/rnd' : rec.taxArea === 'losses' ? '/dashboard/losses' : '/dashboard/audit'}

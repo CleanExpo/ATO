@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     const response = await xeroClient.accountingApi.getItems(tenantId);
 
     // Extract items from response
-    let xeroItems = (response.body.items || []) as any[];
+    let xeroItems = (response.body.items || []) as XeroItem[];
 
     // Filter to tracked inventory only if requested
     if (trackedOnly) {

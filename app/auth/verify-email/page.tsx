@@ -55,8 +55,8 @@ function VerifyEmailContent() {
       if (error) throw error
 
       setResent(true)
-    } catch (err: any) {
-      setError(err.message || 'Failed to resend verification email')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to resend verification email')
     } finally {
       setLoading(false)
     }

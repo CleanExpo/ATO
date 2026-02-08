@@ -215,6 +215,13 @@ export default async function Div7AWorkflowPage() {
   )
 }
 
+interface AccountantFindingRow {
+  id: string; transaction_id: string; transaction_date: string; description: string; amount: number
+  current_classification: string; suggested_classification: string; confidence_score: number
+  confidence_level: string; confidence_factors: unknown[] | null; legislation_refs: unknown[] | null
+  reasoning: string; financial_year: string; estimated_benefit: number; status: string
+}
+
 async function fetchFindings(workflowArea: string) {
   try {
     const supabase = await createServiceClient()
@@ -226,7 +233,7 @@ async function fetchFindings(workflowArea: string) {
 
     if (error || !data) return []
 
-    return data.map((f: any) => ({
+    return data.map((f: AccountantFindingRow) => ({
       id: f.id,
       transactionId: f.transaction_id,
       date: f.transaction_date,
@@ -236,14 +243,14 @@ async function fetchFindings(workflowArea: string) {
       suggestedClassification: f.suggested_classification,
       confidence: {
         score: f.confidence_score,
-        level: f.confidence_level,
-        factors: f.confidence_factors || [],
+        level: f.confidence_level as 'High' | 'Medium' | 'Low',
+        factors: (f.confidence_factors || []) as Array<{ factor: string; impact: 'positive' | 'negative'; weight: number }>,
       },
-      legislationRefs: f.legislation_refs || [],
+      legislationRefs: (f.legislation_refs || []) as Array<{ section: string; title: string; url: string }>,
       reasoning: f.reasoning,
       financialYear: f.financial_year,
       estimatedBenefit: f.estimated_benefit,
-      status: f.status,
+      status: f.status as 'pending' | 'approved' | 'rejected' | 'deferred',
     }))
   } catch {
     return []

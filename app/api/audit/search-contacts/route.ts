@@ -45,7 +45,14 @@ export async function GET(request: NextRequest) {
         }
 
         // Calculate totals by contact
-        const contactTotals: Record<string, { count: number; totalReceived: number; totalPaid: number; transactions: any[] }> = {}
+        interface ContactTransaction {
+            id: string;
+            date: string | null;
+            amount: number | null;
+            type: string | null;
+            year: string | null;
+        }
+        const contactTotals: Record<string, { count: number; totalReceived: number; totalPaid: number; transactions: ContactTransaction[] }> = {}
 
         for (const tx of data || []) {
             const contact = tx.contact_name || 'Unknown'

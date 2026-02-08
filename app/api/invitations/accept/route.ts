@@ -171,8 +171,8 @@ export async function GET(request: NextRequest) {
         role: invitation.role,
         organization: {
           id: invitation.organization_id,
-          name: (invitation.organizations as any)?.name,
-          industry: (invitation.organizations as any)?.industry,
+          name: (invitation.organizations as { name?: string; industry?: string } | null)?.name,
+          industry: (invitation.organizations as { name?: string; industry?: string } | null)?.industry,
         },
         expiresAt: invitation.expires_at,
       },

@@ -163,17 +163,18 @@ function buildDescription(
  * Determines transaction type from QuickBooks data
  */
 function determineTransactionType(qbTxn: QuickBooksTransaction): string {
-  // Check raw data for txnType or domain indicators
-  const rawData = qbTxn as any;
+  // QuickBooks responses may include extra fields not in our base type.
+  // Use a Record cast to check for those extended fields safely.
+  const extendedData = qbTxn as unknown as Record<string, unknown>
 
   // Check for explicit type in metadata or domain
-  if (rawData.domain) {
-    if (rawData.domain === 'Expense') return 'Expense';
-    if (rawData.domain === 'CreditMemo') return 'CreditMemo';
-    if (rawData.domain === 'JournalEntry') return 'JournalEntry';
-    if (rawData.domain === 'Purchase') return 'Purchase';
-    if (rawData.domain === 'Bill') return 'Bill';
-    if (rawData.domain === 'Invoice') return 'Invoice';
+  if (typeof extendedData.domain === 'string') {
+    if (extendedData.domain === 'Expense') return 'Expense';
+    if (extendedData.domain === 'CreditMemo') return 'CreditMemo';
+    if (extendedData.domain === 'JournalEntry') return 'JournalEntry';
+    if (extendedData.domain === 'Purchase') return 'Purchase';
+    if (extendedData.domain === 'Bill') return 'Bill';
+    if (extendedData.domain === 'Invoice') return 'Invoice';
   }
 
   // Check for type indicators in the raw data structure
@@ -186,14 +187,14 @@ function determineTransactionType(qbTxn: QuickBooksTransaction): string {
 
   if (qbTxn.CustomerRef) {
     // CreditMemos also have CustomerRef, check for specific fields
-    if (rawData.RemainingCredit !== undefined || rawData.Balance === 0) {
+    if (extendedData.RemainingCredit !== undefined || extendedData.Balance === 0) {
       return 'CreditMemo';
     }
     return 'Invoice'
   }
 
   // Journal entries typically have no vendor/customer reference
-  if (rawData.Adjustment || (qbTxn.Line && qbTxn.Line.length > 1 && !qbTxn.VendorRef && !qbTxn.CustomerRef)) {
+  if (extendedData.Adjustment || (qbTxn.Line && qbTxn.Line.length > 1 && !qbTxn.VendorRef && !qbTxn.CustomerRef)) {
     return 'JournalEntry';
   }
 

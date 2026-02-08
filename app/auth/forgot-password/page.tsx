@@ -48,8 +48,8 @@ export default function ForgotPasswordPage() {
       if (error) throw error
 
       setSuccess(true)
-    } catch (err: any) {
-      setError(err.message || 'Failed to send password reset email')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to send password reset email')
     } finally {
       setLoading(false)
     }

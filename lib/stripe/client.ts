@@ -36,6 +36,7 @@ function getStripeInstance(): Stripe {
 
 export const stripe = new Proxy({} as Stripe, {
   get(_target, prop) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Proxy pattern requires dynamic property access
     return (getStripeInstance() as any)[prop];
   },
 });

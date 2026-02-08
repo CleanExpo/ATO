@@ -13,10 +13,25 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient, type SupabaseServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
 
 export const dynamic = 'force-dynamic';
+
+/** Shape of a questionnaire response item from the client */
+interface QuestionnaireResponseItem {
+  question_id: string
+  response_value: string | number | boolean | string[]
+}
+
+/** Shape of a questionnaire row from the database */
+interface QuestionnaireRow {
+  questionnaire_id: string
+  tenant_id: string
+  category: string
+  created_from_analysis_id?: string
+  status: string
+}
 
 export async function POST(
   request: NextRequest,
@@ -64,7 +79,7 @@ export async function POST(
     }
 
     // Insert responses
-    const responseRecords = responses.map((r: any) => ({
+    const responseRecords = responses.map((r: QuestionnaireResponseItem) => ({
       questionnaire_id: questionnaireId,
       question_id: r.question_id,
       response_value: r.response_value,
@@ -137,9 +152,9 @@ export async function POST(
  * Updates transactions/contacts/assets with collected information
  */
 async function applyResponsesToSourceData(
-  supabase: any,
-  questionnaire: any,
-  responses: any[]
+  supabase: SupabaseServiceClient,
+  questionnaire: QuestionnaireRow,
+  responses: QuestionnaireResponseItem[]
 ): Promise<void> {
   const category = questionnaire.category;
 
@@ -156,7 +171,7 @@ async function applyResponsesToSourceData(
       const field = parts.slice(2).join('_');
 
       // Update xero_transactions with fuel data
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
 
       if (field === 'type') {
         // Store fuel type in raw_xero_data or description
@@ -181,7 +196,7 @@ async function applyResponsesToSourceData(
       const field = parts.slice(2).join('_');
 
       // Update xero_contacts with relationship data
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
 
       if (field === 'entity_type') {
         updateData.entity_type = value;
@@ -202,7 +217,7 @@ async function applyResponsesToSourceData(
       const field = parts.slice(2).join('_');
 
       // Update xero_assets with depreciation preferences
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
 
       if (field === 'instant_writeoff' && value === true) {
         updateData.depreciation_method = 'Full Depreciation'; // Instant write-off
@@ -225,7 +240,7 @@ async function applyResponsesToSourceData(
  * Trigger re-analysis after questionnaire completion
  */
 async function triggerReanalysis(
-  supabase: any,
+  supabase: SupabaseServiceClient,
   tenantId: string,
   category: string,
   originalAnalysisId?: string

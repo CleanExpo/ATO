@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       error as Error,
       {
         operation: 'generate_consolidated_report',
-        userId: (error as any)?.userId,
+        userId: (error as Record<string, unknown>)?.userId,
       },
       500
     );

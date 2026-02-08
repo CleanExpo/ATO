@@ -50,6 +50,22 @@ const FUEL_SUPPLIER_KEYWORDS = [
 // Account codes typically used for fuel expenses
 const FUEL_ACCOUNT_CODES = ['461', '462', '463', '464', '465']; // Motor vehicle expenses
 
+/** Shape of rows returned from the xero_transactions table */
+interface XeroTransactionRow {
+  transaction_id: string;
+  tenant_id: string;
+  contact_name: string | null;
+  contact_id: string | null;
+  description: string | null;
+  account_code: string | null;
+  amount: number | null;
+  total: number | null;
+  transaction_date: string | null;
+  transaction_type: string | null;
+  raw_data: Record<string, unknown> | null;
+  [key: string]: unknown;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -179,7 +195,7 @@ export async function POST(request: NextRequest) {
 /**
  * Determine if transaction is a fuel purchase
  */
-function isFuelPurchase(transaction: any): boolean {
+function isFuelPurchase(transaction: XeroTransactionRow): boolean {
   // Check supplier name
   const supplierName = (transaction.contact_name || '').toLowerCase();
   if (FUEL_SUPPLIER_KEYWORDS.some(keyword => supplierName.includes(keyword))) {
@@ -204,7 +220,7 @@ function isFuelPurchase(transaction: any): boolean {
 /**
  * Convert Xero transaction to FuelPurchase format
  */
-function convertToFuelPurchase(transaction: any): FuelPurchase {
+function convertToFuelPurchase(transaction: XeroTransactionRow): FuelPurchase {
   const totalAmount = Math.abs(transaction.amount || transaction.total || 0);
 
   // Determine fuel type from description (simplified)
@@ -237,15 +253,15 @@ function convertToFuelPurchase(transaction: any): FuelPurchase {
   const hasValidTaxInvoice = true;
 
   // Determine financial year
-  const txnDate = new Date(transaction.transaction_date);
+  const txnDate = new Date(transaction.transaction_date || '');
   const fy = determineFY(txnDate);
 
   return {
     transaction_id: transaction.transaction_id,
-    transaction_date: transaction.transaction_date,
+    transaction_date: transaction.transaction_date || '',
     supplier_name: transaction.contact_name || 'Unknown Supplier',
-    supplier_id: transaction.contact_id,
-    description: transaction.description,
+    supplier_id: transaction.contact_id || undefined,
+    description: transaction.description || undefined,
     total_amount: totalAmount,
     fuel_litres: fuelLitres,
     fuel_type: fuelType,

@@ -114,9 +114,9 @@ export async function GET(request: NextRequest) {
 interface AnalysisResult {
     is_rnd_candidate?: boolean
     meets_div355_criteria?: boolean
-    rnd_activity_type?: string
+    rnd_activity_type?: string | null
     primary_category?: string | null
-    category_confidence?: number
+    category_confidence?: number | null
     is_fully_deductible?: boolean
     claimable_amount?: number | null
     requires_documentation?: boolean

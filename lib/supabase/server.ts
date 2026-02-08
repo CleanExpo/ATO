@@ -1,4 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+/** Type alias for the Supabase service client used across analysis engines and report generators */
+export type SupabaseServiceClient = SupabaseClient
 import { cookies } from 'next/headers'
 import { clientConfig, serverConfig } from '@/lib/config/env'
 

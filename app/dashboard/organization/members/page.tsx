@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react'
 import { useOrganization } from '@/lib/context/OrganizationContext'
-import { hasPermission, getRoleBadgeColor, getRoleDisplayName } from '@/lib/types/multi-tenant'
+import { hasPermission, getRoleBadgeColor, getRoleDisplayName, type UserRole } from '@/lib/types/multi-tenant'
 import {
   Users,
   Plus,
@@ -236,9 +236,9 @@ export default function OrganizationMembersPage() {
 
                   <div className="flex items-center gap-4">
                     <div
-                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(member.role as any)}`}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(member.role as UserRole)}`}
                     >
-                      {getRoleDisplayName(member.role as any)}
+                      {getRoleDisplayName(member.role as UserRole)}
                     </div>
 
                     <div className="text-sm text-gray-400">
@@ -301,9 +301,9 @@ export default function OrganizationMembersPage() {
 
                   <div className="flex items-center gap-4">
                     <div
-                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(invitation.role as any)}`}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border ${getRoleBadgeColor(invitation.role as UserRole)}`}
                     >
-                      {getRoleDisplayName(invitation.role as any)}
+                      {getRoleDisplayName(invitation.role as UserRole)}
                     </div>
 
                     <div className="text-sm text-yellow-400">
@@ -433,7 +433,7 @@ function InviteDialog({
               </label>
               <select
                 value={role}
-                onChange={(e) => setRole(e.target.value as any)}
+                onChange={(e) => setRole(e.target.value as 'admin' | 'accountant' | 'read_only')}
                 className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="admin">Administrator</option>

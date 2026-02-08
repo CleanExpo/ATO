@@ -12,7 +12,7 @@
  */
 
 import { XeroClient } from 'xero-node'
-import { createXeroClient, refreshXeroTokens, isTokenExpired } from '@/lib/xero/client'
+import { createXeroClient, refreshXeroTokens, isTokenExpired, type TokenSetInput } from '@/lib/xero/client'
 import { withRetry } from '@/lib/xero/retry'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getFinancialYears, type FinancialYear } from '@/lib/types'
@@ -94,9 +94,9 @@ export async function fetchHistoricalTransactions(
         // Check if token needs refresh
         let currentAccessToken = accessToken
          
-        if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)) {
+        if (isTokenExpired({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as TokenSetInput)) {
              
-            const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as any)
+            const newTokens = await refreshXeroTokens({ access_token: accessToken, refresh_token: refreshToken, expires_at: 0 } as TokenSetInput)
             currentAccessToken = newTokens.access_token || accessToken
         }
 
@@ -189,15 +189,16 @@ async function fetchTransactionsByType(
 
                 // Fetch page from Xero
                  
-                let response: any
                 switch (type) {
                     case 'ACCPAY':
-                    case 'ACCREC':
-                        response = await xero.accountingApi.getInvoices(tenantId, undefined, where, undefined, undefined, undefined, undefined, undefined, page)
-                        return response.body.invoices || []
-                    case 'BANK':
-                        response = await xero.accountingApi.getBankTransactions(tenantId, undefined, where, undefined, page)
-                        return response.body.bankTransactions || []
+                    case 'ACCREC': {
+                        const invResponse = await xero.accountingApi.getInvoices(tenantId, undefined, where, undefined, undefined, undefined, undefined, undefined, page)
+                        return (invResponse.body.invoices || []) as unknown as HistoricalTransaction[]
+                    }
+                    case 'BANK': {
+                        const bankResponse = await xero.accountingApi.getBankTransactions(tenantId, undefined, where, undefined, page)
+                        return (bankResponse.body.bankTransactions || []) as unknown as HistoricalTransaction[]
+                    }
                     default:
                         return []
                 }

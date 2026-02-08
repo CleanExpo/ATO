@@ -12,6 +12,12 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
+
+/** Extended forensic row with optional deduction-specific fields */
+interface DeductionForensicRow extends ForensicAnalysisRow {
+  deduction_reasoning?: string
+}
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import { checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
@@ -557,11 +563,11 @@ export async function analyzeDeductionOpportunities(
  * Group transactions by deduction category and financial year
  */
 function groupByDeductionCategory(
-  transactions: any[],
+  transactions: DeductionForensicRow[],
   taxRateInfo: { rate: Decimal; rateNumber: number; note: string },
   isSmallBusiness: boolean
 ): DeductionOpportunity[] {
-  const categoryYearMap = new Map<string, any[]>()
+  const categoryYearMap = new Map<string, DeductionForensicRow[]>()
 
   transactions.forEach((tx) => {
     const category = mapToDeductionCategory(tx.primary_category)
@@ -614,7 +620,7 @@ function groupByDeductionCategory(
 function analyzeDeductionCategory(
   category: DeductionCategory,
   financialYear: string,
-  transactions: any[],
+  transactions: DeductionForensicRow[],
   taxRateInfo: { rate: Decimal; rateNumber: number; note: string },
   isSmallBusiness: boolean
 ): DeductionOpportunity {
@@ -629,11 +635,11 @@ function analyzeDeductionCategory(
     category === 'Capital Allowance (Division 40)' || category === 'Instant Asset Write-Off'
 
   const deductionTransactions: DeductionTransaction[] = transactions.map((tx) => {
-    const amount = Math.abs(parseFloat(tx.transaction_amount) || 0)
+    const amount = Math.abs(parseFloat(String(tx.transaction_amount)) || 0)
     totalAmount += amount
 
     const isFullyDeductible = tx.is_fully_deductible || false
-    const rawDeductibleAmount = parseFloat(tx.claimable_amount) || (isFullyDeductible ? amount : 0)
+    const rawDeductibleAmount = parseFloat(String(tx.claimable_amount)) || (isFullyDeductible ? amount : 0)
     const description = tx.transaction_description || ''
 
     // Fix 3c: Apply partial deductibility rules based on category
@@ -660,7 +666,7 @@ function analyzeDeductionCategory(
 
     return {
       transactionId: tx.transaction_id,
-      transactionDate: tx.transaction_date,
+      transactionDate: tx.transaction_date || '',
       description,
       amount,
       supplier: tx.supplier_name,
@@ -669,7 +675,7 @@ function analyzeDeductionCategory(
       deductibleAmount: adjustedDeductibleAmount,
       nonDeductibleAmount,
       deductionType: tx.deduction_type || 'Section 8-1',
-      confidence: tx.deduction_confidence || 0,
+      confidence: tx.deduction_confidence ?? 0,
       reasoning: tx.deduction_reasoning || '',
       restrictions: tx.deduction_restrictions || [],
       // Fix 3a: Always 'potential' - cannot confirm against lodged returns

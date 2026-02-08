@@ -35,9 +35,10 @@ export function AnalyzeForm({ tenantId, onSuccess }: AnalyzeFormProps) {
    */
   const validateField = (fieldName: keyof FormData, value: unknown) => {
     try {
-      // Validate just this field using Zod's pick
-      const fieldSchema = analyzeRequestSchema.pick({ [fieldName]: true } as any)
-      fieldSchema.parse({ [fieldName]: value })
+      // Validate the full object with just this field to check field-level validation
+      const partial: Record<string, unknown> = { [fieldName]: value }
+      analyzeRequestSchema.shape[fieldName].parse(value)
+      void partial // used for validation context
 
       // Clear error for this field
       setErrors((prev) => {

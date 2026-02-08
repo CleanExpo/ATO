@@ -26,7 +26,7 @@ import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
-const GlassCard = ({ children, className = '', highlight = false }: any) => (
+const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode; className?: string; highlight?: boolean }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -37,7 +37,7 @@ const GlassCard = ({ children, className = '', highlight = false }: any) => (
 );
 
 export default function LossAnalysisPage() {
-    const [connections, setConnections] = useState<any[]>([])
+    const [connections, setConnections] = useState<Array<{ tenant_id: string; organisation_name: string }>>([])
     const [activeTenantId, setActiveTenantId] = useState<string>('')
     const [selectedFY, setSelectedFY] = useState('FY2024-25')
     const [loading, setLoading] = useState(true)

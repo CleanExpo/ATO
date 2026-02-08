@@ -67,7 +67,7 @@ async function showStatus() {
 
     if (data && data.length > 0) {
       console.log(`\n${status.toUpperCase()} (${data.length} items):`);
-      data.forEach((item: any, i: number) => {
+      data.forEach((item: { title: string; priority?: string; complexity?: string }, i: number) => {
         const priority = item.priority ? `[${item.priority}]` : '';
         const complexity = item.complexity ? `(${item.complexity})` : '';
         console.log(`  ${i + 1}. ${item.title} ${priority} ${complexity}`);
@@ -232,8 +232,8 @@ async function validatePendingItems() {
           linearIssueUrl = linearIssue.url;
 
           console.log(`   Linear: ${linearIssueIdentifier} ✅`);
-        } catch (linearError: any) {
-          console.log(`   Linear: Failed (${linearError.message})`);
+        } catch (linearError: unknown) {
+          console.log(`   Linear: Failed (${linearError instanceof Error ? linearError.message : String(linearError)})`);
           // Continue anyway - validation is still useful
         }
       } else {
@@ -261,15 +261,15 @@ async function validatePendingItems() {
       // Small delay to respect rate limits
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-    } catch (error: any) {
-      console.error(`   ❌ Validation failed: ${error.message}\n`);
+    } catch (error: unknown) {
+      console.error(`   ❌ Validation failed: ${error instanceof Error ? error.message : String(error)}\n`);
 
       // Mark as failed
       await supabase
         .from('work_queue')
         .update({
           status: 'failed',
-          error_message: error.message,
+          error_message: error instanceof Error ? error.message : String(error),
         })
         .eq('id', item.id);
 
@@ -405,8 +405,8 @@ const arg = process.argv.slice(3).join(' ');
         await showMenu();
         process.exit(1);
     }
-  } catch (error: any) {
-    console.error('\n❌ Error:', error.message);
+  } catch (error: unknown) {
+    console.error('\n❌ Error:', error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 })();

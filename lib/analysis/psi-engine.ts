@@ -28,6 +28,26 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentFinancialYear } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
 
+/** Xero raw transaction shape from historical_transactions_cache.raw_data */
+interface XeroRawTransaction {
+  Type?: string
+  Total?: string | number
+  Date?: string
+  DateString?: string
+  Description?: string
+  Reference?: string
+  Contact?: { Name?: string; ContactID?: string }
+  ContactName?: string
+  [key: string]: unknown
+}
+
+/** Row from historical_transactions_cache */
+interface HistoricalCacheRow {
+  raw_data: XeroRawTransaction | XeroRawTransaction[]
+  financial_year?: string
+  [key: string]: unknown
+}
+
 // PSI thresholds
 const PSI_SINGLE_CLIENT_THRESHOLD = 0.80 // 80% from one client triggers PSI rules
 const PSI_RESULTS_TEST_THRESHOLD = 0.75 // 75% must be for producing a result
@@ -170,14 +190,14 @@ export async function analyzePSI(
   const clientIncomeMap = new Map<string, { name: string; total: number }>()
   let totalIncome = 0
 
-  const rawTransactions = (transactions || []).flatMap((t: any) => {
+  const rawTransactions = (transactions || []).flatMap((t: HistoricalCacheRow) => {
     const raw = t.raw_data
     return Array.isArray(raw) ? raw : [raw]
   })
 
-  rawTransactions.forEach((tx: any) => {
-    if (tx.Type === 'ACCREC' || (tx.Type === 'BANK' && parseFloat(tx.Total) > 0)) {
-      const amount = Math.abs(parseFloat(tx.Total) || 0)
+  rawTransactions.forEach((tx: XeroRawTransaction) => {
+    if (tx.Type === 'ACCREC' || (tx.Type === 'BANK' && parseFloat(String(tx.Total)) > 0)) {
+      const amount = Math.abs(parseFloat(String(tx.Total)) || 0)
       const clientName = tx.Contact?.Name || tx.ContactName || 'Unknown Client'
       const clientId = tx.Contact?.ContactID || clientName
 
@@ -313,7 +333,7 @@ export async function analyzePSI(
  * Requires ALL THREE sub-requirements to be met.
  */
 function analyzeResultsTest(
-  transactions: any[],
+  transactions: XeroRawTransaction[],
   totalIncome: number,
   options?: PSIAnalysisOptions
 ): ResultsTestAnalysis {
@@ -322,9 +342,9 @@ function analyzeResultsTest(
   let resultBasedIncome = 0
   const resultEvidence: string[] = []
 
-  transactions.forEach((tx: any) => {
+  transactions.forEach((tx: XeroRawTransaction) => {
     if (tx.Type !== 'ACCREC') return
-    const amount = Math.abs(parseFloat(tx.Total) || 0)
+    const amount = Math.abs(parseFloat(String(tx.Total)) || 0)
     const desc = (tx.Description || tx.Reference || '').toLowerCase()
 
     // Indicators of result-based work (not time-based)
@@ -419,7 +439,7 @@ function analyzeUnrelatedClientsTest(
  * Employment Test (s 87-25 ITAA 1997).
  */
 function analyzeEmploymentTest(
-  _transactions: any[],
+  _transactions: XeroRawTransaction[],
   _options?: PSIAnalysisOptions
 ): { met: boolean; confidence: number; notes: string[] } {
   // Employment test requires analysis of whether the individual would be

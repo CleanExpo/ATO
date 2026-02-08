@@ -29,8 +29,27 @@ import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext,
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
+import type { SupabaseServiceClient } from '@/lib/supabase/server'
+import type { HistoricalTransaction } from '@/lib/xero/historical-fetcher'
 
 const log = createLogger('api:audit:analyze-chunk')
+
+/** Shape of a raw cached transaction (union of Xero invoice/bank transaction fields) */
+interface CachedTransaction {
+    bankTransactionID?: string
+    invoiceID?: string
+    transactionID?: string
+    date?: string
+    reference?: string
+    total?: number
+    contact?: { name?: string }
+    lineItems?: Array<{
+        description?: string
+        quantity?: number
+        unitAmount?: number
+        accountCode?: string
+    }>
+}
 
 export const maxDuration = 60 // Vercel serverless max (Pro plan)
 
@@ -114,7 +133,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Convert to analysis format
-        const transactionContexts: TransactionContext[] = batchTransactions.map((txn: any) => {
+        const transactionContexts: TransactionContext[] = (batchTransactions as CachedTransaction[]).map((txn) => {
             const transactionId = txn.bankTransactionID ||
                                   txn.invoiceID ||
                                   txn.transactionID ||
@@ -127,7 +146,7 @@ export async function POST(request: NextRequest) {
                 amount: txn.total || 0,
                 supplier: txn.contact?.name,
                 accountCode: txn.lineItems?.[0]?.accountCode,
-                lineItems: txn.lineItems?.map((li: any) => ({
+                lineItems: txn.lineItems?.map((li) => ({
                     description: li.description,
                     quantity: li.quantity,
                     unitAmount: li.unitAmount,
@@ -150,7 +169,7 @@ export async function POST(request: NextRequest) {
         log.info('Analyzed transactions', { count: analyses.length, analyzeTimeMs: analyzeTime })
 
         // Store analysis results
-        await storeAnalysisResults(tenantId, analyses, batchTransactions, supabase)
+        await storeAnalysisResults(tenantId, analyses, batchTransactions as CachedTransaction[], supabase)
 
         // Track cost
         const costEstimate = estimateAnalysisCost(analyses.length)
@@ -244,7 +263,7 @@ export async function POST(request: NextRequest) {
 /**
  * Build descriptive text from transaction
  */
-function buildDescription(transaction: any): string {
+function buildDescription(transaction: CachedTransaction): string {
     const parts: string[] = []
 
     if (transaction.reference) {
@@ -257,7 +276,7 @@ function buildDescription(transaction: any): string {
 
     if (transaction.lineItems && transaction.lineItems.length > 0) {
         const descriptions = transaction.lineItems
-            .map((li: any) => li.description)
+            .map((li) => li.description)
             .filter(Boolean)
             .join('; ')
 
@@ -290,13 +309,13 @@ function calculateFinancialYear(date: string | Date): string {
 async function storeAnalysisResults(
     tenantId: string,
     analyses: ForensicAnalysis[],
-    originalTransactions: any[],
-    supabase: any
+    originalTransactions: CachedTransaction[],
+    supabase: SupabaseServiceClient
 ): Promise<void> {
     // Map analyses to database schema
     const records = analyses.map((analysis, index) => {
         const txn = originalTransactions[index]
-        const financialYear = calculateFinancialYear(txn.date)
+        const financialYear = calculateFinancialYear(txn.date || new Date().toISOString())
 
         return {
             tenant_id: tenantId,
@@ -367,7 +386,7 @@ async function trackAnalysisCost(
     tenantId: string,
     transactionCount: number,
     costUSD: number,
-    supabase: any
+    supabase: SupabaseServiceClient
 ): Promise<void> {
     const costEstimate = estimateAnalysisCost(transactionCount)
 

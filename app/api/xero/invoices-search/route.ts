@@ -19,6 +19,39 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:xero:invoices-search')
 
+/** Shape of a Xero invoice from the accounting API */
+interface XeroInvoice {
+    invoiceID?: string
+    invoiceNumber?: string
+    contact?: { name?: string }
+    date?: string
+    dueDate?: string
+    total?: number
+    amountPaid?: number
+    amountDue?: number
+    status?: string
+    type?: string
+    reference?: string
+}
+
+/** Formatted invoice for API response */
+interface FormattedInvoice {
+    invoiceId: string | undefined
+    invoiceNumber: string | undefined
+    contact: string | undefined
+    date: string | undefined
+    dueDate: string | undefined
+    total: number
+    amountPaid: number
+    amountDue: number
+    status: string | undefined
+    type: string | undefined
+    reference: string | undefined
+    gstComponent?: number
+    badDebtDeduction?: number
+    gstRecovery?: number
+}
+
 // Helper to get valid token set for a tenant
 async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
     const supabase = await createServiceClient()
@@ -113,7 +146,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Fetch all invoices from Xero (paginated)
-        let allInvoices: any[] = []
+        let allInvoices: XeroInvoice[] = []
         let page = 1
         let hasMore = true
 
@@ -131,7 +164,7 @@ export async function GET(request: NextRequest) {
                 true          // includeArchived
             )
 
-            const invoices = response.body.invoices || []
+            const invoices = (response.body.invoices || []) as XeroInvoice[]
             allInvoices = allInvoices.concat(invoices)
 
             // Stop if we got less than 100 (default page size)
@@ -154,8 +187,8 @@ export async function GET(request: NextRequest) {
         let totalOutstanding = 0
         let totalPaid = 0
         let totalVoided = 0
-        const unpaidInvoices: any[] = []
-        const paidInvoices: any[] = []
+        const unpaidInvoices: FormattedInvoice[] = []
+        const paidInvoices: FormattedInvoice[] = []
 
         for (const inv of matchingInvoices) {
             const amount = inv.total || 0
@@ -203,7 +236,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Sort unpaid by oldest first (potential bad debts)
-        unpaidInvoices.sort((a, b) => new Date(a.dueDate || a.date).getTime() - new Date(b.dueDate || b.date).getTime())
+        unpaidInvoices.sort((a, b) => new Date(a.dueDate || a.date || 0).getTime() - new Date(b.dueDate || b.date || 0).getTime())
 
         return NextResponse.json({
             search,

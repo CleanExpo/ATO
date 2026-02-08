@@ -353,7 +353,18 @@ function ForensicAuditPage() {
   )
 }
 
-function AuditNode({ index, title, description, icon, status, action, actionLabel = 'Start', progress }: any) {
+interface AuditNodeProps {
+  index: number
+  title: string
+  description: string
+  icon: React.ReactNode
+  status: 'active' | 'complete' | 'pending'
+  action?: () => void
+  actionLabel?: string
+  progress?: number
+}
+
+function AuditNode({ index, title, description, icon, status, action, actionLabel = 'Start', progress }: AuditNodeProps) {
   const isActive = status === 'active';
   const isComplete = status === 'complete';
 
@@ -397,7 +408,7 @@ function AuditNode({ index, title, description, icon, status, action, actionLabe
   );
 }
 
-function SummaryCard({ title, value, icon: Icon, color }: any) {
+function SummaryCard({ title, value, icon: Icon, color }: { title: string; value: string | number; icon: React.ComponentType<{ className?: string }>; color: string }) {
   return (
     <div className="p-8 rounded-3xl bg-white/[0.02] border border-white/5 space-y-3">
       <div className="flex items-center gap-3 text-white/40">

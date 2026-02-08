@@ -43,7 +43,7 @@ interface ActivityLog {
     action: string;
     created_at: string;
     organizations: { name: string };
-    metadata: any;
+    metadata: Record<string, unknown>;
 }
 
 const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode, className?: string, highlight?: boolean }) => (
@@ -66,7 +66,7 @@ const HealthTag = ({ status }: { status: string }) => (
 export default function AdminDashboard() {
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [activity, setActivity] = useState<ActivityLog[]>([]);
-    const [health, setHealth] = useState<any>(null);
+    const [health, setHealth] = useState<Record<string, unknown> | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 

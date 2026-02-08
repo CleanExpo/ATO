@@ -35,7 +35,7 @@ interface TaxAlert {
   status: 'unread' | 'read' | 'acknowledged' | 'dismissed' | 'actioned'
   action_url?: string
   action_label?: string
-  metadata?: any
+  metadata?: Record<string, unknown>
 }
 
 interface AlertCardProps {
@@ -213,7 +213,7 @@ export default function AlertCard({
       {/* Metadata Highlights */}
       {alert.metadata && (
         <div className="flex gap-4 mb-4 text-sm">
-          {alert.metadata.potential_benefit && (
+          {typeof alert.metadata.potential_benefit === 'number' && (
             <div className="flex items-center gap-1">
               <DollarSign className={`w-4 h-4 ${config.iconColor}`} />
               <span className={config.textColor}>
@@ -221,14 +221,14 @@ export default function AlertCard({
               </span>
             </div>
           )}
-          {alert.metadata.total_rnd_transactions && (
+          {alert.metadata.total_rnd_transactions != null && (
             <span className={config.textColor}>
-              {alert.metadata.total_rnd_transactions} R&D transactions
+              {String(alert.metadata.total_rnd_transactions)} R&D transactions
             </span>
           )}
-          {alert.metadata.opportunity_count && (
+          {alert.metadata.opportunity_count != null && (
             <span className={config.textColor}>
-              {alert.metadata.opportunity_count} opportunities
+              {String(alert.metadata.opportunity_count)} opportunities
             </span>
           )}
         </div>

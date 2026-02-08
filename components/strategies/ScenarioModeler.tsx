@@ -40,6 +40,18 @@ interface ScenarioResult {
   recommendations: string[]
 }
 
+interface BaseResult {
+  taxableIncome: number
+  taxPayable: number
+  rndOffset: number
+  netTaxPosition: number
+}
+
+interface ScenarioInsights {
+  bestScenario: string
+  maxSavings: number
+}
+
 interface ScenarioModelerProps {
   tenantId: string
   baseYear: string
@@ -48,9 +60,9 @@ interface ScenarioModelerProps {
 export function ScenarioModeler({ tenantId, baseYear }: ScenarioModelerProps) {
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [results, setResults] = useState<{
-    base: any
+    base: BaseResult
     scenarios: ScenarioResult[]
-    insights: any
+    insights: ScenarioInsights
   } | null>(null)
   const [isCalculating, setIsCalculating] = useState(false)
   const [error, setError] = useState<string | null>(null)

@@ -36,7 +36,7 @@ export function PlatformSyncButton({
 
     try {
       let syncEndpoint: string
-      let syncBody: any
+      let syncBody: { tenantId?: string; companyFileId?: string }
 
       if (platform === 'xero') {
         syncEndpoint = '/api/audit/sync'

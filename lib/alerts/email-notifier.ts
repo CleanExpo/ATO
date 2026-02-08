@@ -25,7 +25,13 @@ interface TaxAlert {
   due_date?: string
   action_url?: string
   action_label?: string
-  metadata?: any
+  metadata?: {
+    potential_benefit?: number
+    total_rnd_transactions?: number
+    opportunity_count?: number
+    total_eligible_value?: number
+    [key: string]: unknown
+  }
 }
 
 interface EmailNotificationResult {

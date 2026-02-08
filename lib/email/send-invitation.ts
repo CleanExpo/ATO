@@ -31,6 +31,7 @@ function getResendInstance(): Resend {
 
 const resend = new Proxy({} as Resend, {
   get(_target, prop) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Proxy pattern requires dynamic property access
     return (getResendInstance() as any)[prop];
   },
 });

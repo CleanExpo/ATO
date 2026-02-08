@@ -25,7 +25,7 @@ interface TaxAlert {
   status: 'unread' | 'read' | 'acknowledged' | 'dismissed' | 'actioned'
   action_url?: string
   action_label?: string
-  metadata?: any
+  metadata?: Record<string, unknown>
 }
 
 interface AlertsListProps {
@@ -110,7 +110,7 @@ export default function AlertsList({
     setAlerts(prevAlerts =>
       prevAlerts.map(alert =>
         alert.id === alertId
-          ? { ...alert, status: newStatus as any }
+          ? { ...alert, status: newStatus as TaxAlert['status'] }
           : alert
       )
     )

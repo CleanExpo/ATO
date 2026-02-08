@@ -137,7 +137,20 @@ export async function POST(request: NextRequest) {
 /**
  * Convert database super contribution to SuperContribution format
  */
-function convertToSuperContribution(dbContrib: any): SuperContribution {
+/** Shape of rows returned from the super_contributions database table */
+interface SuperContributionRow {
+  employee_id: string;
+  employee_name: string;
+  period_start_date: string;
+  period_end_date: string;
+  super_amount: number;
+  contribution_type?: string;
+  is_concessional?: boolean;
+  super_fund_id?: string;
+  super_fund_name?: string;
+}
+
+function convertToSuperContribution(dbContrib: SuperContributionRow): SuperContribution {
   // Determine financial year from period start date
   const periodStartDate = new Date(dbContrib.period_start_date);
   const fy = determineFY(periodStartDate);
@@ -147,7 +160,7 @@ function convertToSuperContribution(dbContrib: any): SuperContribution {
     employee_name: dbContrib.employee_name,
     contribution_date: dbContrib.period_end_date, // Use period end as contribution date
     contribution_amount: dbContrib.super_amount,
-    contribution_type: dbContrib.contribution_type || 'SG',
+    contribution_type: (dbContrib.contribution_type || 'SG') as 'SG' | 'salary_sacrifice' | 'employer_additional',
     is_concessional: dbContrib.is_concessional !== false, // Default to true
     financial_year: fy,
     super_fund_id: dbContrib.super_fund_id,

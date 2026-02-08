@@ -27,6 +27,34 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+import type { SupabaseServiceClient } from '@/lib/supabase/server';
+
+/** Shape of a trust contact row from xero_contacts */
+interface TrustContactRow {
+  contact_id: string;
+  name: string;
+  entity_type: string;
+}
+
+/** Shape of a contact row used in the beneficiary map */
+interface ContactRow {
+  contact_id: string;
+  name: string;
+  entity_type: string | null;
+  is_related_party: boolean | null;
+}
+
+/** Shape of a Xero transaction row from the xero_transactions table */
+interface XeroTransactionRow {
+  transaction_id: string;
+  contact_id: string | null;
+  transaction_date: string;
+  amount: number | null;
+  total: number | null;
+  status: string | null;
+  [key: string]: unknown;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -168,9 +196,9 @@ export async function POST(request: NextRequest) {
  * Convert Xero transactions to TrustDistribution format
  */
 async function convertToTrustDistributions(
-  transactions: any[],
-  trustContacts: any[],
-  supabase: any,
+  transactions: XeroTransactionRow[],
+  trustContacts: TrustContactRow[],
+  supabase: SupabaseServiceClient,
   tenantId: string
 ): Promise<TrustDistribution[]> {
   const distributions: TrustDistribution[] = [];
@@ -181,7 +209,9 @@ async function convertToTrustDistributions(
     .select('contact_id, name, entity_type, is_related_party')
     .eq('tenant_id', tenantId);
 
-  const contactMap = new Map<string, any>(allContacts?.map((c: any) => [c.contact_id, c] as [string, any]) || []);
+  const contactMap = new Map<string, ContactRow>(
+    (allContacts as ContactRow[] | null)?.map((c) => [c.contact_id, c] as [string, ContactRow]) || []
+  );
 
   for (const txn of transactions) {
     const trust = trustContacts.find(t => t.contact_id === txn.contact_id);
@@ -189,6 +219,7 @@ async function convertToTrustDistributions(
 
     // Determine beneficiary (simplified - would need more complex logic in production)
     // For now, assume the contact on the transaction is the beneficiary
+    if (!txn.contact_id) continue;
     const beneficiary = contactMap.get(txn.contact_id);
     if (!beneficiary) continue;
 
@@ -223,7 +254,7 @@ async function convertToTrustDistributions(
       trust_entity_name: trust.name,
       beneficiary_id: beneficiary.contact_id,
       beneficiary_name: beneficiary.name,
-      beneficiary_entity_type: beneficiary.entity_type || 'unknown',
+      beneficiary_entity_type: (beneficiary.entity_type || 'unknown') as 'individual' | 'company' | 'trust' | 'partnership' | 'unknown',
       distribution_amount: Math.abs(txn.amount || txn.total || 0),
       distribution_type: distributionType,
       financial_year: fy,

@@ -12,6 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ConsolidatedReport, ClientReportSummary } from '@/lib/reports/consolidated-report-generator';
+import type { SupabaseServiceClient } from '@/lib/supabase/server';
 
 // Create a mock Supabase client to pass directly to generateConsolidatedReport
 function createMockSupabase() {
@@ -131,11 +132,11 @@ vi.mock('@/lib/reports/pdf-generator', () => ({
 import { generateConsolidatedReport, formatCurrency, formatPercentage } from '@/lib/reports/consolidated-report-generator';
 
 describe('Consolidated Report Generator', () => {
-  let mockSupabase: ReturnType<typeof createMockSupabase>;
+  let mockSupabase: SupabaseServiceClient;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSupabase = createMockSupabase();
+    mockSupabase = createMockSupabase() as unknown as SupabaseServiceClient;
   });
 
   describe('generateConsolidatedReport', () => {
@@ -257,7 +258,7 @@ describe('Consolidated Report Generator', () => {
         new Error('Failed to fetch data from Xero')
       );
 
-      const supabase = createMockSupabase();
+      const supabase = createMockSupabase() as unknown as SupabaseServiceClient;
       const report = await generateConsolidatedReport('test-accountant-id', supabase, 5);
 
       // Should have 2 successful and 1 failed
@@ -311,7 +312,7 @@ describe('Consolidated Report Generator', () => {
         }),
       };
 
-      await expect(generateConsolidatedReport('no-orgs-accountant', emptySupabase, 5)).rejects.toThrow(
+      await expect(generateConsolidatedReport('no-orgs-accountant', emptySupabase as unknown as SupabaseServiceClient, 5)).rejects.toThrow(
         'No client organizations found for this accountant'
       );
     });

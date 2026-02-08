@@ -18,12 +18,12 @@
  * For production, integrate with jsPDF or Puppeteer for actual PDF generation.
  */
 
-import { generateRecommendations } from '@/lib/recommendations/recommendation-engine'
-import { generateAmendmentSchedules } from '@/lib/reports/amendment-schedules'
-import { analyzeRndOpportunities } from '@/lib/analysis/rnd-engine'
-import { analyzeDeductionOpportunities } from '@/lib/analysis/deduction-engine'
-import { analyzeLossPosition } from '@/lib/analysis/loss-engine'
-import { analyzeDiv7aCompliance } from '@/lib/analysis/div7a-engine'
+import { generateRecommendations, type RecommendationSummary, type ActionableRecommendation } from '@/lib/recommendations/recommendation-engine'
+import { generateAmendmentSchedules, type AmendmentSummary } from '@/lib/reports/amendment-schedules'
+import { analyzeRndOpportunities, type RndSummary, type RndProjectAnalysis } from '@/lib/analysis/rnd-engine'
+import { analyzeDeductionOpportunities, type DeductionSummary, type DeductionOpportunity } from '@/lib/analysis/deduction-engine'
+import { analyzeLossPosition, type LossSummary } from '@/lib/analysis/loss-engine'
+import { analyzeDiv7aCompliance, type Div7aSummary } from '@/lib/analysis/div7a-engine'
 import { getCostSummary } from '@/lib/ai/batch-processor'
 import { createLogger } from '@/lib/logger'
 
@@ -64,12 +64,12 @@ export interface PDFReport {
     transactionsAnalyzed: number
     costIncurred: number
   }
-  rndAnalysis: any
-  deductionAnalysis: any
-  lossAnalysis: any
-  div7aAnalysis: any
-  recommendations: any
-  amendmentSchedules: any
+  rndAnalysis: RndSummary
+  deductionAnalysis: DeductionSummary
+  lossAnalysis: LossSummary
+  div7aAnalysis: Div7aSummary
+  recommendations: RecommendationSummary
+  amendmentSchedules: AmendmentSummary
   appendices: {
     glossary: Record<string, string>
     legislativeReferences: string[]
@@ -501,7 +501,7 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
     <tbody>
       ${report.rndAnalysis.projects
         .map(
-          (p: any) => `
+          (p: RndProjectAnalysis) => `
         <tr>
           <td>${p.projectName}</td>
           <td>${p.financialYears.join(', ')}</td>
@@ -552,13 +552,13 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
     </thead>
     <tbody>
       ${Object.entries(report.deductionAnalysis.opportunitiesByCategory)
-      .sort((a: any, b: any) => b[1] - a[1])
+      .sort((a, b) => (b[1] as number) - (a[1] as number))
       .map(
-        ([category, amount]: [string, any]) => `
+        ([category, amount]) => `
         <tr>
           <td>${category}</td>
-          <td>$${amount.toLocaleString('en-AU')}</td>
-          <td>$${(amount * 0.25).toLocaleString('en-AU')}</td>
+          <td>$${(amount as number).toLocaleString('en-AU')}</td>
+          <td>$${((amount as number) * 0.25).toLocaleString('en-AU')}</td>
         </tr>
       `
       )
@@ -570,7 +570,7 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
   ${report.deductionAnalysis.highValueOpportunities.length > 0
       ? `
   <ul>
-    ${report.deductionAnalysis.highValueOpportunities.map((opp: any) => `<li><strong>${opp.category}</strong> (${opp.financialYear}): $${opp.unclaimedAmount.toLocaleString('en-AU')}</li>`).join('\n    ')}
+    ${report.deductionAnalysis.highValueOpportunities.map((opp: DeductionOpportunity) => `<li><strong>${opp.category}</strong> (${opp.financialYear}): $${opp.unclaimedAmount.toLocaleString('en-AU')}</li>`).join('\n    ')}
   </ul>
   `
       : '<p>No high-value opportunities identified.</p>'
@@ -591,7 +591,7 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
     ${report.recommendations.recommendations
       .slice(0, 20)
       .map(
-        (rec: any) => `
+        (rec: ActionableRecommendation) => `
       <li class="recommendation-item">
         <p><span class="priority-${rec.priority}">[${rec.priority.toUpperCase()}]</span> <strong>${rec.action}</strong></p>
         <p><small>${rec.financialYear} | Benefit: $${rec.adjustedBenefit.toLocaleString('en-AU')} (${rec.confidence}% confidence)</small></p>

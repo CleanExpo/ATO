@@ -38,7 +38,7 @@ const steps = [
 export default function GrantAcceleratorPage() {
     const [currentStep, setCurrentStep] = useState(0)
     const [loading, setLoading] = useState(true)
-    const [organization, setOrganization] = useState<any>(null)
+    const [organization, setOrganization] = useState<{ organisation_name?: string } | null>(null)
 
     useEffect(() => {
         async function fetchOrg() {
@@ -234,7 +234,7 @@ export default function GrantAcceleratorPage() {
     )
 }
 
-function EligibilityCheckItem({ label, status, value }: any) {
+function EligibilityCheckItem({ label, status, value }: { label: string; status: 'passed' | 'failed'; value: string }) {
     return (
         <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/5 space-y-3">
             <div className="flex justify-between items-center">
@@ -246,7 +246,7 @@ function EligibilityCheckItem({ label, status, value }: any) {
     )
 }
 
-function DocumentItem({ icon, label, status, size }: any) {
+function DocumentItem({ icon, label, status, size }: { icon: React.ReactNode; label: string; status: string; size: string }) {
     return (
         <div className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between group hover:border-sky-500/30 transition-all">
             <div className="flex items-center gap-4">

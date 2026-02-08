@@ -48,8 +48,8 @@ export default function LoginPage() {
       })
 
       if (error) throw error
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in with Google')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in with Google')
       setLoading(false)
     }
   }
@@ -70,8 +70,8 @@ export default function LoginPage() {
 
       // Redirect to dashboard on success
       router.push('/dashboard')
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to sign in')
       setLoading(false)
     }
   }

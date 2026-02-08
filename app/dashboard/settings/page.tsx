@@ -94,7 +94,7 @@ export default function SettingsPage() {
                 const data = await res.json()
                 // Filter for QuickBooks connections (tenant_name contains 'QuickBooks')
                 const qbConnections = (data.connections || []).filter(
-                    (conn: any) => conn.tenant_name?.includes('QuickBooks') || conn.realm_id
+                    (conn: { tenant_name?: string; realm_id?: string }) => conn.tenant_name?.includes('QuickBooks') || conn.realm_id
                 )
                 setQuickbooksConnections(qbConnections)
             } catch (err) {

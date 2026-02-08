@@ -14,6 +14,7 @@
 
 import { generatePDFReportData, type PDFReport, type ExecutiveSummary } from './pdf-generator';
 import { createLogger } from '@/lib/logger';
+import type { SupabaseServiceClient } from '@/lib/supabase/server';
 // Note: Supabase client must be passed in from API routes, not imported here
 // import { createServiceClient } from '@/lib/supabase/server';
 
@@ -96,7 +97,7 @@ export interface ConsolidatedReport {
  */
 async function getAccountantOrganizations(
   accountantUserId: string,
-  supabase: any
+  supabase: SupabaseServiceClient
 ): Promise<Array<{ id: string; name: string; abn?: string; tenantId?: string }>> {
 
   // Get all organizations where user has accountant or admin role
@@ -124,12 +125,15 @@ async function getAccountantOrganizations(
     return [];
   }
 
-  return data.map((access: any) => ({
-    id: access.organizations?.id || access.organization_id,
-    name: access.organizations?.name || 'Unknown Organization',
-    abn: access.organizations?.abn,
-    tenantId: access.organizations?.xero_tenant_id,
-  }));
+  return data.map((access: Record<string, unknown>) => {
+    const org = access.organizations as Record<string, unknown> | undefined;
+    return {
+      id: (org?.id as string) || (access.organization_id as string),
+      name: (org?.name as string) || 'Unknown Organization',
+      abn: org?.abn as string | undefined,
+      tenantId: org?.xero_tenant_id as string | undefined,
+    };
+  });
 }
 
 /**
@@ -190,7 +194,7 @@ async function generateClientReport(
  */
 export async function generateConsolidatedReport(
   accountantUserId: string,
-  supabase: any,
+  supabase: SupabaseServiceClient,
   batchSize: number = 5
 ): Promise<ConsolidatedReport> {
   const startTime = Date.now();

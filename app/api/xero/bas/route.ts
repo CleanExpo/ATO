@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
       // Fetch BAS report for each quarter
       for (const quarter of quarters) {
         try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- getReportBASorGST not typed in xero-node SDK
           const response = await (xeroClient.accountingApi as any).getReportBASorGST(
             tenantId,
             'BASREPORT', // reportID
@@ -131,6 +132,7 @@ export async function GET(request: NextRequest) {
       }
 
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- getReportBASorGST not typed in xero-node SDK
         const response = await (xeroClient.accountingApi as any).getReportBASorGST(
           tenantId,
           'BASREPORT',

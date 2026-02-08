@@ -5,11 +5,47 @@
  * Compares before/after confidence scores to measure questionnaire impact.
  */
 
-import { createServiceClient } from '@/lib/supabase/server';
-import { analyzeFuelTaxCredits } from './fuel-tax-credits-analyzer';
-import { analyzeTrustDistributions } from './trust-distribution-analyzer';
-import { analyzeSuperannuationCaps } from './superannuation-cap-analyzer';
+import { createServiceClient, type SupabaseServiceClient } from '@/lib/supabase/server';
+import { analyzeFuelTaxCredits, type FuelPurchase } from './fuel-tax-credits-analyzer';
+import { analyzeTrustDistributions, type TrustDistribution, type Section100AAnalysis } from './trust-distribution-analyzer';
+import { analyzeSuperannuationCaps, type SuperContribution } from './superannuation-cap-analyzer';
 import { createLogger } from '@/lib/logger';
+
+/** Row shape from xero_transactions table (partial) */
+interface XeroTransactionRow {
+  transaction_id: string;
+  date: string;
+  contact_name: string;
+  contact_id?: string;
+  total: number;
+  description?: string;
+  raw_xero_data?: Record<string, unknown>;
+  entity_type?: string;
+  [key: string]: unknown;
+}
+
+/** Row shape from xero_super_contributions table (partial) */
+interface XeroSuperContributionRow {
+  employee_id: string;
+  employee_name: string;
+  period_start_date: string;
+  period_end_date: string;
+  super_amount: number;
+  contribution_type?: string;
+  is_concessional?: boolean;
+  super_fund_id?: string;
+  super_fund_name?: string;
+  [key: string]: unknown;
+}
+
+/** Row shape from xero_contacts table (partial) */
+interface XeroContactRow {
+  contact_id: string;
+  entity_type?: string;
+  [key: string]: unknown;
+}
+
+// Trust analysis result type imported as Section100AAnalysis from trust-distribution-analyzer
 
 const log = createLogger('analysis:reanalysis');
 
@@ -157,7 +193,7 @@ export async function processAnalysisQueue(
  * Run re-analysis for a specific job
  */
 async function runReanalysis(
-  supabase: any,
+  supabase: SupabaseServiceClient,
   job: AnalysisQueueJob
 ): Promise<ReanalysisResult> {
   try {
@@ -173,8 +209,8 @@ async function runReanalysis(
       );
 
       if (previousAnalysis) {
-        previousConfidence = previousAnalysis.confidence || 0;
-        previousBenefit = previousAnalysis.total_benefit || 0;
+        previousConfidence = (previousAnalysis.confidence as number) || 0;
+        previousBenefit = (previousAnalysis.total_benefit as number) || 0;
       }
     }
 
@@ -198,8 +234,8 @@ async function runReanalysis(
 
         // Convert to FuelPurchase format (simplified)
         const fuelPurchases = transactions
-          .filter((t: any) => isFuelTransaction(t))
-          .map((t: any) => convertToFuelPurchase(t));
+          .filter((t: XeroTransactionRow) => isFuelTransaction(t))
+          .map((t: XeroTransactionRow) => convertToFuelPurchase(t));
 
         // Run analysis
         const analyses = await analyzeFuelTaxCredits(fuelPurchases);
@@ -228,7 +264,7 @@ async function runReanalysis(
           throw new Error('No trust entities found for re-analysis');
         }
 
-        const trustIds = trustContacts.map((c: any) => c.contact_id);
+        const trustIds = trustContacts.map((c: XeroContactRow) => c.contact_id);
 
         const { data: transactions } = await supabase
           .from('xero_transactions')
@@ -240,7 +276,7 @@ async function runReanalysis(
         }
 
         // Convert and analyze (simplified)
-        const distributions = transactions.map((t: any) => convertToTrustDistribution(t));
+        const distributions = transactions.map((t: XeroTransactionRow) => convertToTrustDistribution(t));
         const analyses = await analyzeTrustDistributions(distributions);
 
         if (analyses.length > 0) {
@@ -266,7 +302,7 @@ async function runReanalysis(
         }
 
         // Convert and analyze
-        const superContributions = contributions.map((c: any) => convertToSuperContribution(c));
+        const superContributions = contributions.map((c: XeroSuperContributionRow) => convertToSuperContribution(c));
         const analyses = await analyzeSuperannuationCaps(superContributions);
 
         if (analyses.length > 0) {
@@ -311,10 +347,10 @@ async function runReanalysis(
  * Get previous analysis for comparison
  */
 async function getPreviousAnalysis(
-  supabase: any,
+  supabase: SupabaseServiceClient,
   analysisType: string,
   analysisId: string
-): Promise<any | null> {
+): Promise<Record<string, unknown> | null> {
   let tableName: string;
 
   switch (analysisType) {
@@ -342,7 +378,7 @@ async function getPreviousAnalysis(
 }
 
 // Helper functions (simplified - would need full implementations)
-function isFuelTransaction(transaction: any): boolean {
+function isFuelTransaction(transaction: XeroTransactionRow): boolean {
   const description = (transaction.description || '').toLowerCase();
   const contactName = (transaction.contact_name || '').toLowerCase();
   const fuelKeywords = ['fuel', 'petrol', 'diesel', 'bp', 'shell', 'caltex', 'ampol'];
@@ -351,38 +387,44 @@ function isFuelTransaction(transaction: any): boolean {
   );
 }
 
-function convertToFuelPurchase(transaction: any): any {
+function convertToFuelPurchase(transaction: XeroTransactionRow): FuelPurchase {
+  const rawData = transaction.raw_xero_data;
   return {
     transaction_id: transaction.transaction_id,
     transaction_date: transaction.date,
     supplier_name: transaction.contact_name,
     total_amount: Math.abs(transaction.total),
-    fuel_type: transaction.raw_xero_data?.fuel_type || 'unknown',
-    fuel_litres: transaction.raw_xero_data?.fuel_litres,
-    business_use_percentage: transaction.raw_xero_data?.business_use_percentage || 100,
-    is_off_road_use: transaction.raw_xero_data?.is_off_road_use,
+    fuel_type: (rawData?.fuel_type as FuelPurchase['fuel_type']) || 'unknown',
+    fuel_litres: rawData?.fuel_litres as number | undefined,
+    business_use_percentage: (rawData?.business_use_percentage as number) || 100,
+    is_off_road_use: (rawData?.is_off_road_use as boolean) || false,
+    has_valid_tax_invoice: (rawData?.has_valid_tax_invoice as boolean) || false,
+    financial_year: determineFY(new Date(transaction.date)),
   };
 }
 
-function convertToTrustDistribution(transaction: any): any {
+function convertToTrustDistribution(transaction: XeroTransactionRow): TrustDistribution {
   return {
     transaction_id: transaction.transaction_id,
-    trust_entity_id: transaction.contact_id,
-    beneficiary_id: transaction.contact_id,
+    transaction_date: transaction.date,
+    trust_entity_id: transaction.contact_id || '',
+    trust_entity_name: transaction.contact_name || 'Unknown Trust',
+    beneficiary_id: transaction.contact_id || '',
     beneficiary_name: transaction.contact_name,
+    beneficiary_entity_type: 'unknown',
     distribution_amount: Math.abs(transaction.total),
     distribution_type: 'cash',
     financial_year: determineFY(new Date(transaction.date)),
   };
 }
 
-function convertToSuperContribution(contribution: any): any {
+function convertToSuperContribution(contribution: XeroSuperContributionRow): SuperContribution {
   return {
     employee_id: contribution.employee_id,
     employee_name: contribution.employee_name,
     contribution_date: contribution.period_end_date,
     contribution_amount: contribution.super_amount,
-    contribution_type: contribution.contribution_type || 'SG',
+    contribution_type: (contribution.contribution_type || 'SG') as SuperContribution['contribution_type'],
     is_concessional: contribution.is_concessional !== false,
     financial_year: determineFY(new Date(contribution.period_start_date)),
     super_fund_id: contribution.super_fund_id,
@@ -390,10 +432,10 @@ function convertToSuperContribution(contribution: any): any {
   };
 }
 
-function calculateTrustConfidence(analysis: any): number {
+function calculateTrustConfidence(analysis: Section100AAnalysis): number {
   // High confidence if no critical flags
   const criticalFlags = analysis.section_100a_flags.filter(
-    (f: any) => f.severity === 'critical'
+    (f: { severity: string }) => f.severity === 'critical'
   ).length;
   if (criticalFlags === 0) return 90;
   if (criticalFlags <= 2) return 70;

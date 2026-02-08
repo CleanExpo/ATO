@@ -17,7 +17,8 @@
  * - Non-compliance = deemed dividend (taxed at shareholder's marginal rate, s 109D)
  */
 
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, type SupabaseServiceClient } from '@/lib/supabase/server'
+import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import {
   getCurrentFinancialYear,
@@ -26,6 +27,18 @@ import {
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('analysis:div7a')
+
+/**
+ * Extended forensic analysis row with optional fields used in Div 7A classification.
+ * These fields may be present on the Supabase row but are not in the core ForensicAnalysisRow type.
+ */
+interface Div7ATransactionRow extends ForensicAnalysisRow {
+  contact_name?: string
+  contact_id?: string | null
+  account_type?: string
+  xero_account_type?: string
+  account_name?: string
+}
 
 // Division 7A benchmark interest rates (ATO published rates, per s 109N ITAA 1936)
 // Now fetched dynamically, falling back to these historical values if API fails
@@ -228,7 +241,7 @@ export async function analyzeDiv7aCompliance(
  * - Each loan receives a classificationConfidence score (0-100)
  */
 async function identifyShareholderLoans(
-  supabase: any,
+  supabase: SupabaseServiceClient,
   tenantId: string,
   startYear?: string,
   endYear?: string
@@ -255,9 +268,9 @@ async function identifyShareholderLoans(
   }
 
   // Group transactions by shareholder/payee
-  const loanMap = new Map<string, any[]>()
+  const loanMap = new Map<string, Div7ATransactionRow[]>()
 
-  data.forEach((tx: any) => {
+  data.forEach((tx: Div7ATransactionRow) => {
     const shareholderName = tx.supplier_name || tx.contact_name || 'Unknown Shareholder'
     const key = shareholderName.toLowerCase()
 
@@ -270,7 +283,7 @@ async function identifyShareholderLoans(
   // Convert to loan objects with classification confidence scoring (Fix 4d)
   const loans: ShareholderLoan[] = []
 
-  loanMap.forEach((transactions, key) => {
+  loanMap.forEach((transactions: Div7ATransactionRow[], key: string) => {
     const firstTx = transactions[0]
     const loanId = `DIV7A-${key.replace(/[^a-z0-9]/g, '-')}`
 
@@ -290,7 +303,7 @@ async function identifyShareholderLoans(
     loans.push({
       loanId,
       shareholderName: firstTx.supplier_name || firstTx.contact_name || 'Unknown Shareholder',
-      shareholderId: firstTx.contact_id,
+      shareholderId: firstTx.contact_id ?? null,
       loanType,
       maxTermYears: loanType === 'secured' ? SECURED_LOAN_MAX_TERM : UNSECURED_LOAN_MAX_TERM,
       classificationConfidence: confidence,
@@ -311,7 +324,7 @@ async function identifyShareholderLoans(
  * @returns confidence (0-100) and list of contributing signals
  */
 function calculateClassificationConfidence(
-  transactions: any[]
+  transactions: Div7ATransactionRow[]
 ): { confidence: number; signals: string[] } {
   let score = 0
   const signals: string[] = []
@@ -322,7 +335,7 @@ function calculateClassificationConfidence(
   signals.push('Flagged as Division 7A risk in forensic analysis')
 
   // Signal 2: Account code check - loan-type accounts in Xero
-  const hasLoanAccountType = transactions.some((tx: any) => {
+  const hasLoanAccountType = transactions.some((tx: Div7ATransactionRow) => {
     const accountType = (tx.account_type || tx.xero_account_type || '').toUpperCase()
     return LOAN_ACCOUNT_TYPES.some((loanType) => accountType.includes(loanType))
   })
@@ -333,7 +346,7 @@ function calculateClassificationConfidence(
 
   // Signal 3: Description keyword matching
   const allDescriptions = transactions
-    .map((tx: any) => (tx.transaction_description || '').toLowerCase())
+    .map((tx: Div7ATransactionRow) => (tx.transaction_description || '').toLowerCase())
     .join(' ')
   const matchedKeywords = LOAN_CLASSIFICATION_KEYWORDS.filter((kw) =>
     allDescriptions.includes(kw)
@@ -344,8 +357,8 @@ function calculateClassificationConfidence(
   }
 
   // Signal 4: Amount patterns - round numbers suggest loans (not invoices)
-  const amounts = transactions.map((tx: any) =>
-    Math.abs(parseFloat(tx.transaction_amount) || 0)
+  const amounts = transactions.map((tx: Div7ATransactionRow) =>
+    Math.abs(parseFloat(String(tx.transaction_amount)) || 0)
   )
   const roundNumberCount = amounts.filter((amt) => amt > 0 && amt % 100 === 0).length
   const roundNumberRatio = amounts.length > 0 ? roundNumberCount / amounts.length : 0
@@ -388,7 +401,7 @@ function calculateClassificationConfidence(
  * (s 109D, s 109E, s 109N ITAA 1936)
  */
 async function analyzeSingleLoan(
-  supabase: any,
+  supabase: SupabaseServiceClient,
   tenantId: string,
   loan: ShareholderLoan,
   startYear?: string,
@@ -418,7 +431,7 @@ async function analyzeSingleLoan(
   }
 
   // Calculate financial position
-  const financialYears = Array.from(new Set(transactions.map((tx: any) => tx.financial_year))).sort() as string[]
+  const financialYears = Array.from(new Set(transactions.map((tx: Div7ATransactionRow) => tx.financial_year))).sort() as string[]
   const latestYear = financialYears[financialYears.length - 1]
 
   // Fix 4a: Determine opening balance from prior year data instead of hardcoded $0
@@ -434,8 +447,8 @@ async function analyzeSingleLoan(
   let repaymentsThisYear = 0
   let interestCharged = 0
 
-  transactions.forEach((tx: any) => {
-    const amount = Math.abs(parseFloat(tx.transaction_amount) || 0)
+  transactions.forEach((tx: Div7ATransactionRow) => {
+    const amount = Math.abs(parseFloat(String(tx.transaction_amount)) || 0)
     const description = (tx.transaction_description || '').toLowerCase()
 
     // Determine if advance or repayment (s 109D - payments/loans to shareholders)
@@ -612,7 +625,7 @@ async function analyzeSingleLoan(
  * 3. If not found: returns 0 with balanceSource='unknown' and a verification note
  */
 async function calculateOpeningBalance(
-  supabase: any,
+  supabase: SupabaseServiceClient,
   tenantId: string,
   loan: ShareholderLoan,
   financialYears: string[],
@@ -667,8 +680,8 @@ async function calculateOpeningBalance(
   let priorAdvances = 0
   let priorRepayments = 0
 
-  priorTransactions.forEach((tx: any) => {
-    const amount = Math.abs(parseFloat(tx.transaction_amount) || 0)
+  priorTransactions.forEach((tx: Pick<ForensicAnalysisRow, 'transaction_amount' | 'transaction_description'>) => {
+    const amount = Math.abs(parseFloat(String(tx.transaction_amount)) || 0)
     const description = (tx.transaction_description || '').toLowerCase()
 
     if (description.includes('loan') || description.includes('advance') || description.includes('payment to')) {

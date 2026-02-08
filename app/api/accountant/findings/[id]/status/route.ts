@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Build update object
-    const updateData: any = {
+    const updateData: Record<string, string> = {
       status: body.status,
       updated_at: new Date().toISOString(),
     }

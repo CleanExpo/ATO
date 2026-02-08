@@ -20,6 +20,12 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
+
+/** Extended forensic row with optional CGT-specific fields */
+interface CGTForensicRow extends ForensicAnalysisRow {
+  acquisition_date?: string
+}
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import { getCurrentFinancialYear, checkAmendmentPeriod } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
@@ -182,7 +188,7 @@ export async function analyzeCGT(
   }
 
   // Filter for asset disposal transactions (capital in nature)
-  const assetTransactions = transactions.filter((tx: any) => {
+  const assetTransactions = transactions.filter((tx: CGTForensicRow) => {
     const category = (tx.primary_category || '').toLowerCase()
     const description = (tx.transaction_description || '').toLowerCase()
     return (
@@ -217,9 +223,9 @@ export async function analyzeCGT(
   const eligibleForDiscount = entityType !== 'company'
 
   // Build CGT events
-  const events: CGTEvent[] = assetTransactions.map((tx: any) => {
-    const amount = Math.abs(parseFloat(tx.transaction_amount) || 0)
-    const isGain = parseFloat(tx.transaction_amount) > 0
+  const events: CGTEvent[] = assetTransactions.map((tx: CGTForensicRow) => {
+    const amount = Math.abs(parseFloat(String(tx.transaction_amount)) || 0)
+    const isGain = parseFloat(String(tx.transaction_amount)) > 0
     const description = tx.transaction_description || ''
 
     // Estimate holding period from description or default to unknown
@@ -239,7 +245,7 @@ export async function analyzeCGT(
       eventType: classifyCGTEvent(tx) as CGTEventType,
       assetDescription: description,
       acquisitionDate: tx.acquisition_date || 'unknown',
-      disposalDate: tx.transaction_date,
+      disposalDate: tx.transaction_date || '',
       costBase: 0, // Would need asset register data
       reducedCostBase: 0,
       capitalProceeds: isGain ? amount : 0,
@@ -467,7 +473,7 @@ function analyzeDivision152(
 /**
  * Classify CGT event type from transaction data
  */
-function classifyCGTEvent(tx: any): CGTEventType {
+function classifyCGTEvent(tx: CGTForensicRow): CGTEventType {
   const description = (tx.transaction_description || '').toLowerCase()
 
   if (description.includes('disposal') || description.includes('sale of') || description.includes('sold')) {
@@ -485,7 +491,7 @@ function classifyCGTEvent(tx: any): CGTEventType {
 /**
  * Estimate holding period in months from transaction data
  */
-function estimateHoldingPeriod(tx: any): number {
+function estimateHoldingPeriod(tx: CGTForensicRow): number {
   if (tx.acquisition_date && tx.transaction_date) {
     const acquisition = new Date(tx.acquisition_date)
     const disposal = new Date(tx.transaction_date)

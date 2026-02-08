@@ -48,7 +48,7 @@ interface SundriesFinding {
   reasoning: string
   financialYear: string
   estimatedBenefit: number
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'approved' | 'rejected' | 'deferred'
 }
 
 export default async function SundriesWorkflowPage() {
@@ -280,6 +280,24 @@ export default async function SundriesWorkflowPage() {
   )
 }
 
+interface AccountantFindingRow {
+  id: string
+  transaction_id: string
+  transaction_date: string
+  description: string
+  amount: number
+  current_classification: string
+  suggested_classification: string
+  confidence_score: number
+  confidence_level: 'High' | 'Medium' | 'Low'
+  confidence_factors: Array<{ factor: string; impact: 'positive' | 'negative'; weight: number }> | null
+  legislation_refs: Array<{ section: string; title: string; url: string }> | null
+  reasoning: string
+  financial_year: string
+  estimated_benefit: number
+  status: 'pending' | 'approved' | 'rejected'
+}
+
 async function fetchFindings(workflowArea: string): Promise<SundriesFinding[]> {
   try {
     const supabase = await createServiceClient()
@@ -291,7 +309,7 @@ async function fetchFindings(workflowArea: string): Promise<SundriesFinding[]> {
 
     if (error || !data) return []
 
-    return data.map((f: any) => ({
+    return data.map((f: AccountantFindingRow) => ({
       id: f.id,
       transactionId: f.transaction_id,
       date: f.transaction_date,
@@ -301,14 +319,14 @@ async function fetchFindings(workflowArea: string): Promise<SundriesFinding[]> {
       suggestedClassification: f.suggested_classification,
       confidence: {
         score: f.confidence_score,
-        level: f.confidence_level,
-        factors: f.confidence_factors || [],
+        level: f.confidence_level as 'High' | 'Medium' | 'Low',
+        factors: (f.confidence_factors || []) as Array<{ factor: string; impact: 'positive' | 'negative'; weight: number }>,
       },
-      legislationRefs: f.legislation_refs || [],
+      legislationRefs: (f.legislation_refs || []) as Array<{ section: string; title: string; url: string }>,
       reasoning: f.reasoning,
       financialYear: f.financial_year,
       estimatedBenefit: f.estimated_benefit,
-      status: f.status,
+      status: f.status as 'pending' | 'approved' | 'rejected' | 'deferred',
     }))
   } catch {
     return []

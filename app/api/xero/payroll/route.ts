@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     const response = await xeroClient.payrollAUApi.getPayRuns(tenantId);
 
     // Extract pay runs from response
-    let xeroPayRuns = (response.body.payRuns || []) as any[];
+    let xeroPayRuns = (response.body.payRuns || []) as unknown as XeroPayRun[];
 
     // Apply filters
     if (startDate) {

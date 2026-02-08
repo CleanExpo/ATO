@@ -13,6 +13,9 @@ import ExcelJS from 'exceljs'
 import type { PDFReport } from './pdf-generator'
 import { generatePDFReportData } from './pdf-generator'
 import { createLogger } from '@/lib/logger'
+import type { RndProjectAnalysis } from '@/lib/analysis/rnd-engine'
+import type { ActionableRecommendation } from '@/lib/recommendations/recommendation-engine'
+import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 
 const log = createLogger('reports:excel')
 
@@ -189,14 +192,14 @@ async function createRndAnalysisSheet(
 
   // Add data rows
   if (report.rndAnalysis.projects && report.rndAnalysis.projects.length > 0) {
-    report.rndAnalysis.projects.forEach((project: any) => {
+    report.rndAnalysis.projects.forEach((project: RndProjectAnalysis) => {
       sheet.addRow({
         project: project.projectName,
         years: project.financialYears.join(', '),
         expenditure: project.eligibleExpenditure,
         offset: project.estimatedOffset,
         confidence: project.overallConfidence / 100,
-        activityType: project.activityType || 'Core R&D',
+        activityType: project.projectDescription || 'Core R&D',
       })
     })
   }
@@ -275,7 +278,7 @@ async function createDeductionsSheet(
 
   // Add opportunities by category
   const opportunities = report.deductionAnalysis.opportunitiesByCategory || {}
-  Object.entries(opportunities).forEach(([category, amount]: [string, any]) => {
+  Object.entries(opportunities).forEach(([category, amount]) => {
     const row = sheet.addRow({
       category,
       year: 'Various',
@@ -341,7 +344,7 @@ async function createRecommendationsSheet(
 
   // Add recommendations
   if (report.recommendations.recommendations) {
-    report.recommendations.recommendations.forEach((rec: any) => {
+    report.recommendations.recommendations.forEach((rec: ActionableRecommendation) => {
       const row = sheet.addRow({
         priority: rec.priority.toUpperCase(),
         action: rec.action,
@@ -453,7 +456,7 @@ export async function generateExcelFromTenant(
  * Generate simple Excel export (transactions only)
  */
 export async function generateTransactionsExcel(
-  transactions: any[]
+  transactions: ForensicAnalysisRow[]
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet('Transactions')
@@ -484,14 +487,14 @@ export async function generateTransactionsExcel(
   transactions.forEach((txn) => {
     sheet.addRow({
       id: txn.transaction_id,
-      date: new Date(txn.transaction_date),
+      date: txn.transaction_date ? new Date(txn.transaction_date) : '',
       description: txn.transaction_description,
       amount: txn.transaction_amount,
       supplier: txn.supplier_name,
       category: txn.primary_category,
       year: txn.financial_year,
       rnd: txn.is_rnd_candidate ? 'Yes' : 'No',
-      confidence: txn.category_confidence / 100,
+      confidence: (txn.category_confidence ?? 0) / 100,
     })
   })
 

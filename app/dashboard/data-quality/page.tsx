@@ -31,7 +31,7 @@ import LiveChart from '@/components/dashboard/LiveChart'
 import ActivityFeed, { ActivityItem } from '@/components/dashboard/ActivityFeed'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
-const GlassCard = ({ children, className = '', highlight = false }: any) => (
+const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode; className?: string; highlight?: boolean }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -262,7 +262,7 @@ export default function DataQualityPage() {
   )
 }
 
-function ActivityItemRow({ label, desc, time, status }: any) {
+function ActivityItemRow({ label, desc, time, status }: { label: string; desc: string; time: string; status: 'success' | 'warning' | 'info' }) {
   const colors = {
     success: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5',
     warning: 'text-amber-400 border-amber-500/20 bg-amber-500/5',
@@ -282,7 +282,7 @@ function ActivityItemRow({ label, desc, time, status }: any) {
   )
 }
 
-function ToggleSetting({ label, active }: any) {
+function ToggleSetting({ label, active }: { label: string; active: boolean }) {
   return (
     <div className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5">
       <span className="text-[10px] font-bold text-white/60 uppercase tracking-wide">{label}</span>

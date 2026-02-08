@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}))
     const jobType = body.jobType || 'all'
 
-    const results: any = {}
+    const results: Record<string, unknown> = {}
 
     // Run scheduled alert checks (deadline-based alerts)
     if (jobType === 'all' || jobType === 'checks') {

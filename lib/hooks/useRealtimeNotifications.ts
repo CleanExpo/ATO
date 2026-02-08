@@ -20,7 +20,7 @@ interface Notification {
   message: string;
   read: boolean;
   created_at: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 interface UseRealtimeNotificationsOptions {

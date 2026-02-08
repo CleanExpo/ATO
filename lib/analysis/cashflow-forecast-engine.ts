@@ -28,6 +28,24 @@ import {
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import Decimal from 'decimal.js'
 
+/** Xero raw transaction shape from historical_transactions_cache.raw_data */
+interface XeroRawTransaction {
+  Type?: string
+  Total?: string | number
+  Date?: string
+  DateString?: string
+  Description?: string
+  Reference?: string
+  [key: string]: unknown
+}
+
+/** Row from historical_transactions_cache */
+interface HistoricalCacheRow {
+  raw_data: XeroRawTransaction | XeroRawTransaction[]
+  financial_year?: string
+  [key: string]: unknown
+}
+
 /**
  * Single forecast period (monthly or quarterly).
  */
@@ -299,16 +317,16 @@ interface MonthlyAverages {
   superGuarantee: number
 }
 
-function calculateMonthlyAverages(transactions: any[]): MonthlyAverages {
+function calculateMonthlyAverages(transactions: HistoricalCacheRow[]): MonthlyAverages {
   const monthlyIncome: Record<number, number[]> = {}
   const monthlyExpenses: Record<number, number[]> = {}
 
-  const rawTxs = transactions.flatMap((t: any) => {
+  const rawTxs = transactions.flatMap((t: HistoricalCacheRow) => {
     const raw = t.raw_data
     return Array.isArray(raw) ? raw : [raw]
   })
 
-  rawTxs.forEach((tx: any) => {
+  rawTxs.forEach((tx: XeroRawTransaction) => {
     const dateStr = tx.Date || tx.DateString
     if (!dateStr) return
 
@@ -316,13 +334,13 @@ function calculateMonthlyAverages(transactions: any[]): MonthlyAverages {
     if (isNaN(date.getTime())) return
 
     const month = date.getMonth()
-    const amount = Math.abs(parseFloat(tx.Total) || 0)
+    const amount = Math.abs(parseFloat(String(tx.Total)) || 0)
     const type = tx.Type
 
-    if (type === 'ACCREC' || (type === 'BANK' && parseFloat(tx.Total) > 0)) {
+    if (type === 'ACCREC' || (type === 'BANK' && parseFloat(String(tx.Total)) > 0)) {
       if (!monthlyIncome[month]) monthlyIncome[month] = []
       monthlyIncome[month].push(amount)
-    } else if (type === 'ACCPAY' || (type === 'BANK' && parseFloat(tx.Total) < 0)) {
+    } else if (type === 'ACCPAY' || (type === 'BANK' && parseFloat(String(tx.Total)) < 0)) {
       if (!monthlyExpenses[month]) monthlyExpenses[month] = []
       monthlyExpenses[month].push(amount)
     }

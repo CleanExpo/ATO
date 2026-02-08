@@ -1,4 +1,7 @@
 import { XeroClient, TokenSet } from 'xero-node'
+
+/** Minimal token shape accepted by isTokenExpired and refreshXeroTokens */
+export type TokenSetInput = Pick<TokenSet, 'access_token' | 'refresh_token' | 'expires_at'>
 import { withRetry } from '@/lib/xero/retry'
 import { createLogger } from '@/lib/logger'
 
@@ -95,7 +98,7 @@ export function isValidTokenSet(tokens: unknown): tokens is TokenSet {
 }
 
 // Check if tokens are expired or about to expire (5 min buffer)
-export function isTokenExpired(tokens: TokenSet): boolean {
+export function isTokenExpired(tokens: TokenSetInput): boolean {
     const expiresAt = tokens.expires_at || 0
     const now = Math.floor(Date.now() / 1000)
     const buffer = 5 * 60 // 5 minutes
@@ -103,12 +106,12 @@ export function isTokenExpired(tokens: TokenSet): boolean {
 }
 
 // Refresh Xero tokens with retry logic
-export async function refreshXeroTokens(tokens: TokenSet, baseUrl?: string): Promise<TokenSet> {
+export async function refreshXeroTokens(tokens: TokenSetInput, baseUrl?: string): Promise<TokenSet> {
     return withRetry(
         async () => {
             const client = createXeroClient({ baseUrl })
             await client.initialize()
-            client.setTokenSet(tokens)
+            client.setTokenSet(tokens as TokenSet)
             const newTokens = await client.refreshToken()
             return newTokens
         },

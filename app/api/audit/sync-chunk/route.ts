@@ -34,6 +34,19 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:audit:sync-chunk')
 
+/** Shape of a raw Xero transaction (union of invoice/bank transaction fields) */
+interface RawXeroTransaction {
+    bankTransactionID?: string
+    invoiceID?: string
+    transactionID?: string
+    type?: string
+    date?: string
+    contact?: { name?: string }
+    total?: number
+    status?: string
+    reference?: string
+}
+
 const PAGE_SIZE = 100
 const TRANSACTION_TYPES = ['BANK', 'ACCPAY', 'ACCREC'] as const
 
@@ -135,12 +148,10 @@ export async function POST(request: NextRequest) {
         // Fetch ONE page of transactions
         const where = `Date >= DateTime(${fy.startDate.replace(/-/g, ',')}) AND Date <= DateTime(${fy.endDate.replace(/-/g, ',')})`
         
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let transactions: any[] = []
+        let transactions: RawXeroTransaction[] = []
 
         if (type === 'ACCPAY' || type === 'ACCREC') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const invResponse: any = await xero.accountingApi.getInvoices(
+            const invResponse = await xero.accountingApi.getInvoices(
                 tenantId,
                 undefined,
                 where,
@@ -151,17 +162,16 @@ export async function POST(request: NextRequest) {
                 undefined,
                 page
             )
-            transactions = invResponse.body.invoices || []
+            transactions = (invResponse.body.invoices || []) as unknown as RawXeroTransaction[]
         } else if (type === 'BANK') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const bankResponse: any = await xero.accountingApi.getBankTransactions(
+            const bankResponse = await xero.accountingApi.getBankTransactions(
                 tenantId,
                 undefined,
                 where,
                 undefined,
                 page
             )
-            transactions = bankResponse.body.bankTransactions || []
+            transactions = (bankResponse.body.bankTransactions || []) as unknown as RawXeroTransaction[]
         }
 
         const fetchTime = Date.now() - startTime
@@ -237,8 +247,7 @@ export async function POST(request: NextRequest) {
 
         if (!hasMorePages) {
             // Move to next type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const typeIndex = TRANSACTION_TYPES.indexOf(type as any)
+            const typeIndex = (TRANSACTION_TYPES as readonly string[]).indexOf(type)
             if (typeIndex < TRANSACTION_TYPES.length - 1) {
                 nextType = TRANSACTION_TYPES[typeIndex + 1]
                 nextPage = 1
@@ -307,8 +316,7 @@ function calculateProgress(
     allYears: Array<{ value: string }>
 ): number {
     const yearIndex = allYears.findIndex(f => f.value === currentYear)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const typeIndex = TRANSACTION_TYPES.indexOf(currentType as any)
+    const typeIndex = (TRANSACTION_TYPES as readonly string[]).indexOf(currentType)
     
     // Rough progress calculation
     const yearProgress = (yearIndex / allYears.length) * 100

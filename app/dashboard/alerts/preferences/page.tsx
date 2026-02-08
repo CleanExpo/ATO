@@ -107,7 +107,7 @@ export default function AlertPreferencesPage() {
     }
   }
 
-  const updatePreference = (key: keyof AlertPreferences, value: any) => {
+  const updatePreference = (key: keyof AlertPreferences, value: AlertPreferences[keyof AlertPreferences]) => {
     setPreferences(prev => ({ ...prev, [key]: value }))
   }
 

@@ -185,6 +185,7 @@ export class LinearOrchestrator {
           await this.client.createIssueRelation({
             issueId: issue.id,
             relatedIssueId: depId,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- IssueRelationType enum doesn't accept string literals
             type: 'blocks' as any, // This task is blocked by dependency
           });
         }

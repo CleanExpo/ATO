@@ -87,7 +87,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
     agreed_to_privacy: false,
   });
 
-  const updateFormData = (field: string, value: any) => {
+  const updateFormData = (field: string, value: string | number | boolean | string[] | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear errors for this field
     if (errors[field]) {

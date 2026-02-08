@@ -21,6 +21,22 @@ import { getCurrentFinancialYear, getBASQuarter } from '@/lib/utils/financial-ye
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import Decimal from 'decimal.js'
 
+/** Xero raw transaction shape from historical_transactions_cache.raw_data */
+interface XeroRawTransaction {
+  Type?: string
+  Total?: string | number
+  Date?: string
+  DateString?: string
+  [key: string]: unknown
+}
+
+/** Row from historical_transactions_cache */
+interface HistoricalCacheRow {
+  raw_data: XeroRawTransaction | XeroRawTransaction[]
+  financial_year?: string
+  [key: string]: unknown
+}
+
 // PAYG constants
 const VARIATION_SAFE_HARBOUR = 0.85 // 85% of actual liability is the safe harbour
 const GIC_RATE_APPROX = 0.1126 // ~11.26% p.a. (GIC rate changes quarterly, this is approximate)
@@ -252,19 +268,19 @@ export async function analyzePAYGInstalments(
  * Calculate income per BAS quarter from transaction data.
  */
 function calculateQuarterlyIncome(
-  transactions: any[],
+  transactions: HistoricalCacheRow[],
   _fy: string
 ): Record<string, number> {
   const income: Record<string, number> = { Q1: 0, Q2: 0, Q3: 0, Q4: 0 }
 
-  const rawTxs = transactions.flatMap((t: any) => {
+  const rawTxs = transactions.flatMap((t: HistoricalCacheRow) => {
     const raw = t.raw_data
     return Array.isArray(raw) ? raw : [raw]
   })
 
-  rawTxs.forEach((tx: any) => {
-    if (tx.Type !== 'ACCREC' && !(tx.Type === 'BANK' && parseFloat(tx.Total) > 0)) return
-    const amount = Math.abs(parseFloat(tx.Total) || 0)
+  rawTxs.forEach((tx: XeroRawTransaction) => {
+    if (tx.Type !== 'ACCREC' && !(tx.Type === 'BANK' && parseFloat(String(tx.Total)) > 0)) return
+    const amount = Math.abs(parseFloat(String(tx.Total)) || 0)
     const dateStr = tx.Date || tx.DateString
     if (!dateStr) return
 

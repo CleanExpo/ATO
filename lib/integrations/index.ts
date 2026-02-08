@@ -43,6 +43,7 @@ import { adapterRegistry } from './adapter'
 import { XeroAdapter } from './adapters/xero-adapter'
 import { MYOBAdapter } from './adapters/myob-adapter'
 import type { AuthCredentials } from './adapter'
+import type { Platform } from './canonical-schema'
 
 // Auto-register Xero adapter
 adapterRegistry.register('xero', async (credentials: AuthCredentials) => {
@@ -68,7 +69,7 @@ export async function getAdapter(
  * Helper function to check if a platform is supported
  */
 export function isPlatformSupported(platform: string): boolean {
-  return adapterRegistry.isSupported(platform as any)
+  return adapterRegistry.isSupported(platform as Platform)
 }
 
 /**

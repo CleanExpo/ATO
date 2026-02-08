@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const response = await xeroClient.payrollAUApi.getSuperfunds(tenantId);
 
     // Extract super funds from response
-    const xeroSuperFunds = (response.body.superFunds || []) as any[];
+    const xeroSuperFunds = (response.body.superFunds || []) as unknown as XeroSuperFund[];
 
     // Separate SMSF vs APRA-regulated funds
     const smsfFunds = xeroSuperFunds.filter(fund => fund.type === 'SMSF');

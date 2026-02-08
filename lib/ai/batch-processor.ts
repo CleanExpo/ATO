@@ -11,17 +11,26 @@
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
-import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
-import { getCachedMYOBTransactions } from '@/lib/integrations/myob-historical-fetcher'
-import { getCachedQuickBooksTransactions } from '@/lib/integrations/quickbooks-historical-fetcher'
+import { getCachedTransactions, type HistoricalTransaction } from '@/lib/xero/historical-fetcher'
+import { getCachedMYOBTransactions, type MYOBHistoricalTransaction } from '@/lib/integrations/myob-historical-fetcher'
+import { getCachedQuickBooksTransactions, type QuickBooksTransaction } from '@/lib/integrations/quickbooks-historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type TransactionContext, type BusinessContext, type ForensicAnalysis } from './forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { getAdapter } from '@/lib/integrations'
 import type { CanonicalTransaction } from '@/lib/integrations/canonical-schema'
 import { triggerAlertGeneration } from '@/lib/alerts/alert-generator'
 import slack from '@/lib/slack/slack-notifier'
+import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 
 const log = createLogger('ai:batch-processor')
+
+/** Union of all platform-specific cached transaction types */
+type CachedTransaction = HistoricalTransaction | MYOBHistoricalTransaction | QuickBooksTransaction
+
+/** Helper to safely access a property on a cached transaction from any platform */
+function getTxnProp(txn: CachedTransaction, key: string): unknown {
+  return (txn as unknown as Record<string, unknown>)[key]
+}
 
 // Types
 export interface AnalysisProgress {
@@ -147,7 +156,7 @@ export async function analyzeAllTransactions(
         }
 
         // Fetch ALL cached transactions ONCE (outside the loop)
-        let allCachedTransactions: any[]
+        let allCachedTransactions: HistoricalTransaction[] | MYOBHistoricalTransaction[] | QuickBooksTransaction[]
         if (platform === 'xero') {
             allCachedTransactions = await getCachedTransactions(tenantId)
         } else if (platform === 'myob') {
@@ -180,50 +189,7 @@ export async function analyzeAllTransactions(
             // Convert to analysis format using canonical schema
             // This ensures platform-agnostic AI analysis
             const transactionContexts: TransactionContext[] = batchTransactions.map(txn => {
-                // For canonical transactions (already normalized by adapter)
-                if (platform === 'xero' || platform === 'myob' || platform === 'quickbooks') {
-                    // Extract transaction ID
-                    const transactionId = txn.transactionID ||
-                                          (txn as any).UID || // MYOB
-                                          (txn as any).Id || // QuickBooks
-                                          (txn as any).bankTransactionID ||
-                                          (txn as any).invoiceID ||
-                                          'unknown'
-
-                    return {
-                        transactionID: transactionId,
-                        date: txn.date || txn.Date || txn.TxnDate || '',
-                        description: buildDescriptionFromTransaction(txn, platform),
-                        amount: txn.total || txn.TotalAmount || txn.TotalAmt || 0,
-                        supplier: txn.contact?.name || txn.Contact?.Name || txn.VendorRef?.name || txn.CustomerRef?.name,
-                        accountCode: txn.lineItems?.[0]?.accountCode || txn.Lines?.[0]?.Account?.DisplayID || txn.Line?.[0]?.AccountBasedExpenseLineDetail?.AccountRef?.value,
-                        lineItems: (txn.lineItems || txn.Lines || txn.Line || []).map((li: any) => ({
-                            description: li.description || li.Description,
-                            quantity: li.quantity || li.ShipQuantity || li.BillQuantity,
-                            unitAmount: li.unitAmount || li.UnitPrice || li.Amount,
-                            accountCode: li.accountCode || li.Account?.DisplayID || li.AccountBasedExpenseLineDetail?.AccountRef?.value,
-                        }))
-                    }
-                }
-
-                // Fallback for legacy format
-                return {
-                    transactionID: (txn as any).bankTransactionID ||
-                                   (txn as any).invoiceID ||
-                                   (txn as any).transactionID ||
-                                   'unknown',
-                    date: txn.date || '',
-                    description: buildDescription(txn),
-                    amount: txn.total || 0,
-                    supplier: txn.contact?.name,
-                    accountCode: txn.lineItems?.[0]?.accountCode,
-                    lineItems: txn.lineItems?.map((li: any) => ({
-                        description: li.description,
-                        quantity: li.quantity,
-                        unitAmount: li.unitAmount,
-                        accountCode: li.accountCode,
-                    }))
-                }
+                return buildTransactionContext(txn, platform)
             })
 
             // Analyze batch
@@ -379,22 +345,87 @@ export async function analyzeAllTransactions(
 }
 
 /**
+ * Build a TransactionContext from a cached transaction, handling platform-specific fields.
+ * Uses record-based access to safely handle the union of platform transaction types.
+ */
+function buildTransactionContext(txn: CachedTransaction, platform: string): TransactionContext {
+    // Use record access for cross-platform field resolution
+    const rec = txn as unknown as Record<string, unknown>
+
+    // Extract transaction ID from platform-specific fields
+    const transactionId =
+        (rec.transactionID as string) ||
+        (rec.UID as string) || // MYOB
+        (rec.Id as string) || // QuickBooks
+        (rec.bankTransactionID as string) ||
+        (rec.invoiceID as string) ||
+        'unknown'
+
+    // Extract date from platform-specific fields
+    const date = (rec.date as string) || (rec.Date as string) || (rec.TxnDate as string) || ''
+
+    // Extract amount from platform-specific fields
+    const amount = (rec.total as number) || (rec.TotalAmount as number) || (rec.TotalAmt as number) || 0
+
+    // Extract supplier from nested platform-specific fields
+    const contact = rec.contact as Record<string, unknown> | undefined
+    const Contact = rec.Contact as Record<string, unknown> | undefined
+    const VendorRef = rec.VendorRef as Record<string, unknown> | undefined
+    const CustomerRef = rec.CustomerRef as Record<string, unknown> | undefined
+    const supplier = (contact?.name as string) || (Contact?.Name as string) || (VendorRef?.name as string) || (CustomerRef?.name as string)
+
+    // Extract account code from first line item
+    const lineItems = rec.lineItems as Array<Record<string, unknown>> | undefined
+    const Lines = rec.Lines as Array<Record<string, unknown>> | undefined
+    const Line = rec.Line as Array<Record<string, unknown>> | undefined
+    const firstLineItem = lineItems?.[0] || Lines?.[0] || Line?.[0]
+    const lineItemAccount = firstLineItem?.accountCode as string | undefined
+    const linesAccount = (firstLineItem?.Account as Record<string, unknown>)?.DisplayID as string | undefined
+    const qbAccount = ((firstLineItem?.AccountBasedExpenseLineDetail as Record<string, unknown>)?.AccountRef as Record<string, unknown>)?.value as string | undefined
+    const accountCode = lineItemAccount || linesAccount || qbAccount
+
+    // Map all line items
+    const allLineItems = lineItems || Lines || Line || []
+    const mappedLineItems = allLineItems.map((li: Record<string, unknown>) => ({
+        description: (li.description as string) || (li.Description as string),
+        quantity: (li.quantity as number) || (li.ShipQuantity as number) || (li.BillQuantity as number),
+        unitAmount: (li.unitAmount as number) || (li.UnitPrice as number) || (li.Amount as number),
+        accountCode: (li.accountCode as string) ||
+            ((li.Account as Record<string, unknown>)?.DisplayID as string) ||
+            (((li.AccountBasedExpenseLineDetail as Record<string, unknown>)?.AccountRef as Record<string, unknown>)?.value as string),
+    }))
+
+    return {
+        transactionID: transactionId,
+        date,
+        description: buildDescriptionFromTransaction(txn, platform),
+        amount,
+        supplier,
+        accountCode,
+        lineItems: mappedLineItems,
+    }
+}
+
+/**
  * Build descriptive text from transaction (legacy)
  */
-function buildDescription(transaction: any): string {
+function buildDescription(transaction: CachedTransaction): string {
+    const rec = transaction as unknown as Record<string, unknown>
     const parts: string[] = []
 
-    if (transaction.reference) {
-        parts.push(transaction.reference)
+    if (rec.reference) {
+        parts.push(rec.reference as string)
     }
 
-    if (transaction.contact?.name) {
-        parts.push(`from ${transaction.contact.name}`)
+    const contact = rec.contact as Record<string, unknown> | undefined
+    if (contact?.name) {
+        parts.push(`from ${contact.name as string}`)
     }
 
-    if (transaction.lineItems && transaction.lineItems.length > 0) {
-        const descriptions = transaction.lineItems
-            .map((li: any) => li.description)
+    const lineItems = rec.lineItems as Array<Record<string, unknown>> | undefined
+    if (lineItems && lineItems.length > 0) {
+        const descriptions = lineItems
+            .map((li) => li.description as string | undefined)
             .filter(Boolean)
             .join('; ')
 
@@ -409,21 +440,24 @@ function buildDescription(transaction: any): string {
 /**
  * Build descriptive text from transaction (platform-aware)
  */
-function buildDescriptionFromTransaction(transaction: any, platform: string): string {
+function buildDescriptionFromTransaction(transaction: CachedTransaction, platform: string): string {
+    const rec = transaction as unknown as Record<string, unknown>
     const parts: string[] = []
 
     if (platform === 'xero') {
-        if (transaction.reference) {
-            parts.push(transaction.reference)
+        if (rec.reference) {
+            parts.push(rec.reference as string)
         }
 
-        if (transaction.contact?.name) {
-            parts.push(`from ${transaction.contact.name}`)
+        const contact = rec.contact as Record<string, unknown> | undefined
+        if (contact?.name) {
+            parts.push(`from ${contact.name as string}`)
         }
 
-        if (transaction.lineItems && transaction.lineItems.length > 0) {
-            const descriptions = transaction.lineItems
-                .map((li: any) => li.description)
+        const lineItems = rec.lineItems as Array<Record<string, unknown>> | undefined
+        if (lineItems && lineItems.length > 0) {
+            const descriptions = lineItems
+                .map((li) => li.description as string | undefined)
                 .filter(Boolean)
                 .join('; ')
 
@@ -433,17 +467,19 @@ function buildDescriptionFromTransaction(transaction: any, platform: string): st
         }
     } else if (platform === 'myob') {
         // MYOB format
-        if (transaction.Number) {
-            parts.push(transaction.Number)
+        if (rec.Number) {
+            parts.push(rec.Number as string)
         }
 
-        if (transaction.Contact?.Name) {
-            parts.push(`from ${transaction.Contact.Name}`)
+        const Contact = rec.Contact as Record<string, unknown> | undefined
+        if (Contact?.Name) {
+            parts.push(`from ${Contact.Name as string}`)
         }
 
-        if (transaction.Lines && transaction.Lines.length > 0) {
-            const descriptions = transaction.Lines
-                .map((li: any) => li.Description)
+        const Lines = rec.Lines as Array<Record<string, unknown>> | undefined
+        if (Lines && Lines.length > 0) {
+            const descriptions = Lines
+                .map((li) => li.Description as string | undefined)
                 .filter(Boolean)
                 .join('; ')
 
@@ -453,28 +489,32 @@ function buildDescriptionFromTransaction(transaction: any, platform: string): st
         }
     } else if (platform === 'quickbooks') {
         // QuickBooks format
-        if (transaction.DocNumber) {
-            parts.push(`#${transaction.DocNumber}`)
+        if (rec.DocNumber) {
+            parts.push(`#${rec.DocNumber as string}`)
         }
 
         // Check for vendor, customer, or entity reference
-        const entityName = transaction.VendorRef?.name ||
-                          transaction.CustomerRef?.name ||
-                          transaction.EntityRef?.name
+        const VendorRef = rec.VendorRef as Record<string, unknown> | undefined
+        const CustomerRef = rec.CustomerRef as Record<string, unknown> | undefined
+        const EntityRef = rec.EntityRef as Record<string, unknown> | undefined
+        const entityName = (VendorRef?.name as string) ||
+                          (CustomerRef?.name as string) ||
+                          (EntityRef?.name as string)
 
         if (entityName) {
             parts.push(`from ${entityName}`)
         }
 
         // Add private note if available
-        if (transaction.PrivateNote) {
-            parts.push(transaction.PrivateNote)
+        if (rec.PrivateNote) {
+            parts.push(rec.PrivateNote as string)
         }
 
         // Add line descriptions
-        if (transaction.Line && transaction.Line.length > 0) {
-            const descriptions = transaction.Line
-                .map((li: any) => li.Description)
+        const Line = rec.Line as Array<Record<string, unknown>> | undefined
+        if (Line && Line.length > 0) {
+            const descriptions = Line
+                .map((li) => li.Description as string | undefined)
                 .filter(Boolean)
                 .join('; ')
 
@@ -493,7 +533,7 @@ function buildDescriptionFromTransaction(transaction: any, platform: string): st
 async function storeAnalysisResults(
     tenantId: string,
     analyses: ForensicAnalysis[],
-    originalTransactions: any[],
+    originalTransactions: CachedTransaction[],
     platform: string = 'xero'
 ): Promise<void> {
     // Use service client to bypass RLS for server-side operations
@@ -502,16 +542,19 @@ async function storeAnalysisResults(
     // Map analyses to database schema
     const records = analyses.map((analysis, index) => {
         const txn = originalTransactions[index]
+        const rec = txn as unknown as Record<string, unknown>
 
         // Extract date based on platform
-        const txnDate = txn.date || txn.Date || null
+        const txnDate = (rec.date as string) || (rec.Date as string) || null
         const financialYear = txnDate ? calculateFinancialYear(txnDate) : 'Unknown'
 
         // Extract amount based on platform
-        const txnAmount = txn.total || txn.TotalAmount || 0
+        const txnAmount = (rec.total as number) || (rec.TotalAmount as number) || 0
 
         // Extract supplier based on platform
-        const supplierName = txn.contact?.name || txn.Contact?.Name || null
+        const contact = rec.contact as Record<string, unknown> | undefined
+        const Contact = rec.Contact as Record<string, unknown> | undefined
+        const supplierName = (contact?.name as string) || (Contact?.Name as string) || null
 
         return {
             tenant_id: tenantId,
@@ -698,7 +741,7 @@ export async function getAnalysisStatus(tenantId: string): Promise<AnalysisProgr
 
     return {
         tenantId,
-        status: data.sync_status === 'syncing' ? 'analyzing' : data.sync_status as any,
+        status: data.sync_status === 'syncing' ? 'analyzing' : data.sync_status as AnalysisProgress['status'],
         progress: progress,  // ✅ Fixed: calculate from transactions instead of reading non-existent column
         transactionsAnalyzed: transactionsAnalyzed,
         totalTransactions: totalTransactions,  // ✅ Fixed: was total_transactions_estimated
@@ -720,7 +763,7 @@ export async function getAnalysisResults(
         primaryCategory?: string
         minConfidence?: number
     }
-): Promise<any[]> {
+): Promise<ForensicAnalysisRow[]> {
     // Use service client to bypass RLS for server-side operations
     const supabase = await createServiceClient()
 
@@ -752,7 +795,7 @@ export async function getAnalysisResults(
         throw error
     }
 
-    return data || []
+    return (data || []) as ForensicAnalysisRow[]
 }
 
 /**

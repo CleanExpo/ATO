@@ -29,6 +29,7 @@ import archiver from 'archiver'
 import { Readable } from 'stream'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
+import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 
 const log = createLogger('api:audit:reports:download')
 
@@ -126,7 +127,7 @@ async function fetchTransactions(
   scope: string,
   filters?: ExportFilters,
   selectedIds?: string[]
-): Promise<any[]> {
+): Promise<ForensicAnalysisRow[]> {
   const supabase = await createServiceClient()
 
   let query = supabase
@@ -167,7 +168,7 @@ async function fetchTransactions(
  */
 async function generateExcelDownload(
   tenantId: string,
-  transactions: any[],
+  transactions: ForensicAnalysisRow[],
   organizationName: string,
   abn: string,
   include: ExportOptions['include'],
@@ -241,7 +242,7 @@ async function generateExcelDownload(
  */
 async function generatePDFDownload(
   tenantId: string,
-  transactions: any[],
+  transactions: ForensicAnalysisRow[],
   organizationName: string,
   abn: string,
   include: ExportOptions['include'],
@@ -270,7 +271,7 @@ async function generatePDFDownload(
  */
 async function generateCSVZipDownload(
   tenantId: string,
-  transactions: any[],
+  transactions: ForensicAnalysisRow[],
   organizationName: string,
   abn: string,
   include: ExportOptions['include'],
@@ -331,7 +332,7 @@ async function generateCSVZipDownload(
  */
 async function generateAllFormatsDownload(
   tenantId: string,
-  transactions: any[],
+  transactions: ForensicAnalysisRow[],
   organizationName: string,
   abn: string,
   include: ExportOptions['include'],
@@ -344,7 +345,7 @@ async function generateAllFormatsDownload(
 
 // ─── Helper Functions ────────────────────────────────────────────────
 
-function addSummarySheet(sheet: ExcelJS.Worksheet, transactions: any[], orgName: string, abn: string) {
+function addSummarySheet(sheet: ExcelJS.Worksheet, transactions: ForensicAnalysisRow[], orgName: string, abn: string) {
   // Header
   sheet.mergeCells('A1:D1')
   sheet.getCell('A1').value = 'Forensic Tax Audit Summary'
@@ -385,7 +386,7 @@ function addSummarySheet(sheet: ExcelJS.Worksheet, transactions: any[], orgName:
   sheet.columns = [{ width: 25 }, { width: 20 }, { width: 15 }, { width: 15 }]
 }
 
-function addTransactionsSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
+function addTransactionsSheet(sheet: ExcelJS.Worksheet, transactions: ForensicAnalysisRow[]) {
   const headers = [
     'Transaction ID', 'Date', 'Supplier', 'Description', 'Amount',
     'Category', 'Confidence', 'R&D Candidate', 'Claimable Amount',
@@ -428,7 +429,7 @@ function addTransactionsSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
   ]
 }
 
-function addRndSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
+function addRndSheet(sheet: ExcelJS.Worksheet, transactions: ForensicAnalysisRow[]) {
   const headers = [
     'Transaction ID', 'Date', 'Supplier', 'Description', 'Amount',
     'R&D Confidence', 'Activity Type', 'Meets Div355',
@@ -462,7 +463,7 @@ function addRndSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
   sheet.autoFilter = { from: 'A1', to: `M${transactions.length + 1}` }
 }
 
-function addDeductionsSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
+function addDeductionsSheet(sheet: ExcelJS.Worksheet, transactions: ForensicAnalysisRow[]) {
   const headers = [
     'Transaction ID', 'Date', 'Supplier', 'Description',
     'Amount', 'Claimable Amount', 'Deduction Type',
@@ -492,7 +493,7 @@ function addDeductionsSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
   sheet.autoFilter = { from: 'A1', to: `I${transactions.length + 1}` }
 }
 
-function addFbtSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
+function addFbtSheet(sheet: ExcelJS.Worksheet, transactions: ForensicAnalysisRow[]) {
   const headers = [
     'Transaction ID', 'Date', 'Supplier', 'Description',
     'Amount', 'Category', 'Compliance Notes'
@@ -518,7 +519,7 @@ function addFbtSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
   sheet.autoFilter = { from: 'A1', to: `G${transactions.length + 1}` }
 }
 
-function addDiv7aSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
+function addDiv7aSheet(sheet: ExcelJS.Worksheet, transactions: ForensicAnalysisRow[]) {
   const headers = [
     'Transaction ID', 'Date', 'Supplier', 'Description',
     'Amount', 'Category', 'Compliance Notes'
@@ -544,7 +545,7 @@ function addDiv7aSheet(sheet: ExcelJS.Worksheet, transactions: any[]) {
   sheet.autoFilter = { from: 'A1', to: `G${transactions.length + 1}` }
 }
 
-function generateTransactionsCSV(transactions: any[]): string {
+function generateTransactionsCSV(transactions: ForensicAnalysisRow[]): string {
   const headers = [
     'Transaction ID', 'Date', 'Supplier', 'Description', 'Amount',
     'Category', 'Confidence', 'R&D Candidate', 'Claimable Amount',
@@ -569,7 +570,7 @@ function generateTransactionsCSV(transactions: any[]): string {
   return [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
 }
 
-function generateSummaryCSV(transactions: any[], orgName: string, abn: string): string {
+function generateSummaryCSV(transactions: ForensicAnalysisRow[], orgName: string, abn: string): string {
   const rndCount = transactions.filter(t => t.is_rnd_candidate).length
   const totalClaimable = transactions.reduce((sum, t) => sum + (t.claimable_amount || 0), 0)
   const div7aCount = transactions.filter(t => t.division7a_risk).length

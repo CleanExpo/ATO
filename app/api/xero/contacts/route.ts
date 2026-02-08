@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Extract contacts from response
-    let xeroContacts = (response.body.contacts || []) as any[];
+    let xeroContacts = (response.body.contacts || []) as XeroContact[];
 
     // Filter by contact type if requested
     if (contactTypeFilter) {

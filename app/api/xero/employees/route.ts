@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     const response = await xeroClient.payrollAUApi.getEmployees(tenantId);
 
     // Extract employees from response
-    const xeroEmployees = (response.body.employees || []) as any[];
+    const xeroEmployees = (response.body.employees || []) as XeroEmployee[];
 
     // Filter by status if requested
     let filteredEmployees = xeroEmployees;

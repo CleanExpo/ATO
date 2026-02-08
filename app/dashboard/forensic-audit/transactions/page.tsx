@@ -299,7 +299,7 @@ function TransactionsPage() {
       try {
         const response = await fetch('/api/xero/organizations')
         const data = await response.json()
-        const org = data.connections?.find((c: any) => c.tenant_id === tenantId)
+        const org = data.connections?.find((c: { tenant_id: string; organisation_name?: string; tenant_name?: string }) => c.tenant_id === tenantId)
         if (org) {
           setOrganizationName(org.organisation_name || org.tenant_name || '')
         }
@@ -434,7 +434,7 @@ function TransactionsPage() {
       // Client-side sorting
       let sorted = [...(data.results || [])]
       sorted.sort((a, b) => {
-        let aVal: any, bVal: any
+        let aVal: number, bVal: number
 
         switch (sortField) {
           case 'transaction_date':

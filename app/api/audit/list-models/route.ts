@@ -37,7 +37,13 @@ export async function GET() {
         }
 
         const data = await response.json()
-        const models = data.models?.map((m: any) => ({
+        interface GeminiModel {
+            name: string;
+            displayName?: string;
+            supportedGenerationMethods?: string[];
+        }
+
+        const models = (data.models as GeminiModel[] | undefined)?.map((m) => ({
             name: m.name,
             displayName: m.displayName,
             supportedMethods: m.supportedGenerationMethods
@@ -48,7 +54,7 @@ export async function GET() {
             modelCount: models.length,
             models: models.slice(0, 20), // First 20 models
             hint: models.length > 0
-                ? `Use one of these model names: ${models.slice(0, 5).map((m: any) => m.name.replace('models/', '')).join(', ')}`
+                ? `Use one of these model names: ${models.slice(0, 5).map((m) => m.name.replace('models/', '')).join(', ')}`
                 : 'No models available for this API key'
         })
 

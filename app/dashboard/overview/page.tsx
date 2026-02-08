@@ -94,7 +94,7 @@ const GlassCard = ({ children, className = '', highlight = false }: { children: 
   </motion.div>
 );
 
-const MetricBlock = ({ label, value, prefix = "$", variant = "default", trend }: any) => (
+const MetricBlock = ({ label, value, prefix = "$", variant = "default", trend }: { label: string; value: number; prefix?: string; variant?: 'default' | 'positive' | 'negative' | 'highlight' | 'warning' | 'success'; trend?: number }) => (
   <div className="flex flex-col">
     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">{label}</span>
     <div className="flex items-baseline gap-2">
@@ -160,8 +160,8 @@ export default function TaxOverviewPage() {
         const results = analysisData.results || []
 
         // Calculation Logic (same as before but enhanced)
-        const rndOffset = (results.filter((r: any) => r.is_rnd_candidate).reduce((sum: number, r: any) => sum + Math.abs(r.transaction_amount || 0), 0)) * 0.435
-        const deductionsSaving = (results.filter((r: any) => r.is_fully_deductible).reduce((sum: number, r: any) => sum + (r.claimable_amount || 0), 0)) * 0.25
+        const rndOffset = (results.filter((r: { is_rnd_candidate?: boolean }) => r.is_rnd_candidate).reduce((sum: number, r: { transaction_amount?: number }) => sum + Math.abs(r.transaction_amount || 0), 0)) * 0.435
+        const deductionsSaving = (results.filter((r: { is_fully_deductible?: boolean }) => r.is_fully_deductible).reduce((sum: number, r: { claimable_amount?: number }) => sum + (r.claimable_amount || 0), 0)) * 0.25
         const lossesSaving = (summary.losses?.totalLosses || 0) * 0.25
         const div7aRisk = (summary.compliance?.division7aRisk || 0) * 0.47
 

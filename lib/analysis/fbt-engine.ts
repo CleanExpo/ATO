@@ -30,6 +30,13 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
+
+/** Extended forensic row with optional FBT-specific fields */
+interface FBTForensicRow extends ForensicAnalysisRow {
+  tax_type?: string
+  gst_amount?: number | null
+}
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import { getCurrentFBTYear, getFBTYearStartDate, getFBTYearEndDate } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
@@ -167,7 +174,7 @@ export async function analyzeFBT(
   }
 
   // Classify and calculate FBT for each transaction
-  const items: FBTItem[] = transactions.map((tx: any) => {
+  const items: FBTItem[] = transactions.map((tx: FBTForensicRow) => {
     return classifyAndCalculateFBT(tx, fbtRate, grossUpRate1, grossUpRate2)
   })
 
@@ -247,12 +254,12 @@ export async function analyzeFBT(
  * Classify transaction and calculate FBT liability
  */
 function classifyAndCalculateFBT(
-  tx: any,
+  tx: FBTForensicRow,
   fbtRate: number,
   grossUpRate1: number,
   grossUpRate2: number
 ): FBTItem {
-  const amount = Math.abs(parseFloat(tx.transaction_amount) || 0)
+  const amount = Math.abs(parseFloat(String(tx.transaction_amount)) || 0)
   const description = (tx.transaction_description || '').toLowerCase()
   const category = classifyFBTCategory(description, tx.primary_category)
 
@@ -290,7 +297,7 @@ function classifyAndCalculateFBT(
 
   return {
     transactionId: tx.transaction_id,
-    transactionDate: tx.transaction_date,
+    transactionDate: tx.transaction_date || '',
     description: tx.transaction_description || '',
     amount,
     supplier: tx.supplier_name,
@@ -343,7 +350,7 @@ function classifyFBTCategory(description: string, primaryCategory: string | null
 function determineBenefitType(
   category: FBTCategory,
   description: string,
-  tx: any
+  tx: FBTForensicRow
 ): 'type_1' | 'type_2' {
   const desc = description.toLowerCase()
 
@@ -392,7 +399,7 @@ function determineBenefitType(
 
   // If GST amount data is available, use it
   if (tx.gst_amount !== undefined && tx.gst_amount !== null) {
-    const gstAmount = parseFloat(tx.gst_amount) || 0
+    const gstAmount = parseFloat(String(tx.gst_amount)) || 0
     // Zero GST amount on a taxable transaction indicates GST-free or input-taxed
     if (gstAmount === 0) return 'type_2'
     if (gstAmount > 0) return 'type_1'

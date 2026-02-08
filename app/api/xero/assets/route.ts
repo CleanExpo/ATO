@@ -61,10 +61,11 @@ export async function GET(request: NextRequest) {
     // Fetch assets from Xero Assets API
     // Note: Xero Assets API is a separate API from Accounting API
     // Base URL: https://api.xero.com/assets.xro/1.0/
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Xero SDK AssetStatusQueryParam enum not assignable from string literal
     const response = await xeroClient.assetApi.getAssets(tenantId, (statusFilter || 'Registered') as any);
 
     // Extract assets from response
-    const xeroAssets = (response.body.items || []) as any[];
+    const xeroAssets = (response.body.items || []) as unknown as XeroAsset[];
 
     // Normalize to ATODE internal format
     const normalizedAssets: NormalizedAsset[] = xeroAssets.map(asset => normalizeAsset(asset));

@@ -26,7 +26,7 @@
  * - NT: Payroll Tax Act 2009 (NT)
  */
 
-import { createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient, type SupabaseServiceClient } from '@/lib/supabase/server'
 import { getCurrentFinancialYear } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
 
@@ -496,7 +496,7 @@ function analyzeContractorDeeming(
  * Derive state wages from Xero payroll data.
  */
 async function deriveStateWagesFromXero(
-  supabase: any,
+  supabase: SupabaseServiceClient,
   tenantId: string,
   fy: string
 ): Promise<StateWages[]> {

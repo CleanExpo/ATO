@@ -21,6 +21,25 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentFinancialYear, checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
 
+/** Xero raw transaction shape from historical_transactions_cache.raw_data */
+interface XeroRawTransaction {
+  Type?: string
+  Total?: string | number
+  Date?: string
+  DateString?: string
+  Description?: string
+  Reference?: string
+  Contact?: { Name?: string; ContactID?: string }
+  [key: string]: unknown
+}
+
+/** Row from historical_transactions_cache */
+interface HistoricalCacheRow {
+  raw_data: XeroRawTransaction | XeroRawTransaction[]
+  financial_year?: string
+  [key: string]: unknown
+}
+
 /**
  * Risk level classification.
  */
@@ -245,7 +264,7 @@ interface FinancialMetrics {
   averageTransactionSize: number
 }
 
-function calculateFinancialMetrics(transactions: any[]): FinancialMetrics {
+function calculateFinancialMetrics(transactions: HistoricalCacheRow[]): FinancialMetrics {
   const metrics: FinancialMetrics = {
     totalIncome: 0,
     totalExpenses: 0,
@@ -263,21 +282,21 @@ function calculateFinancialMetrics(transactions: any[]): FinancialMetrics {
     averageTransactionSize: 0,
   }
 
-  const rawTxs = transactions.flatMap((t: any) => {
+  const rawTxs = transactions.flatMap((t: HistoricalCacheRow) => {
     const raw = t.raw_data
     return Array.isArray(raw) ? raw : [raw]
   })
 
-  rawTxs.forEach((tx: any) => {
-    const amount = Math.abs(parseFloat(tx.Total) || 0)
+  rawTxs.forEach((tx: XeroRawTransaction) => {
+    const amount = Math.abs(parseFloat(String(tx.Total)) || 0)
     const type = tx.Type
     const desc = (tx.Description || tx.Reference || '').toLowerCase()
 
     metrics.totalTransactions++
 
-    if (type === 'ACCREC' || (type === 'BANK' && parseFloat(tx.Total) > 0)) {
+    if (type === 'ACCREC' || (type === 'BANK' && parseFloat(String(tx.Total)) > 0)) {
       metrics.totalIncome += amount
-    } else if (type === 'ACCPAY' || (type === 'BANK' && parseFloat(tx.Total) < 0)) {
+    } else if (type === 'ACCPAY' || (type === 'BANK' && parseFloat(String(tx.Total)) < 0)) {
       metrics.totalExpenses += amount
 
       // Categorise expenses
