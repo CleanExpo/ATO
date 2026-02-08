@@ -18,7 +18,7 @@ interface ActivityLog {
   action: string;
   entity_type: string | null;
   entity_id: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   created_at: string;
 }
 
@@ -60,6 +60,7 @@ export function useRealtimeActivity({
       .subscribe();
 
     return channel;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, onActivityLogged]);
 
   useEffect(() => {
@@ -75,5 +76,6 @@ export function useRealtimeActivity({
         supabase.removeChannel(channel);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setupRealtimeSubscription]);
 }

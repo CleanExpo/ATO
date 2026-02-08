@@ -62,7 +62,7 @@ export async function createIssue(data: Parameters<LinearClient['createIssue']>[
       maxAttempts: 3,
       initialDelayMs: 1000,
       maxDelayMs: 30000,
-      onRetry: (error, attempt, delayMs) => {
+      onRetry: (error, attempt, _delayMs) => {
         console.warn(`Retrying Linear issue creation (attempt ${attempt}):`, error);
       },
     }
@@ -104,7 +104,7 @@ export async function searchIssues(query: string): Promise<LinearIssue[]> {
       maxAttempts: 3,
       initialDelayMs: 1000,
       maxDelayMs: 30000,
-      onRetry: (error, attempt, delayMs) => {
+      onRetry: (error, attempt, _delayMs) => {
         console.warn(`Retrying Linear issue search (attempt ${attempt}):`, error);
       },
     }
@@ -142,7 +142,7 @@ export async function updateIssue(
       maxAttempts: 3,
       initialDelayMs: 1000,
       maxDelayMs: 30000,
-      onRetry: (error, attempt, delayMs) => {
+      onRetry: (error, attempt, _delayMs) => {
         console.warn(`Retrying Linear issue update (attempt ${attempt}):`, error);
       },
     }
@@ -175,7 +175,7 @@ export async function addComment(issueId: string, body: string): Promise<void> {
       maxAttempts: 3,
       initialDelayMs: 1000,
       maxDelayMs: 30000,
-      onRetry: (error, attempt, delayMs) => {
+      onRetry: (error, attempt, _delayMs) => {
         console.warn(`Retrying Linear comment creation (attempt ${attempt}):`, error);
       },
     }

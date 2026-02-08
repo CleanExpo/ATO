@@ -15,7 +15,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { createErrorResponse, createValidationError } from '@/lib/api/errors';
 import {
   rowToDocument,
   isAllowedFileType,

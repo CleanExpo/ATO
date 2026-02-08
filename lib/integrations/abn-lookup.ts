@@ -75,7 +75,7 @@ export interface ABNSearchResult {
  */
 export async function lookupABN(
   abn: string,
-  tenantId?: string
+  _tenantId?: string
 ): Promise<ABNLookupResult> {
   // Normalise ABN (remove spaces, validate format)
   const normalisedABN = abn.replace(/\s/g, '')
@@ -298,7 +298,7 @@ function parseABNResponse(xml: string, abn: string): ABNLookupResult {
     return match ? match[1].trim() : ''
   }
 
-  const getAttr = (tag: string, attr: string): string => {
+  const _getAttr = (tag: string, attr: string): string => {
     const match = xml.match(new RegExp(`<${tag}[^>]*${attr}="([^"]*)"[^>]*/>`))
     return match ? match[1].trim() : ''
   }

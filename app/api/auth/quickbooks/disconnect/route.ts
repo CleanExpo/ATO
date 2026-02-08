@@ -14,7 +14,7 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:auth:quickbooks-disconnect')
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Get authenticated user
     const supabase = await createClient()

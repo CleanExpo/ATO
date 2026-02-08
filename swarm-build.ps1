@@ -209,7 +209,7 @@ function swarm-flags {
         $anyCount = (Get-ChildItem -Path lib, app -Recurse -Include *.ts, *.tsx -ErrorAction SilentlyContinue | Select-String -Pattern ":\s*any\b|as\s+any" | Measure-Object).Count
         $tsIgnoreCount = (Get-ChildItem -Path lib, app -Recurse -Include *.ts, *.tsx -ErrorAction SilentlyContinue | Select-String -Pattern "ts-ignore|ts-expect-error" | Measure-Object).Count
         $eslintCount = (Get-ChildItem -Path lib, app -Recurse -Include *.ts, *.tsx -ErrorAction SilentlyContinue | Select-String -Pattern "eslint-disable" | Measure-Object).Count
-        $skipCount = (Get-ChildItem -Path tests -Recurse -Include *.test.*, *.spec.* -ErrorAction SilentlyContinue | Select-String -Pattern "\.skip|\.only|xit|xdescribe" | Measure-Object).Count
+        $skipCount = (Get-ChildItem -Path tests -Recurse -Include *.test.*, *.spec.* -ErrorAction SilentlyContinue | Select-String -Pattern "\.skip\b|\.only\b|\bxit\b|\bxdescribe\b" | Measure-Object).Count
         $mockCount = (Get-ChildItem -Path lib/analysis -Recurse -Include *.ts -ErrorAction SilentlyContinue | Select-String -Pattern "mock|fake|dummy" | Measure-Object).Count
 
         $flags = [ordered]@{
@@ -240,6 +240,8 @@ function swarm-flags {
 function swarm-validators {
     Write-SwarmHeader "DOMAIN VALIDATORS" "Running tax compliance validators"
     Push-Location $script:SwarmRoot
+    $env:PYTHONIOENCODING = 'utf-8'
+    $env:PYTHONUTF8 = '1'
 
     try {
         $validators = @(
@@ -263,7 +265,7 @@ function swarm-validators {
         foreach ($v in $validators) {
             if (Test-Path $v.Script) {
                 Write-Host "  Running $($v.Name)..." -ForegroundColor Yellow
-                $result = $v.Input | python $v.Script 2>&1 | Out-String
+                $result = $v.Input | python -X utf8 $v.Script 2>&1 | Out-String
                 $passed = ($LASTEXITCODE -eq 0)
                 Write-Gate $v.Name $passed $result.Trim()
             } else {

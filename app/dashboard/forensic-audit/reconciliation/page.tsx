@@ -700,7 +700,7 @@ function UnreconciledTab({ items }: { items: UnreconciledItem[] }) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-white/[0.06]">
-              {['Date', 'Contact', 'Description', 'Account', 'FY', 'Amount', 'Age', 'Xero'].map((h, i) => (
+              {['Date', 'Contact', 'Description', 'Account', 'FY', 'Amount', 'Age', 'Xero'].map((h, _i) => (
                 <th
                   key={h}
                   className={`py-3 px-4 text-[10px] uppercase tracking-[0.2em] text-white/30 font-normal ${

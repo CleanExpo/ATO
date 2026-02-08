@@ -21,13 +21,10 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
-import { generateExcelWorkbookData } from '@/lib/reports/excel-generator'
 import { generatePDFReportData, generatePDFReportHTML } from '@/lib/reports/pdf-generator'
 import { createServiceClient } from '@/lib/supabase/server'
 import ExcelJS from 'exceljs'
 import archiver from 'archiver'
-import { Readable } from 'stream'
-import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 

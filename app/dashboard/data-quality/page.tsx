@@ -7,28 +7,21 @@
 
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Scan,
-  AlertCircle,
   CheckCircle2,
-  TrendingUp,
   ShieldCheck,
   Database,
   Zap,
-  ChevronRight,
   Filter,
-  BarChart3,
   RefreshCw,
-  Clock,
-  Search,
   AlertTriangle
 } from 'lucide-react'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
-import LiveChart from '@/components/dashboard/LiveChart'
-import ActivityFeed, { ActivityItem } from '@/components/dashboard/ActivityFeed'
+import { ActivityItem } from '@/components/dashboard/ActivityFeed'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode; className?: string; highlight?: boolean }) => (
@@ -45,7 +38,7 @@ export default function DataQualityPage() {
   const [isScanning, setIsScanning] = useState(false)
   const [progress, setProgress] = useState(0)
   const [tenantId, setTenantId] = useState('')
-  const [activities, setActivities] = useState<ActivityItem[]>([])
+  const [_activities, _setActivities] = useState<ActivityItem[]>([])
 
   const [stats, setStats] = useState({
     totalScanned: 0,
@@ -263,7 +256,7 @@ export default function DataQualityPage() {
 }
 
 function ActivityItemRow({ label, desc, time, status }: { label: string; desc: string; time: string; status: 'success' | 'warning' | 'info' }) {
-  const colors = {
+  const _colors = {
     success: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5',
     warning: 'text-amber-400 border-amber-500/20 bg-amber-500/5',
     info: 'text-sky-400 border-sky-500/20 bg-sky-500/5'

@@ -102,11 +102,11 @@ function isRetryableError(error: unknown): boolean {
  *
  * try {
  *   const user = await apiRequest<User>('/api/user/123')
- *   console.log(user.name)
+ *   log.info(user.name)
  * } catch (error) {
  *   if (error instanceof ApiRequestError) {
- *     console.error(`API error (${error.status}): ${error.message}`)
- *     console.error(`Error ID: ${error.errorId}`)
+ *     log.error(`API error (${error.status}): ${error.message}`)
+ *     log.error(`Error ID: ${error.errorId}`)
  *   }
  * }
  * ```

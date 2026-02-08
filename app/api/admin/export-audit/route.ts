@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { requireAdminRole } from '@/lib/middleware/admin-role';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
         // Require admin role - exporting audit logs is sensitive
         const adminCheck = await requireAdminRole();

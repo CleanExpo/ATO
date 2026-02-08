@@ -46,12 +46,12 @@ import type { AuthCredentials } from './adapter'
 import type { Platform } from './canonical-schema'
 
 // Auto-register Xero adapter
-adapterRegistry.register('xero', async (credentials: AuthCredentials) => {
+adapterRegistry.register('xero', async (_credentials: AuthCredentials) => {
   return new XeroAdapter()
 })
 
 // Auto-register MYOB adapter
-adapterRegistry.register('myob', async (credentials: AuthCredentials) => {
+adapterRegistry.register('myob', async (_credentials: AuthCredentials) => {
   return new MYOBAdapter()
 })
 

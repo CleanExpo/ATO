@@ -48,7 +48,7 @@ const FALLBACK_GROSS_UP_RATE_2 = 1.8868 // Type 2 (non-GST-creditable)
 
 // Exemption thresholds
 const MINOR_BENEFIT_THRESHOLD = 300 // s 58X - $300 per benefit
-const CAR_PARKING_THRESHOLD = 9.72 // s 58GA - per-day threshold FY2024-25
+const _CAR_PARKING_THRESHOLD = 9.72 // s 58GA - per-day threshold FY2024-25
 
 // FBT benefit categories
 export type FBTCategory =

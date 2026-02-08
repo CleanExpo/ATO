@@ -46,7 +46,7 @@ interface EmailNotificationResult {
 export async function sendAlertEmail(
   alert: TaxAlert,
   recipientEmail: string,
-  recipientName?: string
+  _recipientName?: string
 ): Promise<EmailNotificationResult> {
   try {
     // Severity-based email styling

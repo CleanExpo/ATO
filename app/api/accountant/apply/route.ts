@@ -13,7 +13,6 @@ import { createErrorResponse, createValidationError } from '@/lib/api/errors';
 import {
   accountantApplicationFormSchema,
   sanitiseFormData,
-  type AccountantApplicationForm,
 } from '@/lib/validation/accountant-application';
 import type {
   ApplicationSubmissionResponse,

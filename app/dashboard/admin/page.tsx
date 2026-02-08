@@ -13,17 +13,10 @@ import {
     Activity,
     Database,
     Cpu,
-    TrendingUp,
-    Users,
-    ShieldCheck,
     Zap,
     AlertCircle,
-    BarChart3,
     Globe,
     DollarSign,
-    RefreshCw,
-    Search,
-    Filter,
     ExternalLink,
     Lock
 } from 'lucide-react';
@@ -66,7 +59,7 @@ const HealthTag = ({ status }: { status: string }) => (
 export default function AdminDashboard() {
     const [stats, setStats] = useState<AdminStats | null>(null);
     const [activity, setActivity] = useState<ActivityLog[]>([]);
-    const [health, setHealth] = useState<Record<string, unknown> | null>(null);
+    const [_health, setHealth] = useState<Record<string, unknown> | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -83,7 +76,7 @@ export default function AdminDashboard() {
                 setStats(data.stats);
                 setActivity(data.recentActivity || []);
                 setHealth(data.systemHealth);
-            } catch (err) {
+            } catch (_err) {
                 setError('Failed to connect to system stats');
             } finally {
                 setLoading(false);

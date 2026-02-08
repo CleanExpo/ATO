@@ -20,15 +20,12 @@ import {
   DollarSign,
   Beaker,
   FileSearch,
-  TrendingDown,
   Building2,
   RefreshCw,
-  Plus,
   CheckCircle,
   AlertTriangle,
   ArrowRight,
   Scan,
-  Zap,
   Shield,
   Database,
   Activity,
@@ -37,7 +34,6 @@ import {
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import { DataStrip, DataStripGroup } from '@/components/ui/DataStrip'
-import { HoloPanel, HoloPanelGrid } from '@/components/ui/HoloPanel'
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections'
 import { AdditionalOrganizationPrompt } from '@/components/dashboard/AdditionalOrganizationPrompt'
 import { OrganizationGroupManager } from '@/components/dashboard/OrganizationGroupManager'

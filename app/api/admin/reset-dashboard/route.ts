@@ -17,7 +17,7 @@ const log = createLogger('api:admin:reset-dashboard')
  * - Forensic analysis results
  * - Analysis recommendations
  */
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Require admin role - this is a destructive operation!
     const adminCheck = await requireAdminRole();

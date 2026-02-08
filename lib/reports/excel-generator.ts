@@ -279,7 +279,7 @@ async function createDeductionsSheet(
   // Add opportunities by category
   const opportunities = report.deductionAnalysis.opportunitiesByCategory || {}
   Object.entries(opportunities).forEach(([category, amount]) => {
-    const row = sheet.addRow({
+    const _row = sheet.addRow({
       category,
       year: 'Various',
       amount: amount,
@@ -525,7 +525,7 @@ async function createRecommendationsSheet(
  */
 async function createTransactionDetailSheet(
   workbook: ExcelJS.Workbook,
-  report: PDFReport
+  _report: PDFReport
 ): Promise<void> {
   const sheet = workbook.addWorksheet('Transaction Details', {
     views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],

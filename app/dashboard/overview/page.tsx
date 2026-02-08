@@ -12,7 +12,7 @@
 'use client'
 
 import React, { useEffect, useState, useMemo } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import {
   TrendingUp,
   FileText,
@@ -34,10 +34,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend
 } from 'recharts'
 import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
@@ -94,7 +90,7 @@ const GlassCard = ({ children, className = '', highlight = false }: { children: 
   </motion.div>
 );
 
-const MetricBlock = ({ label, value, prefix = "$", variant = "default", trend }: { label: string; value: number; prefix?: string; variant?: 'default' | 'positive' | 'negative' | 'highlight' | 'warning' | 'success'; trend?: number }) => (
+const MetricBlock = ({ label, value, prefix: _prefix = "$", variant = "default", trend }: { label: string; value: number; prefix?: string; variant?: 'default' | 'positive' | 'negative' | 'highlight' | 'warning' | 'success'; trend?: number }) => (
   <div className="flex flex-col">
     <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)] mb-1">{label}</span>
     <div className="flex items-baseline gap-2">
@@ -154,7 +150,7 @@ export default function TaxOverviewPage() {
         const dqData = await dqRes.json()
         const recsData = await recsRes.json()
         let ratesData = null
-        try { ratesData = await ratesRes.json() } catch (e) { }
+        try { ratesData = await ratesRes.json() } catch (_e) { }
 
         const summary = analysisData.summary || {}
         const results = analysisData.results || []

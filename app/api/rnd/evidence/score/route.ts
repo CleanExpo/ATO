@@ -17,7 +17,6 @@ import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import {
   type EvidenceElement,
   type RndEvidenceScore,
-  dbRowToRndEvidenceScore,
   EVIDENCE_ELEMENTS,
   getScoreLevel,
 } from '@/lib/types/rnd-evidence'

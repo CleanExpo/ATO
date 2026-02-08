@@ -18,14 +18,13 @@ import {
   Mail,
   Bell,
   Calendar,
-  Link as LinkIcon,
 } from 'lucide-react'
 
 export default function OrganizationSettingsPage() {
   const { currentOrganization, currentRole, refreshOrganizations } =
     useOrganization()
 
-  const [isLoading, setIsLoading] = useState(false)
+  const [_isLoading, _setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)

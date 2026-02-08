@@ -16,7 +16,6 @@ import { MobileNav } from '@/components/ui/MobileNav'
 import ExpandableRecommendationCard from '@/components/forensic-audit/ExpandableRecommendationCard'
 import { ExportModal, ExportOptions } from '@/components/forensic-audit/ExportModal'
 import { CreateShareModal } from '@/components/share'
-import { StatusSummaryCard } from '@/components/status'
 import { exportWithFormat, quickExportExcel, quickExportAccountantPackage } from '@/lib/api/export-client'
 import type { RecommendationStatus, StatusSummary, StatusHistory } from '@/lib/types/recommendation-status'
 import type { RecommendationDocument } from '@/lib/types/recommendation-documents'
@@ -160,8 +159,8 @@ function RecommendationsPage() {
 
   // Status state
   const [statusMap, setStatusMap] = useState<Map<string, StatusHistory>>(new Map())
-  const [statusSummary, setStatusSummary] = useState<StatusSummary | null>(null)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [_statusSummary, setStatusSummary] = useState<StatusSummary | null>(null)
+  const [statusFilter, _setStatusFilter] = useState<StatusFilter>('all')
 
   // Fetch organization name
   useEffect(() => {

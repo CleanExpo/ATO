@@ -122,7 +122,7 @@ function isRetryableStatusCode(status: number): boolean {
  *     maxAttempts: 3,
  *     timeoutMs: 5000,
  *     onRetry: (attempt, error) => {
- *       console.log(`Retry attempt ${attempt}:`, error);
+ *       log.info(`Retry attempt ${attempt}:`, error);
  *     }
  *   }
  * );

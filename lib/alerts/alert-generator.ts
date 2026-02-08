@@ -15,7 +15,6 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('alerts:generator')
 
-type AlertDefinition = Database['public']['Tables']['tax_alert_definitions']['Row']
 type TaxAlert = Database['public']['Tables']['tax_alerts']['Insert']
 type ForensicAnalysisResult = Database['public']['Tables']['forensic_analysis_results']['Row']
 

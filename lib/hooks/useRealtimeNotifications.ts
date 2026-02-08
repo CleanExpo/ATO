@@ -5,7 +5,7 @@
  * Automatically updates notification count and list when new notifications arrive.
  */
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { createLogger } from '@/lib/logger';
 
@@ -37,13 +37,14 @@ export function useRealtimeNotifications({
   onNotificationDeleted,
 }: UseRealtimeNotificationsOptions = {}) {
   const supabase = createClient();
+  const userIdRef = useRef(userId);
 
   const setupRealtimeSubscription = useCallback(async () => {
-    if (!userId) {
+    if (!userIdRef.current) {
       // Get current user if not provided
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      userId = user.id;
+      userIdRef.current = user.id;
     }
 
     // Subscribe to notifications for this user
@@ -55,7 +56,7 @@ export function useRealtimeNotifications({
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${userId}`,
+          filter: `user_id=eq.${userIdRef.current}`,
         },
         (payload) => {
           log.debug('New notification received', { payload });
@@ -70,7 +71,7 @@ export function useRealtimeNotifications({
           event: 'UPDATE',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${userId}`,
+          filter: `user_id=eq.${userIdRef.current}`,
         },
         (payload) => {
           log.debug('Notification updated', { payload });
@@ -85,7 +86,7 @@ export function useRealtimeNotifications({
           event: 'DELETE',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${userId}`,
+          filter: `user_id=eq.${userIdRef.current}`,
         },
         (payload) => {
           log.debug('Notification deleted', { payload });
@@ -97,7 +98,8 @@ export function useRealtimeNotifications({
       .subscribe();
 
     return channel;
-  }, [userId, onNotificationReceived, onNotificationUpdated, onNotificationDeleted]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onNotificationReceived, onNotificationUpdated, onNotificationDeleted]);
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -112,5 +114,6 @@ export function useRealtimeNotifications({
         supabase.removeChannel(channel);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setupRealtimeSubscription]);
 }

@@ -7,9 +7,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import slack from '@/lib/slack/slack-notifier'
+import _slack from '@/lib/slack/slack-notifier'
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     // Send test message
     const testMessage = {
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 }
 
 // Allow GET to show test instructions
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   return NextResponse.json({
     endpoint: '/api/slack/test',
     method: 'POST',

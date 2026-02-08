@@ -12,7 +12,6 @@ import {
   isAllowedFileType,
   isFileSizeValid,
   formatFileSize,
-  MAX_FILE_SIZE,
   MAX_FILE_SIZE_LABEL,
   ALLOWED_EXTENSIONS,
   type DocumentRow,

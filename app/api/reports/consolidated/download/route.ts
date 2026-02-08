@@ -24,7 +24,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError, createAuthError } from '@/lib/api/errors';
-import { generateConsolidatedReport, formatCurrency, formatPercentage } from '@/lib/reports/consolidated-report-generator';
+import { generateConsolidatedReport } from '@/lib/reports/consolidated-report-generator';
 import ExcelJS from 'exceljs';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';

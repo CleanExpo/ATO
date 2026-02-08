@@ -18,7 +18,6 @@ import {
   calculateDaysUntilDeadline,
   calculateUrgencyLevel,
 } from '@/lib/types/rnd-registration'
-import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:rnd:registrations')

@@ -3,7 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse } from '@/lib/api/errors';
 import { requireAdminRole } from '@/lib/middleware/admin-role';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
     try {
         // Require admin role
         const adminCheck = await requireAdminRole();

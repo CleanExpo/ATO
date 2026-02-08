@@ -15,7 +15,6 @@ import {
   Calendar,
   AlertCircle,
   Lightbulb,
-  FileText,
   Scale,
   TrendingUp,
   Save,

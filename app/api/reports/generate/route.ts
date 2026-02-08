@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     const reportId = `REP-${Date.now()}-${tenantId.substring(0, 8)}`
 
     // Upload to Supabase Storage
-    const uploadPromises: Promise<any>[] = []
+    const uploadPromises: Promise<{ data: { path: string } | null; error: { message: string } | null }>[] = []
     let pdfUrl: string | undefined
     let excelUrl: string | undefined
 

@@ -6,25 +6,19 @@
 
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Beaker,
-    Search,
     ShieldCheck,
-    ChevronRight,
     Zap,
     Clock,
-    FileText,
     Microscope,
     Info,
-    CheckCircle2,
-    AlertTriangle,
-    Play,
     Download,
-    Filter,
     DollarSign,
-    ExternalLink
+    ExternalLink,
+    ChevronRight
 } from 'lucide-react'
 import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
@@ -69,7 +63,7 @@ const CriteriaPill = ({ label, score, max = 3 }: { label: string; score: number;
 export default function RnDAssessmentPage() {
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState('candidates')
-    const [activeTenantId, setActiveTenantId] = useState<string>('')
+    const [_activeTenantId, _setActiveTenantId] = useState<string>('')
 
     // Real data would come from API, but we'll use our scouted intelligence
     const stats = {

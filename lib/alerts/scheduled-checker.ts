@@ -11,7 +11,7 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('alerts:scheduled-checker')
 
-type AlertDefinition = Database['public']['Tables']['tax_alert_definitions']['Row']
+type _AlertDefinition = Database['public']['Tables']['tax_alert_definitions']['Row']
 
 /**
  * Calculate Australian Financial Year from date

@@ -10,7 +10,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Mail, Lock, User, Chrome, Check } from 'lucide-react'
+import { Mail, Lock, Chrome, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 // ─── Design Tokens ───────────────────────────────────────────────────

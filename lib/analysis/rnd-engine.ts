@@ -20,8 +20,6 @@ interface RndForensicRow extends ForensicAnalysisRow {
   supporting_evidence?: string | string[] | Record<string, unknown>
 }
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
-import { getCurrentFinancialYear, checkAmendmentPeriod } from '@/lib/utils/financial-year'
-import Decimal from 'decimal.js'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('analysis:rnd')
@@ -30,7 +28,7 @@ const log = createLogger('analysis:rnd')
 // NOTE: These are fallback values - actual values fetched from ATO.gov.au
 // Since FY2021-22, offset is tiered: corporate tax rate + premium
 const FALLBACK_RND_OFFSET_RATE = 0.435 // 43.5% refundable offset (25% + 18.5% premium)
-const FALLBACK_RND_OFFSET_RATE_LARGE = 0.385 // 38.5% non-refundable offset (30% + 8.5% premium)
+const _FALLBACK_RND_OFFSET_RATE_LARGE = 0.385 // 38.5% non-refundable offset (30% + 8.5% premium)
 const RND_REFUNDABLE_CAP = 4_000_000 // $4M annual refundable offset cap (s 355-100(3) ITAA 1997)
 const MIN_CONFIDENCE_FOR_RECOMMENDATION = 70 // Minimum confidence to recommend claiming
 const REGISTRATION_DEADLINE_MONTHS = 10 // 10 months after end of financial year

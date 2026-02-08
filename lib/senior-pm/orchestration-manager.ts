@@ -427,7 +427,7 @@ ${subIssues.map((issue) => `- ${issue.identifier}: ${issue.url}`).join('\n')}
 
     if (activeCount > 0) {
       report += `## Active Projects\n\n`;
-      for (const [projectId, progress] of this.activeProjects.entries()) {
+      for (const [_projectId, progress] of this.activeProjects.entries()) {
         if (progress.status === 'in-progress' || progress.status === 'blocked') {
           report += `### ${progress.linearIssueUrl}\n`;
           report += `- **Status**: ${progress.status}\n`;

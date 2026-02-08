@@ -20,7 +20,6 @@
  * - UPE outstanding for >2 years (Division 7A implications)
  */
 
-import { Decimal } from 'decimal.js';
 
 // Trust distribution transaction pattern
 export interface TrustDistribution {
@@ -293,7 +292,7 @@ function generateSection100AFlags(
   beneficiaryId: string,
   beneficiaryName: string,
   distributions: TrustDistribution[],
-  riskScore: number
+  _riskScore: number
 ): Section100AAnalysis['section_100a_flags'] {
   const flags: Section100AAnalysis['section_100a_flags'] = [];
 

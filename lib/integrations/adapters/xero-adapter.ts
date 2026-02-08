@@ -29,7 +29,6 @@ import type {
   DataQualityMetrics,
   TransactionType,
   TransactionStatus,
-  ContactType,
 } from '../canonical-schema'
 import { createXeroClient, refreshXeroTokens, isTokenExpired } from '@/lib/xero/client'
 import type { TokenSetInput } from '@/lib/xero/client'
@@ -523,9 +522,9 @@ export class XeroAdapter implements PlatformAdapter {
    * Fetch report data
    */
   async fetchReport(
-    reportType: 'profit_loss' | 'balance_sheet' | 'trial_balance',
-    startDate: string,
-    endDate: string
+    _reportType: 'profit_loss' | 'balance_sheet' | 'trial_balance',
+    _startDate: string,
+    _endDate: string
   ): Promise<CanonicalReportData> {
     // Implementation placeholder
     throw new Error('Report fetching not yet implemented')

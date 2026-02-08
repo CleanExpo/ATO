@@ -6,7 +6,7 @@
 
 'use client'
 
-import React, { Suspense, useEffect, useState, useCallback, useRef } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -15,13 +15,9 @@ import {
   Cpu,
   FileSearch,
   CheckCircle2,
-  AlertCircle,
   RefreshCw,
-  Search,
-  ChevronRight,
   TrendingUp,
   ShieldCheck,
-  Clock,
   Play
 } from 'lucide-react'
 import { AnalysisProgressPanel } from '@/components/forensic-audit/AnalysisProgressPanel'
@@ -53,9 +49,9 @@ function ForensicAuditPage() {
   const searchParams = useSearchParams()
   const [tenantId, setTenantId] = useState<string | null>(null)
   const [platform, setPlatform] = useState<Platform>('xero')
-  const [stage, setStage] = useState<Stage>('idle')
+  const [_stage, setStage] = useState<Stage>('idle')
   const [isProgressMinimized, setIsProgressMinimized] = useState(false)
-  const [showCompletionToast, setShowCompletionToast] = useState(false)
+  const [_showCompletionToast, _setShowCompletionToast] = useState(false)
   const [showPlatformSelector, setShowPlatformSelector] = useState(false)
 
   const enhancedProgress = useAnalysisProgress(tenantId, {
@@ -142,6 +138,7 @@ function ForensicAuditPage() {
       }
       startAnalysis()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enhancedProgress.syncProgress, enhancedProgress.stage, tenantId])
 
   return (
@@ -364,7 +361,7 @@ interface AuditNodeProps {
   progress?: number
 }
 
-function AuditNode({ index, title, description, icon, status, action, actionLabel = 'Start', progress }: AuditNodeProps) {
+function AuditNode({ index: _index, title, description, icon, status, action, actionLabel = 'Start', progress }: AuditNodeProps) {
   const isActive = status === 'active';
   const isComplete = status === 'complete';
 

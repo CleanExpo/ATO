@@ -5,7 +5,7 @@
  * FY-parameterised date generation using date-fns.
  */
 
-import { addMonths, setDate, setMonth, format, differenceInDays } from 'date-fns'
+import { addMonths, setDate, format, differenceInDays } from 'date-fns'
 
 export type EntityType = 'company' | 'individual' | 'trust' | 'partnership' | 'super_fund'
 
@@ -39,7 +39,7 @@ export interface DeadlineStatus {
  */
 export function generateDeadlines(fyStartYear: number): TaxDeadline[] {
   const fyStart = new Date(fyStartYear, 6, 1) // 1 July
-  const fyEnd = new Date(fyStartYear + 1, 5, 30) // 30 June
+  const _fyEnd = new Date(fyStartYear + 1, 5, 30) // 30 June
   const deadlines: TaxDeadline[] = []
 
   // === BAS (Business Activity Statement) ===

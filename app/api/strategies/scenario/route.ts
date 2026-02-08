@@ -9,7 +9,6 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createValidationError } from '@/lib/api/errors'
 import { z } from 'zod'
-import Decimal from 'decimal.js'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 
@@ -206,7 +205,7 @@ function calculateBaseScenario(results: ForensicAnalysisRow[]) {
 function calculateScenario(
   base: ReturnType<typeof calculateBaseScenario>,
   scenario: ScenarioInput,
-  results: ForensicAnalysisRow[]
+  _results: ForensicAnalysisRow[]
 ): ScenarioResult {
   const changes = scenario.changes
   const warnings: string[] = []

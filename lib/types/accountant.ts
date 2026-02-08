@@ -68,7 +68,7 @@ export interface AccountantApplication {
   approved_organization_id?: string;
 
   // Full Application Data
-  application_data: Record<string, any>;
+  application_data: Record<string, unknown>;
 
   // Metadata
   ip_address?: string;
@@ -168,7 +168,7 @@ export interface AccountantActivityLog {
   actor_role?: 'admin' | 'system' | 'self';
 
   // Context
-  details: Record<string, any>;
+  details: Record<string, unknown>;
   ip_address?: string;
   user_agent?: string;
 

@@ -20,7 +20,7 @@ def log_validation(message: str, level: str = "INFO"):
     """Log validation results with timestamp"""
     timestamp = datetime.now().isoformat()
     log_entry = f"[{timestamp}] [{level}] {message}\n"
-    with open(LOG_FILE, "a") as f:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(log_entry)
     print(log_entry.strip())
 

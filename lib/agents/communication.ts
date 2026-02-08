@@ -5,7 +5,6 @@
  * Implements priority-based routing, message history, and Linear integration.
  */
 
-import { LinearClient } from '@linear/sdk';
 import { LinearOrchestrator } from '@/lib/linear/orchestrator';
 import { createLogger } from '@/lib/logger';
 

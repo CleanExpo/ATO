@@ -51,7 +51,7 @@ export function buildIssueFromQueue(
   };
 
   // Map queue item type to Linear labels
-  const typeLabels: Record<string, string[]> = {
+  const _typeLabels: Record<string, string[]> = {
     'feature': ['feature', 'enhancement'],
     'bug': ['bug', 'issue'],
     'improvement': ['improvement', 'refactor'],

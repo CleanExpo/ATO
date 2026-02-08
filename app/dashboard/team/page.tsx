@@ -27,6 +27,7 @@ export default function TeamPage() {
     if (currentOrganization?.id) {
       fetchTeamMembers();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentOrganization]);
 
   const fetchTeamMembers = async () => {

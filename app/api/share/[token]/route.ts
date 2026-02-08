@@ -289,7 +289,7 @@ async function generateReportData(
  */
 function calculateExecutiveSummary(
   results: Array<Record<string, unknown>>,
-  reportType: string
+  _reportType: string
 ): ExecutiveSummary {
   const totalTransactions = results.length;
 
@@ -352,7 +352,7 @@ function calculateExecutiveSummary(
  */
 function generateFindings(
   results: Array<Record<string, unknown>>,
-  reportType: string
+  _reportType: string
 ): ReportFinding[] {
   const findings: ReportFinding[] = [];
 

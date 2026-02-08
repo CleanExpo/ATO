@@ -267,7 +267,7 @@ function analyzeOneTenant(
  */
 function calculateFuelTaxCredit(
   purchase: FuelPurchase,
-  fy: string
+  _fy: string
 ): FuelTaxCreditCalculation {
   const ineligibilityReasons: string[] = [];
   let isEligible = true;
@@ -368,7 +368,7 @@ function calculateCreditsByQuarter(
   calculations: FuelTaxCreditCalculation[],
   fy: string
 ): Array<{ quarter: string; credit_amount: number }> {
-  const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+  const _quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
   const fyStartYear = parseInt(fy.match(/FY(\d{4})/)?.[1] || '2024');
 
   const quarterRanges = [
@@ -397,7 +397,7 @@ function calculateCreditsByQuarter(
  */
 function assessDataQuality(
   purchases: FuelPurchase[],
-  calculations: FuelTaxCreditCalculation[]
+  _calculations: FuelTaxCreditCalculation[]
 ): { dataQualityScore: number; missingDataFlags: string[] } {
   const missingDataFlags: string[] = [];
 

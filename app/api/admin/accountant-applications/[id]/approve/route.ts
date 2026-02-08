@@ -19,7 +19,6 @@ import { requireAdminRole } from '@/lib/middleware/admin-role';
 import { logAdminAction, getIpAddress, getUserAgent } from '@/lib/audit/logger';
 import type {
   ApprovalResponse,
-  AccountantApplication,
   VettedAccountant,
 } from '@/lib/types/accountant';
 

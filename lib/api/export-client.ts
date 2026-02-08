@@ -55,7 +55,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
 /**
  * Get content type for export format
  */
-function getContentType(format: ExportOptions['format']): string {
+function _getContentType(format: ExportOptions['format']): string {
   switch (format) {
     case 'excel':
       return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

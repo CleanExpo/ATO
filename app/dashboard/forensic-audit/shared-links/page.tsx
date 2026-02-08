@@ -40,7 +40,7 @@ export default function SharedLinksPage() {
         } else {
           setError('No Xero organisation connected');
         }
-      } catch (err) {
+      } catch (_err) {
         setError('Failed to load organisation data');
       } finally {
         setLoading(false);

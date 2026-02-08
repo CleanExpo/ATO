@@ -23,14 +23,13 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { createValidationError } from '@/lib/api/errors'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext, type BusinessContext, type ForensicAnalysis } from '@/lib/ai/forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 import type { SupabaseServiceClient } from '@/lib/supabase/server'
-import type { HistoricalTransaction } from '@/lib/xero/historical-fetcher'
 
 const log = createLogger('api:audit:analyze-chunk')
 

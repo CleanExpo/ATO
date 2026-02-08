@@ -812,7 +812,7 @@ function extractAccountCode(rawData: RawTransactionData | null): string | null {
   return rawData.lineItems[0]?.accountCode || null
 }
 
-function normaliseString(s: string): string {
+function _normaliseString(s: string): string {
   return s.toLowerCase().trim().replace(/\s+/g, ' ')
 }
 

@@ -5,7 +5,7 @@
  * Manages issue creation, status updates, dependency tracking, and reporting.
  */
 
-import { LinearClient, Issue, Comment } from '@linear/sdk';
+import { LinearClient } from '@linear/sdk';
 
 type IssueCreateInput = Parameters<LinearClient['createIssue']>[0];
 

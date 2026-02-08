@@ -179,7 +179,7 @@ export default function SharePage() {
       }
 
       setState({ status: 'success', data: data as AccessShareLinkResponse });
-    } catch (err) {
+    } catch (_err) {
       setState({
         status: 'error',
         error: {
@@ -193,6 +193,7 @@ export default function SharePage() {
 
   useEffect(() => {
     fetchReport();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   // Fetch feedback, status, and documents when report is loaded
@@ -207,6 +208,7 @@ export default function SharePage() {
         fetchDocuments(recIds);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status, fetchFeedback, fetchStatus, fetchDocuments]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {

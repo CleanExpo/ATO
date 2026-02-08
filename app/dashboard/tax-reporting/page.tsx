@@ -23,25 +23,16 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  LineChart,
-  Line,
-  AreaChart,
-  Area
 } from 'recharts';
 import {
   Calendar,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
   FileText,
   DollarSign,
   TrendingUp,
-  TrendingDown,
   AlertCircle,
   RefreshCw,
   ExternalLink,
   ShieldCheck,
-  Zap,
   ChevronRight,
   Info
 } from 'lucide-react';
@@ -135,7 +126,7 @@ export default function TaxReportingDashboard() {
           setError('No Xero connections found. Connect your Xero organisation to view tax reporting data.');
           setLoading(false);
         }
-      } catch (err) {
+      } catch (_err) {
         setError('Failed to load Xero connection');
         setLoading(false);
       }

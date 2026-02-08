@@ -3,6 +3,14 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createValidationError } from '@/lib/api/errors'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
+interface CachedTransaction {
+  transaction_id: string
+  total_amount: number | null
+  transaction_date: string | null
+  contact_name: string | null
+  raw_data: Record<string, unknown> | null
+}
+
 export async function POST(request: NextRequest) {
   let tenantId: string
 
@@ -45,8 +53,7 @@ export async function POST(request: NextRequest) {
     // Get transaction amounts from cache in batches (Supabase URL length limit)
     const transactionIds = nullRecords!.map(r => r.transaction_id)
     const BATCH_SIZE = 25
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const cacheMap = new Map<string, any>()
+    const cacheMap = new Map<string, CachedTransaction>()
 
     for (let i = 0; i < transactionIds.length; i += BATCH_SIZE) {
       const batch = transactionIds.slice(i, i + BATCH_SIZE)
@@ -62,7 +69,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (cached) {
-        cached.forEach(c => cacheMap.set(c.transaction_id, c))
+        cached.forEach(c => cacheMap.set(c.transaction_id, c as CachedTransaction))
       }
     }
 
@@ -83,7 +90,7 @@ export async function POST(request: NextRequest) {
       if (!cachedTx) continue
 
       // Extract data from raw_data as fallback when columns are NULL
-      const rawData = cachedTx.raw_data as Record<string, unknown> | null
+      const rawData = cachedTx.raw_data
 
       // Amount: prefer column, fallback to raw_data.total
       const amount = cachedTx.total_amount

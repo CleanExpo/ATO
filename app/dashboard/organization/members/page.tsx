@@ -11,7 +11,6 @@ import { useOrganization } from '@/lib/context/OrganizationContext'
 import { hasPermission, getRoleBadgeColor, getRoleDisplayName, type UserRole } from '@/lib/types/multi-tenant'
 import {
   Users,
-  Plus,
   Trash2,
   Mail,
   UserPlus,
@@ -19,7 +18,6 @@ import {
   Copy,
   CheckCircle,
   RefreshCw,
-  MoreVertical,
 } from 'lucide-react'
 
 interface OrganizationMember {
@@ -57,6 +55,7 @@ export default function OrganizationMembersPage() {
   useEffect(() => {
     if (!currentOrganization) return
     loadData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentOrganization])
 
   const loadData = async () => {

@@ -7,14 +7,13 @@
 
 'use client'
 
-import React, { Suspense, useState, useEffect } from 'react'
+import React, { Suspense, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Building2,
   Download,
   RefreshCw,
   TrendingUp,
-  AlertCircle,
   CheckCircle2,
   XCircle,
   BarChart3,
@@ -24,7 +23,6 @@ import {
   DollarSign,
   Clock,
   Target,
-  ChevronRight,
 } from 'lucide-react'
 import type { ConsolidatedReport } from '@/lib/reports/consolidated-report-generator'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'

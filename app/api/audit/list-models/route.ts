@@ -16,7 +16,7 @@ export async function GET() {
             }, { status: 500 })
         }
 
-        const genAI = new GoogleGenerativeAI(optionalConfig.googleAiApiKey)
+        const _genAI = new GoogleGenerativeAI(optionalConfig.googleAiApiKey)
 
         // Try to list models using fetch directly
         const response = await fetch(

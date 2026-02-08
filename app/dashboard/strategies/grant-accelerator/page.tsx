@@ -13,7 +13,6 @@ import {
     Zap,
     CheckCircle2,
     ChevronRight,
-    ChevronLeft,
     FileText,
     Building2,
     Calculator,
@@ -21,12 +20,10 @@ import {
     Download,
     ExternalLink,
     ShieldCheck,
-    AlertTriangle,
     ArrowLeft,
     Info
 } from 'lucide-react'
 import Link from 'next/link'
-import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 
 const steps = [
     { id: 'eligibility', label: 'Eligibility', icon: <ShieldCheck className="w-4 h-4" /> },

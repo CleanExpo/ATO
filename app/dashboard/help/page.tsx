@@ -15,11 +15,9 @@ import {
     MessageSquare,
     Search,
     ExternalLink,
-    FileText,
     Terminal,
     Calculator,
     Shield,
-    Zap,
     Play
 } from 'lucide-react';
 

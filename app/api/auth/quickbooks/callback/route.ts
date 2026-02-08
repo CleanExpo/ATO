@@ -12,7 +12,6 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { QUICKBOOKS_CONFIG } from '@/lib/integrations/quickbooks-config'
 import { storeQuickBooksTokens, createQuickBooksClient } from '@/lib/integrations/quickbooks-client'
-import { createErrorResponse } from '@/lib/api/errors'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:auth:quickbooks-callback')

@@ -18,7 +18,6 @@ import {
     ArrowRight,
     ShieldAlert,
     Terminal,
-    Calculator,
     Loader2
 } from 'lucide-react'
 
@@ -45,7 +44,7 @@ const PricingCard = ({
     highlight = false,
     badge = '',
     buttonLink = '',
-    productType,
+    productType: _productType,
     onCheckout,
     isLoading = false
 }: PricingCardProps) => {

@@ -10,13 +10,8 @@ import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import {
   ArrowLeft,
   FileText,
-  ExternalLink,
-  Check,
-  X,
   AlertTriangle,
 } from 'lucide-react'
-import { ConfidenceBadge } from '@/components/accountant/ConfidenceBadge'
-import { LegislationLink } from '@/components/accountant/LegislationLink'
 import { FindingCard } from '@/components/accountant/FindingCard'
 import { createServiceClient } from '@/lib/supabase/server'
 

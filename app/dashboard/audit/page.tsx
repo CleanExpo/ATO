@@ -3,12 +3,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-    DollarSign,
-    LayoutDashboard,
-    Beaker,
-    FileSearch,
-    TrendingDown,
-    Settings,
     ArrowLeft,
     Filter,
     Download,

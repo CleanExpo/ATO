@@ -151,7 +151,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const { name, abn, industry, businessSize, settings } = validation.data
 
     // Build update object
-    const updates: Record<string, any> = {}
+    const updates: Record<string, string | Record<string, unknown>> = {}
     if (name) updates.name = name
     if (abn !== undefined) updates.abn = abn
     if (industry !== undefined) updates.industry = industry

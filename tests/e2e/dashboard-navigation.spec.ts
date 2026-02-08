@@ -32,22 +32,6 @@ test.describe('Dashboard Access', () => {
 })
 
 // =============================================================================
-// Dashboard Layout Tests (if accessible without auth)
-// =============================================================================
-
-test.describe('Dashboard Structure', () => {
-  test.skip('should have main navigation sidebar', async ({ page }) => {
-    // This test requires authentication
-    // Will be implemented with auth setup
-  })
-
-  test.skip('should have responsive mobile menu', async ({ page }) => {
-    // This test requires authentication
-    // Will be implemented with auth setup
-  })
-})
-
-// =============================================================================
 // Forensic Audit Page Tests
 // =============================================================================
 

@@ -138,7 +138,7 @@ export function getUserAgent(request: Request): string | null {
 export async function getAdminAuditHistory(
   actorId: string,
   limit: number = 50
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   try {
     const supabase = await createServiceClient();
 
@@ -171,7 +171,7 @@ export async function getAdminAuditHistory(
 export async function getResourceAuditHistory(
   targetId: string,
   limit: number = 50
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   try {
     const supabase = await createServiceClient();
 
@@ -202,7 +202,7 @@ export async function getResourceAuditHistory(
  */
 export async function getRecentAdminActions(
   limit: number = 100
-): Promise<any[]> {
+): Promise<Record<string, unknown>[]> {
   try {
     const supabase = await createServiceClient();
 

@@ -132,7 +132,7 @@ export async function GET(request: NextRequest) {
           urgencyLevel,
           registrationStatus: 'not_started',
         })
-      } catch (e) {
+      } catch (_e) {
         console.warn(`[R&D Deadlines] Invalid FY format: ${fy}`)
       }
     }

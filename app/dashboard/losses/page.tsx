@@ -6,23 +6,17 @@
 
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
     TrendingDown,
     Users,
     AlertTriangle,
-    ArrowLeft,
-    ChevronRight,
     Info,
     ShieldCheck,
     RefreshCw,
-    Clock,
-    ChevronDown,
-    FileText,
-    DollarSign
+    FileText
 } from 'lucide-react'
-import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 

@@ -177,7 +177,7 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
-function formatDate(dateString: string | null): string {
+function _formatDate(dateString: string | null): string {
   if (!dateString) return '-'
   const date = new Date(dateString)
   return date.toLocaleDateString('en-AU', {

@@ -20,7 +20,6 @@ import type {
   CanonicalLineItem,
   ValidationResult,
   DataQualityMetrics,
-  TransactionType,
   TransactionStatus,
 } from '../canonical-schema'
 import type {
@@ -38,7 +37,7 @@ import { getFinancialYearFromDate } from '@/lib/types'
  * MYOB API Configuration
  */
 const MYOB_API_BASE = 'https://api.myob.com/accountright'
-const MYOB_AUTH_URL = 'https://secure.myob.com/oauth2/account/authorize'
+const _MYOB_AUTH_URL = 'https://secure.myob.com/oauth2/account/authorize'
 const MYOB_TOKEN_URL = 'https://secure.myob.com/oauth2/v1/authorize'
 
 /**
@@ -640,9 +639,9 @@ export class MYOBAdapter implements PlatformAdapter {
    * Fetch report data
    */
   async fetchReport(
-    reportType: 'profit_loss' | 'balance_sheet' | 'trial_balance',
-    startDate: string,
-    endDate: string
+    _reportType: 'profit_loss' | 'balance_sheet' | 'trial_balance',
+    _startDate: string,
+    _endDate: string
   ): Promise<CanonicalReportData> {
     throw new Error('MYOB report fetching not yet implemented')
   }

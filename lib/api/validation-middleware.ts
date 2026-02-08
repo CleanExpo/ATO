@@ -11,7 +11,6 @@ import { createValidationError } from '@/lib/api/errors'
 import {
   formatValidationErrors,
   safeValidateBody,
-  validateBody,
   validateQueryParams,
 } from '@/lib/validation/schemas'
 

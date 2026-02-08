@@ -19,7 +19,7 @@ interface DeductionForensicRow extends ForensicAnalysisRow {
   deduction_reasoning?: string
 }
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
-import { checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
+import { type EntityTypeForAmendment } from '@/lib/utils/financial-year'
 import Decimal from 'decimal.js'
 import { createLogger } from '@/lib/logger'
 

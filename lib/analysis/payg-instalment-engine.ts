@@ -379,7 +379,7 @@ function calculateQuarterlyInstalments(
 function analyzeVariation(
   totalInstalmentsDue: number,
   estimatedTaxLiability: number,
-  options?: PAYGAnalysisOptions
+  _options?: PAYGAnalysisOptions
 ): {
   recommended: boolean
   amount: number | null

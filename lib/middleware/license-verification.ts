@@ -337,7 +337,7 @@ export async function verifyLicenseTier(
  * @param request - Next.js request object
  * @returns Object with isActive flag and optional error response
  */
-export async function requireActiveLicense(request: Request): Promise<{
+export async function requireActiveLicense(_request: Request): Promise<{
   isActive: boolean;
   licenseStatus?: LicenseStatus;
   response?: NextResponse;

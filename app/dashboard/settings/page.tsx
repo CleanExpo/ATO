@@ -11,14 +11,11 @@ import { motion } from 'framer-motion'
 import {
     Building2,
     User,
-    Mail,
     Save,
     Settings,
     CheckCircle2,
-    AlertTriangle,
     LogOut,
     RefreshCw,
-    ExternalLink,
     ShieldCheck,
     Zap,
     Loader2,
@@ -60,13 +57,13 @@ export default function SettingsPage() {
     const [saved, setSaved] = useState(false)
     const [xeroConnections, setXeroConnections] = useState<XeroConnection[]>([])
     const [xeroLoading, setXeroLoading] = useState(true)
-    const [xeroError, setXeroError] = useState<string | null>(null)
+    const [_xeroError, setXeroError] = useState<string | null>(null)
     const [quickbooksConnections, setQuickbooksConnections] = useState<QuickBooksConnection[]>([])
     const [quickbooksLoading, setQuickbooksLoading] = useState(true)
-    const [quickbooksError, setQuickbooksError] = useState<string | null>(null)
+    const [_quickbooksError, setQuickbooksError] = useState<string | null>(null)
     const [myobConnections, setMyobConnections] = useState<MYOBConnection[]>([])
     const [myobLoading, setMyobLoading] = useState(true)
-    const [myobError, setMyobError] = useState<string | null>(null)
+    const [_myobError, setMyobError] = useState<string | null>(null)
 
     useEffect(() => {
         async function fetchXeroConnections() {

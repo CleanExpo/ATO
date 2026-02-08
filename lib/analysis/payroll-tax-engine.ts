@@ -496,9 +496,9 @@ function analyzeContractorDeeming(
  * Derive state wages from Xero payroll data.
  */
 async function deriveStateWagesFromXero(
-  supabase: SupabaseServiceClient,
-  tenantId: string,
-  fy: string
+  _supabase: SupabaseServiceClient,
+  _tenantId: string,
+  _fy: string
 ): Promise<StateWages[]> {
   // In a full implementation, this would query Xero payroll data
   // For now, return empty - wages must be provided via options

@@ -93,7 +93,7 @@ export default function StrategiesPage() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [summary, setSummary] = useState<{ totalEstimatedBenefit?: number } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [_error, setError] = useState<string | null>(null)
   const [tenantId, setTenantId] = useState<string | null>(null)
 
   useEffect(() => {

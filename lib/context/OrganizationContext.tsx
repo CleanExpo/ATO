@@ -142,6 +142,7 @@ export function OrganizationProvider({
   // Initial load
   useEffect(() => {
     fetchOrganizations()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const value: OrganizationContextValue = {

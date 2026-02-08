@@ -9,15 +9,13 @@
  * - Database storage
  */
 
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 import { getCachedTransactions, type HistoricalTransaction } from '@/lib/xero/historical-fetcher'
 import { getCachedMYOBTransactions, type MYOBHistoricalTransaction } from '@/lib/integrations/myob-historical-fetcher'
 import { getCachedQuickBooksTransactions, type QuickBooksTransaction } from '@/lib/integrations/quickbooks-historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type TransactionContext, type BusinessContext, type ForensicAnalysis } from './forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
-import { getAdapter } from '@/lib/integrations'
-import type { CanonicalTransaction } from '@/lib/integrations/canonical-schema'
 import { triggerAlertGeneration } from '@/lib/alerts/alert-generator'
 import slack from '@/lib/slack/slack-notifier'
 import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
@@ -28,7 +26,7 @@ const log = createLogger('ai:batch-processor')
 type CachedTransaction = HistoricalTransaction | MYOBHistoricalTransaction | QuickBooksTransaction
 
 /** Helper to safely access a property on a cached transaction from any platform */
-function getTxnProp(txn: CachedTransaction, key: string): unknown {
+function _getTxnProp(txn: CachedTransaction, key: string): unknown {
   return (txn as unknown as Record<string, unknown>)[key]
 }
 
@@ -325,7 +323,7 @@ export async function analyzeAllTransactions(
         // Notify Slack about error
         try {
             const { data: { user } } = await supabase.auth.admin.getUserById(tenantId)
-            const userEmail = user?.email || 'unknown@example.com'
+            const _userEmail = user?.email || 'unknown@example.com'
 
             await slack.notifyError(
                 'AI Analysis Failed',
@@ -409,7 +407,7 @@ function buildTransactionContext(txn: CachedTransaction, platform: string): Tran
 /**
  * Build descriptive text from transaction (legacy)
  */
-function buildDescription(transaction: CachedTransaction): string {
+function _buildDescription(transaction: CachedTransaction): string {
     const rec = transaction as unknown as Record<string, unknown>
     const parts: string[] = []
 

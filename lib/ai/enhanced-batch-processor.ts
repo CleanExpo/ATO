@@ -31,7 +31,7 @@ import {
   type BudgetConfig,
   type EnhancedProgress,
 } from './analysis-optimizer'
-import type { AnalysisProgress, AnalysisOptions } from './batch-processor'
+import type { AnalysisOptions } from './batch-processor'
 
 const log = createLogger('ai:enhanced-batch')
 

@@ -164,7 +164,7 @@ async function sleep(ms: number): Promise<void> {
  *     maxAttempts: 5,
  *     initialDelayMs: 500,
  *     onRetry: (error, attempt, delay) => {
- *       console.log(`Retry ${attempt}/5 after ${delay}ms due to: ${error.message}`)
+ *       log.info(`Retry ${attempt}/5 after ${delay}ms due to: ${error.message}`)
  *     }
  *   }
  * )
@@ -234,7 +234,7 @@ export async function retry<T>(
  *   body: JSON.stringify({ key: 'value' })
  * }, {
  *   maxAttempts: 3,
- *   onRetry: (error, attempt) => console.log(`Retrying (${attempt}/3)...`)
+ *   onRetry: (error, attempt) => log.info(`Retrying (${attempt}/3)...`)
  * })
  * ```
  */

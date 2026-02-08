@@ -89,7 +89,7 @@ export interface OrganizationActivityLog {
   action: string
   entityType?: string
   entityId?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   ipAddress?: string
   userAgent?: string
   createdAt: string

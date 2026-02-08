@@ -19,7 +19,6 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { getCurrentFinancialYear, checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
-import Decimal from 'decimal.js'
 
 /** Xero raw transaction shape from historical_transactions_cache.raw_data */
 interface XeroRawTransaction {
