@@ -204,6 +204,8 @@ export interface RndProjectAnalysis {
   recommendations: string[]
   evidence: string[] // Supporting evidence from forensic analysis results
   evidenceSufficient: boolean // Whether minimum evidence threshold is met
+  /** Warning about potential R&D clawback if results are commercialised (s 355-450 ITAA 1997) */
+  clawbackWarning?: string
 }
 
 /**
@@ -248,6 +250,8 @@ export interface RndSummary {
   excludedProjects: BorderlineProject[]
   /** Summary note about excluded projects for user review */
   excludedProjectsNote: string
+  /** Warning about potential R&D clawback obligations across all projects (s 355-450 ITAA 1997) */
+  clawbackWarning?: string
 }
 
 /**
@@ -306,6 +310,7 @@ export async function analyzeRndOpportunities(
       projects: [],
       excludedProjects: [],
       excludedProjectsNote: '',
+      clawbackWarning: undefined,
       taxRateSource: 'none',
       taxRateVerifiedAt: new Date().toISOString(),
       taxRateNote: '',
@@ -586,6 +591,11 @@ function analyzeProject(projectName: string, transactions: RndForensicRow[], rnd
     recommendations,
     evidence: uniqueEvidence,
     evidenceSufficient: uniqueEvidence.length >= MIN_EVIDENCE_FOR_HIGH_CONFIDENCE,
+    clawbackWarning: meetsEligibility && eligibleExpenditure > 20000
+      ? 'If R&D results are commercialised (e.g., sold, licensed, or applied to generate income), ' +
+        'clawback of the R&D tax offset may apply under s 355-450 ITAA 1997. ' +
+        'Maintain records of any commercialisation activities and seek professional advice.'
+      : undefined,
   }
 }
 
@@ -797,6 +807,13 @@ function generateRecommendations(
     recommendations.push('⚠️ High-value claim (>$100k) - expect ATO review, ensure documentation is comprehensive')
   }
 
+  if (meetsEligibility && estimatedOffset > 0) {
+    recommendations.push(
+      '⚠️ CLAWBACK RISK: If R&D results are commercialised, the R&D tax offset may be subject to ' +
+      'clawback under s 355-450 ITAA 1997. Document all commercialisation activities.'
+    )
+  }
+
   return recommendations
 }
 
@@ -900,6 +917,10 @@ function calculateRndSummary(
     projects,
     excludedProjects,
     excludedProjectsNote: excludedNote,
+    clawbackWarning: projects.some(p => p.clawbackWarning)
+      ? 'One or more R&D projects may be subject to clawback provisions under s 355-450 ITAA 1997 ' +
+        'if R&D results are commercialised. Review each project for commercialisation risk.'
+      : undefined,
     taxRateSource: rndRateInfo.source,
     taxRateVerifiedAt: new Date().toISOString(),
     taxRateNote: rndRateInfo.note,

@@ -39,6 +39,7 @@ export interface TrustDistribution {
   is_minor?: boolean; // Under 18 years old
   is_related_party?: boolean;
   has_reimbursement_pattern?: boolean; // Payment followed by loan-back within 30 days
+  is_family_member?: boolean; // TR 2022/4: Family member for ordinary dealing exclusion
 
   // UPE tracking
   upe_balance?: number; // Outstanding unpaid entitlement
@@ -64,6 +65,7 @@ export interface Section100AAnalysis {
     upe_balance: number;
     risk_score: number; // 0-100
     risk_factors: string[];
+    familyDealingExclusion?: string; // TR 2022/4: Note if family dealing exclusion may apply
   }>;
 
   section_100a_flags: Array<{
@@ -74,6 +76,7 @@ export interface Section100AAnalysis {
     beneficiary_name: string;
     amount: number;
     recommendation: string;
+    familyDealingNote?: string; // TR 2022/4: Family dealing context for this flag
   }>;
 
   upe_summary: {
@@ -187,6 +190,12 @@ function analyzeOneTrust(
       upe_balance: upeBalance,
       risk_score: riskScore,
       risk_factors: riskFactors,
+      familyDealingExclusion:
+        firstDist.is_related_party && firstDist.is_family_member && !firstDist.has_reimbursement_pattern
+          ? 'Ordinary family dealing exclusion (TR 2022/4) may apply. Distribution is to a related party ' +
+            'family member with no reimbursement agreement detected. Section 100A may not apply to this ' +
+            'distribution. Confirm with professional advisor.'
+          : undefined,
     });
 
     // Generate Section 100A flags
@@ -279,6 +288,18 @@ function calculateBeneficiaryRisk(
     riskFactors.push(`High UPE ratio (${(upeRatio * 100).toFixed(0)}% of distributions unpaid)`);
   }
 
+  // Risk Reduction: Ordinary family dealing exclusion (TR 2022/4 / s 100A ITAA 1936)
+  // Distributions to family members for ordinary family purposes are excluded from s 100A
+  // when there is no reimbursement pattern
+  if (firstDist.is_related_party && firstDist.is_family_member && !firstDist.has_reimbursement_pattern) {
+    const reduction = Math.min(20, riskScore); // Reduce by up to 20 points, not below 0
+    riskScore -= reduction;
+    riskFactors.push(
+      'Family dealing exclusion may apply (TR 2022/4): distribution to family member without ' +
+      'reimbursement pattern. Risk reduced. Professional review recommended to confirm exclusion applies.'
+    );
+  }
+
   // Cap at 100
   riskScore = Math.min(riskScore, 100);
 
@@ -310,6 +331,10 @@ function generateSection100AFlags(
       beneficiary_name: beneficiaryName,
       amount: totalAmount,
       recommendation: 'URGENT: Review for Section 100A reimbursement agreement. If ATO determines agreement exists, distribution may be assessed to trustee at 47% (top marginal rate 45% + 2% Medicare Levy per s 99A ITAA 1936). Obtain legal advice immediately.',
+      familyDealingNote: firstDist.is_family_member && !firstDist.has_reimbursement_pattern
+        ? 'Note: Beneficiary is a family member. However, a reimbursement pattern was detected which overrides ' +
+          'the ordinary family dealing exclusion under TR 2022/4.'
+        : undefined,
     });
   }
 
@@ -323,6 +348,10 @@ function generateSection100AFlags(
       beneficiary_name: beneficiaryName,
       amount: totalAmount,
       recommendation: 'Review for Section 100A application. Non-resident distributions are high-risk for ATO scrutiny. Ensure proper withholding tax applied and genuine economic substance.',
+      familyDealingNote: firstDist.is_family_member
+        ? 'Note: Beneficiary is a family member but is non-resident. Family dealing exclusion under TR 2022/4 ' +
+          'may still apply but non-resident status increases ATO scrutiny.'
+        : undefined,
     });
   }
 
@@ -336,6 +365,10 @@ function generateSection100AFlags(
       beneficiary_name: beneficiaryName,
       amount: totalAmount,
       recommendation: `Excepted income for minors limited to $1,307 (FY2024-25). Excess taxed at 66%. Review if distribution genuinely for minor's benefit and not a reimbursement agreement.`,
+      familyDealingNote: firstDist.is_family_member
+        ? 'Note: Minor beneficiary is a family member. Family dealing exclusion under TR 2022/4 ' +
+          'may apply for distributions genuinely for the minor\'s benefit.'
+        : undefined,
     });
   }
 
@@ -352,6 +385,10 @@ function generateSection100AFlags(
         beneficiary_name: beneficiaryName,
         amount: totalUPE,
         recommendation: `UPE >2 years old may trigger Division 7A deemed dividend if trust is a private company shareholder. Pay UPE immediately or formalize as complying loan (7-year term, 8.77% interest). Failure to act results in deemed dividend taxed at marginal rate.`,
+        familyDealingNote: firstDist.is_family_member && !firstDist.has_reimbursement_pattern
+          ? 'Note: Beneficiary is a family member. Family dealing exclusion (TR 2022/4) may apply to the ' +
+            'distribution but the UPE itself has separate Division 7A implications.'
+          : undefined,
       });
     } else if (totalUPE > 100000) {
       flags.push({
@@ -362,6 +399,10 @@ function generateSection100AFlags(
         beneficiary_name: beneficiaryName,
         amount: totalUPE,
         recommendation: `Monitor UPE age. If unpaid for >2 years and trust owes money to private company, Division 7A deemed dividend rules apply. Plan repayment strategy or loan agreement.`,
+        familyDealingNote: firstDist.is_family_member && !firstDist.has_reimbursement_pattern
+          ? 'Note: Beneficiary is a family member. Family dealing exclusion (TR 2022/4) may apply to the ' +
+            'distribution but the UPE itself has separate Division 7A implications.'
+          : undefined,
       });
     }
   }

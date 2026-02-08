@@ -134,6 +134,15 @@ export interface CotSbtAnalysis {
   isEligibleForCarryforward: boolean
   professionalReviewRequired: boolean
   riskLevel: 'low' | 'medium' | 'high'
+  /** Transaction-based evidence for Similar Business Test (s 165-13 ITAA 1997) */
+  sbtEvidence?: {
+    currentYearCategories: string[]
+    priorYearCategories: string[]
+    consistentCategories: string[]
+    consistencyRatio: number
+    recurringSuppliers: string[]
+    note: string
+  }
 }
 
 export interface LossAnalysis {
@@ -212,6 +221,9 @@ export async function analyzeLossPosition(
     const analysis = analyzeSingleYearLoss(currentYear, previousYears, taxRateInfo)
     lossAnalyses.push(analysis)
   }
+
+  // Enrich SBT analysis with transaction pattern evidence (s 165-13 ITAA 1997)
+  await enrichSbtWithTransactionEvidence(supabase, tenantId, lossAnalyses)
 
   // Calculate summary
   const summary = calculateLossSummary(lossAnalyses, taxRateInfo.source)
@@ -613,6 +625,149 @@ function generateLossRecommendations(
   recommendations.push('Document business activities year-over-year for SBT compliance')
 
   return recommendations
+}
+
+/**
+ * Enrich SBT analysis with transaction pattern evidence (s 165-13 ITAA 1997).
+ *
+ * Compares expense categories and supplier patterns across financial years
+ * to provide evidence-based SBT assessment rather than always returning 'unknown'.
+ *
+ * - 70%+ category consistency: suggests SBT satisfied (confidence 75)
+ * - 40-69% consistency: SBT uncertain but with evidence (confidence 65)
+ * - <40% consistency: SBT likely not satisfied (confidence 60)
+ */
+async function enrichSbtWithTransactionEvidence(
+  supabase: SupabaseServiceClient,
+  tenantId: string,
+  lossAnalyses: LossAnalysis[]
+): Promise<void> {
+  // Only enrich analyses that have losses to carry forward and unknown SBT status
+  const analysesToEnrich = lossAnalyses.filter(
+    a => a.closingLossBalance > 0 && a.cotSbtAnalysis.sbtSatisfied === 'unknown'
+  )
+
+  if (analysesToEnrich.length === 0) return
+
+  // Fetch expense categories by financial year from forensic_analysis_results
+  const { data: categoryData, error } = await supabase
+    .from('forensic_analysis_results')
+    .select('financial_year, primary_category, supplier_name')
+    .eq('tenant_id', tenantId)
+    .not('primary_category', 'is', null)
+    .order('financial_year', { ascending: true })
+
+  if (error || !categoryData || categoryData.length === 0) {
+    log.info('No category data available for SBT enrichment', { tenantId })
+    return
+  }
+
+  // Group categories and suppliers by financial year
+  const yearCategories = new Map<string, Set<string>>()
+  const yearSuppliers = new Map<string, Set<string>>()
+
+  for (const row of categoryData) {
+    const fy = row.financial_year as string
+    if (!fy) continue
+
+    if (!yearCategories.has(fy)) {
+      yearCategories.set(fy, new Set())
+    }
+    if (row.primary_category) {
+      yearCategories.get(fy)!.add(row.primary_category as string)
+    }
+
+    if (!yearSuppliers.has(fy)) {
+      yearSuppliers.set(fy, new Set())
+    }
+    if (row.supplier_name) {
+      yearSuppliers.get(fy)!.add(row.supplier_name as string)
+    }
+  }
+
+  const sortedYears = Array.from(yearCategories.keys()).sort()
+  if (sortedYears.length < 2) {
+    log.info('Insufficient year data for SBT comparison', { years: sortedYears.length })
+    return
+  }
+
+  // For each analysis year, compare against prior year(s)
+  for (const analysis of analysesToEnrich) {
+    const currentFY = analysis.financialYear
+    const currentCategories = yearCategories.get(currentFY)
+
+    // Find the prior year with data
+    const currentIndex = sortedYears.indexOf(currentFY)
+    if (currentIndex <= 0 || !currentCategories) continue
+
+    const priorFY = sortedYears[currentIndex - 1]
+    const priorCategories = yearCategories.get(priorFY)
+
+    if (!priorCategories) continue
+
+    // Calculate category consistency
+    const currentArr = Array.from(currentCategories)
+    const priorArr = Array.from(priorCategories)
+    const consistentCategories = currentArr.filter(cat => priorCategories.has(cat))
+    const allCategories = new Set([...currentArr, ...priorArr])
+    const consistencyRatio = allCategories.size > 0
+      ? consistentCategories.length / allCategories.size
+      : 0
+
+    // Find recurring suppliers (present in both years)
+    const currentSuppliers = yearSuppliers.get(currentFY)
+    const priorSuppliers = yearSuppliers.get(priorFY)
+    const recurringSuppliers = currentSuppliers && priorSuppliers
+      ? Array.from(currentSuppliers).filter(s => priorSuppliers.has(s)).slice(0, 10)
+      : []
+
+    // Build evidence
+    const evidence = {
+      currentYearCategories: currentArr.slice(0, 20),
+      priorYearCategories: priorArr.slice(0, 20),
+      consistentCategories: consistentCategories.slice(0, 20),
+      consistencyRatio: Math.round(consistencyRatio * 100) / 100,
+      recurringSuppliers,
+      note: '',
+    }
+
+    // Update SBT assessment based on evidence
+    if (consistencyRatio >= 0.7) {
+      analysis.cotSbtAnalysis.sbtSatisfied = true
+      analysis.cotSbtAnalysis.sbtConfidence = 75
+      evidence.note =
+        `${(consistencyRatio * 100).toFixed(0)}% expense category consistency between ${priorFY} and ${currentFY} ` +
+        `(${consistentCategories.length} of ${allCategories.size} categories). ` +
+        `${recurringSuppliers.length} recurring supplier(s). ` +
+        'Strong evidence that the same business is being carried on (s 165-13 ITAA 1997). ' +
+        'Professional review still recommended to confirm SBT compliance.'
+      analysis.cotSbtAnalysis.sbtNotes.push(
+        `Transaction evidence: ${(consistencyRatio * 100).toFixed(0)}% category consistency suggests SBT satisfied`
+      )
+    } else if (consistencyRatio >= 0.4) {
+      // Keep unknown but increase confidence
+      analysis.cotSbtAnalysis.sbtConfidence = 65
+      evidence.note =
+        `${(consistencyRatio * 100).toFixed(0)}% expense category consistency between ${priorFY} and ${currentFY}. ` +
+        'Moderate evidence of business continuity but insufficient to confirm SBT satisfaction. ' +
+        'Professional review required (s 165-13 ITAA 1997).'
+      analysis.cotSbtAnalysis.sbtNotes.push(
+        `Transaction evidence: ${(consistencyRatio * 100).toFixed(0)}% category consistency - inconclusive for SBT`
+      )
+    } else {
+      analysis.cotSbtAnalysis.sbtConfidence = 60
+      evidence.note =
+        `Only ${(consistencyRatio * 100).toFixed(0)}% expense category consistency between ${priorFY} and ${currentFY}. ` +
+        'Low similarity suggests the business may have changed significantly. ' +
+        'SBT may not be satisfied (s 165-13 ITAA 1997). Urgent professional review required.'
+      analysis.cotSbtAnalysis.sbtNotes.push(
+        `Transaction evidence: ${(consistencyRatio * 100).toFixed(0)}% category consistency - SBT may not be satisfied`
+      )
+      analysis.cotSbtAnalysis.riskLevel = 'high'
+    }
+
+    analysis.cotSbtAnalysis.sbtEvidence = evidence
+  }
 }
 
 /**

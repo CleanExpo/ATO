@@ -81,6 +81,13 @@ const LOAN_ACCOUNT_TYPES = [
   'NONCURRASS',  // Non-Current Asset
 ] as const
 
+// Fix 3: Safe harbour exclusion keywords (s 109RB ITAA 1936)
+// Payments matching these keywords may be genuine commercial transactions excluded from Division 7A
+const SAFE_HARBOUR_KEYWORDS = [
+  'salary', 'wages', 'director fees', 'dividend', 'contractor',
+  'consulting fee', 'superannuation', 'bonus', 'commission',
+] as const
+
 export interface ShareholderLoan {
   loanId: string
   shareholderName: string
@@ -184,6 +191,23 @@ export interface Div7aSummary {
   loanAnalyses: Division7aAnalysis[]
   taxRateSource: string
   taxRateVerifiedAt: string
+  /** Amalgamation warnings where multiple loans exist to the same shareholder (s 109E(8) ITAA 1936) */
+  amalgamationNotes?: Array<{
+    shareholderName: string
+    loanIds: string[]
+    combinedBalance: number
+    note: string
+  }>
+  /** Whether any amalgamation warnings were raised */
+  hasAmalgamationWarnings: boolean
+  /** Transactions that may qualify for safe harbour exclusion under s 109RB ITAA 1936 */
+  safeHarbourExclusions?: Array<{
+    transactionDescription: string
+    amount: number
+    shareholderName: string
+    matchedKeyword: string
+    note: string
+  }>
 }
 
 /**
@@ -225,7 +249,19 @@ export async function analyzeDiv7aCompliance(
     console.warn('Failed to fetch live rates for summary provenance', err)
   }
 
-  const summary = calculateDiv7aSummary(loanAnalyses, rateSource)
+  // Check for amalgamated loan provisions (s 109E(8) ITAA 1936)
+  const amalgamationNotes = checkAmalgamationProvisions(loanAnalyses)
+  if (amalgamationNotes.length > 0) {
+    log.info('Amalgamation provisions detected', { count: amalgamationNotes.length })
+  }
+
+  // Identify safe harbour exclusions (s 109RB ITAA 1936)
+  const safeHarbourExclusions = await identifySafeHarbourExclusions(supabase, tenantId, loanAnalyses)
+  if (safeHarbourExclusions.length > 0) {
+    log.info('Safe harbour exclusions identified', { count: safeHarbourExclusions.length })
+  }
+
+  const summary = calculateDiv7aSummary(loanAnalyses, rateSource, amalgamationNotes, safeHarbourExclusions)
 
   return summary
 }
@@ -837,6 +873,96 @@ function generateCorrectiveActions(
 }
 
 /**
+ * Check for amalgamated loan provisions (s 109E(8) ITAA 1936).
+ * When multiple loans exist to the same shareholder/associate,
+ * they may be amalgamated for minimum repayment purposes.
+ */
+function checkAmalgamationProvisions(
+  loanAnalyses: Division7aAnalysis[]
+): Array<{ shareholderName: string; loanIds: string[]; combinedBalance: number; note: string }> {
+  // Group loans by shareholder name (case-insensitive)
+  const shareholderLoans = new Map<string, Division7aAnalysis[]>()
+
+  for (const loan of loanAnalyses) {
+    const key = loan.shareholderName.toLowerCase().trim()
+    if (!shareholderLoans.has(key)) {
+      shareholderLoans.set(key, [])
+    }
+    shareholderLoans.get(key)!.push(loan)
+  }
+
+  const notes: Array<{ shareholderName: string; loanIds: string[]; combinedBalance: number; note: string }> = []
+
+  for (const [, loans] of shareholderLoans) {
+    if (loans.length >= 2) {
+      const combinedBalance = loans.reduce((sum, l) => sum + l.closingBalance, 0)
+      notes.push({
+        shareholderName: loans[0].shareholderName,
+        loanIds: loans.map(l => l.loanId),
+        combinedBalance,
+        note:
+          `${loans.length} loans to ${loans[0].shareholderName} (combined balance: $${combinedBalance.toFixed(2)}). ` +
+          'Under s 109E(8) ITAA 1936, multiple loans to the same shareholder/associate may be amalgamated ' +
+          'for minimum repayment calculation purposes. The minimum repayment for each loan may differ from ' +
+          'the standalone calculation. Professional review recommended.',
+      })
+    }
+  }
+
+  return notes
+}
+
+/**
+ * Identify potential safe harbour exclusions (s 109RB ITAA 1936).
+ * Genuine commercial payments (salary, wages, dividends, etc.) to shareholders
+ * are excluded from Division 7A deemed dividend treatment.
+ */
+async function identifySafeHarbourExclusions(
+  supabase: SupabaseServiceClient,
+  tenantId: string,
+  loanAnalyses: Division7aAnalysis[]
+): Promise<Array<{ transactionDescription: string; amount: number; shareholderName: string; matchedKeyword: string; note: string }>> {
+  const exclusions: Array<{ transactionDescription: string; amount: number; shareholderName: string; matchedKeyword: string; note: string }> = []
+
+  // Get all shareholder names from loan analyses
+  const shareholderNames = [...new Set(loanAnalyses.map(l => l.shareholderName))]
+
+  for (const name of shareholderNames) {
+    // Query transactions flagged as Div7A risk for this shareholder
+    const { data: transactions, error } = await supabase
+      .from('forensic_analysis_results')
+      .select('transaction_description, transaction_amount, supplier_name')
+      .eq('tenant_id', tenantId)
+      .eq('division7a_risk', true)
+      .ilike('supplier_name', `%${name}%`)
+
+    if (error || !transactions) continue
+
+    for (const tx of transactions) {
+      const description = (tx.transaction_description || '').toLowerCase()
+      const matchedKeyword = SAFE_HARBOUR_KEYWORDS.find(kw => description.includes(kw))
+
+      if (matchedKeyword) {
+        const amount = Math.abs(parseFloat(String(tx.transaction_amount)) || 0)
+        exclusions.push({
+          transactionDescription: tx.transaction_description || '',
+          amount,
+          shareholderName: tx.supplier_name || name,
+          matchedKeyword,
+          note:
+            `Transaction "${tx.transaction_description}" ($${amount.toFixed(2)}) may qualify for safe harbour exclusion ` +
+            `under s 109RB ITAA 1936 (matched keyword: "${matchedKeyword}"). ` +
+            'Genuine commercial payments at arm\'s length terms are excluded from Division 7A. ' +
+            'Verify the payment was made under genuine commercial terms.',
+        })
+      }
+    }
+  }
+
+  return exclusions
+}
+
+/**
  * Calculate overall Division 7A summary
  */
 /**
@@ -844,7 +970,9 @@ function generateCorrectiveActions(
  */
 function calculateDiv7aSummary(
   loanAnalyses: Division7aAnalysis[],
-  taxRateSource: string = 'none'
+  taxRateSource: string = 'none',
+  amalgamationNotes: Array<{ shareholderName: string; loanIds: string[]; combinedBalance: number; note: string }> = [],
+  safeHarbourExclusions: Array<{ transactionDescription: string; amount: number; shareholderName: string; matchedKeyword: string; note: string }> = []
 ): Div7aSummary {
   let totalLoanBalance = 0
   let compliantLoans = 0
@@ -898,6 +1026,9 @@ function calculateDiv7aSummary(
     loanAnalyses,
     taxRateSource,
     taxRateVerifiedAt: new Date().toISOString(),
+    amalgamationNotes: amalgamationNotes.length > 0 ? amalgamationNotes : undefined,
+    hasAmalgamationWarnings: amalgamationNotes.length > 0,
+    safeHarbourExclusions: safeHarbourExclusions.length > 0 ? safeHarbourExclusions : undefined,
   }
 }
 
@@ -960,6 +1091,9 @@ function createEmptyDiv7aSummary(): Div7aSummary {
     loanAnalyses: [],
     taxRateSource: 'none',
     taxRateVerifiedAt: new Date().toISOString(),
+    amalgamationNotes: undefined,
+    hasAmalgamationWarnings: false,
+    safeHarbourExclusions: undefined,
   }
 }
 
