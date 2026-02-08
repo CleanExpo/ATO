@@ -332,12 +332,11 @@ async function updateSyncStatus(tenantId: string, status: SyncProgress): Promise
             sync_status: status.status,
             sync_progress: status.progress,
             transactions_synced: status.transactionsSynced,
-            total_transactions_estimated: status.totalEstimated, // Re-enabled after schema cache reload (migration 013)
-            years_synced: status.yearsSynced,
-            current_year_syncing: status.currentYear,
+            total_transactions: status.totalEstimated,
+            years_completed: status.yearsSynced,
+            current_year: status.currentYear,
             error_message: status.errorMessage,
             error_count: status.errorMessage ? 1 : 0,
-            last_error_at: status.errorMessage ? new Date().toISOString() : null,
         }, {
             onConflict: 'tenant_id,platform',
         })
@@ -374,9 +373,9 @@ export async function getSyncStatus(tenantId: string): Promise<SyncProgress | nu
         status: data.sync_status as 'idle' | 'syncing' | 'complete' | 'error',
         progress: parseFloat(data.sync_progress),
         transactionsSynced: data.transactions_synced,
-        totalEstimated: data.total_transactions_estimated || (data.transactions_synced > 0 ? data.transactions_synced : 5000), // Fallback estimate
-        currentYear: data.current_year_syncing,
-        yearsSynced: data.years_synced || [],
+        totalEstimated: data.total_transactions || (data.transactions_synced > 0 ? data.transactions_synced : 5000),
+        currentYear: data.current_year,
+        yearsSynced: data.years_completed || [],
         errorMessage: data.error_message,
     }
 }
