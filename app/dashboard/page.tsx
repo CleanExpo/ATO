@@ -37,6 +37,7 @@ import { DataStrip, DataStripGroup } from '@/components/ui/DataStrip'
 import { PlatformConnections } from '@/components/dashboard/PlatformConnections'
 import { AdditionalOrganizationPrompt } from '@/components/dashboard/AdditionalOrganizationPrompt'
 import { OrganizationGroupManager } from '@/components/dashboard/OrganizationGroupManager'
+import { SyncAllButton } from '@/components/dashboard/SyncAllButton'
 
 interface Connection {
   tenant_id: string
@@ -353,6 +354,20 @@ function DashboardContent() {
 
   const hasConnections = connections.length > 0 || myobConnections.length > 0
   const totalConnections = connections.length + myobConnections.length
+
+  const allOrganisations = [
+    ...connections.map(c => ({
+      platform: 'xero' as const,
+      tenantId: c.tenant_id,
+      name: c.organisation_name || c.tenant_name,
+    })),
+    ...myobConnections.filter(c => !c.isExpired).map(c => ({
+      platform: 'myob' as const,
+      tenantId: c.id,
+      companyFileId: c.companyFileId,
+      name: c.companyFileName,
+    })),
+  ]
 
   return (
     <div style={{ minHeight: '100vh' }}>
@@ -705,6 +720,32 @@ function DashboardContent() {
                     </DataStrip>
                   ))}
                 </DataStripGroup>
+              </motion.section>
+            )}
+
+            {/* One-Click Analyse CTA — shown when connected but no data synced */}
+            {hasConnections && (summary?.cachedTransactions ?? 0) === 0 && activeOperations.length === 0 && (
+              <motion.section
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                  marginTop: 'var(--space-xl)',
+                  padding: 'var(--space-xl)',
+                  background: 'linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '0.5px solid rgba(14, 165, 233, 0.3)',
+                  textAlign: 'center' as const,
+                }}
+              >
+                <FileSearch className="w-10 h-10" style={{ color: 'var(--accent-xero)', margin: '0 auto var(--space-md)', display: 'block' }} />
+                <h2 className="typo-display" style={{ fontSize: '24px', marginBottom: 'var(--space-sm)' }}>
+                  Ready to Analyse
+                </h2>
+                <p className="typo-subtitle" style={{ maxWidth: 500, margin: '0 auto var(--space-lg)' }}>
+                  You have {totalConnections} organisation{totalConnections > 1 ? 's' : ''} connected.
+                  Sync historical data and run AI analysis across all of them in one click.
+                </p>
+                <SyncAllButton organisations={allOrganisations} />
               </motion.section>
             )}
 
