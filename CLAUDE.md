@@ -1276,6 +1276,7 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | Div7A safe harbour exclusions (7A-4) | `lib/analysis/div7a-engine.ts` | Already implemented: `identifySafeHarbourExclusions()` (lines 920-963) matches transactions against `SAFE_HARBOUR_KEYWORDS` per s 109RB. Marked as done. (2026-02-08) |
 | SBT transaction evidence (L-2) | `lib/analysis/loss-engine.ts` | Already implemented: `enrichSbtWithTransactionEvidence()` (lines 640-771) compares expense categories across FYs. Evidence-based SBT assessment replaces 'unknown'. Marked as done. (2026-02-08) |
 | Distributable surplus cap (A-12) | `lib/analysis/div7a-engine.ts` | `estimateDistributableSurplus()` queries equity account data; `cappedTotalDeemedDividendRisk = Math.min(totalRisk, surplus)` per s 109Y ITAA 1936. Optional `knownDistributableSurplus` parameter for callers with balance sheet data. `Div7aSummary` gains 5 new fields. Warnings when surplus unknown. (2026-02-08) |
+| Collectable/personal use loss quarantining (A-7) | `lib/analysis/cgt-engine.ts` | `classifyAssetCategory()` classifies CGT events as collectable/personal_use/other via keyword matching. Collectable losses quarantined per s 108-10(1), personal use losses disregarded per s 108-20(1). `CGTEvent` gains `assetCategory` + `assetCategoryNote`. `CGTSummary` gains 5 quarantined loss tracking fields. (2026-02-08) |
 
 ---
 

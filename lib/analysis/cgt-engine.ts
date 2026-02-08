@@ -41,6 +41,35 @@ const DIV152_RETIREMENT_LIFETIME_CAP = 500_000 // $500K lifetime cap
 const DIV152_ROLLOVER_REPLACEMENT_YEARS = 2 // 2 years to acquire replacement asset
 const ACTIVE_ASSET_MIN_PERCENTAGE = 80 // 80% active asset use required
 
+/**
+ * Asset category for loss quarantining (s 108-10, s 108-20 ITAA 1997).
+ * - 'collectable': Losses can ONLY offset collectable gains (s 108-10(1))
+ * - 'personal_use': Losses are COMPLETELY DISREGARDED (s 108-20(1))
+ * - 'other': Standard capital asset — losses offset any capital gains
+ */
+export type CGTAssetCategory = 'collectable' | 'personal_use' | 'other'
+
+/** Keywords indicating collectable assets (s 108-10(2) ITAA 1997) */
+const COLLECTABLE_KEYWORDS = [
+  'artwork', 'painting', 'sculpture', 'print', 'lithograph',
+  'jewellery', 'jewelry', 'gemstone', 'diamond', 'gold bar',
+  'antique', 'coin', 'medallion', 'medal', 'numismatic',
+  'rare book', 'manuscript', 'folio', 'first edition',
+  'stamp', 'philatelic',
+  'wine', 'spirits', 'vintage wine',
+  'collectible', 'collectable', 'memorabilia',
+] as const
+
+/** Keywords indicating personal use assets (s 108-20(2) ITAA 1997) */
+const PERSONAL_USE_KEYWORDS = [
+  'boat', 'yacht', 'jet ski', 'watercraft',
+  'furniture', 'electrical', 'appliance', 'whitegoods',
+  'caravan', 'camper', 'trailer',
+  'sporting equipment', 'gym equipment', 'fitness',
+  'household', 'personal use', 'domestic',
+  'musical instrument',
+] as const
+
 // CGT event types (Division 102 ITAA 1997)
 export type CGTEventType =
   | 'A1'  // Disposal of a CGT asset
@@ -70,6 +99,10 @@ export interface CGTEvent {
   classification: 'capital' | 'revenue' | 'uncertain'
   classificationReasoning: string
   amendmentPeriodWarning?: string
+  /** Asset category for loss quarantining (s 108-10, s 108-20 ITAA 1997) */
+  assetCategory: CGTAssetCategory
+  /** Explanation of asset category classification */
+  assetCategoryNote: string
 }
 
 export interface Div152Analysis {
@@ -140,7 +173,19 @@ export interface CGTSummary {
   taxableCapitalGain: number
   events: CGTEvent[]
   div152Analysis: Div152Analysis | null
-  capitalLossCarriedForward: number // Unapplied capital losses for future years
+  capitalLossCarriedForward: number // Unapplied capital losses for future years (non-collectable)
+
+  // Loss quarantining (s 108-10, s 108-20 ITAA 1997)
+  /** Capital gains from collectable assets only */
+  collectableGains: number
+  /** Capital losses from collectable assets only */
+  collectableLosses: number
+  /** Collectable losses applied against collectable gains this year */
+  collectableLossesApplied: number
+  /** Excess collectable losses carried forward (can only offset future collectable gains) */
+  collectableLossesCarriedForward: number
+  /** Personal use asset losses completely disregarded under s 108-20(1) */
+  personalUseLossesDisregarded: number
 
   // Provenance
   taxRateSource: string
@@ -240,6 +285,9 @@ export async function analyzeCGT(
 
     const amendmentWarning = checkAmendmentPeriod(targetFY, entityType === 'individual' ? 'individual' : 'company')
 
+    // Classify asset category for loss quarantining (s 108-10, s 108-20)
+    const { category: assetCategory, note: assetCategoryNote } = classifyAssetCategory(tx)
+
     return {
       transactionId: tx.transaction_id,
       eventType: classifyCGTEvent(tx) as CGTEventType,
@@ -259,19 +307,55 @@ export async function analyzeCGT(
       classification: isGain ? 'capital' : 'capital',
       classificationReasoning: 'Classified as capital based on asset disposal pattern in transaction data',
       amendmentPeriodWarning: amendmentWarning,
+      assetCategory,
+      assetCategoryNote,
     }
   })
 
-  // Calculate totals
+  // Calculate totals with loss quarantining (s 108-10, s 108-20 ITAA 1997)
   const totalCapitalGains = events.reduce((sum, e) => sum + e.capitalGain, 0)
   const totalCapitalLosses = events.reduce((sum, e) => sum + e.capitalLoss, 0)
   const priorYearCapitalLosses = options?.priorYearCapitalLosses ?? 0
 
-  // Capital losses offset capital gains ONLY (s 102-5 ITAA 1997)
-  const totalAvailableLosses = totalCapitalLosses + priorYearCapitalLosses
-  const lossesApplied = Math.min(totalAvailableLosses, totalCapitalGains)
-  const netCapitalGainBeforeDiscount = Math.max(0, totalCapitalGains - lossesApplied)
-  const capitalLossCarriedForward = totalAvailableLosses - lossesApplied
+  // Step 1: Separate gains and losses by asset category
+  const collectableGains = events
+    .filter(e => e.assetCategory === 'collectable')
+    .reduce((sum, e) => sum + e.capitalGain, 0)
+  const collectableLosses = events
+    .filter(e => e.assetCategory === 'collectable')
+    .reduce((sum, e) => sum + e.capitalLoss, 0)
+
+  // Personal use asset losses are COMPLETELY DISREGARDED (s 108-20(1))
+  const personalUseLossesDisregarded = events
+    .filter(e => e.assetCategory === 'personal_use')
+    .reduce((sum, e) => sum + e.capitalLoss, 0)
+
+  // Other (non-quarantined) gains and losses
+  const otherGains = events
+    .filter(e => e.assetCategory === 'other')
+    .reduce((sum, e) => sum + e.capitalGain, 0)
+  const otherLosses = events
+    .filter(e => e.assetCategory === 'other')
+    .reduce((sum, e) => sum + e.capitalLoss, 0)
+  // Personal use gains are included (only losses are disregarded)
+  const personalUseGains = events
+    .filter(e => e.assetCategory === 'personal_use')
+    .reduce((sum, e) => sum + e.capitalGain, 0)
+
+  // Step 2: Apply collectable losses against collectable gains ONLY (s 108-10(1))
+  const collectableLossesApplied = Math.min(collectableLosses, collectableGains)
+  const collectableLossesCarriedForward = collectableLosses - collectableLossesApplied
+  const netCollectableGain = Math.max(0, collectableGains - collectableLossesApplied)
+
+  // Step 3: Apply other losses (+ prior year) against all non-collectable-quarantined gains
+  // Other losses CAN offset collectable gains (only collectable LOSSES are quarantined)
+  const nonQuarantinedGains = netCollectableGain + otherGains + personalUseGains
+  const availableOtherLosses = otherLosses + priorYearCapitalLosses
+  const otherLossesApplied = Math.min(availableOtherLosses, nonQuarantinedGains)
+  const capitalLossCarriedForward = availableOtherLosses - otherLossesApplied
+
+  // Step 4: Net capital gain = all gains minus applied losses (excluding disregarded personal use losses)
+  const netCapitalGainBeforeDiscount = Math.max(0, nonQuarantinedGains - otherLossesApplied)
 
   // Apply 50% discount to net gain
   const discountAmount = eligibleForDiscount
@@ -289,7 +373,8 @@ export async function analyzeCGT(
   const taxableCapitalGain = Math.max(0, netCapitalGainAfterDiscount - (div152?.totalConcessionAmount || 0))
 
   const recommendations = generateCGTRecommendations(
-    events, totalCapitalGains, totalCapitalLosses, taxableCapitalGain, div152
+    events, totalCapitalGains, totalCapitalLosses, taxableCapitalGain, div152,
+    collectableLossesCarriedForward, personalUseLossesDisregarded
   )
 
   return {
@@ -305,11 +390,18 @@ export async function analyzeCGT(
     events,
     div152Analysis: div152,
     capitalLossCarriedForward,
+    collectableGains,
+    collectableLosses,
+    collectableLossesApplied,
+    collectableLossesCarriedForward,
+    personalUseLossesDisregarded,
     taxRateSource: rateSource,
     taxRateVerifiedAt: new Date().toISOString(),
     legislativeReferences: [
       'Division 102 ITAA 1997 (CGT events)',
       'Division 110 ITAA 1997 (Cost base)',
+      's 108-10 ITAA 1997 (Collectable losses quarantined — only offset collectable gains)',
+      's 108-20 ITAA 1997 (Personal use asset losses disregarded)',
       'Division 115 ITAA 1997 (50% CGT discount)',
       'Division 152 ITAA 1997 (Small business CGT concessions)',
       's 102-5 ITAA 1997 (Capital losses only offset capital gains)',
@@ -489,6 +581,48 @@ function classifyCGTEvent(tx: CGTForensicRow): CGTEventType {
 }
 
 /**
+ * Classify asset category for loss quarantining (s 108-10, s 108-20 ITAA 1997).
+ *
+ * - Collectables (s 108-10(2)): artwork, jewellery, antiques, coins, rare books, stamps, wine
+ * - Personal use assets (s 108-20(2)): boats, furniture, electrical goods, sporting equipment
+ * - Other: standard business/investment assets with no quarantining
+ */
+function classifyAssetCategory(
+  tx: CGTForensicRow
+): { category: CGTAssetCategory; note: string } {
+  const description = (tx.transaction_description || '').toLowerCase()
+  const primaryCategory = (tx.primary_category || '').toLowerCase()
+  const combined = `${description} ${primaryCategory}`
+
+  // Check collectable keywords first (s 108-10(2))
+  for (const keyword of COLLECTABLE_KEYWORDS) {
+    if (combined.includes(keyword)) {
+      return {
+        category: 'collectable',
+        note: `Classified as collectable (s 108-10 ITAA 1997) — matched "${keyword}". ` +
+          'Capital losses from collectables can ONLY offset capital gains from other collectables.',
+      }
+    }
+  }
+
+  // Check personal use asset keywords (s 108-20(2))
+  for (const keyword of PERSONAL_USE_KEYWORDS) {
+    if (combined.includes(keyword)) {
+      return {
+        category: 'personal_use',
+        note: `Classified as personal use asset (s 108-20 ITAA 1997) — matched "${keyword}". ` +
+          'Capital losses from personal use assets are COMPLETELY DISREGARDED.',
+      }
+    }
+  }
+
+  return {
+    category: 'other',
+    note: 'Standard capital asset — no loss quarantining applies.',
+  }
+}
+
+/**
  * Estimate holding period in months from transaction data
  */
 function estimateHoldingPeriod(tx: CGTForensicRow): number {
@@ -509,7 +643,9 @@ function generateCGTRecommendations(
   totalGains: number,
   totalLosses: number,
   taxableGain: number,
-  div152: Div152Analysis | null
+  div152: Div152Analysis | null,
+  collectableLossesCarriedForward: number = 0,
+  personalUseLossesDisregarded: number = 0
 ): string[] {
   const recommendations: string[] = []
 
@@ -525,6 +661,20 @@ function generateCGTRecommendations(
     recommendations.push(`Capital losses: $${totalLosses.toFixed(2)} (can only offset capital gains - s 102-5 ITAA 1997)`)
   }
 
+  // Loss quarantining warnings (s 108-10, s 108-20)
+  if (personalUseLossesDisregarded > 0) {
+    recommendations.push(
+      `Personal use asset losses DISREGARDED: $${personalUseLossesDisregarded.toFixed(2)} ` +
+      '(s 108-20(1) ITAA 1997 — losses from personal use assets cannot offset any capital gains)'
+    )
+  }
+  if (collectableLossesCarriedForward > 0) {
+    recommendations.push(
+      `Collectable losses carried forward: $${collectableLossesCarriedForward.toFixed(2)} ` +
+      '(s 108-10(1) ITAA 1997 — can only offset future capital gains from collectables)'
+    )
+  }
+
   if (taxableGain > 0) {
     recommendations.push(`Taxable capital gain after concessions: $${taxableGain.toFixed(2)}`)
     recommendations.push('Include in assessable income via the company tax return or individual return')
@@ -537,6 +687,16 @@ function generateCGTRecommendations(
   const uncertainEvents = events.filter(e => e.confidence < 60)
   if (uncertainEvents.length > 0) {
     recommendations.push(`${uncertainEvents.length} CGT event(s) have low confidence - professional review required`)
+  }
+
+  // Asset category classification warnings
+  const collectableEvents = events.filter(e => e.assetCategory === 'collectable')
+  const personalUseEvents = events.filter(e => e.assetCategory === 'personal_use')
+  if (collectableEvents.length > 0 || personalUseEvents.length > 0) {
+    recommendations.push(
+      `Asset categorisation: ${collectableEvents.length} collectable, ${personalUseEvents.length} personal use. ` +
+      'Verify classifications — incorrect categorisation affects loss offset eligibility.'
+    )
   }
 
   recommendations.push('Maintain asset register with acquisition dates, cost bases, and disposal proceeds')
@@ -566,6 +726,11 @@ function createEmptyCGTSummary(financialYear: string): CGTSummary {
     events: [],
     div152Analysis: null,
     capitalLossCarriedForward: 0,
+    collectableGains: 0,
+    collectableLosses: 0,
+    collectableLossesApplied: 0,
+    collectableLossesCarriedForward: 0,
+    personalUseLossesDisregarded: 0,
     taxRateSource: 'none',
     taxRateVerifiedAt: new Date().toISOString(),
     legislativeReferences: [],
