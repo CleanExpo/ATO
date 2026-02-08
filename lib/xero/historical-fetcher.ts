@@ -278,6 +278,7 @@ async function cacheTransactions(
                 transaction_type: txn.type,
                 transaction_date: txn.date,
                 financial_year: financialYear,
+                platform: 'xero',
                 raw_data: txn,
                 // Re-enabled after schema cache reload (migration 013)
                 contact_name: txn.contact?.name || null,
@@ -326,6 +327,7 @@ async function updateSyncStatus(tenantId: string, status: SyncProgress): Promise
         .from('audit_sync_status')
         .upsert({
             tenant_id: tenantId,
+            platform: 'xero',
             last_sync_at: new Date().toISOString(),
             sync_status: status.status,
             sync_progress: status.progress,
@@ -337,7 +339,7 @@ async function updateSyncStatus(tenantId: string, status: SyncProgress): Promise
             error_count: status.errorMessage ? 1 : 0,
             last_error_at: status.errorMessage ? new Date().toISOString() : null,
         }, {
-            onConflict: 'tenant_id',
+            onConflict: 'tenant_id,platform',
         })
 
     if (error) {

@@ -27,7 +27,6 @@ import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { analyzeAllTransactions, getAnalysisStatus } from '@/lib/ai/batch-processor'
 import { estimateAnalysisCost } from '@/lib/ai/forensic-analyzer'
-import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { validateRequestBody, validateRequestQuery } from '@/lib/api/validation-middleware'
 import { analyzeRequestSchema, tenantIdQuerySchema } from '@/lib/validation/schemas'
 import { retry } from '@/lib/api/retry'
@@ -35,6 +34,9 @@ import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:audit:analyze')
+
+export const dynamic = 'force-dynamic'
+export const maxDuration = 300 // 5 minutes for Vercel Pro
 
 export async function POST(request: NextRequest) {
     try {
@@ -190,17 +192,54 @@ export async function GET(request: NextRequest) {
 }
 
 async function getCachedTransactionCount(tenantId: string, platform: string = 'xero'): Promise<number> {
-    if (platform === 'xero') {
-        const transactions = await getCachedTransactions(tenantId)
-        return transactions.length
-    } else if (platform === 'myob') {
-        const { getCachedMYOBTransactions } = await import('@/lib/integrations/myob-historical-fetcher')
-        const transactions = await getCachedMYOBTransactions(tenantId)
-        return transactions.length
-    } else if (platform === 'quickbooks') {
-        const { getCachedQuickBooksTransactions } = await import('@/lib/integrations/quickbooks-historical-fetcher')
-        const transactions = await getCachedQuickBooksTransactions(tenantId)
-        return transactions.length
+    // Use a count query instead of loading all records into memory
+    const { createServiceClient } = await import('@/lib/supabase/server')
+    const supabase = await createServiceClient()
+
+    if (platform === 'xero' || platform === 'myob' || platform === 'quickbooks') {
+        // First try with platform filter
+        const { count, error } = await supabase
+            .from('historical_transactions_cache')
+            .select('*', { count: 'exact', head: true })
+            .eq('tenant_id', tenantId)
+            .eq('platform', platform)
+
+        if (error) {
+            log.error('Error counting cached transactions', error instanceof Error ? error : undefined)
+            throw error
+        }
+
+        // If platform filter returns 0, try without platform filter (for records
+        // that were cached before the platform column was added)
+        if ((count || 0) === 0) {
+            const { count: totalCount, error: totalError } = await supabase
+                .from('historical_transactions_cache')
+                .select('*', { count: 'exact', head: true })
+                .eq('tenant_id', tenantId)
+
+            if (totalError) {
+                log.error('Error counting cached transactions (fallback)', totalError instanceof Error ? totalError : undefined)
+                throw totalError
+            }
+
+            if ((totalCount || 0) > 0) {
+                log.info('Found cached transactions without platform filter, updating records', {
+                    tenantId,
+                    platform,
+                    count: totalCount,
+                })
+                // Backfill platform on existing records
+                await supabase
+                    .from('historical_transactions_cache')
+                    .update({ platform })
+                    .eq('tenant_id', tenantId)
+                    .is('platform', null)
+            }
+
+            return totalCount || 0
+        }
+
+        return count || 0
     } else {
         throw new Error(`Unsupported platform: ${platform}`)
     }

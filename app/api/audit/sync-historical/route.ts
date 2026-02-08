@@ -30,6 +30,9 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:audit:sync-historical')
 
+export const dynamic = 'force-dynamic'
+export const maxDuration = 300 // 5 minutes for Vercel Pro
+
 // Helper to get valid token set for a tenant (with optional organization filtering)
 async function getValidTokenSet(tenantId: string, baseUrl?: string, organizationId?: string): Promise<TokenSet | null> {
     const supabase = await createServiceClient()

@@ -119,16 +119,34 @@ export function createErrorResponse(
 
 /**
  * Create a validation error response (400 Bad Request)
+ * Note: Validation messages are already user-friendly and safe to show in production.
+ * They bypass sanitization so the client receives a meaningful error.
  */
 export function createValidationError(
     message: string,
     context?: Record<string, unknown>
 ): NextResponse<ApiErrorResponse> {
-    return createErrorResponse(
-        new Error(message),
-        { type: 'validation', ...context },
-        400
-    )
+    const errorId = generateErrorId()
+    const timestamp = new Date().toISOString()
+    const isProduction = process.env.NODE_ENV === 'production'
+
+    log.error(`[${errorId}] Validation Error`, undefined, {
+        message,
+        context: { type: 'validation', ...context },
+        timestamp,
+    })
+
+    const response: ApiErrorResponse = {
+        error: message,
+        errorId,
+        timestamp,
+    }
+
+    if (!isProduction && context) {
+        response.context = { type: 'validation', ...context }
+    }
+
+    return NextResponse.json(response, { status: 400 })
 }
 
 /**
