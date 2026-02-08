@@ -138,8 +138,7 @@ function ForensicAuditPage() {
       }
       startAnalysis()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enhancedProgress.syncProgress, enhancedProgress.stage, tenantId])
+  }, [enhancedProgress.syncProgress, enhancedProgress.stage, tenantId, platform])
 
   return (
     <>

@@ -25,43 +25,41 @@ export default function TeamPage() {
 
   useEffect(() => {
     if (currentOrganization?.id) {
+      const fetchTeamMembers = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+
+          const response = await fetch(`/api/organizations/${currentOrganization.id}/members`);
+          if (!response.ok) throw new Error('Failed to fetch team members');
+          const data = await response.json();
+          const mapped: TeamMember[] = (data.members || []).map((m: { userId: string; email: string; name: string | null; role: 'owner' | 'admin' | 'accountant' | 'read_only'; joinedAt: string }) => ({
+            id: m.userId,
+            user_id: m.userId,
+            role: m.role,
+            created_at: m.joinedAt,
+            user: {
+              email: m.email,
+              full_name: m.name,
+            },
+          }));
+          setMembers(mapped);
+          // Determine current user role from the members list
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const currentMember = mapped.find((m) => m.user_id === user.id);
+            setCurrentUserRole(currentMember?.role || null);
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to load team members');
+        } finally {
+          setLoading(false);
+        }
+      };
       fetchTeamMembers();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentOrganization]);
-
-  const fetchTeamMembers = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await fetch(`/api/organizations/${currentOrganization?.id}/members`);
-      if (!response.ok) throw new Error('Failed to fetch team members');
-      const data = await response.json();
-      const mapped: TeamMember[] = (data.members || []).map((m: { userId: string; email: string; name: string | null; role: 'owner' | 'admin' | 'accountant' | 'read_only'; joinedAt: string }) => ({
-        id: m.userId,
-        user_id: m.userId,
-        role: m.role,
-        created_at: m.joinedAt,
-        user: {
-          email: m.email,
-          full_name: m.name,
-        },
-      }));
-      setMembers(mapped);
-      // Determine current user role from the members list
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const currentMember = mapped.find((m) => m.user_id === user.id);
-        setCurrentUserRole(currentMember?.role || null);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load team members');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getRoleIcon = (role: string) => {
     switch (role) {

@@ -89,11 +89,17 @@ export default function AnimatedCounter({
   colorOverride,
 }: AnimatedCounterProps) {
   const [displayValue, setDisplayValue] = useState(0)
+  const displayValueRef = useRef(0)
   const [isInitialized, setIsInitialized] = useState(false)
   const frameRef = useRef<number | undefined>(undefined)
   const startTimeRef = useRef<number | undefined>(undefined)
   const startValueRef = useRef(0)
   const prefersReducedMotion = useReducedMotion()
+
+  // Keep ref in sync with state for animation reads
+  useEffect(() => {
+    displayValueRef.current = displayValue
+  }, [displayValue])
 
   useEffect(() => {
     // Skip animation if user prefers reduced motion
@@ -111,7 +117,7 @@ export default function AnimatedCounter({
     }
 
     // Start animation when value changes
-    startValueRef.current = displayValue
+    startValueRef.current = displayValueRef.current
     startTimeRef.current = undefined
 
     const animate = (currentTime: number) => {
@@ -145,7 +151,6 @@ export default function AnimatedCounter({
         cancelAnimationFrame(frameRef.current)
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, duration, isInitialized, prefersReducedMotion])
 
   // Format the display value

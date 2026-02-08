@@ -11,7 +11,7 @@
 
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface LiveProgressCardProps {
@@ -68,11 +68,17 @@ export default function LiveProgressCard({
   className = ''
 }: LiveProgressCardProps) {
   const [displayValue, setDisplayValue] = useState(value)
+  const displayValueRef = useRef(value)
   const colors = colorConfig[color]
+
+  // Keep ref in sync with state for animation reads
+  useEffect(() => {
+    displayValueRef.current = displayValue
+  }, [displayValue])
 
   // Smooth value animation with easing
   useEffect(() => {
-    const startValue = displayValue
+    const startValue = displayValueRef.current
     const diff = value - startValue
     const duration = 600
     const startTime = performance.now()
@@ -93,7 +99,6 @@ export default function LiveProgressCard({
     }
 
     requestAnimationFrame(animate)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
   return (

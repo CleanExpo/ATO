@@ -39,25 +39,9 @@ export default function DataQualityPage() {
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null)
 
-  // Get tenant ID on mount
-  useEffect(() => {
-    const fetchTenant = async () => {
-      try {
-        const res = await fetch('/api/xero/organizations')
-        const data = await res.json()
-        if (data.connections?.[0]) {
-          const tid = data.connections[0].tenant_id
-          setTenantId(tid)
-          localStorage.setItem('xero_tenant_id', tid)
-          fetchScanStatus(tid)
-        }
-      } catch (error) {
-        console.error('Failed to fetch tenant:', error)
-      }
-    }
-    fetchTenant()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const addActivity = (activity: ActivityItem) => {
+    setActivities(prev => [...prev, activity])
+  }
 
   const fetchScanStatus = useCallback(async (tid: string) => {
     try {
@@ -83,9 +67,24 @@ export default function DataQualityPage() {
     }
   }, [])
 
-  const addActivity = (activity: ActivityItem) => {
-    setActivities(prev => [...prev, activity])
-  }
+  // Get tenant ID on mount
+  useEffect(() => {
+    const fetchTenant = async () => {
+      try {
+        const res = await fetch('/api/xero/organizations')
+        const data = await res.json()
+        if (data.connections?.[0]) {
+          const tid = data.connections[0].tenant_id
+          setTenantId(tid)
+          localStorage.setItem('xero_tenant_id', tid)
+          fetchScanStatus(tid)
+        }
+      } catch (error) {
+        console.error('Failed to fetch tenant:', error)
+      }
+    }
+    fetchTenant()
+  }, [fetchScanStatus])
 
   const startScan = async () => {
     if (!tenantId) {

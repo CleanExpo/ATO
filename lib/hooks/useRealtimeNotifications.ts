@@ -98,8 +98,7 @@ export function useRealtimeNotifications({
       .subscribe();
 
     return channel;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onNotificationReceived, onNotificationUpdated, onNotificationDeleted]);
+  }, [onNotificationReceived, onNotificationUpdated, onNotificationDeleted, supabase]);
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -114,6 +113,5 @@ export function useRealtimeNotifications({
         supabase.removeChannel(channel);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setupRealtimeSubscription]);
+  }, [setupRealtimeSubscription, supabase]);
 }

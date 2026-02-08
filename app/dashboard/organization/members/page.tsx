@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useOrganization } from '@/lib/context/OrganizationContext'
 import { hasPermission, getRoleBadgeColor, getRoleDisplayName, type UserRole } from '@/lib/types/multi-tenant'
 import {
@@ -51,14 +51,7 @@ export default function OrganizationMembersPage() {
   const canManageMembers =
     currentRole && hasPermission(currentRole, 'canManageMembers')
 
-  // Load members and invitations
-  useEffect(() => {
-    if (!currentOrganization) return
-    loadData()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentOrganization])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!currentOrganization) return
 
     setIsLoading(true)
@@ -97,7 +90,13 @@ export default function OrganizationMembersPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [currentOrganization, canManageMembers])
+
+  // Load members and invitations
+  useEffect(() => {
+    if (!currentOrganization) return
+    loadData()
+  }, [currentOrganization, loadData])
 
   const handleRemoveMember = async (userId: string, userEmail: string) => {
     if (

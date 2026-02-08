@@ -11,7 +11,7 @@
 
 'use client'
 
-import { Suspense, useEffect, useState, useMemo } from 'react'
+import { Suspense, useEffect, useState, useMemo, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import Link from 'next/link'
@@ -246,14 +246,7 @@ function ReconciliationPage() {
     fetchTenantId()
   }, [searchParams])
 
-  useEffect(() => {
-    if (tenantId) {
-      loadReconciliation()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId])
-
-  async function loadReconciliation() {
+  const loadReconciliation = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
@@ -279,7 +272,13 @@ function ReconciliationPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantId])
+
+  useEffect(() => {
+    if (tenantId) {
+      loadReconciliation()
+    }
+  }, [tenantId, loadReconciliation])
 
   const totalIssues = data
     ? data.unreconciledCount + data.matchCount + data.duplicateCount + data.missingCount

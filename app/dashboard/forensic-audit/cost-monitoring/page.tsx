@@ -7,7 +7,7 @@
  * Helps accountants track API usage and optimize analysis costs.
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { MobileNav } from '@/components/ui/MobileNav'
@@ -91,14 +91,8 @@ export default function CostMonitoringPage() {
     getTenant()
   }, [])
 
-  useEffect(() => {
-    if (tenantId) {
-      loadCostData()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId])
-
-  async function loadCostData() {
+  const loadCostData = useCallback(async () => {
+    if (!tenantId) return
     try {
       setLoading(true)
       setError(null)
@@ -117,7 +111,13 @@ export default function CostMonitoringPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantId])
+
+  useEffect(() => {
+    if (tenantId) {
+      loadCostData()
+    }
+  }, [tenantId, loadCostData])
 
   if (loading) {
     return (

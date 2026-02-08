@@ -60,8 +60,7 @@ export function useRealtimeActivity({
       .subscribe();
 
     return channel;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [organizationId, onActivityLogged]);
+  }, [organizationId, onActivityLogged, supabase]);
 
   useEffect(() => {
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -76,6 +75,5 @@ export function useRealtimeActivity({
         supabase.removeChannel(channel);
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setupRealtimeSubscription]);
+  }, [setupRealtimeSubscription, supabase]);
 }

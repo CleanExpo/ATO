@@ -92,15 +92,6 @@ export default function RndDetailPage() {
     getTenant()
   }, [])
 
-  // Load data when tenantId is available
-  useEffect(() => {
-    if (tenantId) {
-      loadRndData()
-      loadDeadlines()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId])
-
   // Load registration deadlines from API
   const loadDeadlines = useCallback(async () => {
     if (!tenantId) return
@@ -118,6 +109,74 @@ export default function RndDetailPage() {
       setDeadlinesLoading(false)
     }
   }, [tenantId])
+
+  // Load data when tenantId is available
+  useEffect(() => {
+    if (tenantId) {
+      loadRndData()
+      loadDeadlines()
+    }
+
+    async function loadRndData() {
+      if (!tenantId) return
+
+      try {
+        setLoading(true)
+        setError(null)
+
+        // Call the real R&D summary API endpoint
+        const res = await fetch(`/api/audit/rnd-summary?tenantId=${tenantId}`)
+        if (!res.ok) {
+          throw new Error('Failed to load R&D data')
+        }
+
+        const apiData = await res.json()
+
+        // Transform API data to match the expected interface
+        // Type guard for project data
+        interface ApiProject {
+          avgConfidence?: number
+          transactionCount?: number
+          name?: string
+          category?: string
+          financialYears?: string[]
+          totalSpend?: number
+        }
+
+        const transformedData: RndSummary = {
+          totalProjects: apiData.totalProjects || 0,
+          totalEligibleExpenditure: apiData.totalEligibleExpenditure || 0,
+          totalEstimatedOffset: apiData.totalEstimatedOffset || 0,
+          averageConfidence: apiData.projects?.length > 0
+            ? apiData.projects.reduce((sum: number, p: ApiProject) => sum + (p.avgConfidence || 0), 0) / apiData.projects.length
+            : 0,
+          coreRndTransactions: apiData.projects?.reduce((sum: number, p: ApiProject) => sum + (p.transactionCount || 0), 0) || 0,
+          supportingRndTransactions: 0, // Not currently tracked, could be added later
+          projects: (apiData.projects || []).map((p: ApiProject) => ({
+            projectName: p.name || 'Unnamed Project',
+            projectDescription: `R&D activities in ${p.category}`,
+            financialYears: p.financialYears || [],
+            totalExpenditure: p.totalSpend || 0,
+            eligibleExpenditure: p.totalSpend || 0, // Assuming all spend is eligible for R&D candidates
+            estimatedOffset: (p.totalSpend || 0) * (apiData.offsetRate || 0.435),
+            meetsEligibility: (p.avgConfidence || 0) >= 70,
+            overallConfidence: Math.round(p.avgConfidence || 0),
+            transactionCount: p.transactionCount || 0,
+            registrationDeadline: calculateRegistrationDeadline(p.financialYears || []),
+            registrationStatus: calculateRegistrationStatus(p.financialYears || []),
+            recommendations: generateRecommendations(p, apiData.offsetRate)
+          }))
+        }
+
+        setData(transformedData)
+      } catch (err) {
+        console.error('Failed to load R&D data:', err)
+        setError('Failed to load R&D analysis data')
+      } finally {
+        setLoading(false)
+      }
+    }
+  }, [tenantId, loadDeadlines])
 
   // Handle starting registration for a FY
   const handleStartRegistration = async (financialYear: string) => {
@@ -172,66 +231,6 @@ export default function RndDetailPage() {
       }
     } catch (err) {
       console.error('Failed to update status:', err)
-    }
-  }
-
-  async function loadRndData() {
-    if (!tenantId) return
-
-    try {
-      setLoading(true)
-      setError(null)
-
-      // Call the real R&D summary API endpoint
-      const res = await fetch(`/api/audit/rnd-summary?tenantId=${tenantId}`)
-      if (!res.ok) {
-        throw new Error('Failed to load R&D data')
-      }
-
-      const apiData = await res.json()
-
-      // Transform API data to match the expected interface
-      // Type guard for project data
-      interface ApiProject {
-        avgConfidence?: number
-        transactionCount?: number
-        name?: string
-        category?: string
-        financialYears?: string[]
-        totalSpend?: number
-      }
-
-      const transformedData: RndSummary = {
-        totalProjects: apiData.totalProjects || 0,
-        totalEligibleExpenditure: apiData.totalEligibleExpenditure || 0,
-        totalEstimatedOffset: apiData.totalEstimatedOffset || 0,
-        averageConfidence: apiData.projects?.length > 0
-          ? apiData.projects.reduce((sum: number, p: ApiProject) => sum + (p.avgConfidence || 0), 0) / apiData.projects.length
-          : 0,
-        coreRndTransactions: apiData.projects?.reduce((sum: number, p: ApiProject) => sum + (p.transactionCount || 0), 0) || 0,
-        supportingRndTransactions: 0, // Not currently tracked, could be added later
-        projects: (apiData.projects || []).map((p: ApiProject) => ({
-          projectName: p.name || 'Unnamed Project',
-          projectDescription: `R&D activities in ${p.category}`,
-          financialYears: p.financialYears || [],
-          totalExpenditure: p.totalSpend || 0,
-          eligibleExpenditure: p.totalSpend || 0, // Assuming all spend is eligible for R&D candidates
-          estimatedOffset: (p.totalSpend || 0) * (apiData.offsetRate || 0.435),
-          meetsEligibility: (p.avgConfidence || 0) >= 70,
-          overallConfidence: Math.round(p.avgConfidence || 0),
-          transactionCount: p.transactionCount || 0,
-          registrationDeadline: calculateRegistrationDeadline(p.financialYears || []),
-          registrationStatus: calculateRegistrationStatus(p.financialYears || []),
-          recommendations: generateRecommendations(p, apiData.offsetRate)
-        }))
-      }
-
-      setData(transformedData)
-    } catch (err) {
-      console.error('Failed to load R&D data:', err)
-      setError('Failed to load R&D analysis data')
-    } finally {
-      setLoading(false)
     }
   }
 

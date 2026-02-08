@@ -7,7 +7,7 @@
 
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import Link from 'next/link'
@@ -181,7 +181,7 @@ function RecommendationsPage() {
   }, [tenantId])
 
   // Fetch status for all recommendations
-  async function fetchStatusData() {
+  const fetchStatusData = useCallback(async () => {
     if (!tenantId) return
     try {
       // Fetch summary
@@ -204,15 +204,14 @@ function RecommendationsPage() {
     } catch (err) {
       console.error('Failed to fetch status data:', err)
     }
-  }
+  }, [tenantId, recommendations])
 
   // Fetch status when recommendations load
   useEffect(() => {
     if (recommendations.length > 0 && tenantId) {
       fetchStatusData()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recommendations.length, tenantId])
+  }, [recommendations.length, tenantId, fetchStatusData])
 
   // Handle status change
   async function handleStatusChange(recommendationId: string, status: RecommendationStatus, notes?: string) {
@@ -353,31 +352,25 @@ function RecommendationsPage() {
     if (tenantId) {
       loadRecommendations()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    async function loadRecommendations() {
+      if (!tenantId) return
+      try {
+        setLoading(true)
+        setError(null)
+        const response = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
+        const data = await response.json()
+        setRecommendations(data.recommendations || [])
+      } catch (err) {
+        console.error('Failed to load recommendations:', err)
+        setError('Failed to load recommendations')
+      } finally {
+        setLoading(false)
+      }
+    }
   }, [tenantId])
 
   useEffect(() => {
-    filterRecommendations()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priorityFilter, taxAreaFilter, statusFilter, recommendations, statusMap])
-
-  async function loadRecommendations() {
-    if (!tenantId) return
-    try {
-      setLoading(true)
-      setError(null)
-      const response = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
-      const data = await response.json()
-      setRecommendations(data.recommendations || [])
-    } catch (err) {
-      console.error('Failed to load recommendations:', err)
-      setError('Failed to load recommendations')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  function filterRecommendations() {
     let filtered = recommendations
     if (priorityFilter !== 'all') {
       filtered = filtered.filter((rec) => rec.priority === priorityFilter)
@@ -392,7 +385,7 @@ function RecommendationsPage() {
       })
     }
     setFilteredRecommendations(filtered)
-  }
+  }, [priorityFilter, taxAreaFilter, statusFilter, recommendations, statusMap])
 
   // Loading state
   if (loading || !tenantId) {

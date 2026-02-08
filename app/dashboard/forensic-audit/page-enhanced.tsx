@@ -85,13 +85,6 @@ export default function ForensicAuditDashboardEnhanced() {
     fetchTenantId()
   }, [])
 
-  useEffect(() => {
-    if (tenantId) {
-      loadDashboardData()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId])
-
   const addActivity = (activity: ActivityItem) => {
     setActivities(prev => [...prev, activity])
   }
@@ -170,6 +163,12 @@ export default function ForensicAuditDashboardEnhanced() {
       setLoading(false)
     }
   }, [tenantId])
+
+  useEffect(() => {
+    if (tenantId) {
+      loadDashboardData()
+    }
+  }, [tenantId, loadDashboardData])
 
   async function startHistoricalSync() {
     if (!tenantId) return

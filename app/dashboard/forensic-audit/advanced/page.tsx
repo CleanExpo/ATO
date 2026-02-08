@@ -91,43 +91,34 @@ function ForensicAuditDashboardEnhanced() {
   const [pollInterval, setPollInterval] = useState<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    fetchTenantId()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams])
+    async function fetchTenantId() {
+      try {
+        // Check URL parameter first
+        const urlTenantId = searchParams.get('tenantId')
+        if (urlTenantId) {
+          setTenantId(urlTenantId)
+          return
+        }
 
-  useEffect(() => {
-    if (tenantId) {
-      loadDashboardData()
+        // Otherwise fetch from organizations API
+        const response = await fetch('/api/xero/organizations')
+        const data = await response.json()
+
+        if (data.connections && data.connections.length > 0) {
+          setTenantId(data.connections[0].tenant_id)
+        } else {
+          setError('No Xero connections found. Please connect your Xero account first.')
+        }
+      } catch (err) {
+        console.error('Failed to fetch tenant ID:', err)
+        setError('Failed to load Xero connection')
+      }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tenantId])
+    fetchTenantId()
+  }, [searchParams])
 
   const addActivity = (activity: ActivityItem) => {
     setActivities(prev => [...prev, activity])
-  }
-
-  async function fetchTenantId() {
-    try {
-      // Check URL parameter first
-      const urlTenantId = searchParams.get('tenantId')
-      if (urlTenantId) {
-        setTenantId(urlTenantId)
-        return
-      }
-
-      // Otherwise fetch from organizations API
-      const response = await fetch('/api/xero/organizations')
-      const data = await response.json()
-
-      if (data.connections && data.connections.length > 0) {
-        setTenantId(data.connections[0].tenant_id)
-      } else {
-        setError('No Xero connections found. Please connect your Xero account first.')
-      }
-    } catch (err) {
-      console.error('Failed to fetch tenant ID:', err)
-      setError('Failed to load Xero connection')
-    }
   }
 
   const loadDashboardData = useCallback(async () => {
@@ -188,6 +179,12 @@ function ForensicAuditDashboardEnhanced() {
       setLoading(false)
     }
   }, [tenantId])
+
+  useEffect(() => {
+    if (tenantId) {
+      loadDashboardData()
+    }
+  }, [tenantId, loadDashboardData])
 
   async function startHistoricalSync() {
     if (!tenantId) return

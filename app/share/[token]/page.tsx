@@ -156,7 +156,7 @@ export default function SharePage() {
     }
   }, [token]);
 
-  const fetchReport = async (passwordAttempt?: string) => {
+  const fetchReport = useCallback(async (passwordAttempt?: string) => {
     setState({ status: 'loading' });
 
     try {
@@ -189,12 +189,11 @@ export default function SharePage() {
         },
       });
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchReport();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [fetchReport]);
 
   // Fetch feedback, status, and documents when report is loaded
   useEffect(() => {
@@ -208,8 +207,7 @@ export default function SharePage() {
         fetchDocuments(recIds);
       }
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.status, fetchFeedback, fetchStatus, fetchDocuments]);
+  }, [state, fetchFeedback, fetchStatus, fetchDocuments]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

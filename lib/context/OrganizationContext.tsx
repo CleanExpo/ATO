@@ -7,7 +7,7 @@
 
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Organization, UserRole } from '@/lib/types/multi-tenant'
 
@@ -44,7 +44,7 @@ export function OrganizationProvider({
   const [isLoading, setIsLoading] = useState(true)
 
   // Fetch user's organizations
-  const fetchOrganizations = async () => {
+  const fetchOrganizations = useCallback(async () => {
     try {
       const response = await fetch('/api/organizations')
       // Silently handle auth failures - app works in single-user mode without this
@@ -83,7 +83,7 @@ export function OrganizationProvider({
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [currentOrganization, initialOrganizationId])
 
   // Switch to different organization
   const switchOrganization = async (organizationId: string) => {
@@ -142,8 +142,7 @@ export function OrganizationProvider({
   // Initial load
   useEffect(() => {
     fetchOrganizations()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchOrganizations])
 
   const value: OrganizationContextValue = {
     currentOrganization,
