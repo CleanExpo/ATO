@@ -1,13 +1,18 @@
 /**
- * Loss Carry-Forward Optimization Engine (Division 36 & 165 ITAA 1997)
+ * Loss Carry-Forward Optimization Engine
  *
  * Analyzes historical loss positions and optimizes utilization:
- * - Division 36: Company tax losses
- * - Division 165: Special rules for loss recoupment
- * - COT (Continuity of Ownership Test)
- * - SBT (Same Business Test)
+ * - Division 36 ITAA 1997: Company tax losses
+ * - Division 165 ITAA 1997: Company loss recoupment (COT/SBT)
+ * - Division 266 Schedule 2F ITAA 1936: Non-fixed trust losses (family trust election / 50% stake / distributions test)
+ * - Division 267 Schedule 2F ITAA 1936: Fixed trust losses (50% fixed entitlement maintenance)
+ * - Division 270 Schedule 2F ITAA 1936: Income injection test (trusts)
+ * - COT (Continuity of Ownership Test) — companies only
+ * - SBT (Same Business Test) — companies only
  * - Loss utilization optimization
  * - Future tax value calculation
+ *
+ * IMPORTANT: Trust entities use Division 266/267, NOT Division 165 (A-9 compliance).
  */
 
 import { createServiceClient, type SupabaseServiceClient } from '@/lib/supabase/server'
@@ -143,6 +148,17 @@ export interface CotSbtAnalysis {
     recurringSuppliers: string[]
     note: string
   }
+  /**
+   * Trust-specific loss rule (A-9 compliance).
+   * Companies use Division 165 (COT/SBT).
+   * Trusts use Division 266 (non-fixed) or Division 267 (fixed) of Schedule 2F ITAA 1936.
+   * 'not_applicable' for non-trust entities.
+   */
+  trustLossRule?: 'division_266' | 'division_267' | 'not_applicable'
+  /** Whether a family trust election has been made under s 272-75 Schedule 2F ITAA 1936 */
+  familyTrustElection?: boolean | 'unknown'
+  /** Trust-specific notes on loss recoupment eligibility */
+  trustNotes?: string[]
 }
 
 export interface LossAnalysis {
@@ -218,7 +234,7 @@ export async function analyzeLossPosition(
     const currentYear = lossPositions[i]
     const previousYears = lossPositions.slice(0, i)
 
-    const analysis = analyzeSingleYearLoss(currentYear, previousYears, taxRateInfo)
+    const analysis = analyzeSingleYearLoss(currentYear, previousYears, taxRateInfo, entityType)
     lossAnalyses.push(analysis)
   }
 
@@ -374,10 +390,11 @@ function analyzeSingleYearLoss(
     rate: FALLBACK_CORPORATE_TAX_RATE_STANDARD,
     note: 'Default 30% rate',
     source: 'ATO_FALLBACK_DEFAULT'
-  }
+  },
+  entityType: EntityType = 'unknown'
 ): LossAnalysis {
-  // Perform COT/SBT analysis
-  const cotSbtAnalysis = analyzeCotSbt(currentYear, previousYears)
+  // Perform COT/SBT analysis (Division 165 for companies, Division 266/267 for trusts)
+  const cotSbtAnalysis = analyzeCotSbt(currentYear, previousYears, entityType)
 
   // Calculate future tax value of carried forward losses using Decimal for precision
   // s 23AA / s 23 ITAA 1997 - Rate depends on entity type
@@ -408,16 +425,22 @@ function analyzeSingleYearLoss(
 }
 
 /**
- * Analyze Continuity of Ownership Test (COT) and Same Business Test (SBT)
+ * Analyze loss recoupment eligibility based on entity type.
+ *
+ * - Companies: Division 165 ITAA 1997 (COT/SBT)
+ * - Trusts: Division 266/267 Schedule 2F ITAA 1936
+ *   - Division 266: Non-fixed trusts (family trusts) — family trust election (s 272-75)
+ *     or pattern of distributions test (s 269-60)
+ *   - Division 267: Fixed trusts — 50% fixed entitlement maintenance
+ *   - Division 270: Income injection test applies to both
+ *
+ * A-9 compliance: Trusts MUST NOT use Division 165 rules.
  */
-function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]): CotSbtAnalysis {
-  // In a complete implementation, this would:
-  // 1. Check shareholder registry for ownership changes
-  // 2. Verify 50%+ continuity of ownership
-  // 3. If COT fails, check if SBT is satisfied
-
-  // Division 165 ITAA 1997 - COT requires share register verification
-  // Division 166 ITAA 1997 - SBT applies if COT fails
+function analyzeCotSbt(
+  currentYear: LossPosition,
+  _previousYears: LossPosition[],
+  entityType: EntityType = 'unknown'
+): CotSbtAnalysis {
   const hasLossesToCarryForward = currentYear.closingLossBalance > 0
 
   if (!hasLossesToCarryForward) {
@@ -432,9 +455,16 @@ function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]
       isEligibleForCarryforward: true,
       professionalReviewRequired: false,
       riskLevel: 'low',
+      trustLossRule: entityType === 'trust' ? 'division_266' : 'not_applicable',
     }
   }
 
+  // Trust entities use different loss recoupment rules (Division 266/267 Schedule 2F ITAA 1936)
+  if (entityType === 'trust') {
+    return analyzeTrustLossRecoupment(currentYear)
+  }
+
+  // Company/other entities: Division 165 ITAA 1997 (COT/SBT)
   // COT cannot be determined without share register data
   // s 165-12 ITAA 1997 - Continuity of ownership test requires
   // verification that majority ownership (50%+) has not changed
@@ -449,7 +479,7 @@ function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]
   ]
 
   // SBT status also unknown without business activity comparison data
-  // s 165-13 ITAA 1997 - Same Business Test (SBT) applies as fallback if COT fails
+  // s 165-13 ITAA 1997 - SBT applies as fallback if COT fails
   const sbtRequired: boolean | 'unknown' = 'unknown' // Cannot determine if COT is unknown
   const sbtSatisfied: boolean | 'unknown' = 'unknown'
   const sbtConfidence = 50 // No business activity data to compare across years
@@ -478,6 +508,76 @@ function analyzeCotSbt(currentYear: LossPosition, _previousYears: LossPosition[]
     isEligibleForCarryforward,
     professionalReviewRequired: true, // Always required when losses exist and COT/SBT unknown
     riskLevel,
+    trustLossRule: 'not_applicable',
+  }
+}
+
+/**
+ * Trust-specific loss recoupment analysis (Division 266/267 Schedule 2F ITAA 1936).
+ *
+ * Trust losses are NOT governed by Division 165 (company COT/SBT).
+ * Instead:
+ * - Division 266: Non-fixed trusts — requires family trust election (s 272-75)
+ *   OR pattern of distributions test (s 269-60) OR 50% stake test
+ * - Division 267: Fixed trusts — requires 50% fixed entitlement maintenance
+ * - Division 270: Income injection test prevents artificial income to absorb losses
+ *
+ * Without trust deed analysis and distribution data, assessment is 'unknown'
+ * but the correct legislative framework is identified.
+ */
+function analyzeTrustLossRecoupment(currentYear: LossPosition): CotSbtAnalysis {
+  const trustNotes: string[] = [
+    'Trust loss recoupment is governed by Division 266/267 of Schedule 2F ITAA 1936 — NOT Division 165.',
+    'Division 165 (COT/SBT) applies to COMPANIES only. Applying company rules to trust losses would produce incorrect results.',
+  ]
+
+  // Division 266 (non-fixed trusts) analysis
+  // Most discretionary/family trusts are non-fixed trusts under Division 266
+  // Key question: has a family trust election been made under s 272-75?
+  const familyTrustElection: boolean | 'unknown' = 'unknown'
+
+  trustNotes.push(
+    'Division 266 (non-fixed trusts): Requires EITHER a family trust election (s 272-75 Schedule 2F ITAA 1936) ' +
+    'OR the 50% stake test OR the pattern of distributions test (s 269-60).'
+  )
+  trustNotes.push(
+    'Family trust election (FTE): If made, allows loss carry-forward provided distributions stay within the ' +
+    'family group. FTE is irrevocable and triggers family trust distribution tax (FTDT) on non-family distributions.'
+  )
+  trustNotes.push(
+    'Division 267 (fixed trusts): Requires 50% or more fixed entitlement to income and capital to be maintained ' +
+    'throughout the income year. Fixed trust status depends on trust deed terms.'
+  )
+  trustNotes.push(
+    'Division 270 (income injection test): Applies to BOTH fixed and non-fixed trusts. Prevents schemes ' +
+    'to inject income into a trust to absorb carried-forward losses. Review any unusual income sources.'
+  )
+  trustNotes.push(
+    'Trust deed analysis and distribution history required to determine eligibility. ' +
+    'Professional review is ESSENTIAL for trust loss recoupment.'
+  )
+
+  // COT/SBT fields are marked as not applicable for trusts
+  return {
+    cotSatisfied: 'unknown',
+    cotConfidence: 0, // COT does not apply to trusts
+    cotNotes: [
+      'Division 165 COT does NOT apply to trust entities.',
+      'Trust losses are governed by Division 266/267 Schedule 2F ITAA 1936.',
+    ],
+    sbtRequired: 'unknown',
+    sbtSatisfied: 'unknown',
+    sbtConfidence: 0, // SBT (Division 165) does not apply to trusts
+    sbtNotes: [
+      'Division 165 SBT does NOT apply to trust entities.',
+      'Trust-specific tests apply instead (family trust election, 50% stake test, pattern of distributions).',
+    ],
+    isEligibleForCarryforward: true, // Assumed eligible pending professional review
+    professionalReviewRequired: true,
+    riskLevel: 'high', // Trust losses always high risk without deed analysis
+    trustLossRule: 'division_266', // Default to non-fixed (most common for discretionary trusts)
+    familyTrustElection,
+    trustNotes,
   }
 }
 
@@ -583,29 +683,54 @@ function generateLossRecommendations(
     recommendations.push(`Tax saved: $${taxSaved.toFixed(2)}`)
   }
 
-  // COT/SBT specific recommendations
-  if (cotSbtAnalysis.cotSatisfied === 'unknown') {
-    recommendations.push('⚠️ COT status unknown - share register verification required (s 165-12 ITAA 1997)')
-    recommendations.push('Professional review required to confirm continuity of ownership')
-  } else if (cotSbtAnalysis.cotSatisfied) {
-    recommendations.push('✅ COT satisfied - ownership continuity maintained')
-  } else {
-    recommendations.push('❌ COT not satisfied - check SBT compliance')
-  }
-
-  if (cotSbtAnalysis.sbtSatisfied === 'unknown') {
-    recommendations.push('⚠️ SBT status unknown - business activity comparison required (s 165-13 ITAA 1997)')
-  } else if (cotSbtAnalysis.sbtRequired === true) {
-    if (cotSbtAnalysis.sbtSatisfied) {
-      recommendations.push('✅ SBT satisfied - same business maintained')
-    } else {
-      recommendations.push('❌ SBT not satisfied - losses may be forfeited')
+  // Entity-specific loss recoupment recommendations
+  if (cotSbtAnalysis.trustLossRule && cotSbtAnalysis.trustLossRule !== 'not_applicable') {
+    // Trust-specific recommendations (Division 266/267 Schedule 2F ITAA 1936)
+    recommendations.push(
+      '⚠️ TRUST ENTITY: Loss recoupment governed by Division 266/267 Schedule 2F ITAA 1936 (NOT Division 165)'
+    )
+    if (cotSbtAnalysis.familyTrustElection === 'unknown') {
+      recommendations.push(
+        '⚠️ Family trust election status unknown (s 272-75 Schedule 2F). ' +
+        'If an FTE has been made, losses can be carried forward provided distributions remain within the family group.'
+      )
+      recommendations.push(
+        'If NO family trust election exists, the trust must satisfy the 50% stake test or ' +
+        'pattern of distributions test (s 269-60) to carry forward losses.'
+      )
     }
-  }
+    recommendations.push(
+      'Division 270 income injection test: Verify no schemes exist to inject income into the trust to absorb losses.'
+    )
+    recommendations.push(
+      '🔴 PROFESSIONAL REVIEW ESSENTIAL: Trust loss recoupment requires analysis of the trust deed, ' +
+      'distribution history, and any family trust election. Division 266/267 rules are complex.'
+    )
+  } else {
+    // Company/other entity: Division 165 COT/SBT recommendations
+    if (cotSbtAnalysis.cotSatisfied === 'unknown') {
+      recommendations.push('⚠️ COT status unknown - share register verification required (s 165-12 ITAA 1997)')
+      recommendations.push('Professional review required to confirm continuity of ownership')
+    } else if (cotSbtAnalysis.cotSatisfied) {
+      recommendations.push('✅ COT satisfied - ownership continuity maintained')
+    } else {
+      recommendations.push('❌ COT not satisfied - check SBT compliance')
+    }
 
-  // Professional review flag
-  if (cotSbtAnalysis.professionalReviewRequired) {
-    recommendations.push('🔴 PROFESSIONAL REVIEW REQUIRED: Loss carry-forward eligibility must be verified by a qualified tax agent')
+    if (cotSbtAnalysis.sbtSatisfied === 'unknown') {
+      recommendations.push('⚠️ SBT status unknown - business activity comparison required (s 165-13 ITAA 1997)')
+    } else if (cotSbtAnalysis.sbtRequired === true) {
+      if (cotSbtAnalysis.sbtSatisfied) {
+        recommendations.push('✅ SBT satisfied - same business maintained')
+      } else {
+        recommendations.push('❌ SBT not satisfied - losses may be forfeited')
+      }
+    }
+
+    // Professional review flag
+    if (cotSbtAnalysis.professionalReviewRequired) {
+      recommendations.push('🔴 PROFESSIONAL REVIEW REQUIRED: Loss carry-forward eligibility must be verified by a qualified tax agent')
+    }
   }
 
   // Amendment period warning - Taxation Administration Act 1953, s 170

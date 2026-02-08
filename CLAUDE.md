@@ -857,10 +857,9 @@ a qualified tax professional before implementation. The software provides
 - The new SBT (effective from FY2022-23 under Treasury Laws Amendment) is broader than the old SBT - considers similar business, not identical.
 - **Risk**: Users may assume losses are available when they have been forfeited.
 
-**FINDING L-3: Trust losses have different rules**
-- Division 266/267 ITAA 1997 applies to trust losses, not Division 165. The engine uses the same analysis for all entity types.
-- Trust income injection test (Division 270) and family trust election implications are not considered.
-- **Risk**: Incorrect loss carry-forward advice for trust entities.
+**~~FINDING L-3: Trust losses have different rules~~ FIXED (2026-02-08)**
+- ~~Division 266/267 ITAA 1997 applies to trust losses, not Division 165. The engine uses the same analysis for all entity types.~~
+- **Fixed**: `analyzeCotSbt()` now entity-type-aware. Trust entities routed to `analyzeTrustLossRecoupment()` using Division 266/267 Schedule 2F ITAA 1936. References family trust election (s 272-75), pattern of distributions test (s 269-60), income injection test (Division 270).
 
 #### 3.4 R&D Engine (lib/analysis/rnd-engine.ts)
 
@@ -1090,11 +1089,10 @@ The codebase demonstrates good engineering practices (encryption, validation, te
 
 #### 11.1 CGT Engine + Division 152 - CRITICAL Issues
 
-**CR-1: Division 152 net asset test requires connected entity aggregation**
-- Subdivision 152-15 ITAA 1997 includes net assets of connected entities and affiliates in the $6M threshold.
-- A sole trader with $4M in personal assets and a connected trust with $3M FAILS ($7M > $6M).
-- The plan does not describe how connected entity assets will be identified.
-- The $6M threshold is a CLIFF EDGE -- users near this boundary (within 10%) must be warned.
+**~~CR-1: Division 152 net asset test requires connected entity aggregation~~ FIXED (2026-02-08)**
+- ~~Subdivision 152-15 ITAA 1997 includes net assets of connected entities and affiliates in the $6M threshold.~~
+- ~~A sole trader with $4M in personal assets and a connected trust with $3M FAILS ($7M > $6M).~~
+- **Fixed**: `CGTAnalysisOptions.connectedEntities` accepts array of connected entities/affiliates. `analyzeDivision152()` aggregates net assets per Subdivision 152-15. Cliff edge warning (within 10% of $6M) implemented.
 
 **CR-2: CGT event interactions on same asset**
 - Section 112-30 ITAA 1997: prior CGT events modify cost base of subsequent events.
@@ -1277,6 +1275,8 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | SBT transaction evidence (L-2) | `lib/analysis/loss-engine.ts` | Already implemented: `enrichSbtWithTransactionEvidence()` (lines 640-771) compares expense categories across FYs. Evidence-based SBT assessment replaces 'unknown'. Marked as done. (2026-02-08) |
 | Distributable surplus cap (A-12) | `lib/analysis/div7a-engine.ts` | `estimateDistributableSurplus()` queries equity account data; `cappedTotalDeemedDividendRisk = Math.min(totalRisk, surplus)` per s 109Y ITAA 1936. Optional `knownDistributableSurplus` parameter for callers with balance sheet data. `Div7aSummary` gains 5 new fields. Warnings when surplus unknown. (2026-02-08) |
 | Collectable/personal use loss quarantining (A-7) | `lib/analysis/cgt-engine.ts` | `classifyAssetCategory()` classifies CGT events as collectable/personal_use/other via keyword matching. Collectable losses quarantined per s 108-10(1), personal use losses disregarded per s 108-20(1). `CGTEvent` gains `assetCategory` + `assetCategoryNote`. `CGTSummary` gains 5 quarantined loss tracking fields. (2026-02-08) |
+| Connected entity aggregation (A-6/CR-1) | `lib/analysis/cgt-engine.ts` | `CGTAnalysisOptions.connectedEntities` array for Subdivision 152-15 ITAA 1997 net asset aggregation. `analyzeDivision152()` sums connected entity + own assets for $6M test. `Div152Analysis.netAssetTest` expanded with `connectedEntityAssets`, `aggregatedNetAssets`, `cliffEdgeWarning` (10% of $6M), and `breakdown`. Warns when no connected entities provided but net asset value given. (2026-02-08) |
+| Trust losses Division 266/267 (A-9/L-3) | `lib/analysis/loss-engine.ts` | `analyzeCotSbt()` now entity-type-aware: trust entities routed to `analyzeTrustLossRecoupment()` using Division 266/267 Schedule 2F ITAA 1936 instead of Division 165. `CotSbtAnalysis` gains `trustLossRule`, `familyTrustElection`, `trustNotes`. Recommendations reference family trust election (s 272-75), pattern of distributions test (s 269-60), income injection test (Division 270). (2026-02-08) |
 
 ---
 
@@ -1465,7 +1465,7 @@ Code bug at `lib/analysis/fbt-engine.ts:152-163` -- live rates are fetched but N
 
 - **Phase 0** (BEFORE production): 8 items -- consent notices, region confirmation, disclaimer fix, FBT rate bug, legal opinion, Privacy Officer
 - **Phase 1** (within 30 days): 4 items remaining -- DPA execution, FBT Type 1/2 determination, ~~CSP headers~~ (DONE), ~~distributed rate limiting~~ (DONE), ~~trust penalty rate fix~~ (DONE), ~~SG rate update~~ (DONE), ~~share password B-1~~ (DONE)
-- **Phase 2** (within 90 days): 2 items remaining -- CGT connected entities, retention policy, NDB detection. ~~s 100A family dealing~~ (DONE), ~~R&D clawback~~ (DONE), ~~SBT implementation~~ (DONE), ~~file upload scanning~~ (DONE)
+- **Phase 2** (within 90 days): 0 code items remaining -- ~~CGT connected entities~~ (DONE), retention policy, NDB detection. ~~s 100A family dealing~~ (DONE), ~~R&D clawback~~ (DONE), ~~SBT implementation~~ (DONE), ~~file upload scanning~~ (DONE), ~~trust losses Division 266/267~~ (DONE)
 
 ---
 

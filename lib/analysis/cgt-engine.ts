@@ -10,6 +10,7 @@
  * - Division 115 ITAA 1997: 50% CGT discount (assets held 12+ months)
  * - Division 152 ITAA 1997: Small business CGT concessions
  *   - Subdiv 152-A: Basic conditions (turnover < $2M or net assets < $6M)
+ *   - Subdiv 152-15: Net asset test includes connected entities and affiliates
  *   - Subdiv 152-B: 15-year exemption (continuous ownership 15+ years)
  *   - Subdiv 152-C: 50% active asset reduction
  *   - Subdiv 152-D: Retirement exemption ($500K lifetime cap)
@@ -116,9 +117,18 @@ export interface Div152Analysis {
   }
   netAssetTest: {
     met: boolean
+    /** Entity's own net asset value (before connected entity aggregation) */
     netAssetValue: number | null
+    /** Total net assets of connected entities and affiliates (Subdivision 152-15) */
+    connectedEntityAssets: number
+    /** Aggregated total: own + connected entity assets */
+    aggregatedNetAssets: number | null
     threshold: number
+    /** True when aggregated value is within 10% of threshold ($5.4M-$6M) — cliff edge risk */
+    cliffEdgeWarning: boolean
     note: string
+    /** Breakdown of connected entity contributions to the net asset test */
+    breakdown?: Array<{ name: string; value: number; relationship: string }>
   }
   activeAssetTest: {
     met: boolean
@@ -195,6 +205,13 @@ export interface CGTSummary {
   professionalReviewRequired: boolean
 }
 
+/** Connected entity or affiliate for Division 152-15 net asset aggregation */
+export interface ConnectedEntity {
+  name: string
+  netAssetValue: number
+  relationship: 'connected_entity' | 'affiliate'
+}
+
 export interface CGTAnalysisOptions {
   entityType?: 'individual' | 'company' | 'trust' | 'super_fund' | 'unknown'
   aggregatedTurnover?: number
@@ -203,6 +220,12 @@ export interface CGTAnalysisOptions {
   yearsOfOwnership?: number
   priorRetirementExemptionUsed?: number
   priorYearCapitalLosses?: number
+  /**
+   * Connected entities and affiliates for Subdivision 152-15 ITAA 1997
+   * net asset aggregation. Their net asset values are aggregated with the
+   * entity's own netAssetValue for the $6M threshold test.
+   */
+  connectedEntities?: ConnectedEntity[]
 }
 
 /**
@@ -404,6 +427,7 @@ export async function analyzeCGT(
       's 108-20 ITAA 1997 (Personal use asset losses disregarded)',
       'Division 115 ITAA 1997 (50% CGT discount)',
       'Division 152 ITAA 1997 (Small business CGT concessions)',
+      'Subdivision 152-15 ITAA 1997 (Net asset test includes connected entities and affiliates)',
       's 102-5 ITAA 1997 (Capital losses only offset capital gains)',
     ],
     recommendations,
@@ -423,6 +447,7 @@ function analyzeDivision152(
 
   const turnover = options?.aggregatedTurnover
   const netAssets = options?.netAssetValue
+  const connectedEntities = options?.connectedEntities ?? []
   const activePercentage = options?.activeAssetPercentage
   const yearsOwned = options?.yearsOfOwnership ?? 0
   const priorRetirementUsed = options?.priorRetirementExemptionUsed
@@ -439,15 +464,50 @@ function analyzeDivision152(
       : 'Aggregated turnover not provided. Cannot assess Subdiv 152-A turnover test.',
   }
 
+  // Net asset test with connected entity aggregation (Subdivision 152-15 ITAA 1997)
+  // The $6M threshold includes net assets of ALL connected entities and affiliates
+  const connectedEntityAssets = connectedEntities.reduce((sum, ce) => sum + ce.netAssetValue, 0)
+  const aggregatedNetAssets = netAssets !== undefined ? netAssets + connectedEntityAssets : null
+  const CLIFF_EDGE_RATIO = 0.9 // Warn when within 10% of threshold
+  const cliffEdgeThreshold = DIV152_NET_ASSET_THRESHOLD * CLIFF_EDGE_RATIO // $5.4M
+  const cliffEdgeWarning = aggregatedNetAssets !== null
+    && aggregatedNetAssets >= cliffEdgeThreshold
+    && aggregatedNetAssets < DIV152_NET_ASSET_THRESHOLD
+
+  let netAssetNote: string
+  if (netAssets === undefined) {
+    netAssetNote = 'Net asset value not provided. Cannot assess Subdiv 152-A net asset test.'
+    if (connectedEntities.length > 0) {
+      netAssetNote += ` Note: ${connectedEntities.length} connected entity/affiliate(s) provided but own net asset value is required.`
+    }
+  } else if (connectedEntities.length === 0) {
+    netAssetNote = aggregatedNetAssets! < DIV152_NET_ASSET_THRESHOLD
+      ? `Net assets $${aggregatedNetAssets!.toLocaleString('en-AU')} < $${DIV152_NET_ASSET_THRESHOLD.toLocaleString('en-AU')} threshold - test satisfied. ` +
+        'WARNING: Subdivision 152-15 requires including connected entity and affiliate net assets. No connected entities were provided — verify completeness.'
+      : `Net assets $${aggregatedNetAssets!.toLocaleString('en-AU')} >= $${DIV152_NET_ASSET_THRESHOLD.toLocaleString('en-AU')} threshold - test failed`
+  } else {
+    const breakdown = connectedEntities.map(ce =>
+      `${ce.name} (${ce.relationship}): $${ce.netAssetValue.toLocaleString('en-AU')}`
+    ).join('; ')
+    netAssetNote = aggregatedNetAssets! < DIV152_NET_ASSET_THRESHOLD
+      ? `Aggregated net assets $${aggregatedNetAssets!.toLocaleString('en-AU')} (own: $${netAssets.toLocaleString('en-AU')} + connected: $${connectedEntityAssets.toLocaleString('en-AU')}) < $${DIV152_NET_ASSET_THRESHOLD.toLocaleString('en-AU')} threshold - test satisfied (Subdiv 152-15). Connected entities: ${breakdown}`
+      : `Aggregated net assets $${aggregatedNetAssets!.toLocaleString('en-AU')} (own: $${netAssets.toLocaleString('en-AU')} + connected: $${connectedEntityAssets.toLocaleString('en-AU')}) >= $${DIV152_NET_ASSET_THRESHOLD.toLocaleString('en-AU')} threshold - test failed. Connected entities: ${breakdown}`
+  }
+  if (cliffEdgeWarning) {
+    netAssetNote += ` CLIFF EDGE WARNING: Aggregated net assets ($${aggregatedNetAssets!.toLocaleString('en-AU')}) are within 10% of the $${DIV152_NET_ASSET_THRESHOLD.toLocaleString('en-AU')} threshold. Small changes in asset values could change eligibility. Professional review strongly recommended.`
+  }
+
   const netAssetTest = {
-    met: netAssets !== undefined ? netAssets < DIV152_NET_ASSET_THRESHOLD : false,
+    met: aggregatedNetAssets !== null ? aggregatedNetAssets < DIV152_NET_ASSET_THRESHOLD : false,
     netAssetValue: netAssets ?? null,
+    connectedEntityAssets,
+    aggregatedNetAssets,
     threshold: DIV152_NET_ASSET_THRESHOLD,
-    note: netAssets !== undefined
-      ? (netAssets < DIV152_NET_ASSET_THRESHOLD
-        ? `Net assets $${netAssets.toLocaleString('en-AU')} < $${DIV152_NET_ASSET_THRESHOLD.toLocaleString('en-AU')} threshold - test satisfied`
-        : `Net assets $${netAssets.toLocaleString('en-AU')} >= $${DIV152_NET_ASSET_THRESHOLD.toLocaleString('en-AU')} threshold - test failed`)
-      : 'Net asset value not provided. Cannot assess Subdiv 152-A net asset test.',
+    cliffEdgeWarning,
+    note: netAssetNote,
+    breakdown: connectedEntities.length > 0
+      ? connectedEntities.map(ce => ({ name: ce.name, value: ce.netAssetValue, relationship: ce.relationship }))
+      : undefined,
   }
 
   const activeAssetTest = {
@@ -545,6 +605,26 @@ function analyzeDivision152(
     } else {
       recommendations.push('Consider combining 50% reduction with retirement exemption or rollover')
     }
+  }
+
+  // Connected entity warnings (Subdivision 152-15 ITAA 1997)
+  if (netAssets !== undefined && connectedEntities.length === 0) {
+    recommendations.push(
+      'Subdivision 152-15 ITAA 1997: The $6M net asset test must include assets of connected entities and affiliates. ' +
+      'No connected entities were provided — ensure all connected entities/affiliates have been identified.'
+    )
+  }
+  if (netAssetTest.cliffEdgeWarning) {
+    recommendations.push(
+      `CLIFF EDGE: Aggregated net assets ($${aggregatedNetAssets!.toLocaleString('en-AU')}) are within 10% of the $6M threshold. ` +
+      'Monitor asset values closely — small changes could disqualify Division 152 concessions entirely.'
+    )
+  }
+  if (connectedEntities.length > 0 && !netAssetTest.met) {
+    recommendations.push(
+      `Connected entity aggregation caused net asset test failure: own assets ($${(netAssets ?? 0).toLocaleString('en-AU')}) ` +
+      `plus connected entity assets ($${connectedEntityAssets.toLocaleString('en-AU')}) = $${aggregatedNetAssets!.toLocaleString('en-AU')} >= $6M threshold`
+    )
   }
 
   return {
