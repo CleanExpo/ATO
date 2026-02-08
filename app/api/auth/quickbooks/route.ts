@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { QUICKBOOKS_CONFIG } from '@/lib/integrations/quickbooks-config'
 import { createErrorResponse } from '@/lib/api/errors'
 import { createLogger } from '@/lib/logger'
+import crypto from 'crypto'
 
 const log = createLogger('api:auth:quickbooks')
 
@@ -35,11 +36,15 @@ export async function GET(_request: NextRequest) {
       )
     }
 
-    // Generate state parameter for CSRF protection
+    // Generate cryptographic nonce for CSRF protection (B-2 fix)
+    const nonce = crypto.randomUUID()
+
+    // State includes user context + unpredictable nonce
     const state = Buffer.from(
       JSON.stringify({
         tenantId: user.id,
         timestamp: Date.now(),
+        nonce,
       })
     ).toString('base64url')
 
@@ -53,8 +58,17 @@ export async function GET(_request: NextRequest) {
 
     log.info('QuickBooks OAuth initiated', { tenantId: user.id })
 
-    // Redirect to QuickBooks authorization page
-    return NextResponse.redirect(authUrl.toString())
+    // Store nonce in httpOnly cookie for server-side verification
+    const response = NextResponse.redirect(authUrl.toString())
+    response.cookies.set('qb_oauth_nonce', nonce, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 10, // 10 minutes
+      path: '/',
+    })
+
+    return response
 
   } catch (error) {
     console.error('QuickBooks OAuth initiation error:', error)

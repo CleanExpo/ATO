@@ -42,13 +42,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Decode and validate state parameter
-    let stateData: { tenantId: string; timestamp: number }
+    let stateData: { tenantId: string; timestamp: number; nonce?: string }
     try {
       stateData = JSON.parse(Buffer.from(state, 'base64url').toString())
     } catch {
       return NextResponse.json(
         { error: 'Invalid state parameter' },
         { status: 400 }
+      )
+    }
+
+    // Verify nonce from httpOnly cookie (B-2 CSRF fix)
+    const storedNonce = request.cookies.get('qb_oauth_nonce')?.value
+    if (!storedNonce || !stateData.nonce || storedNonce !== stateData.nonce) {
+      return NextResponse.json(
+        { error: 'OAuth state nonce mismatch. Possible CSRF attack.' },
+        { status: 403 }
       )
     }
 
@@ -218,9 +227,11 @@ export async function GET(request: NextRequest) {
     log.info('QuickBooks OAuth successful', { tenantId: user.id, realmId, orgId: organizationId })
 
     // Redirect to dashboard with success message
-    return NextResponse.redirect(
+    const successResponse = NextResponse.redirect(
       `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard?quickbooks_connected=true&realm_id=${realmId}`
     )
+    successResponse.cookies.delete('qb_oauth_nonce')
+    return successResponse
 
   } catch (error) {
     console.error('QuickBooks OAuth callback error:', error)

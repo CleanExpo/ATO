@@ -1265,6 +1265,9 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | RLS function standardised (B-6) | `supabase/migrations/20260208_rls_standardize.sql` | All RLS policies now use `check_tenant_access()` per AD-8; `get_user_tenant_ids()` dropped (2026-02-08) |
 | Estimate disclaimer (C-2) | `app/api/share/[token]/route.ts`, `components/share/AccountantReportView.tsx`, `lib/types/shared-reports.ts` | "ESTIMATE ONLY" disclaimer on dollar amounts; MetricCard labelled "(Est.)" (2026-02-08) |
 | Share route IP spoofing (B-5) | `app/api/share/[token]/route.ts:194-199` | `getClientIp()` uses rightmost X-Forwarded-For IP, consistent with `lib/audit/logger.ts` (2026-02-08) |
+| OAuth CSRF (B-2) | `app/api/auth/quickbooks/route.ts`, `app/api/auth/quickbooks/callback/route.ts`, `app/api/auth/myob/authorize/route.ts`, `app/api/auth/myob/callback/route.ts` | QuickBooks: crypto nonce in httpOnly cookie. MYOB: random state + userId in cookie (was raw user.id). Xero already correct (2026-02-08) |
+| Distributed rate limiting (B-7) | `lib/middleware/distributed-rate-limit.ts`, `supabase/migrations/20260208_distributed_rate_limit.sql` | Supabase-backed atomic `check_rate_limit()` RPC; in-memory fallback (2026-02-08) |
+| CSP headers (B-10) | `next.config.ts` | Already fixed 2026-02-07; marked in tracker (2026-02-08) |
 
 ---
 
@@ -1446,13 +1449,13 @@ Code bug at `lib/analysis/fbt-engine.ts:152-163` -- live rates are fetched but N
 ### Secondary Findings Summary
 
 - **14 tax law accuracy findings** (A-1 through A-14) across trust distribution, cashflow forecast, fuel tax credits, CGT, loss, R&D, Div7A, and deduction engines
-- **10 security/privacy findings** (B-1 through B-10) -- B-1 (share password), B-5 (IP spoofing), B-6 (RLS consistency), B-8 (dev bypass), B-9 (token bias) FIXED; remaining: B-2 (OAuth CSRF), B-3, B-4, B-7 (rate limiting), B-10 (CSP)
+- **10 security/privacy findings** (B-1 through B-10) -- 8 FIXED: B-1, B-2, B-5, B-6, B-7, B-8, B-9, B-10; remaining: B-3 (file upload scanning), B-4 (share docs)
 - **7 professional liability findings** (C-1 through C-7) including missing APP 1 collection notice, no PI insurance, no NDB technical implementation
 
 ### Remediation Phases
 
 - **Phase 0** (BEFORE production): 8 items -- consent notices, region confirmation, disclaimer fix, FBT rate bug, legal opinion, Privacy Officer
-- **Phase 1** (within 30 days): 7 items remaining -- DPA execution, FBT Type 1/2 determination, CSP headers, distributed rate limiting, ~~trust penalty rate fix~~ (DONE), ~~SG rate update~~ (DONE), ~~share password B-1~~ (DONE)
+- **Phase 1** (within 30 days): 4 items remaining -- DPA execution, FBT Type 1/2 determination, ~~CSP headers~~ (DONE), ~~distributed rate limiting~~ (DONE), ~~trust penalty rate fix~~ (DONE), ~~SG rate update~~ (DONE), ~~share password B-1~~ (DONE)
 - **Phase 2** (within 90 days): 5 items remaining -- CGT connected entities, s 100A family dealing, R&D clawback, retention policy, NDB detection
 
 ---

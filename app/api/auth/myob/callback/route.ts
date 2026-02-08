@@ -24,11 +24,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
-    const state = searchParams.get('state') // User ID
+    const returnedState = searchParams.get('state')
     const error = searchParams.get('error')
 
     // Handle authorization errors
-    if (error || !code || !state) {
+    if (error || !code || !returnedState) {
       return NextResponse.redirect(
         new URL(
           `/dashboard?error=myob_auth_failed&reason=${error || 'missing_params'}`,
@@ -36,6 +36,24 @@ export async function GET(request: NextRequest) {
         )
       )
     }
+
+    // Verify CSRF state from httpOnly cookie (B-2 fix)
+    const storedCookie = request.cookies.get('myob_oauth_state')?.value
+    let storedState: { state: string; userId: string } | null = null
+    try {
+      storedState = storedCookie ? JSON.parse(storedCookie) : null
+    } catch {
+      storedState = null
+    }
+
+    if (!storedState || storedState.state !== returnedState) {
+      return NextResponse.redirect(
+        new URL('/dashboard?error=myob_state_mismatch', request.url)
+      )
+    }
+
+    // Use userId from the verified cookie, not from the URL parameter
+    const state = storedState.userId
 
     // Exchange code for tokens
     const tokenResponse = await fetch(MYOB_TOKEN_URL, {
@@ -207,9 +225,11 @@ export async function GET(request: NextRequest) {
     log.info('MYOB OAuth successful', { userId: state, companyFileId: selectedCompanyFile.Id, orgId: organizationId })
 
     // Success! Redirect to dashboard
-    return NextResponse.redirect(
+    const successResponse = NextResponse.redirect(
       new URL('/dashboard?connected=myob&success=true', request.url)
     )
+    successResponse.cookies.delete('myob_oauth_state')
+    return successResponse
   } catch (error) {
     console.error('MYOB callback error:', error)
     return NextResponse.redirect(
