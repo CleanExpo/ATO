@@ -1208,10 +1208,10 @@ Backend_Dev has accepted ALL critical and high findings from this audit and inco
 
 | Finding | Severity | Status | Risk if Deferred |
 |---------|----------|--------|-----------------|
-| R-3: R&D clawback (s 355-450) | HIGH | DEFERRED | Clients selling R&D results may miss clawback obligations |
+| R-3: R&D clawback (s 355-450) | HIGH | FIXED (2026-02-08) | Clawback warning already implemented per-project (line 594-598), in recommendations (810-815), and summary-level (920-923). Marked as done. |
 | 7A-3: Amalgamated loans (s 109E(8)) | MEDIUM | DEFERRED | Serial borrowers may have incorrect minimum repayment calculations |
 | 7A-4: Safe harbour exclusions (s 109RB) | MEDIUM | DEFERRED | Compliant arrangements flagged as non-compliant (false positives) |
-| T-1: Ordinary family dealing exclusion | HIGH | DEFERRED | Family trusts receive false s 100A alerts for normal distributions |
+| T-1: Ordinary family dealing exclusion | HIGH | FIXED (2026-02-08) | `generateSection100AFlags()` downgrades severity when family dealing exclusion applies (s 100A(13), TR 2022/4). Risk reduction increased to 40 points. |
 | T-2: Trustee penalty rate (47% not 45%) | LOW | FIXED (2026-02-07) | Updated all references from 45% to 47% (45% top marginal + 2% Medicare Levy per s 99A ITAA 1936) |
 | L-2: SBT always returns 'unknown' | MEDIUM | DEFERRED | Similar business test never passes, overly conservative loss recommendations |
 
@@ -1268,6 +1268,8 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | OAuth CSRF (B-2) | `app/api/auth/quickbooks/route.ts`, `app/api/auth/quickbooks/callback/route.ts`, `app/api/auth/myob/authorize/route.ts`, `app/api/auth/myob/callback/route.ts` | QuickBooks: crypto nonce in httpOnly cookie. MYOB: random state + userId in cookie (was raw user.id). Xero already correct (2026-02-08) |
 | Distributed rate limiting (B-7) | `lib/middleware/distributed-rate-limit.ts`, `supabase/migrations/20260208_distributed_rate_limit.sql` | Supabase-backed atomic `check_rate_limit()` RPC; in-memory fallback (2026-02-08) |
 | CSP headers (B-10) | `next.config.ts` | Already fixed 2026-02-07; marked in tracker (2026-02-08) |
+| Family dealing exclusion (T-1) | `lib/analysis/trust-distribution-analyzer.ts` | `generateSection100AFlags()` downgrades severity for non-resident (high→medium) and minor (high→low) when family dealing exclusion applies (s 100A(13), TR 2022/4). Risk reduction 20→40 points. Compliance summary notes reduced flags. (2026-02-08) |
+| R&D clawback (R-3) | `lib/analysis/rnd-engine.ts` | Already implemented: per-project `clawbackWarning` (line 594-598), recommendation (810-815), summary warning (920-923). Marked as done in tracker. (2026-02-08) |
 
 ---
 

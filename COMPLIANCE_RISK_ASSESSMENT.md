@@ -272,7 +272,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | ID | Engine | Finding | Severity | Status |
 |----|--------|---------|----------|--------|
 | A-1 | trust-distribution | Trustee penalty rate references 45% but correct rate is 47% (45% + 2% Medicare Levy) | MEDIUM | Unfixed (deferred T-2) |
-| A-2 | trust-distribution | Ordinary family dealing exclusion (TR 2022/4) not implemented -- excessive false s 100A flags | HIGH | Unfixed (deferred T-1) |
+| A-2 | trust-distribution | ~~Ordinary family dealing exclusion (TR 2022/4) not implemented~~ **FIXED** (2026-02-08): `generateSection100AFlags()` downgrades severity when family dealing exclusion applies (s 100A(13), TR 2022/4). Risk reduction increased from 20 to 40 points. Compliance summary notes reduced flags. | HIGH | Fixed |
 | A-3 | cashflow-forecast | ~~Super guarantee rate hardcoded at 11.5%~~ **FIXED** (2026-02-08): FY-aware SG rate, 12% from FY2025-26 (s 19 SGAA 1992) | MEDIUM | Fixed |
 | A-4 | fuel-tax-credits | ~~Uses single annual rate instead of quarterly rates~~ **FIXED** (2026-02-08): Per-quarter rate lookup via `FUEL_TAX_CREDIT_RATES` map | MEDIUM | Fixed |
 | A-5 | fuel-tax-credits | ~~Road user charge deduction not applied for heavy vehicles on public roads~~ **FIXED** (2026-02-08): Road user charge deducted for on-road use per s 43-10 | MEDIUM | Fixed |
@@ -281,7 +281,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | A-8 | cgt-engine | Cost base always initialised at 0 -- no asset register integration | MEDIUM | By design (requires data) |
 | A-9 | loss-engine | Trust losses (Division 266/267) not distinguished from company losses (Division 165) | MEDIUM | Unfixed (L-3) |
 | A-10 | loss-engine | Similar Business Test always returns 'unknown' -- overly conservative | MEDIUM | Unfixed (L-2) |
-| A-11 | rnd-engine | R&D clawback provisions (s 355-450) not checked | HIGH | Deferred (R-3) |
+| A-11 | rnd-engine | ~~R&D clawback provisions (s 355-450) not checked~~ **FIXED** (2026-02-08): Already implemented -- per-project `clawbackWarning` (line 594-598), recommendation text (810-815), summary-level warning (920-923). Marked as done. | HIGH | Fixed |
 | A-12 | div7a-engine | Distributable surplus cap (s 109Y) -- deemed dividend cannot exceed distributable surplus | HIGH | Accepted but verify implementation |
 | A-13 | deduction-engine | ~~Amendment period not checked before recommending amended returns~~ **FIXED** (2026-02-08): `checkAmendmentPeriod()` applied to all FYs in results (s 170 TAA 1953) | HIGH | Fixed |
 | A-14 | deduction-engine | ~~Duplicate `return summary` statements at lines 549-551~~ **FIXED** (2026-02-08): Dead code removed | LOW | Fixed |
@@ -383,10 +383,10 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 |----------|--------|--------|
 | ~~P2-1~~ | ~~Implement transaction description sanitisation for Gemini~~ **DONE** (2026-02-08) -- Supplier names anonymised via `lib/ai/pii-sanitizer.ts` | ~~3-5 days~~ |
 | P2-2 | Implement connected entity aggregation for CGT $6M test | 5 days |
-| P2-3 | Implement ordinary family dealing exclusion for s 100A | 3 days |
+| ~~P2-3~~ | ~~Implement ordinary family dealing exclusion for s 100A~~ **DONE** (2026-02-08) -- Flag severity downgrades when exclusion applies (T-1) | ~~3 days~~ |
 | ~~P2-4~~ | ~~Implement quarterly fuel tax credit rates~~ **DONE** (2026-02-08) -- Per-quarter rates + road user charge (F-1, F-2) | ~~2 days~~ |
 | ~~P2-5~~ | ~~Add amendment period check to deduction engine~~ **DONE** (2026-02-08) -- `checkAmendmentPeriod()` applied (A-13) | ~~2 days~~ |
-| P2-6 | Implement R&D clawback warning (s 355-450) | 3 days |
+| ~~P2-6~~ | ~~Implement R&D clawback warning (s 355-450)~~ **DONE** (2026-02-08) -- Already implemented in rnd-engine.ts (R-3) | ~~3 days~~ |
 | P2-7 | Implement data retention policy with automated lifecycle | 5 days |
 | P2-8 | Implement NDB technical detection and notification | 5 days |
 

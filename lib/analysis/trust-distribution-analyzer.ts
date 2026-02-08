@@ -288,15 +288,18 @@ function calculateBeneficiaryRisk(
     riskFactors.push(`High UPE ratio (${(upeRatio * 100).toFixed(0)}% of distributions unpaid)`);
   }
 
-  // Risk Reduction: Ordinary family dealing exclusion (TR 2022/4 / s 100A ITAA 1936)
+  // Risk Reduction: Ordinary family dealing exclusion (TR 2022/4 / s 100A(13) ITAA 1936)
   // Distributions to family members for ordinary family purposes are excluded from s 100A
-  // when there is no reimbursement pattern
+  // when there is no reimbursement agreement. TR 2022/4 Examples 12-16 clarify that routine
+  // distributions to family members (adult children, spouses, family companies/trusts) without
+  // a reimbursement pattern are generally ordinary family dealings.
   if (firstDist.is_related_party && firstDist.is_family_member && !firstDist.has_reimbursement_pattern) {
-    const reduction = Math.min(20, riskScore); // Reduce by up to 20 points, not below 0
+    const reduction = Math.min(40, riskScore); // Substantial reduction — exclusion likely applies
     riskScore -= reduction;
     riskFactors.push(
-      'Family dealing exclusion may apply (TR 2022/4): distribution to family member without ' +
-      'reimbursement pattern. Risk reduced. Professional review recommended to confirm exclusion applies.'
+      'Ordinary family dealing exclusion likely applies (s 100A(13) ITAA 1936, TR 2022/4): ' +
+      'distribution to related-party family member with no reimbursement agreement detected. ' +
+      'Section 100A unlikely to apply. Professional review recommended to confirm exclusion.'
     );
   }
 
@@ -321,7 +324,16 @@ function generateSection100AFlags(
   const totalAmount = distributions.reduce((sum, d) => sum + d.distribution_amount, 0);
   const totalUPE = distributions.reduce((sum, d) => sum + (d.upe_balance || 0), 0);
 
+  // T-1 fix: Ordinary family dealing exclusion (s 100A(13) ITAA 1936, TR 2022/4)
+  // When ALL conditions met, s 100A is unlikely to apply — downgrade flag severity.
+  // Conditions: related party + family member + no reimbursement agreement detected.
+  const familyDealingApplies =
+    firstDist.is_related_party === true &&
+    firstDist.is_family_member === true &&
+    !firstDist.has_reimbursement_pattern;
+
   // Flag 1: Reimbursement agreement
+  // Note: familyDealingApplies is always false here (requires !has_reimbursement_pattern)
   if (firstDist.has_reimbursement_pattern) {
     flags.push({
       flag_type: 'reimbursement_agreement',
@@ -331,43 +343,53 @@ function generateSection100AFlags(
       beneficiary_name: beneficiaryName,
       amount: totalAmount,
       recommendation: 'URGENT: Review for Section 100A reimbursement agreement. If ATO determines agreement exists, distribution may be assessed to trustee at 47% (top marginal rate 45% + 2% Medicare Levy per s 99A ITAA 1936). Obtain legal advice immediately.',
-      familyDealingNote: firstDist.is_family_member && !firstDist.has_reimbursement_pattern
-        ? 'Note: Beneficiary is a family member. However, a reimbursement pattern was detected which overrides ' +
-          'the ordinary family dealing exclusion under TR 2022/4.'
+      familyDealingNote: firstDist.is_family_member
+        ? 'Beneficiary is a family member but a reimbursement pattern was detected. The ordinary family dealing ' +
+          'exclusion under TR 2022/4 does NOT apply when a reimbursement agreement exists.'
         : undefined,
     });
   }
 
   // Flag 2: Non-resident distribution
+  // TR 2022/4 Example 16: family dealing may apply to non-resident family members
+  // but ATO scrutiny is increased. Downgrade severity when exclusion applies.
   if (firstDist.is_non_resident) {
     flags.push({
       flag_type: 'non_resident_distribution',
-      severity: 'high',
-      description: `Distribution of $${totalAmount.toLocaleString()} to non-resident beneficiary.`,
+      severity: familyDealingApplies ? 'medium' : 'high',
+      description: familyDealingApplies
+        ? `Distribution of $${totalAmount.toLocaleString()} to non-resident family member. Ordinary family dealing exclusion (s 100A(13)) may apply but non-resident status warrants review.`
+        : `Distribution of $${totalAmount.toLocaleString()} to non-resident beneficiary.`,
       beneficiary_id: beneficiaryId,
       beneficiary_name: beneficiaryName,
       amount: totalAmount,
-      recommendation: 'Review for Section 100A application. Non-resident distributions are high-risk for ATO scrutiny. Ensure proper withholding tax applied and genuine economic substance.',
-      familyDealingNote: firstDist.is_family_member
-        ? 'Note: Beneficiary is a family member but is non-resident. Family dealing exclusion under TR 2022/4 ' +
-          'may still apply but non-resident status increases ATO scrutiny.'
+      recommendation: familyDealingApplies
+        ? 'Non-resident family member distribution. Ordinary family dealing exclusion (TR 2022/4) likely applies but ATO may scrutinise non-resident distributions more closely. Ensure withholding tax applied and document family relationship.'
+        : 'Review for Section 100A application. Non-resident distributions are high-risk for ATO scrutiny. Ensure proper withholding tax applied and genuine economic substance.',
+      familyDealingNote: familyDealingApplies
+        ? 'Ordinary family dealing exclusion (s 100A(13), TR 2022/4) likely applies. Severity reduced from high to medium. Non-resident status still warrants professional review.'
         : undefined,
     });
   }
 
   // Flag 3: Minor beneficiary
+  // TR 2022/4: distributions genuinely for a minor family member's benefit qualify
+  // for the family dealing exclusion. Downgrade severity when exclusion applies.
   if (firstDist.is_minor) {
     flags.push({
       flag_type: 'minor_distribution',
-      severity: 'high',
-      description: `Distribution of $${totalAmount.toLocaleString()} to minor beneficiary (under 18).`,
+      severity: familyDealingApplies ? 'low' : 'high',
+      description: familyDealingApplies
+        ? `Distribution of $${totalAmount.toLocaleString()} to minor family member (under 18). Ordinary family dealing exclusion (s 100A(13)) likely applies.`
+        : `Distribution of $${totalAmount.toLocaleString()} to minor beneficiary (under 18).`,
       beneficiary_id: beneficiaryId,
       beneficiary_name: beneficiaryName,
       amount: totalAmount,
-      recommendation: `Excepted income for minors limited to $1,307 (FY2024-25). Excess taxed at 66%. Review if distribution genuinely for minor's benefit and not a reimbursement agreement.`,
-      familyDealingNote: firstDist.is_family_member
-        ? 'Note: Minor beneficiary is a family member. Family dealing exclusion under TR 2022/4 ' +
-          'may apply for distributions genuinely for the minor\'s benefit.'
+      recommendation: familyDealingApplies
+        ? `Minor family member distribution. Ordinary family dealing exclusion (TR 2022/4) likely applies for distributions genuinely for the minor's benefit. Excepted income for minors limited to $1,307 (FY2024-25); excess taxed at 66%. Section 100A unlikely to apply.`
+        : `Excepted income for minors limited to $1,307 (FY2024-25). Excess taxed at 66%. Review if distribution genuinely for minor's benefit and not a reimbursement agreement.`,
+      familyDealingNote: familyDealingApplies
+        ? 'Ordinary family dealing exclusion (s 100A(13), TR 2022/4) likely applies. Severity reduced from high to low. Minor income penalty rules still apply independently.'
         : undefined,
     });
   }
@@ -470,10 +492,17 @@ function generateComplianceSummary(
 
   let summary = `Trust "${trustName}" distributed $${totalDistributed.toLocaleString()} to ${beneficiaryCount} beneficiaries in ${fy}. `;
 
+  // Count flags where family dealing exclusion reduced severity
+  const familyDealingReducedFlags = flags.filter(f => f.familyDealingNote?.includes('Severity reduced')).length;
+
   if (flagCount === 0 && upeSummary.total_upe_balance === 0) {
     summary += 'No Section 100A compliance issues detected. All distributions appear to be genuine beneficiary entitlements with no reimbursement agreements.';
   } else {
     summary += `Identified ${flagCount} potential Section 100A compliance issues. `;
+
+    if (familyDealingReducedFlags > 0) {
+      summary += `${familyDealingReducedFlags} flag(s) had severity reduced due to ordinary family dealing exclusion (s 100A(13), TR 2022/4). `;
+    }
 
     if (upeSummary.total_upe_balance > 0) {
       summary += `UPE balance of $${upeSummary.total_upe_balance.toLocaleString()} requires monitoring for Division 7A implications. `;
