@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authMiddleware, type AuthResult } from './middleware'
 import { requireTenantAccess, createForbiddenResponse } from './tenant-guard'
+import { isSingleUserMode } from './single-user-check'
 
 /**
  * Result of authentication and tenant validation
@@ -59,6 +60,28 @@ export async function requireAuth(
     tenantIdParam = 'tenantId',
     skipTenantValidation = false
   } = options
+
+  // Single-user mode: Skip authentication entirely, extract tenantId from request
+  if (isSingleUserMode()) {
+    let tenantId: string | null = null
+
+    if (tenantIdSource === 'query') {
+      tenantId = request.nextUrl.searchParams.get(tenantIdParam)
+    } else if (tenantIdSource === 'body') {
+      try {
+        const body = await request.clone().json()
+        tenantId = body[tenantIdParam]
+      } catch {
+        // Body parsing failed
+      }
+    }
+
+    return {
+      user: { id: 'single-user', email: undefined },
+      tenantId: tenantId || '',
+      supabase: null as unknown as AuthResult['supabase']
+    }
+  }
 
   // Step 1: Authenticate user
   const authResult = await authMiddleware(request)
@@ -124,6 +147,12 @@ export async function requireAuth(
 export async function requireAuthOnly(
   request: NextRequest
 ): Promise<AuthResult | NextResponse> {
+  if (isSingleUserMode()) {
+    return {
+      user: { id: 'single-user', email: undefined },
+      supabase: null as unknown as AuthResult['supabase']
+    }
+  }
   return authMiddleware(request)
 }
 

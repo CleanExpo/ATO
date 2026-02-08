@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createErrorResponse } from '@/lib/api/errors'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
@@ -11,7 +11,7 @@ const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true'
 // In multi-user mode: Returns only connections user has access to
 export async function GET(request: NextRequest) {
     try {
-        const supabase = await createServiceClient()
+        const supabase = createAdminClient()
 
         // Single-user mode: Return all connections without auth
         if (SINGLE_USER_MODE) {
