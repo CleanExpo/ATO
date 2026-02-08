@@ -1184,7 +1184,7 @@ The codebase demonstrates good engineering practices (encryption, validation, te
 - Projections are not financial advice under Corporations Act 2001.
 - Must include assumptions list, "estimates only" disclaimer, and ASIC RG 234 compliance note.
 
-### 12. Remediation Status Tracker (Updated 2026-02-07)
+### 12. Remediation Status Tracker (Updated 2026-02-08)
 
 Backend_Dev has accepted ALL critical and high findings from this audit and incorporated them into a Phase 0 remediation plan (see `plan.md` sections 13-16). Phase 0 executes BEFORE any new engine development.
 
@@ -1202,6 +1202,7 @@ Backend_Dev has accepted ALL critical and high findings from this audit and inco
 | Mid-year rate changes | HIGH | ACCEPTED | `POST /api/tax-data/refresh` endpoint + `forceRefresh` parameter |
 | Quarterly fuel rates | MEDIUM | ACCEPTED | Per-quarter rate lookup replacing annual rate |
 | Data sovereignty | MEDIUM | ACCEPTED | `DATA_SOVEREIGNTY.md` documenting ap-southeast-2 + syd1 deployment |
+| Data minimisation (APP 8) | MEDIUM | FIXED (2026-02-08) | Supplier names anonymised via `lib/ai/pii-sanitizer.ts` before Gemini API calls. Applied in `forensic-analyzer.ts` and `account-classifier.ts` |
 
 #### Deferred Findings (Not Yet in Phase 0 -- Tracked for Phase 1+)
 
@@ -1239,7 +1240,7 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 2. **Shared report viewer**: ~~Add TaxDisclaimer to `/app/share/[token]/page.tsx`~~ **FIXED 2026-02-07** -- TaxDisclaimer present on success, password, and error states
 3. **Pre-OAuth consent interstitial**: ~~Build real page at `/dashboard/connect`~~ **FIXED 2026-02-07** -- Added cross-border AI data processing disclosure (APP 8), Gemini AI consent, updated checkbox text
 
-#### Phase 0 Compliance Fixes Applied (2026-02-07)
+#### Phase 0 Compliance Fixes Applied (2026-02-07, 2026-02-08)
 
 | Fix | File | Description |
 |-----|------|-------------|
@@ -1251,6 +1252,7 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | DATA_SOVEREIGNTY.md | `DATA_SOVEREIGNTY.md` | Consent notice marked as implemented, section 4.5 added |
 | FBT Type 1/Type 2 | `lib/analysis/fbt-engine.ts` | Per-item GST credit analysis replacing naive keyword matching |
 | Shared report disclaimer | `app/share/[token]/page.tsx` | TaxDisclaimer added to password-required state |
+| APP 8 data minimisation | `lib/ai/pii-sanitizer.ts`, `lib/ai/forensic-analyzer.ts`, `lib/ai/account-classifier.ts` | Supplier names anonymised with `Supplier_N` tokens before Gemini API calls (2026-02-08) |
 
 ---
 
@@ -1439,7 +1441,7 @@ Code bug at `lib/analysis/fbt-engine.ts:152-163` -- live rates are fetched but N
 
 - **Phase 0** (BEFORE production): 8 items -- consent notices, region confirmation, disclaimer fix, FBT rate bug, legal opinion, Privacy Officer
 - **Phase 1** (within 30 days): 8 items -- DPA execution, FBT Type 1/2 determination, CSP headers, distributed rate limiting, trust penalty rate fix, SG rate update
-- **Phase 2** (within 90 days): 8 items -- data minimisation for Gemini, CGT connected entities, s 100A family dealing, quarterly fuel rates, amendment period checks, R&D clawback, retention policy, NDB detection
+- **Phase 2** (within 90 days): 7 items -- ~~data minimisation for Gemini~~ (DONE 2026-02-08), CGT connected entities, s 100A family dealing, quarterly fuel rates, amendment period checks, R&D clawback, retention policy, NDB detection
 
 ---
 
