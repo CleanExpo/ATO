@@ -13,7 +13,7 @@ const log = createLogger('api:auth:myob-callback')
 const MYOB_TOKEN_URL = 'https://secure.myob.com/oauth2/v1/authorize'
 const MYOB_CLIENT_ID = process.env.MYOB_CLIENT_ID || ''
 const MYOB_CLIENT_SECRET = process.env.MYOB_CLIENT_SECRET || ''
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL}/api/auth/myob/callback`
+const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/myob/callback`
 
 /**
  * GET /api/auth/myob/callback

@@ -10,7 +10,7 @@ import crypto from 'crypto'
 
 const MYOB_AUTH_URL = 'https://secure.myob.com/oauth2/account/authorize'
 const MYOB_CLIENT_ID = process.env.MYOB_CLIENT_ID || ''
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL || process.env.NEXT_PUBLIC_APP_URL}/api/auth/myob/callback`
+const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/myob/callback`
 
 /**
  * GET /api/auth/myob/authorize
