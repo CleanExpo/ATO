@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:audit:recommendations:detail')
@@ -104,7 +104,7 @@ export async function PATCH(
     }
     const dbStatus = status ? (statusMap[status] || status) : undefined
 
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     // Insert a new status row (append-only status history)
     const { error: insertError } = await supabase

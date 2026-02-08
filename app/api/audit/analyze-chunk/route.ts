@@ -22,7 +22,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createValidationError } from '@/lib/api/errors'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext, type BusinessContext, type ForensicAnalysis } from '@/lib/ai/forensic-analyzer'
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
 
         log.info('Processing batch', { batch, batchSize, tenantId })
 
-        const supabase = await createServiceClient()
+        const supabase = createAdminClient()
 
         // Get all cached transactions
         const allTransactions = await getCachedTransactions(tenantId)
@@ -419,7 +419,7 @@ export async function GET(request: NextRequest) {
         return createValidationError('Multi-user mode not supported')
     }
 
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     // Get sync status
     const { data: status } = await supabase

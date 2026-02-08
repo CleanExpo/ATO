@@ -18,7 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import cacheManager, { CacheTTL } from '@/lib/cache/cache-manager'
 import { createLogger } from '@/lib/logger'
 
@@ -56,7 +56,7 @@ async function getCostMonitoringData(
   startDate?: string,
   endDate?: string
 ) {
-  const supabase = await createServiceClient()
+  const supabase = createAdminClient()
 
   // Build query with optional date filters
   let query = supabase

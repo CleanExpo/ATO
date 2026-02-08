@@ -18,7 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
 import { generateXeroUrl } from '@/lib/xero/url-generator'
@@ -119,7 +119,7 @@ export async function GET(
     }
 
     // Fetch transactions from cache
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     // Get total count
     const { count: totalCount } = await supabase

@@ -8,7 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
         log.info('Resetting analysis status', { tenantId })
 
-        const supabase = await createServiceClient()
+        const supabase = createAdminClient()
 
         // Reset the status to 'idle'
         const { error } = await supabase

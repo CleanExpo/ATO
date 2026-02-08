@@ -9,7 +9,7 @@
  * - Database storage
  */
 
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 import { getCachedTransactions, type HistoricalTransaction } from '@/lib/xero/historical-fetcher'
 import { getCachedMYOBTransactions, type MYOBHistoricalTransaction } from '@/lib/integrations/myob-historical-fetcher'
@@ -63,7 +63,7 @@ export async function analyzeAllTransactions(
     const platform = options.platform || 'xero' // Default to Xero for backwards compatibility
 
     // Use service client to bypass RLS for server-side operations
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     // Initialize progress
     const progress: AnalysisProgress = {
@@ -535,7 +535,7 @@ async function storeAnalysisResults(
     platform: string = 'xero'
 ): Promise<void> {
     // Use service client to bypass RLS for server-side operations
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     // Map analyses to database schema
     const records = analyses.map((analysis, index) => {
@@ -643,7 +643,7 @@ async function updateAnalysisProgress(
     platform: string = 'xero'
 ): Promise<void> {
     // Use service client to bypass RLS for server-side operations
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     // Store in audit_sync_status table (reuse existing table)
     // In a real system, you'd have a separate analysis_status table
@@ -676,7 +676,7 @@ async function trackAnalysisCost(
     platform: string = 'xero'
 ): Promise<void> {
     // Use service client to bypass RLS for server-side operations
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     const costEstimate = estimateAnalysisCost(transactionCount)
     const modelInfo = getModelInfo()
@@ -720,7 +720,7 @@ function calculateFinancialYear(date: string | Date): string {
  */
 export async function getAnalysisStatus(tenantId: string): Promise<AnalysisProgress | null> {
     // Use service client to bypass RLS for server-side operations
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     const { data, error } = await supabase
         .from('audit_sync_status')
@@ -763,7 +763,7 @@ export async function getAnalysisResults(
     }
 ): Promise<ForensicAnalysisRow[]> {
     // Use service client to bypass RLS for server-side operations
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     let query = supabase
         .from('forensic_analysis_results')
@@ -806,7 +806,7 @@ export async function getCostSummary(tenantId: string): Promise<{
     costPerTransaction: number
 }> {
     // Use service client to bypass RLS for server-side operations
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     const { data, error } = await supabase
         .from('ai_analysis_costs')

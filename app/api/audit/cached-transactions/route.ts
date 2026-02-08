@@ -17,7 +17,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         log.info('Getting cached transactions', { tenantId, financialYear: financialYear || 'all', page })
 
         // Get total count first
-        const supabase = await createServiceClient()
+        const supabase = createAdminClient()
 
         let countQuery = supabase
             .from('historical_transactions_cache')

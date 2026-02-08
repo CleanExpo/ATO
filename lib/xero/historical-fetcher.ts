@@ -14,7 +14,7 @@
 import { XeroClient } from 'xero-node'
 import { createXeroClient, refreshXeroTokens, isTokenExpired, type TokenSetInput } from '@/lib/xero/client'
 import { withRetry } from '@/lib/xero/retry'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient, createServiceClient } from '@/lib/supabase/server'
 import { getFinancialYears, type FinancialYear } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
 
@@ -248,7 +248,7 @@ async function cacheTransactions(
 ): Promise<void> {
     if (transactions.length === 0) return
 
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     // Batch insert transactions
     // Filter out transactions without IDs and map to cache records
@@ -321,7 +321,7 @@ async function cacheTransactions(
  * Update sync status in database
  */
 async function updateSyncStatus(tenantId: string, status: SyncProgress): Promise<void> {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const { error } = await supabase
         .from('audit_sync_status')
@@ -352,7 +352,7 @@ async function updateSyncStatus(tenantId: string, status: SyncProgress): Promise
  * Get sync status for a tenant
  */
 export async function getSyncStatus(tenantId: string): Promise<SyncProgress | null> {
-    const supabase = await createClient()
+    const supabase = createAdminClient()
 
     const { data, error } = await supabase
         .from('audit_sync_status')
@@ -388,8 +388,8 @@ export async function getCachedTransactions(
     tenantId: string,
     financialYear?: string
 ): Promise<HistoricalTransaction[]> {
-    // Use service client to bypass RLS for server-side operations
-    const supabase = await createServiceClient()
+    // Use admin client to bypass RLS for server-side operations
+    const supabase = createAdminClient()
 
     // Supabase has a default 1000 row limit - we need to paginate to get all records
     const allRecords: HistoricalTransaction[] = []

@@ -9,7 +9,7 @@
  * - Budget monitoring
  */
 
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 import { getCachedTransactions, type HistoricalTransaction } from '@/lib/xero/historical-fetcher'
 import {
@@ -76,7 +76,7 @@ export async function analyzeAllTransactionsOptimized(
     onEnhancedProgress,
   } = options
 
-  const supabase = await createServiceClient()
+  const supabase = createAdminClient()
   const performanceTracker = new PerformanceTracker()
   const analysisStartTime = new Date()
 
@@ -379,7 +379,7 @@ async function storeAnalysisResults(
   analyses: ForensicAnalysis[],
   originalTransactions: HistoricalTransaction[]
 ): Promise<void> {
-  const supabase = await createServiceClient()
+  const supabase = createAdminClient()
 
   const records = analyses.map((analysis, index) => {
     const txn = originalTransactions[index]
@@ -437,7 +437,7 @@ async function storeAnalysisResults(
 }
 
 async function updateAnalysisProgress(tenantId: string, progress: EnhancedProgress): Promise<void> {
-  const supabase = await createServiceClient()
+  const supabase = createAdminClient()
 
   const { error } = await supabase.from('audit_sync_status').upsert(
     {
@@ -463,7 +463,7 @@ async function trackAnalysisCost(
   transactionCount: number,
   costUSD: number
 ): Promise<void> {
-  const supabase = await createServiceClient()
+  const supabase = createAdminClient()
   const costEstimate = estimateAnalysisCost(transactionCount)
   const modelInfo = getModelInfo()
 

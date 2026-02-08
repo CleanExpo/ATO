@@ -22,7 +22,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { generatePDFReportData, generatePDFReportHTML } from '@/lib/reports/pdf-generator'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import ExcelJS from 'exceljs'
 import archiver from 'archiver'
 import { createLogger } from '@/lib/logger'
@@ -125,7 +125,7 @@ async function fetchTransactions(
   filters?: ExportFilters,
   selectedIds?: string[]
 ): Promise<ForensicAnalysisRow[]> {
-  const supabase = await createServiceClient()
+  const supabase = createAdminClient()
 
   let query = supabase
     .from('forensic_analysis_results')

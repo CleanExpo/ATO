@@ -1,5 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseAdminClient, type SupabaseClient } from '@supabase/supabase-js'
 
 /** Type alias for the Supabase service client used across analysis engines and report generators */
 export type SupabaseServiceClient = SupabaseClient
@@ -96,4 +96,34 @@ export async function createServiceClient() {
             'Supabase service client initialization failed. Please check your environment variables.'
         )
     }
+}
+
+/**
+ * Create a true admin client that bypasses Row-Level Security (RLS).
+ *
+ * Uses @supabase/supabase-js createClient directly (NOT @supabase/ssr createServerClient)
+ * so the service role key is used for BOTH the apikey AND Authorization headers.
+ * This means auth.uid() is NULL and the client operates as service_role, bypassing all RLS.
+ *
+ * Use this for:
+ * - Background jobs (sync, analysis) that run without a user session
+ * - Server-side operations that need to read/write across all tenants
+ * - Single-user mode where there is no Supabase auth user
+ *
+ * Do NOT use this for:
+ * - Operations where you need the current user's identity (use createServiceClient instead)
+ * - Client-side code (use createClient instead)
+ */
+export function createAdminClient(): SupabaseClient {
+    return createSupabaseAdminClient(
+        clientConfig.supabase.url,
+        serverConfig.supabase.serviceRoleKey,
+        {
+            auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false,
+            },
+        }
+    )
 }

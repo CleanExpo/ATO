@@ -25,7 +25,7 @@ import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 import { requireTenantAccess } from '@/lib/auth/tenant-guard'
 import { getAnalysisStatus } from '@/lib/ai/batch-processor'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 
@@ -95,7 +95,7 @@ export async function GET(
 
         if (status.status === 'analyzing' || status.status === 'complete') {
             try {
-                const supabase = await createServiceClient()
+                const supabase = createAdminClient()
                 const { data: statsData } = await supabase
                     .from('forensic_analysis_results')
                     .select('is_rnd_candidate, claimable_amount, division7a_risk')

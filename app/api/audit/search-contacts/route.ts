@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { createLogger } from '@/lib/logger'
 
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
         log.info('Searching contacts', { search, tenantId })
 
-        const supabase = await createServiceClient()
+        const supabase = createAdminClient()
 
         // Search for transactions with matching contact name
         const { data, error } = await supabase

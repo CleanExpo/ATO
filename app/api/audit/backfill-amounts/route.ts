@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createValidationError } from '@/lib/api/errors'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     // Find forensic_analysis_results with NULL transaction_amount
     // and backfill from historical_transactions_cache

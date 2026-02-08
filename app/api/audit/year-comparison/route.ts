@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createValidationError } from '@/lib/api/errors'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     if (!tenantId) {
       return createValidationError('tenantId is required')
     }
-    supabase = await createServiceClient()
+    supabase = createAdminClient()
   } else {
     const auth = await requireAuth(request)
     if (isErrorResponse(auth)) return auth

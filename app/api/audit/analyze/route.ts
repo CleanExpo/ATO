@@ -192,9 +192,9 @@ export async function GET(request: NextRequest) {
 }
 
 async function getCachedTransactionCount(tenantId: string, platform: string = 'xero'): Promise<number> {
-    // Use a count query instead of loading all records into memory
-    const { createServiceClient } = await import('@/lib/supabase/server')
-    const supabase = await createServiceClient()
+    // Use admin client to bypass RLS for server-side operations
+    const { createAdminClient } = await import('@/lib/supabase/server')
+    const supabase = createAdminClient()
 
     if (platform === 'xero' || platform === 'myob' || platform === 'quickbooks') {
         // First try with platform filter

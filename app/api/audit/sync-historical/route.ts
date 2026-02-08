@@ -19,7 +19,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
@@ -35,7 +35,7 @@ export const maxDuration = 300 // 5 minutes for Vercel Pro
 
 // Helper to get valid token set for a tenant (with optional organization filtering)
 async function getValidTokenSet(tenantId: string, baseUrl?: string, organizationId?: string): Promise<TokenSet | null> {
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     let query = supabase
         .from('xero_connections')

@@ -23,7 +23,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
@@ -52,7 +52,7 @@ const TRANSACTION_TYPES = ['BANK', 'ACCPAY', 'ACCREC'] as const
 
 // Get valid token set for a tenant
 async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<TokenSet | null> {
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
 
     const { data: connection, error } = await supabase
         .from('xero_connections')
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
         log.info('Fetched transactions', { count: transactions.length, type, fetchTimeMs: fetchTime })
 
         // Cache transactions to database
-        const supabase = await createServiceClient()
+        const supabase = createAdminClient()
         let cachedCount = 0
 
         if (transactions.length > 0) {
@@ -341,7 +341,7 @@ export async function GET(request: NextRequest) {
         if (isErrorResponse(auth)) return auth
         tenantId = auth.tenantId
     }
-    const supabase = await createServiceClient()
+    const supabase = createAdminClient()
     
     const { data: status } = await supabase
         .from('audit_sync_status')
