@@ -7,6 +7,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AlertsList from '@/components/alerts/AlertsList'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 export const metadata = {
   title: 'Tax Alerts | Australian Tax Optimizer',
@@ -41,6 +42,8 @@ export default async function AlertsPage() {
 
         {/* Alerts List */}
         <AlertsList tenantId={user.id} />
+
+        <TaxDisclaimer />
       </div>
     </div>
   )

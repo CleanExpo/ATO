@@ -22,6 +22,7 @@ import {
     CreditCard
 } from 'lucide-react'
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 interface XeroConnection {
     tenant_id: string
@@ -49,11 +50,11 @@ interface MYOBConnection {
 }
 
 export default function SettingsPage() {
-    const [businessName, setBusinessName] = useState('Disaster Recovery Qld')
-    const [businessABN, setBusinessABN] = useState('42 633 062 307')
-    const [accountantName, setAccountantName] = useState('Peter Turner')
-    const [accountantEmail, setAccountantEmail] = useState('peter@tkm.com.au')
-    const [accountantFirm, setAccountantFirm] = useState('TKM Accountants')
+    const [businessName, setBusinessName] = useState('')
+    const [businessABN, setBusinessABN] = useState('')
+    const [accountantName, setAccountantName] = useState('')
+    const [accountantEmail, setAccountantEmail] = useState('')
+    const [accountantFirm, setAccountantFirm] = useState('')
     const [saved, setSaved] = useState(false)
     const [xeroConnections, setXeroConnections] = useState<XeroConnection[]>([])
     const [xeroLoading, setXeroLoading] = useState(true)
@@ -71,7 +72,12 @@ export default function SettingsPage() {
                 const res = await fetch('/api/xero/organizations')
                 if (!res.ok) throw new Error(`Failed to fetch connections: ${res.status}`)
                 const data = await res.json()
-                setXeroConnections(data.connections || [])
+                const connections = data.connections || []
+                setXeroConnections(connections)
+                // Auto-populate business name from first connection if empty
+                if (connections.length > 0 && !businessName) {
+                    setBusinessName(connections[0].organisation_name || connections[0].tenant_name || '')
+                }
             } catch (err) {
                 console.error('Error fetching Xero connections:', err)
                 setXeroError(err instanceof Error ? err.message : 'Failed to load Xero connections')
@@ -80,6 +86,7 @@ export default function SettingsPage() {
             }
         }
         fetchXeroConnections()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     useEffect(() => {
@@ -577,6 +584,8 @@ export default function SettingsPage() {
                         </p>
                     </div>
                 </div>
+
+                <TaxDisclaimer />
             </div>
         </div>
     )

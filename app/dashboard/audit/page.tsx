@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import {
     ArrowLeft,
     Filter,
@@ -444,6 +445,7 @@ export default function TaxAuditPage() {
                 )}
             </main>
 
+            <TaxDisclaimer />
         </div>
     )
 }
