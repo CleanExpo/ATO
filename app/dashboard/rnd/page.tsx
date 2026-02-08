@@ -1,12 +1,13 @@
 /**
  * R&D Risk & Opportunity Assessment - v8.1 Scientific Luxury Tier
- * 
+ *
  * Deep forensic analysis of eligible R&D activities under Division 355.
+ * Data sourced from /api/audit/rnd-summary (real Xero transaction analysis).
  */
 
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Beaker,
@@ -18,11 +19,32 @@ import {
     Download,
     DollarSign,
     ExternalLink,
-    ChevronRight
+    ChevronRight,
+    AlertTriangle,
+    Loader2
 } from 'lucide-react'
 import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+
+interface RndProject {
+    id: string
+    name: string
+    category: string
+    totalSpend: number
+    transactionCount: number
+    avgConfidence: number
+    financialYears: string[]
+    eligibleActivities: string[]
+}
+
+interface RndSummary {
+    totalProjects: number
+    totalEligibleExpenditure: number
+    totalEstimatedOffset: number
+    offsetRate: number
+    projects: RndProject[]
+}
 
 const SectionHeading = ({ icon: Icon, title, badge }: { icon: React.ComponentType<{ className?: string }>; title: string; badge?: string }) => (
     <div className="flex items-center justify-between mb-8 pb-4 border-b border-white/10">
@@ -60,31 +82,157 @@ const CriteriaPill = ({ label, score, max = 3 }: { label: string; score: number;
     </div>
 );
 
+/** Calculate R&D registration deadline: 10 months after FY end (30 June). */
+function getRndDeadline(): { fyLabel: string; deadlineDate: Date; deadlineLabel: string; daysRemaining: number; progressPercent: number } {
+    const now = new Date()
+    const month = now.getMonth()
+    const year = now.getFullYear()
+
+    // Determine the most recent completed FY (or current if past June 30)
+    // R&D registration is for the PRIOR completed FY
+    const fyStartYear = month >= 6 ? year - 1 : year - 2
+    const fyEndYear = fyStartYear + 1
+    const fyEndShort = String(fyEndYear).slice(-2)
+    const fyLabel = `FY${fyStartYear}-${fyEndShort}`
+
+    // Deadline is 10 months after FY end (30 June) = 30 April next year
+    const deadlineDate = new Date(fyEndYear + 1, 3, 30) // April 30 of year after FY end
+    const deadlineLabel = `April 30, ${fyEndYear + 1}`
+
+    const msRemaining = deadlineDate.getTime() - now.getTime()
+    const daysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)))
+
+    // Progress: 10-month window = ~304 days
+    const fyEndDate = new Date(fyEndYear, 5, 30) // June 30
+    const totalWindow = deadlineDate.getTime() - fyEndDate.getTime()
+    const elapsed = now.getTime() - fyEndDate.getTime()
+    const progressPercent = Math.min(100, Math.max(0, (elapsed / totalWindow) * 100))
+
+    return { fyLabel, deadlineDate, deadlineLabel, daysRemaining, progressPercent }
+}
+
+/** Convert avgConfidence (0-100) to a 0-3 score for CriteriaPill. */
+function confidenceToScore(confidence: number): number {
+    if (confidence >= 85) return 3
+    if (confidence >= 70) return 2
+    if (confidence >= 55) return 1
+    return 0
+}
+
 export default function RnDAssessmentPage() {
     const [loading, setLoading] = useState(true)
     const [activeTab, setActiveTab] = useState('candidates')
-    const [_activeTenantId, _setActiveTenantId] = useState<string>('')
-
-    // Real data would come from API, but we'll use our scouted intelligence
-    const stats = {
-        expenditureLive: 14250.32,
-        offsetProjected: 6198.89,
-        candidateCount: 8,
-        confidenceScore: 92
-    }
+    const [tenantId, setTenantId] = useState<string | null>(null)
+    const [rndData, setRndData] = useState<RndSummary | null>(null)
+    const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        // Simulate loading data
-        const timer = setTimeout(() => setLoading(false), 1200)
-        return () => clearTimeout(timer)
+        const fetchTenant = async () => {
+            try {
+                const res = await fetch('/api/xero/organizations')
+                const data = await res.json()
+                if (data.connections?.length > 0) {
+                    setTenantId(data.connections[0].tenant_id)
+                } else {
+                    setLoading(false)
+                }
+            } catch (err) {
+                console.error('Failed to fetch tenant:', err)
+                setLoading(false)
+            }
+        }
+        fetchTenant()
     }, [])
+
+    const fetchRndData = useCallback(async (id: string) => {
+        try {
+            setLoading(true)
+            const res = await fetch(`/api/audit/rnd-summary?tenantId=${encodeURIComponent(id)}`)
+            if (!res.ok) throw new Error('Failed to fetch R&D summary')
+            const data: RndSummary = await res.json()
+            setRndData(data)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Unknown error')
+        } finally {
+            setLoading(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (tenantId) {
+            fetchRndData(tenantId)
+        }
+    }, [tenantId, fetchRndData])
+
+    const deadline = useMemo(() => getRndDeadline(), [])
+
+    const avgConfidence = useMemo(() => {
+        if (!rndData?.projects?.length) return 0
+        const total = rndData.projects.reduce((sum, p) => sum + p.avgConfidence, 0)
+        return Math.round(total / rndData.projects.length)
+    }, [rndData])
+
+    const hasData = rndData && rndData.projects.length > 0
+
+    const legislativeTestStatuses = useMemo(() => {
+        if (!hasData) {
+            return [
+                { label: 'Experimental Nature', status: 'Pending Analysis' },
+                { label: 'Systematic Progression', status: 'Pending Analysis' },
+                { label: 'Science Principles', status: 'Pending Analysis' },
+                { label: 'High Uncertainty', status: 'Pending Analysis' }
+            ]
+        }
+        // Derive status from average confidence across all projects
+        return [
+            { label: 'Experimental Nature', status: avgConfidence >= 80 ? 'Evidence Found' : avgConfidence >= 60 ? 'Verifying' : 'Inconclusive' },
+            { label: 'Systematic Progression', status: avgConfidence >= 75 ? 'Identified' : avgConfidence >= 55 ? 'Verifying' : 'Inconclusive' },
+            { label: 'Science Principles', status: avgConfidence >= 80 ? 'Evidence Found' : avgConfidence >= 60 ? 'Verifying' : 'Inconclusive' },
+            { label: 'High Uncertainty', status: avgConfidence >= 85 ? 'Confirmed' : avgConfidence >= 65 ? 'Verifying' : 'Inconclusive' }
+        ]
+    }, [hasData, avgConfidence])
 
     if (loading) return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-dashboard)] space-y-8">
-            <div className="w-16 h-16 rounded-3xl border-2 border-sky-500/20 border-t-sky-500 animate-spin" />
+            <Loader2 className="w-16 h-16 text-sky-500 animate-spin" />
             <p className="text-xs font-black text-sky-400 uppercase tracking-widest animate-pulse">Scanning Legislative Matrix</p>
         </div>
     )
+
+    if (!tenantId) return (
+        <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center p-8">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card max-w-md p-12 text-center space-y-6 border border-white/10">
+                <div className="w-16 h-16 bg-sky-500/10 rounded-2xl flex items-center justify-center mx-auto">
+                    <Beaker className="w-8 h-8 text-sky-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white">No Connection Detected</h2>
+                <p className="text-white/40">Connect your Xero account to identify eligible R&D activities under Division 355.</p>
+                <Link href="/dashboard/settings" className="btn btn-primary block w-full">
+                    Establish Connection
+                </Link>
+            </motion.div>
+        </div>
+    )
+
+    if (error) return (
+        <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center p-8">
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card max-w-md p-12 text-center space-y-6 border border-white/10">
+                <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto" />
+                <h2 className="text-2xl font-bold text-white">Analysis Error</h2>
+                <p className="text-white/40">{error}</p>
+                <button onClick={() => tenantId && fetchRndData(tenantId)} className="btn btn-primary block w-full">
+                    Retry Analysis
+                </button>
+            </motion.div>
+        </div>
+    )
+
+    const stats = {
+        expenditureLive: rndData?.totalEligibleExpenditure ?? 0,
+        offsetProjected: rndData?.totalEstimatedOffset ?? 0,
+        candidateCount: rndData?.totalProjects ?? 0,
+        confidenceScore: avgConfidence
+    }
 
     return (
         <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -116,10 +264,10 @@ export default function RnDAssessmentPage() {
                 {/* Global Impact Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                     {[
-                        { label: 'Identified Spend', value: stats.expenditureLive, format: 'currency' as const, icon: DollarSign, color: 'text-white' },
-                        { label: 'Refundable Offset', value: stats.offsetProjected, format: 'currency' as const, icon: Zap, color: 'text-emerald-400' },
+                        { label: 'Identified Spend (Est.)', value: stats.expenditureLive, format: 'currency' as const, icon: DollarSign, color: 'text-white' },
+                        { label: 'Refundable Offset (Est.)', value: stats.offsetProjected, format: 'currency' as const, icon: Zap, color: 'text-emerald-400' },
                         { label: 'Candidate Count', value: stats.candidateCount, format: 'compact' as const, icon: Microscope, color: 'text-sky-400' },
-                        { label: 'Confidence Score', value: stats.confidenceScore, format: 'compact' as const, suffix: "%", icon: ShieldCheck, color: 'text-sky-400' }
+                        { label: 'Avg Confidence', value: stats.confidenceScore, format: 'compact' as const, suffix: "%", icon: ShieldCheck, color: 'text-sky-400' }
                     ].map((stat, i) => (
                         <motion.div
                             key={stat.label}
@@ -155,11 +303,13 @@ export default function RnDAssessmentPage() {
                                         </button>
                                     ))}
                                 </div>
-                                <div className="flex gap-2">
-                                    <span className="px-3 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-bold text-amber-400 uppercase">
-                                        Requires Review
-                                    </span>
-                                </div>
+                                {hasData && (
+                                    <div className="flex gap-2">
+                                        <span className="px-3 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-[9px] font-bold text-amber-400 uppercase">
+                                            Requires Review
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="max-h-[600px] overflow-y-auto scrollbar-thin">
@@ -172,31 +322,45 @@ export default function RnDAssessmentPage() {
                                             exit={{ opacity: 0 }}
                                             className="divide-y divide-white/5"
                                         >
-                                            {[
-                                                { title: 'Neural Engine Optimization', date: '22 Jan 2026', amount: 4250.00, contact: 'Cloud Compute Ltd', scoring: [3, 2, 3, 2] },
-                                                { title: 'Advanced Latency Research', date: '15 Jan 2026', amount: 8900.50, contact: 'Hardware Spec', scoring: [2, 3, 2, 2] },
-                                                { title: 'Distributed Ledger Sync', date: '10 Jan 2026', amount: 1100.00, contact: 'Dev Tools', scoring: [3, 3, 3, 3] }
-                                            ].map((item, i) => (
-                                                <div key={i} className="p-8 hover:bg-white/[0.01] transition-colors group">
-                                                    <div className="flex justify-between items-start mb-6">
-                                                        <div>
-                                                            <h3 className="text-xl font-bold text-white mb-1 group-hover:text-sky-400 transition-colors cursor-pointer">{item.title}</h3>
-                                                            <p className="text-[10px] text-white/40 font-mono uppercase tracking-widest">{item.date} • {item.contact}</p>
-                                                        </div>
-                                                        <div className="text-right">
-                                                            <p className="text-2xl font-black text-white font-mono">${item.amount.toLocaleString()}</p>
-                                                            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-tighter">Candidate Eligible</p>
-                                                        </div>
-                                                    </div>
+                                            {hasData ? (
+                                                rndData.projects.map((project) => {
+                                                    const score = confidenceToScore(project.avgConfidence)
+                                                    return (
+                                                        <div key={project.id} className="p-8 hover:bg-white/[0.01] transition-colors group">
+                                                            <div className="flex justify-between items-start mb-6">
+                                                                <div>
+                                                                    <h3 className="text-xl font-bold text-white mb-1 group-hover:text-sky-400 transition-colors cursor-pointer">{project.name}</h3>
+                                                                    <p className="text-[10px] text-white/40 font-mono uppercase tracking-widest">
+                                                                        {project.category} • {project.transactionCount} transactions • {project.financialYears.join(', ')}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <p className="text-2xl font-black text-white font-mono">${project.totalSpend.toLocaleString()}</p>
+                                                                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-tighter">
+                                                                        {project.avgConfidence}% Confidence
+                                                                    </p>
+                                                                </div>
+                                                            </div>
 
-                                                    <div className="grid grid-cols-4 gap-4">
-                                                        <CriteriaPill label="Uncertainty" score={item.scoring[0]} />
-                                                        <CriteriaPill label="Systematic" score={item.scoring[1]} />
-                                                        <CriteriaPill label="New Knowledge" score={item.scoring[2]} />
-                                                        <CriteriaPill label="Scientific" score={item.scoring[3]} />
-                                                    </div>
+                                                            <div className="grid grid-cols-4 gap-4">
+                                                                <CriteriaPill label="Uncertainty" score={score} />
+                                                                <CriteriaPill label="Systematic" score={Math.min(3, score + (project.avgConfidence >= 75 ? 1 : 0))} />
+                                                                <CriteriaPill label="New Knowledge" score={score} />
+                                                                <CriteriaPill label="Scientific" score={Math.max(0, score - (project.avgConfidence < 65 ? 1 : 0))} />
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })
+                                            ) : (
+                                                <div className="p-12 text-center space-y-4">
+                                                    <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto" />
+                                                    <p className="text-white/60">No R&D candidates identified yet.</p>
+                                                    <p className="text-white/40 text-sm">Run a forensic audit to analyse your transactions for Division 355 eligibility.</p>
+                                                    <Link href="/dashboard/forensic-audit" className="btn btn-secondary inline-flex">
+                                                        Launch Forensic Scan
+                                                    </Link>
                                                 </div>
-                                            ))}
+                                            )}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -216,12 +380,7 @@ export default function RnDAssessmentPage() {
                                 </div>
 
                                 <div className="space-y-4">
-                                    {[
-                                        { label: 'Experimental Nature', status: 'Verifying' },
-                                        { label: 'Systematic Progression', status: 'Identified' },
-                                        { label: 'Science Principles', status: 'Evidence Found' },
-                                        { label: 'High Uncertainty', status: 'Inconclusive' }
-                                    ].map((item, i) => (
+                                    {legislativeTestStatuses.map((item, i) => (
                                         <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 hover:border-sky-500/30 transition-all cursor-crosshair">
                                             <span className="text-xs font-bold text-white/80">{item.label}</span>
                                             <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest">{item.status}</span>
@@ -245,14 +404,14 @@ export default function RnDAssessmentPage() {
                                 </div>
                                 <h3 className="text-lg font-bold text-white">Registration Deadline</h3>
                                 <p className="text-xs text-white/60 leading-relaxed">
-                                    FY2024-25 registrations must be lodged with AusIndustry by <span className="text-white font-bold">April 30, 2026</span>.
+                                    {deadline.fyLabel} registrations must be lodged with AusIndustry by <span className="text-white font-bold">{deadline.deadlineLabel}</span>.
                                 </p>
                                 <div className="pt-4">
                                     <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                                        <motion.div initial={{ width: 0 }} animate={{ width: '65%' }} className="h-full bg-sky-500" />
+                                        <motion.div initial={{ width: 0 }} animate={{ width: `${deadline.progressPercent}%` }} className="h-full bg-sky-500" />
                                     </div>
                                     <div className="flex justify-between mt-2 text-[9px] font-black text-white/40 uppercase tracking-widest">
-                                        <span>91 Days Remaining</span>
+                                        <span>{deadline.daysRemaining} Days Remaining</span>
                                         <span>10 Months Limit</span>
                                     </div>
                                 </div>

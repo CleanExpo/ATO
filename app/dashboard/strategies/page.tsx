@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import {
   Zap,
@@ -135,6 +135,10 @@ export default function StrategiesPage() {
     }
   }, [tenantId, fetchRecommendations])
 
+  const highConfidenceCount = useMemo(() => {
+    return recommendations.filter(r => r.priority === 'critical' || r.priority === 'high').length
+  }, [recommendations])
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center">
@@ -210,8 +214,8 @@ export default function StrategiesPage() {
 
           <GlassCard className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Average Win Rate</p>
-              <h2 className="text-3xl font-black text-white">92%</h2>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">High Confidence Items</p>
+              <h2 className="text-3xl font-black text-white">{highConfidenceCount}</h2>
             </div>
             <div className="p-3 rounded-xl bg-white/5">
               <ShieldCheck className="w-6 h-6 text-emerald-400" />
@@ -220,8 +224,8 @@ export default function StrategiesPage() {
 
           <GlassCard className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Time to Benefit</p>
-              <h2 className="text-3xl font-black text-white">~14 Days</h2>
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-widest mb-1">Active Strategies</p>
+              <h2 className="text-3xl font-black text-white">{recommendations.length}</h2>
             </div>
             <div className="p-3 rounded-xl bg-white/5">
               <Clock className="w-6 h-6 text-amber-400" />
