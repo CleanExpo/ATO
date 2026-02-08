@@ -96,10 +96,12 @@ export function getIpAddress(request: Request): string | null {
   const headers = new Headers(request.headers);
 
   // Check X-Forwarded-For (most common in proxied environments)
+  // Use the LAST (rightmost) IP — this is the one appended by the trusted proxy (Vercel).
+  // The first (leftmost) value is user-controllable and can be spoofed.
   const forwardedFor = headers.get('x-forwarded-for');
   if (forwardedFor) {
-    // X-Forwarded-For can be a comma-separated list, take the first IP
-    return forwardedFor.split(',')[0].trim();
+    const ips = forwardedFor.split(',').map(ip => ip.trim()).filter(Boolean);
+    return ips[ips.length - 1];
   }
 
   // Check X-Real-IP

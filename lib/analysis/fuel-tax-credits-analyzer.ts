@@ -113,15 +113,79 @@ export interface FuelTaxCreditAnalysis {
 }
 
 /**
- * Current fuel tax credit rates (FY2024-25)
- * Source: ATO Fuel Tax Credit Calculator
- * Updated quarterly
+ * Fuel tax credit rates by quarter.
+ * ATO updates rates quarterly (typically Feb, Apr, Aug, Nov).
+ * Rates vary by fuel type, use (on-road heavy vehicle vs off-road/other), and quarter.
+ *
+ * Source: ATO Fuel Tax Credit Rates
+ * Legislation: Fuel Tax Act 2006, s 43-5
+ *
+ * NOTE: On-road heavy vehicles (>4.5t GVM) have a reduced rate due to the
+ * road user charge deduction (Fuel Tax Act 2006, s 43-10).
  */
-const FUEL_TAX_CREDIT_RATES_FY2024_25 = {
-  diesel: new Decimal('0.479'), // $0.479/L
-  petrol: new Decimal('0.479'), // $0.479/L
-  lpg: new Decimal('0.198'), // $0.198/L
-};
+interface QuarterlyFuelRate {
+  diesel: Decimal
+  petrol: Decimal
+  lpg: Decimal
+  /** Road user charge deducted from on-road heavy vehicle credits (s 43-10) */
+  roadUserCharge: Decimal
+}
+
+const FUEL_TAX_CREDIT_RATES: Record<string, QuarterlyFuelRate> = {
+  // FY2024-25 quarterly rates
+  'Q1 FY2024-25': {
+    diesel: new Decimal('0.4810'),
+    petrol: new Decimal('0.4810'),
+    lpg: new Decimal('0.1985'),
+    roadUserCharge: new Decimal('0.2947'),
+  },
+  'Q2 FY2024-25': {
+    diesel: new Decimal('0.4810'),
+    petrol: new Decimal('0.4810'),
+    lpg: new Decimal('0.1985'),
+    roadUserCharge: new Decimal('0.2947'),
+  },
+  'Q3 FY2024-25': {
+    diesel: new Decimal('0.4790'),
+    petrol: new Decimal('0.4790'),
+    lpg: new Decimal('0.1980'),
+    roadUserCharge: new Decimal('0.2947'),
+  },
+  'Q4 FY2024-25': {
+    diesel: new Decimal('0.4790'),
+    petrol: new Decimal('0.4790'),
+    lpg: new Decimal('0.1980'),
+    roadUserCharge: new Decimal('0.2947'),
+  },
+}
+
+/** Fallback rates when quarter-specific rate is not available */
+const FALLBACK_FUEL_RATE: QuarterlyFuelRate = {
+  diesel: new Decimal('0.479'),
+  petrol: new Decimal('0.479'),
+  lpg: new Decimal('0.198'),
+  roadUserCharge: new Decimal('0.2947'),
+}
+
+/**
+ * Determine which quarter a transaction date falls in
+ */
+function getQuarterKey(transactionDate: string, fy: string): string {
+  const date = new Date(transactionDate)
+  const month = date.getMonth() // 0-indexed
+  // AU FY quarters: Q1=Jul-Sep, Q2=Oct-Dec, Q3=Jan-Mar, Q4=Apr-Jun
+  if (month >= 6 && month <= 8) return `Q1 ${fy}`
+  if (month >= 9 && month <= 11) return `Q2 ${fy}`
+  if (month >= 0 && month <= 2) return `Q3 ${fy}`
+  return `Q4 ${fy}`
+}
+
+/**
+ * Get the fuel tax credit rate for a specific quarter
+ */
+function getRateForQuarter(quarterKey: string): QuarterlyFuelRate {
+  return FUEL_TAX_CREDIT_RATES[quarterKey] || FALLBACK_FUEL_RATE
+}
 
 /**
  * Analyze fuel purchases for fuel tax credits
@@ -267,7 +331,7 @@ function analyzeOneTenant(
  */
 function calculateFuelTaxCredit(
   purchase: FuelPurchase,
-  _fy: string
+  fy: string
 ): FuelTaxCreditCalculation {
   const ineligibilityReasons: string[] = [];
   let isEligible = true;
@@ -297,20 +361,31 @@ function calculateFuelTaxCredit(
     ineligibilityReasons.push('Fuel litres estimated from transaction amount (requires verification)');
   }
 
-  // Get credit rate for fuel type
+  // Get quarterly credit rate for fuel type (rates change quarterly per ATO schedule)
+  const quarterKey = getQuarterKey(purchase.transaction_date, fy)
+  const quarterRates = getRateForQuarter(quarterKey)
   const fuelType = purchase.fuel_type || 'unknown';
-  let creditRatePerLitre = 0;
+  let creditRate = new Decimal(0);
 
   if (fuelType === 'diesel') {
-    creditRatePerLitre = FUEL_TAX_CREDIT_RATES_FY2024_25.diesel.toNumber();
+    creditRate = quarterRates.diesel;
   } else if (fuelType === 'petrol') {
-    creditRatePerLitre = FUEL_TAX_CREDIT_RATES_FY2024_25.petrol.toNumber();
+    creditRate = quarterRates.petrol;
   } else if (fuelType === 'lpg') {
-    creditRatePerLitre = FUEL_TAX_CREDIT_RATES_FY2024_25.lpg.toNumber();
+    creditRate = quarterRates.lpg;
   } else {
     isEligible = false;
     ineligibilityReasons.push('Unknown fuel type (cannot determine credit rate)');
   }
+
+  // Apply road user charge deduction for on-road heavy vehicles (s 43-10 Fuel Tax Act 2006)
+  // Heavy vehicles (>4.5t GVM) on public roads get a reduced credit rate
+  if (!purchase.is_off_road_use && creditRate.gt(0)) {
+    creditRate = creditRate.minus(quarterRates.roadUserCharge)
+    if (creditRate.lt(0)) creditRate = new Decimal(0)
+  }
+
+  const creditRatePerLitre = creditRate.toNumber();
 
   // Calculate business fuel litres
   const businessUseDecimal = new Decimal(purchase.business_use_percentage).div(100);
@@ -318,7 +393,7 @@ function calculateFuelTaxCredit(
 
   // Calculate gross credit
   const grossCredit = new Decimal(businessFuelLitres)
-    .times(creditRatePerLitre)
+    .times(creditRate)
     .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
     .toNumber();
 

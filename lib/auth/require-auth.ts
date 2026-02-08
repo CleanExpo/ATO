@@ -137,16 +137,18 @@ export function isErrorResponse(
 }
 
 /**
- * Development bypass for testing
+ * Development bypass for testing (NOT exported — internal dev use only)
  *
- * In development mode, this can be used to bypass auth for testing.
- * NEVER use in production.
+ * Build-time eliminated: only available when NODE_ENV !== 'production'.
+ * This function is intentionally NOT exported to prevent accidental use
+ * in production-accessible code paths.
  */
-export async function devBypassAuth(
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+async function _devBypassAuth(
   request: NextRequest
 ): Promise<AuthenticatedRequest> {
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('devBypassAuth cannot be used in production')
+    throw new Error('_devBypassAuth cannot be used in production')
   }
 
   const tenantId = request.nextUrl.searchParams.get('tenantId') || 'dev-tenant'

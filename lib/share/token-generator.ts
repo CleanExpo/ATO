@@ -20,13 +20,21 @@ const URL_SAFE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
  * @returns URL-safe random token
  */
 export function generateShareToken(length: number = 32): string {
-  const bytes = randomBytes(length);
-  let token = '';
+  // Use rejection sampling to avoid modulo bias.
+  // 256 % 56 !== 0, so simple modulo would make chars 0-31 ~1.6% more likely.
+  // Rejection threshold: largest multiple of charset length that fits in a byte.
+  const charsetLen = URL_SAFE_CHARS.length; // 56
+  const maxUnbiased = Math.floor(256 / charsetLen) * charsetLen; // 224
 
-  for (let i = 0; i < length; i++) {
-    // Use modulo to map byte value to our character set
-    const index = bytes[i] % URL_SAFE_CHARS.length;
-    token += URL_SAFE_CHARS[index];
+  let token = '';
+  while (token.length < length) {
+    const bytes = randomBytes(length - token.length + 16); // over-request to reduce loops
+    for (let i = 0; i < bytes.length && token.length < length; i++) {
+      if (bytes[i] < maxUnbiased) {
+        token += URL_SAFE_CHARS[bytes[i] % charsetLen];
+      }
+      // else: reject this byte (> 224) to eliminate bias
+    }
   }
 
   return token;
