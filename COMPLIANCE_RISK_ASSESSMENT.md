@@ -33,7 +33,7 @@ The platform cannot be deployed to production until Risk 1 and Risk 2 are remedi
 
 ### 1.1 Description
 
-The application sends Australian financial transaction data -- including transaction descriptions that may contain personal information such as supplier names, employee names, and client identifiers -- to Google Gemini AI for forensic analysis. This cross-border disclosure occurs without:
+The application sends Australian financial transaction data -- including transaction descriptions that may contain personal information such as employee names and client identifiers -- to Google Gemini AI for forensic analysis. **Supplier names are now anonymised** (replaced with `Supplier_1`, `Supplier_2` tokens) before Gemini API calls via `lib/ai/pii-sanitizer.ts` (implemented 2026-02-08). However, this cross-border disclosure still occurs without:
 
 1. **Collection notice** (APP 1.4): Users are not informed at or before the time of Xero OAuth connection that their financial data will be sent to overseas AI services.
 2. **Cross-border disclosure consent** (APP 8.2(b)): No explicit consent mechanism exists for the overseas transfer of personal information to Google.
@@ -44,12 +44,12 @@ The application sends Australian financial transaction data -- including transac
 
 | Component | File | Data Exposed |
 |-----------|------|-------------|
-| Forensic Analysis | `lib/ai/gemini-client.ts` | Transaction descriptions, amounts, account codes, date ranges |
+| Forensic Analysis | `lib/ai/forensic-analyzer.ts`, `lib/ai/account-classifier.ts` | Transaction descriptions, amounts, account codes, date ranges. **Supplier names anonymised** (2026-02-08) |
 | Rate Fetcher | `lib/tax-data/brave-client.ts` | Tax rate search queries (no PII -- LOW risk) |
 | Rate Scraper | `lib/tax-data/jina-scraper.ts` | ATO.gov.au URLs only (no PII -- LOW risk) |
 
 The primary concern is the Gemini AI data flow. Transaction descriptions sourced from Xero may contain:
-- Supplier/customer names (personal information under Privacy Act s 6)
+- ~~Supplier/customer names (personal information under Privacy Act s 6)~~ **MITIGATED** (2026-02-08): Supplier names anonymised via `lib/ai/pii-sanitizer.ts` before Gemini API calls
 - Employee names in payroll transactions
 - ABN numbers linked to sole traders (identifying information)
 - Invoice references containing client identifiers
@@ -82,7 +82,7 @@ Additionally:
 2. **IMMEDIATE**: Add APP 1 Collection Notice to the pre-OAuth connection page listing all data collected, purposes, and overseas disclosures.
 3. **BEFORE PRODUCTION**: Execute Google Cloud Data Processing Agreement and verify Gemini API terms re: data retention.
 4. **BEFORE PRODUCTION**: Confirm Supabase region is ap-southeast-2 and Vercel region is syd1 in live deployment.
-5. **BEFORE PRODUCTION**: Implement technical data minimisation -- strip supplier/customer names from transaction descriptions before sending to Gemini where possible.
+5. ~~**BEFORE PRODUCTION**: Implement technical data minimisation -- strip supplier/customer names from transaction descriptions before sending to Gemini where possible.~~ **DONE** (2026-02-08): Supplier names anonymised via `lib/ai/pii-sanitizer.ts`. Applied in `forensic-analyzer.ts` and `account-classifier.ts`.
 6. **BEFORE PRODUCTION**: Appoint Privacy Officer and publish contact details in application.
 
 ---
@@ -324,7 +324,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 | Xero OAuth tokens | Yes (AES-256-GCM encrypted) | Yes (required for API access) | APPROPRIATE |
 | Transaction descriptions | Yes (cached in Supabase) | Minimal (clear after analysis) | EXCESSIVE |
 | Transaction amounts | Yes (cached in Supabase) | Yes (needed for calculations) | APPROPRIATE |
-| Supplier/customer names | Yes (embedded in descriptions) | No (strip before caching) | EXCESSIVE |
+| Supplier/customer names | Yes (embedded in descriptions) | No (strip before caching) | **PARTIALLY MITIGATED** -- anonymised before Gemini calls (2026-02-08) but still cached in Supabase |
 | User email/profile | Yes (Supabase auth) | Yes (required for authentication) | APPROPRIATE |
 | ABN lookup results | Yes (7-day TTL cache) | Yes (public data, caching acceptable) | APPROPRIATE |
 | AI analysis results | Yes (permanent) | Yes (but with retention policy) | NEEDS POLICY |
@@ -335,8 +335,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 
 1. **Transaction Description Sanitisation**: Before caching transaction data from Xero, strip or pseudonymise supplier/customer names. The AI analysis only needs the transaction category, not the specific counterparty.
 
-2. **Data Minimisation for Gemini**: Before sending data to Gemini AI, apply a minimisation filter:
-   - Replace proper nouns in descriptions with generic labels ("Supplier A", "Client B")
+2. ~~**Data Minimisation for Gemini**~~: **IMPLEMENTED** (2026-02-08). Supplier names replaced with anonymous tokens (`Supplier_1`, `Supplier_2`) via `lib/ai/pii-sanitizer.ts` before Gemini API calls. Case-insensitive normalisation ensures consistent mapping. Applied in `forensic-analyzer.ts` and `account-classifier.ts`. Remaining items:
    - Remove ABN numbers from description text
    - Aggregate small transactions before analysis
 
@@ -382,7 +381,7 @@ The error is most dangerous when it produces **overestimates** -- if an employer
 
 | Priority | Action | Effort |
 |----------|--------|--------|
-| P2-1 | Implement transaction description sanitisation for Gemini | 3-5 days |
+| ~~P2-1~~ | ~~Implement transaction description sanitisation for Gemini~~ **DONE** (2026-02-08) -- Supplier names anonymised via `lib/ai/pii-sanitizer.ts` | ~~3-5 days~~ |
 | P2-2 | Implement connected entity aggregation for CGT $6M test | 5 days |
 | P2-3 | Implement ordinary family dealing exclusion for s 100A | 3 days |
 | P2-4 | Implement quarterly fuel tax credit rates | 2 days |
