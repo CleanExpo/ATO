@@ -1196,7 +1196,7 @@ Backend_Dev has accepted ALL critical and high findings from this audit and inco
 | RND-1: R&D offset rate | CRITICAL | ACCEPTED (CLARIFICATION NEEDED) | Tiered offset implemented. Must confirm 18.5% premium is FY-dependent (was 13.5% pre-FY2022-23) |
 | LOSS-1: Capital vs revenue losses | CRITICAL | ACCEPTED | `lossType: 'revenue' \| 'capital'` field added, capital losses constrained to offset capital gains only |
 | DED-1: Base rate entity test | HIGH | ACCEPTED | `passiveIncomePercentage` parameter added, warning when data unavailable |
-| 7A-2: Distributable surplus cap | HIGH | ACCEPTED | `Math.min(closingBalance, distributableSurplus)` per s 109Y |
+| 7A-2: Distributable surplus cap | HIGH | FIXED (2026-02-08) | `estimateDistributableSurplus()` queries equity data; `cappedTotalDeemedDividendRisk = Math.min(totalRisk, surplus)` per s 109Y. Optional `knownDistributableSurplus` parameter. Warnings when surplus unknown. |
 | SUPER-1: Carry-forward | HIGH | ACCEPTED | 5-year lookback with $500K balance threshold, `CarryForwardAllowance` type |
 | Amendment period consistency | HIGH | FIXED (2026-02-08) | Extracted to `lib/utils/financial-year.ts`, now applied in deduction engine via `checkAmendmentPeriod()` (s 170 TAA 1953) |
 | Mid-year rate changes | HIGH | ACCEPTED | `POST /api/tax-data/refresh` endpoint + `forceRefresh` parameter |
@@ -1275,6 +1275,7 @@ Frontend_Dev responded to all 10 items. 7 approved, 2 conditionally approved, 1 
 | Div7A amalgamated loans (7A-3) | `lib/analysis/div7a-engine.ts` | Already implemented: `checkAmalgamationProvisions()` (lines 880-913) groups loans by shareholder name, warns when multiple loans exist to same shareholder per s 109E(8). Marked as done. (2026-02-08) |
 | Div7A safe harbour exclusions (7A-4) | `lib/analysis/div7a-engine.ts` | Already implemented: `identifySafeHarbourExclusions()` (lines 920-963) matches transactions against `SAFE_HARBOUR_KEYWORDS` per s 109RB. Marked as done. (2026-02-08) |
 | SBT transaction evidence (L-2) | `lib/analysis/loss-engine.ts` | Already implemented: `enrichSbtWithTransactionEvidence()` (lines 640-771) compares expense categories across FYs. Evidence-based SBT assessment replaces 'unknown'. Marked as done. (2026-02-08) |
+| Distributable surplus cap (A-12) | `lib/analysis/div7a-engine.ts` | `estimateDistributableSurplus()` queries equity account data; `cappedTotalDeemedDividendRisk = Math.min(totalRisk, surplus)` per s 109Y ITAA 1936. Optional `knownDistributableSurplus` parameter for callers with balance sheet data. `Div7aSummary` gains 5 new fields. Warnings when surplus unknown. (2026-02-08) |
 
 ---
 

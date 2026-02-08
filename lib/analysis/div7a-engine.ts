@@ -208,6 +208,24 @@ export interface Div7aSummary {
     matchedKeyword: string
     note: string
   }>
+  /**
+   * Distributable surplus cap (s 109Y ITAA 1936).
+   * A deemed dividend cannot exceed the company's distributable surplus.
+   * null = unknown (could not be estimated from available data).
+   */
+  distributableSurplus: number | null
+  /** How the distributable surplus was determined */
+  distributableSurplusSource: 'provided' | 'estimated' | 'unknown'
+  /** Explanation of the distributable surplus calculation or why it is unknown */
+  distributableSurplusNote: string
+  /**
+   * Total deemed dividend risk after applying s 109Y cap.
+   * = Math.min(totalDeemedDividendRisk, distributableSurplus) when surplus is known.
+   * = totalDeemedDividendRisk when surplus is unknown (uncapped, with warning).
+   */
+  cappedTotalDeemedDividendRisk: number
+  /** Total potential tax liability after s 109Y cap */
+  cappedTotalPotentialTaxLiability: number
 }
 
 /**
@@ -216,7 +234,9 @@ export interface Div7aSummary {
 export async function analyzeDiv7aCompliance(
   tenantId: string,
   startYear?: string,
-  endYear?: string
+  endYear?: string,
+  /** Optional: provide distributable surplus from balance sheet if known (s 109Y ITAA 1936) */
+  knownDistributableSurplus?: number
 ): Promise<Div7aSummary> {
   const supabase = await createServiceClient()
 
@@ -261,7 +281,19 @@ export async function analyzeDiv7aCompliance(
     log.info('Safe harbour exclusions identified', { count: safeHarbourExclusions.length })
   }
 
-  const summary = calculateDiv7aSummary(loanAnalyses, rateSource, amalgamationNotes, safeHarbourExclusions)
+  // Determine distributable surplus (s 109Y ITAA 1936)
+  const distributableSurplusResult = knownDistributableSurplus !== undefined
+    ? {
+        surplus: knownDistributableSurplus,
+        source: 'provided' as const,
+        note: `Distributable surplus of $${knownDistributableSurplus.toFixed(2)} provided from company financial statements. ` +
+          'Per s 109Y ITAA 1936, deemed dividends cannot exceed this amount.',
+      }
+    : await estimateDistributableSurplus(supabase, tenantId)
+
+  const summary = calculateDiv7aSummary(
+    loanAnalyses, rateSource, amalgamationNotes, safeHarbourExclusions, distributableSurplusResult
+  )
 
   return summary
 }
@@ -963,16 +995,82 @@ async function identifySafeHarbourExclusions(
 }
 
 /**
- * Calculate overall Division 7A summary
+ * Estimate distributable surplus from available Xero equity account data (s 109Y ITAA 1936).
+ *
+ * Distributable surplus = net assets - paid-up share capital - non-share equity
+ *                       ≈ retained earnings + reserves
+ *
+ * This is a best-effort estimate from transaction data. The authoritative value
+ * should come from the company's balance sheet (financial statements).
+ * If equity data is not available, returns null with a clear warning.
  */
+async function estimateDistributableSurplus(
+  supabase: SupabaseServiceClient,
+  tenantId: string
+): Promise<{ surplus: number | null; source: 'estimated' | 'unknown'; note: string }> {
+  // Try to find EQUITY-type account transactions that indicate retained earnings
+  // Xero account types: EQUITY, OTHERINCOME, REVENUE (for retained earnings estimation)
+  const { data: equityTransactions, error } = await supabase
+    .from('forensic_analysis_results')
+    .select('transaction_amount, transaction_description, primary_category')
+    .eq('tenant_id', tenantId)
+    .or('primary_category.ilike.%equity%,primary_category.ilike.%retained%,primary_category.ilike.%capital%')
+
+  if (error || !equityTransactions || equityTransactions.length === 0) {
+    return {
+      surplus: null,
+      source: 'unknown',
+      note:
+        'Distributable surplus could not be estimated — no equity account data available in analysed transactions. ' +
+        'Per s 109Y ITAA 1936, a deemed dividend under Division 7A cannot exceed the company\'s distributable surplus ' +
+        '(net assets minus paid-up share capital). The deemed dividend amounts shown may be OVERSTATED if the ' +
+        'company\'s distributable surplus is less than the total loan balance. ' +
+        'Obtain the distributable surplus from the company\'s balance sheet and verify with a tax professional.',
+    }
+  }
+
+  // Sum equity-related transaction amounts as a rough estimate
+  let retainedEarnings = 0
+  let shareCapital = 0
+
+  for (const tx of equityTransactions) {
+    const amount = parseFloat(String(tx.transaction_amount)) || 0
+    const desc = (tx.transaction_description || '').toLowerCase()
+    const category = (tx.primary_category || '').toLowerCase()
+
+    if (category.includes('capital') || desc.includes('share capital') || desc.includes('paid-up')) {
+      shareCapital += Math.abs(amount)
+    } else {
+      retainedEarnings += amount
+    }
+  }
+
+  // Distributable surplus ≈ retained earnings (net assets - share capital is approximated this way)
+  const estimated = Math.max(0, retainedEarnings)
+
+  return {
+    surplus: estimated,
+    source: 'estimated',
+    note:
+      `Distributable surplus estimated at $${estimated.toFixed(2)} from ${equityTransactions.length} equity-related transactions. ` +
+      `Share capital identified: $${shareCapital.toFixed(2)}. ` +
+      'This is a ROUGH ESTIMATE from available transaction data. ' +
+      'Per s 109Y ITAA 1936, the authoritative distributable surplus must be calculated from the company\'s balance sheet ' +
+      '(net assets minus paid-up share capital minus non-share equity). Professional verification required.',
+  }
+}
+
 /**
- * Calculate overall summary with provenance
+ * Calculate overall Division 7A summary with distributable surplus cap (s 109Y)
  */
 function calculateDiv7aSummary(
   loanAnalyses: Division7aAnalysis[],
   taxRateSource: string = 'none',
   amalgamationNotes: Array<{ shareholderName: string; loanIds: string[]; combinedBalance: number; note: string }> = [],
-  safeHarbourExclusions: Array<{ transactionDescription: string; amount: number; shareholderName: string; matchedKeyword: string; note: string }> = []
+  safeHarbourExclusions: Array<{ transactionDescription: string; amount: number; shareholderName: string; matchedKeyword: string; note: string }> = [],
+  distributableSurplusResult: { surplus: number | null; source: 'provided' | 'estimated' | 'unknown'; note: string } = {
+    surplus: null, source: 'unknown', note: 'Distributable surplus not assessed.',
+  }
 ): Div7aSummary {
   let totalLoanBalance = 0
   let compliantLoans = 0
@@ -1002,6 +1100,35 @@ function calculateDiv7aSummary(
     }
   })
 
+  // Apply distributable surplus cap (s 109Y ITAA 1936)
+  // A deemed dividend cannot exceed the company's distributable surplus.
+  const { surplus, source: surplusSource, note: surplusNote } = distributableSurplusResult
+  let cappedTotalDeemedDividendRisk: number
+  let cappedTotalPotentialTaxLiability: number
+
+  if (surplus !== null) {
+    cappedTotalDeemedDividendRisk = Math.min(totalDeemedDividendRisk, Math.max(0, surplus))
+    cappedTotalPotentialTaxLiability = cappedTotalDeemedDividendRisk * 0.47
+
+    if (totalDeemedDividendRisk > surplus) {
+      criticalIssues.push(
+        `Distributable surplus cap applied (s 109Y): deemed dividend capped at $${surplus.toFixed(2)} ` +
+        `(uncapped: $${totalDeemedDividendRisk.toFixed(2)}). Source: ${surplusSource}.`
+      )
+    }
+  } else {
+    // Unknown surplus — cannot cap, use uncapped values with warning
+    cappedTotalDeemedDividendRisk = totalDeemedDividendRisk
+    cappedTotalPotentialTaxLiability = totalPotentialTaxLiability
+
+    if (totalDeemedDividendRisk > 0) {
+      criticalIssues.push(
+        'Distributable surplus unknown (s 109Y ITAA 1936) — deemed dividend risk may be overstated. ' +
+        'Verify against company balance sheet.'
+      )
+    }
+  }
+
   // Calculate average risk level
   const criticalCount = riskLevels.filter((r) => r === 'critical').length
   const highCount = riskLevels.filter((r) => r === 'high').length
@@ -1029,6 +1156,11 @@ function calculateDiv7aSummary(
     amalgamationNotes: amalgamationNotes.length > 0 ? amalgamationNotes : undefined,
     hasAmalgamationWarnings: amalgamationNotes.length > 0,
     safeHarbourExclusions: safeHarbourExclusions.length > 0 ? safeHarbourExclusions : undefined,
+    distributableSurplus: surplus,
+    distributableSurplusSource: surplusSource,
+    distributableSurplusNote: surplusNote,
+    cappedTotalDeemedDividendRisk,
+    cappedTotalPotentialTaxLiability,
   }
 }
 
@@ -1094,6 +1226,11 @@ function createEmptyDiv7aSummary(): Div7aSummary {
     amalgamationNotes: undefined,
     hasAmalgamationWarnings: false,
     safeHarbourExclusions: undefined,
+    distributableSurplus: null,
+    distributableSurplusSource: 'unknown',
+    distributableSurplusNote: 'No shareholder loans identified — distributable surplus not assessed.',
+    cappedTotalDeemedDividendRisk: 0,
+    cappedTotalPotentialTaxLiability: 0,
   }
 }
 
