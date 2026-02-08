@@ -73,7 +73,12 @@ export function middleware(request: NextRequest) {
     path: request.nextUrl.pathname,
     userId,
     tenantId,
-    ip: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+    ip: (() => {
+      const xff = request.headers.get('x-forwarded-for')
+      if (!xff) return null
+      const parts = xff.split(',').map(s => s.trim()).filter(Boolean)
+      return parts[parts.length - 1] || null
+    })(),
   }
 
   // Emit single JSON line (works in both Edge and Node runtimes)

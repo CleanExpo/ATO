@@ -19,7 +19,7 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://atotaxoptimizer.com.au'),
+  metadataBase: new URL('https://ato-ai.app'),
   title: "ATO Tax Optimizer | AI-Powered Tax Recovery for Australian Businesses",
   description: "Forensic AI analysis of your Xero data to recover $200K-$500K in R&D tax offsets, unclaimed deductions, and Division 7A compliance gaps. Built for Australian SMEs under ITAA 1997.",
   keywords: [
@@ -41,14 +41,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_AU",
     siteName: "ATO Tax Optimizer",
-    images: [
-      {
-        url: '/og-image.png',
-        width: 1200,
-        height: 630,
-        alt: 'ATO Tax Optimizer - AI-Powered Forensic Tax Analysis for Australian Businesses',
-      },
-    ],
+    images: ['/opengraph-image'],
   },
   robots: {
     index: true,
