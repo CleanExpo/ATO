@@ -22,7 +22,7 @@
  * - pollUrl: string
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { analyzeAllTransactions, getAnalysisStatus } from '@/lib/ai/batch-processor'
@@ -93,26 +93,27 @@ export async function POST(request: NextRequest) {
 
         log.info('Estimated analysis cost', { costUSD: costEstimate.estimatedCostUSD, transactionCount: cachedCount })
 
-        // Start analysis in background
-        // Note: This is a long-running operation (can take 30-60 minutes for 1000s of transactions)
-        // In production, move to background job queue
-
-        analyzeAllTransactions(
-            validatedTenantId,
-            {
-                name: businessName,
-                industry,
-                abn,
-            },
-            {
-                platform: analysisPlatform,
-                batchSize: batchSize ?? 50, // Use validated batchSize with default
-                onProgress: (progress) => {
-                    log.debug('Analysis progress', { platform: analysisPlatform, progress: progress.progress, analyzed: progress.transactionsAnalyzed, total: progress.totalTransactions })
-                }
+        // Start analysis using Next.js after() to keep execution alive
+        after(async () => {
+            try {
+                await analyzeAllTransactions(
+                    validatedTenantId,
+                    {
+                        name: businessName,
+                        industry,
+                        abn,
+                    },
+                    {
+                        platform: analysisPlatform,
+                        batchSize: batchSize ?? 50,
+                        onProgress: (progress) => {
+                            log.debug('Analysis progress', { platform: analysisPlatform, progress: progress.progress, analyzed: progress.transactionsAnalyzed, total: progress.totalTransactions })
+                        }
+                    }
+                )
+            } catch (error) {
+                console.error(`[${analysisPlatform.toUpperCase()}] Analysis failed:`, error)
             }
-        ).catch(error => {
-            console.error(`[${analysisPlatform.toUpperCase()}] Analysis failed:`, error)
         })
 
         // Return immediate response

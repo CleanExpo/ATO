@@ -18,7 +18,7 @@
  * - message: string
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
@@ -142,27 +142,26 @@ export async function POST(request: NextRequest) {
             return createNotFoundError('Xero connection' + (organizationId ? ` for organization ${organizationId}` : ''))
         }
 
-        // Start historical fetch in background
-        // Note: This is a long-running operation (5-10 minutes for 5 years)
-        // In production, this should be moved to a background job queue (Vercel Cron, BullMQ, etc.)
-
-        // For now, we'll start it and return immediately
-        // The client can poll GET /api/audit/sync-status/:tenantId for progress
-
-        fetchHistoricalTransactions(
-            tenantId,
-            tokenSet.access_token,
-            tokenSet.refresh_token,
-            {
-                years,
-                forceResync,
-                onProgress: (progress) => {
-                    log.debug('Sync progress', { tenantId, progress: progress.progress, transactionsSynced: progress.transactionsSynced })
-                }
+        // Start historical fetch using Next.js after() to keep execution alive
+        // after() runs after the response is sent but keeps the serverless function alive
+        // for up to maxDuration (300s). Without this, Vercel kills the function immediately.
+        after(async () => {
+            try {
+                await fetchHistoricalTransactions(
+                    tenantId,
+                    tokenSet.access_token!,
+                    tokenSet.refresh_token!,
+                    {
+                        years,
+                        forceResync,
+                        onProgress: (progress) => {
+                            log.debug('Sync progress', { tenantId, progress: progress.progress, transactionsSynced: progress.transactionsSynced })
+                        }
+                    }
+                )
+            } catch (error) {
+                console.error('Historical fetch failed:', error)
             }
-        ).catch(error => {
-            console.error('Historical fetch failed:', error)
-            // Error will be stored in audit_sync_status table
         })
 
         // Return immediate response
