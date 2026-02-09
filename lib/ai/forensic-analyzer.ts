@@ -1,14 +1,18 @@
 /**
  * AI Forensic Analyzer
  *
- * Deep analysis of transactions using Google AI (Gemini) for tax optimization.
+ * Deep analysis of transactions using multiple AI providers for tax optimization.
+ *
+ * Providers:
+ * - Google Gemini (4 fast models in round-robin)
+ * - OpenRouter (Grok, DeepSeek, etc. via OpenAI-compatible API)
  *
  * Features:
  * - Division 355 (R&D) assessment with four-element test
  * - Division 8 (General deductions) eligibility
  * - Compliance flags (FBT, Division 7A)
  * - Confidence scoring (0-100%)
- * - Batch processing for efficiency
+ * - Batch processing with multi-provider concurrency
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
@@ -29,21 +33,91 @@ function getGoogleAI(): GoogleGenerativeAI {
 }
 
 /**
- * Pool of Gemini models to round-robin across for maximum throughput.
- * Fastest models first — all available on the same API key.
+ * Multi-provider model pool for round-robin across all available AI endpoints.
+ * Fastest models first for maximum throughput.
  */
-const MODEL_POOL = [
-    'gemini-2.5-flash-lite',   // ~0.9s per call
-    'gemini-2.0-flash-lite',   // ~1.1s per call
-    'gemini-2.5-flash',        // ~4.5s per call
-    'gemini-3-flash-preview',  // ~6.3s per call
-]
+interface ModelEntry {
+    provider: 'gemini' | 'openrouter'
+    model: string
+    label: string // For logging
+}
+
+function buildModelPool(): ModelEntry[] {
+    const pool: ModelEntry[] = []
+
+    // Gemini models (always available if GOOGLE_AI_API_KEY is set)
+    if (optionalConfig.googleAiApiKey) {
+        pool.push(
+            { provider: 'gemini', model: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (~0.9s)' },
+            { provider: 'gemini', model: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (~1.1s)' },
+            { provider: 'gemini', model: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (~4.5s)' },
+            { provider: 'gemini', model: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (~6.3s)' },
+        )
+    }
+
+    // OpenRouter models (available if OPENROUTER_API_KEY is set)
+    if (optionalConfig.openRouterApiKey) {
+        pool.push(
+            { provider: 'openrouter', model: 'x-ai/grok-code-fast-1', label: 'Grok Code Fast 1 (335 tok/s)' },
+        )
+    }
+
+    return pool
+}
+
+let cachedModelPool: ModelEntry[] | null = null
+function getModelPool(): ModelEntry[] {
+    if (!cachedModelPool) {
+        cachedModelPool = buildModelPool()
+    }
+    return cachedModelPool
+}
+
 let modelIndex = 0
 
-function getNextModel(): string {
-    const model = MODEL_POOL[modelIndex % MODEL_POOL.length]
+function getNextModel(): ModelEntry {
+    const pool = getModelPool()
+    if (pool.length === 0) {
+        throw new Error('No AI models available. Set GOOGLE_AI_API_KEY or OPENROUTER_API_KEY.')
+    }
+    const entry = pool[modelIndex % pool.length]
     modelIndex++
-    return model
+    return entry
+}
+
+/**
+ * Call OpenRouter API (OpenAI-compatible) for text generation.
+ */
+async function callOpenRouter(model: string, prompt: string): Promise<string> {
+    const apiKey = optionalConfig.openRouterApiKey
+    if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured.')
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://ato-ai.app',
+            'X-Title': 'ATO Tax Optimizer',
+        },
+        body: JSON.stringify({
+            model,
+            messages: [
+                { role: 'user', content: prompt },
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.1,
+            max_tokens: 8000,
+        }),
+    })
+
+    if (!response.ok) {
+        const errText = await response.text()
+        throw new Error(`OpenRouter API error (${response.status}): ${errText.slice(0, 200)}`)
+    }
+
+    const data = await response.json()
+    return data.choices?.[0]?.message?.content || ''
 }
 
 // Types
@@ -239,14 +313,14 @@ Return ONLY valid JSON matching this structure (no markdown, no explanations out
 `
 
 /**
- * Analyze a single transaction with Google AI
+ * Analyze a single transaction using the next model in the multi-provider pool.
  */
 export async function analyzeTransaction(
     transaction: TransactionContext,
     business: BusinessContext
 ): Promise<ForensicAnalysis> {
     try {
-        // Anonymise supplier name before sending to Gemini (APP 8 data minimisation)
+        // Anonymise supplier name before sending to AI (APP 8 data minimisation)
         const anonymiser = createSupplierAnonymiser()
         const anonymisedSupplier = anonymiser.anonymise(transaction.supplier)
 
@@ -263,25 +337,29 @@ export async function analyzeTransaction(
             .replace('{industry}', business.industry || 'N/A')
             .replace('{financialYear}', business.financialYear)
 
-        // Round-robin across fast Gemini models for maximum throughput
-        const modelName = getNextModel()
-        const model = getGoogleAI().getGenerativeModel({
-            model: modelName,
-            generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 8000,
-            }
-        })
+        // Round-robin across all available models (Gemini + OpenRouter)
+        const modelEntry = getNextModel()
+        let text: string
 
-        const result = await model.generateContent(prompt)
-        const response = result.response
-        const text = response.text()
+        if (modelEntry.provider === 'gemini') {
+            const model = getGoogleAI().getGenerativeModel({
+                model: modelEntry.model,
+                generationConfig: {
+                    temperature: 0.1,
+                    maxOutputTokens: 8000,
+                }
+            })
+            const result = await model.generateContent(prompt)
+            text = result.response.text()
+        } else {
+            // OpenRouter (OpenAI-compatible)
+            text = await callOpenRouter(modelEntry.model, prompt)
+        }
 
-        // Parse JSON response
+        // Parse JSON response (strip markdown fences if present)
         const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
         const analysis = JSON.parse(cleanedText)
 
-        // Map to our format
         return {
             transactionId: transaction.transactionID,
             categories: analysis.categories,
@@ -292,23 +370,7 @@ export async function analyzeTransaction(
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        console.error(`❌ CRITICAL: AI analysis failed for transaction ${transaction.transactionID}:`, error)
-
-        // Check if it's a model configuration error
-        if (errorMessage.includes('model') || errorMessage.includes('not found') || errorMessage.includes('404')) {
-            console.error('🚨 AI MODEL ERROR: The configured model does not exist or is not accessible!')
-            console.error('Current model: gemini-3-pro-preview')
-            console.error('Available models: gemini-3-pro-preview, gemini-2.0-flash, gemini-1.5-pro')
-            console.error('Please verify GOOGLE_AI_API_KEY is valid and model name is correct')
-        }
-
-        // Check if it's an API key error
-        if (errorMessage.includes('API key') || errorMessage.includes('authentication') || errorMessage.includes('401')) {
-            console.error('🔑 API KEY ERROR: Google AI API key is invalid or missing!')
-            console.error('Please check GOOGLE_AI_API_KEY environment variable')
-        }
-
-        // Don't hide the error - throw it so batch processor can handle it properly
+        console.error(`AI analysis failed for ${transaction.transactionID}:`, errorMessage)
         throw new Error(`AI analysis failed for transaction ${transaction.transactionID}: ${errorMessage}`)
     }
 }
@@ -385,22 +447,16 @@ export function estimateAnalysisCost(transactionCount: number): {
 }
 
 /**
- * Get model information (Gemini 3 Pro - Maximum Accuracy)
+ * Get model pool information for diagnostics
  */
 export function getModelInfo() {
+    const pool = getModelPool()
     return {
-        model: 'gemini-3-pro-preview',
-        provider: 'Google AI (Gemini 3 Pro)',
-        description: 'Most Intelligent Model: Maximum accuracy for forensic tax analysis',
-        version: 'Gemini 3 Pro Preview (January 2026)',
-        tier: 'Premium - Maximum Accuracy',
-        temperature: 0.1, // Ultra-low for maximum accuracy
-        maxInputTokens: 1048576, // 1M tokens
-        maxOutputTokens: 8000, // 8K tokens
-        capabilities: ['Text', 'Image', 'Video', 'Audio', 'PDF', 'Function Calling', 'Search Grounding', 'Code Execution', 'Advanced Reasoning', 'Native Multimodal', 'Deep Analysis'],
-        rateLimit: '60 requests/minute',
-        // Gemini 3 Pro pricing
-        costPer1MInputTokens: 0.15, // Premium tier
-        costPer1MOutputTokens: 0.60, // Premium tier
+        mode: 'multi-provider-round-robin',
+        activeModels: pool.map(m => ({ provider: m.provider, model: m.model, label: m.label })),
+        totalModels: pool.length,
+        concurrency: 5,
+        temperature: 0.1,
+        maxOutputTokens: 8000,
     }
 }

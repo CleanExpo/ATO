@@ -598,7 +598,7 @@ async function storeAnalysisResults(
             compliance_notes: analysis.complianceFlags.notes,
 
             // Metadata
-            ai_model: getModelInfo().model,
+            ai_model: getModelInfo().mode,
         }
     })
 
@@ -692,7 +692,7 @@ async function trackAnalysisCost(
             input_tokens: costEstimate.inputTokens,
             output_tokens: costEstimate.outputTokens,
             estimated_cost_usd: costUSD,
-            ai_model: modelInfo.model,
+            ai_model: modelInfo.mode,
         })
 
     if (error) {
