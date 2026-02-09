@@ -52,8 +52,8 @@ interface CachedTransaction {
 
 export const maxDuration = 300 // 5 minutes for Vercel Pro
 
-const DEFAULT_BATCH_SIZE = 10 // Gemini 3 Pro: ~25s/txn, 10 txns ≈ 250s
-const MAX_BATCH_SIZE = 10
+const DEFAULT_BATCH_SIZE = 25 // 5 concurrent Gemini calls: 25 txns ≈ 5 rounds × 25s = 125s
+const MAX_BATCH_SIZE = 50
 
 export async function POST(request: NextRequest) {
     const startTime = Date.now()

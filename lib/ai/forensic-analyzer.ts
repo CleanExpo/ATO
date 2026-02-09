@@ -28,6 +28,24 @@ function getGoogleAI(): GoogleGenerativeAI {
     return genAI
 }
 
+/**
+ * Pool of Gemini models to round-robin across for maximum throughput.
+ * Fastest models first — all available on the same API key.
+ */
+const MODEL_POOL = [
+    'gemini-2.5-flash-lite',   // ~0.9s per call
+    'gemini-2.0-flash-lite',   // ~1.1s per call
+    'gemini-2.5-flash',        // ~4.5s per call
+    'gemini-3-flash-preview',  // ~6.3s per call
+]
+let modelIndex = 0
+
+function getNextModel(): string {
+    const model = MODEL_POOL[modelIndex % MODEL_POOL.length]
+    modelIndex++
+    return model
+}
+
 // Types
 export interface TransactionContext {
     transactionID: string
@@ -245,12 +263,13 @@ export async function analyzeTransaction(
             .replace('{industry}', business.industry || 'N/A')
             .replace('{financialYear}', business.financialYear)
 
-        // Call Google AI (Gemini 2.0 Flash Exp - FREE and Available)
+        // Round-robin across fast Gemini models for maximum throughput
+        const modelName = getNextModel()
         const model = getGoogleAI().getGenerativeModel({
-            model: optionalConfig.googleAiModel,
+            model: modelName,
             generationConfig: {
-                temperature: 0.1, // Ultra-low temperature for maximum consistency and accuracy
-                maxOutputTokens: 8000, // Detailed analysis with comprehensive reasoning
+                temperature: 0.1,
+                maxOutputTokens: 8000,
             }
         })
 
@@ -296,30 +315,45 @@ export async function analyzeTransaction(
 
 /**
  * Analyze multiple transactions in batch
- * Processes transactions sequentially to avoid rate limits
+ * Processes transactions with controlled concurrency for throughput
  */
 export async function analyzeTransactionBatch(
     transactions: TransactionContext[],
     business: BusinessContext,
     onProgress?: (completed: number, total: number) => void
 ): Promise<ForensicAnalysis[]> {
-    const results: ForensicAnalysis[] = []
+    const CONCURRENCY = 5 // 5 parallel Gemini calls
+    const results: ForensicAnalysis[] = new Array(transactions.length)
+    let completed = 0
 
-    for (let i = 0; i < transactions.length; i++) {
-        const analysis = await analyzeTransaction(transactions[i], business)
-        results.push(analysis)
+    // Process in concurrent chunks
+    for (let i = 0; i < transactions.length; i += CONCURRENCY) {
+        const chunk = transactions.slice(i, i + CONCURRENCY)
+        const chunkResults = await Promise.allSettled(
+            chunk.map((txn, idx) => analyzeTransaction(txn, business).then(result => {
+                results[i + idx] = result
+                completed++
+                if (onProgress) onProgress(completed, transactions.length)
+                return result
+            }))
+        )
 
-        if (onProgress) {
-            onProgress(i + 1, transactions.length)
-        }
-
-        // Brief delay between requests to avoid burst rate limits
-        if (i < transactions.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 500)) // 500ms between calls
+        // Handle any failures gracefully - use fallback for failed analyses
+        for (let j = 0; j < chunkResults.length; j++) {
+            if (chunkResults[j].status === 'rejected') {
+                const reason = (chunkResults[j] as PromiseRejectedResult).reason
+                console.error(`Transaction analysis failed (index ${i + j}):`, reason?.message || reason)
+                // Still count as completed
+                if (!results[i + j]) {
+                    completed++
+                    if (onProgress) onProgress(completed, transactions.length)
+                }
+            }
         }
     }
 
-    return results
+    // Filter out any undefined slots from failed analyses
+    return results.filter(Boolean)
 }
 
 /**
