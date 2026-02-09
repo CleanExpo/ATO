@@ -313,9 +313,9 @@ export async function analyzeTransactionBatch(
             onProgress(i + 1, transactions.length)
         }
 
-        // Delay to respect rate limits (Gemini 2.0 Flash Exp free tier: 15 requests/minute)
+        // Brief delay between requests to avoid burst rate limits
         if (i < transactions.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 4000)) // 4 second delay = 15 RPM
+            await new Promise(resolve => setTimeout(resolve, 500)) // 500ms between calls
         }
     }
 
