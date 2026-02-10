@@ -556,6 +556,7 @@ async function storeAnalysisResults(
             tenant_id: tenantId,
             transaction_id: analysis.transactionId,
             financial_year: financialYear,
+            analysis_type: 'forensic',
 
             // Transaction metadata (for aggregations and display)
             transaction_amount: txnAmount,
