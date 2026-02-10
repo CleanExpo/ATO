@@ -355,7 +355,7 @@ async function getPreviousAnalysis(
 
   switch (analysisType) {
     case 'fuel_tax_credits':
-      tableName = 'fuel_tax_credits_analyses';
+      tableName = 'fuel_tax_credit_analyses';
       break;
     case 'trust_distributions':
       tableName = 'trust_distribution_analyses';

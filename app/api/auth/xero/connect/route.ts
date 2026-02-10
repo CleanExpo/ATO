@@ -36,6 +36,7 @@ export async function GET(_request: NextRequest) {
             baseUrl = `https://${process.env.VERCEL_URL}`
         }
         if (!baseUrl) {
+            console.warn('NEXT_PUBLIC_BASE_URL and VERCEL_URL are both missing — OAuth redirect will use localhost fallback')
             baseUrl = `http://localhost:${process.env.PORT || '3000'}`
         }
 

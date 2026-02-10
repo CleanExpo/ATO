@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Determine redirect URLs
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
     const successUrl = body.successUrl || `${baseUrl}/dashboard?payment=success`;
     const cancelUrl = body.cancelUrl || `${baseUrl}/dashboard/pricing?payment=cancelled`;
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generatePDF, generateClientPDF } from '@/lib/reports/pdf-generator'
+import { generatePDFReportData, generatePDFReportHTML } from '@/lib/reports/pdf-generator'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createLogger } from '@/lib/logger'
 
@@ -11,10 +11,9 @@ export async function GET(request: NextRequest) {
   if (isErrorResponse(auth)) return auth
 
   const { tenantId, supabase } = auth
-  const type = request.nextUrl.searchParams.get('type') || 'technical' // 'technical' or 'client'
 
   try {
-    log.info('Generating PDF', { type, tenantId })
+    log.info('Generating report', { tenantId })
 
     const { data: xeroOrg } = await supabase
       .from('xero_connections')
@@ -25,29 +24,23 @@ export async function GET(request: NextRequest) {
     const organizationName = xeroOrg?.organisation_name || 'Organization'
     const abn = xeroOrg?.tax_number || 'N/A'
 
-    // Generate PDF using Puppeteer
-    let pdfBuffer: Buffer
-    if (type === 'client') {
-      pdfBuffer = await generateClientPDF(tenantId, organizationName, abn)
-    } else {
-      pdfBuffer = await generatePDF(tenantId, organizationName, abn)
-    }
+    // Generate print-optimised HTML report (use browser Print > Save as PDF)
+    const reportData = await generatePDFReportData(tenantId, organizationName, abn)
+    const html = await generatePDFReportHTML(reportData)
 
-    log.info('PDF generated successfully', { bytes: pdfBuffer.length })
+    log.info('Report generated as HTML', { tenantId })
 
-    // Return as downloadable file
-    return new NextResponse(new Uint8Array(pdfBuffer), {
+    return new NextResponse(html, {
       headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${type}-report-${tenantId}-${Date.now()}.pdf"`,
-        'Content-Length': pdfBuffer.length.toString()
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Disposition': `inline; filename="forensic-report-${tenantId}.html"`,
       }
     })
   } catch (error: unknown) {
-    console.error('PDF generation failed:', error)
+    console.error('Report generation failed:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { error: 'Failed to generate PDF', details: errorMessage },
+      { error: 'Failed to generate report', details: errorMessage },
       { status: 500 }
     )
   }

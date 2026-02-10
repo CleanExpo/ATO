@@ -21,7 +21,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { createServiceClient } from '@/lib/supabase/server'
-import { generatePDF, generateClientPDF } from '@/lib/reports/pdf-generator'
+import { generatePDFReportData, generatePDFReportHTML } from '@/lib/reports/pdf-generator'
 import { generateExcelFromTenant } from '@/lib/reports/excel-generator'
 import { sendForensicReport } from '@/lib/reports/email-delivery'
 import { z } from 'zod'
@@ -58,14 +58,12 @@ export async function POST(request: NextRequest) {
     let pdfBuffer: Buffer | null = null
     let excelBuffer: Buffer | null = null
 
-    // Generate PDF if requested
+    // Generate PDF (as HTML for serverless compatibility - use browser Print > Save as PDF)
     if (format === 'pdf' || format === 'both') {
-      if (clientFriendly) {
-        pdfBuffer = await generateClientPDF(tenantId, organizationName, abn)
-      } else {
-        pdfBuffer = await generatePDF(tenantId, organizationName, abn)
-      }
-      log.info('PDF generated', { bytes: pdfBuffer.length })
+      const reportData = await generatePDFReportData(tenantId, organizationName, abn)
+      const html = await generatePDFReportHTML(reportData)
+      pdfBuffer = Buffer.from(html, 'utf-8')
+      log.info('Report HTML generated', { bytes: pdfBuffer.length })
     }
 
     // Generate Excel if requested
@@ -83,14 +81,14 @@ export async function POST(request: NextRequest) {
     let excelUrl: string | undefined
 
     if (pdfBuffer) {
-      const pdfPath = `reports/${tenantId}/${reportId}.pdf`
+      const pdfPath = `reports/${tenantId}/${reportId}.html`
       uploadPromises.push(
         supabase.storage.from('reports').upload(pdfPath, pdfBuffer, {
-          contentType: 'application/pdf',
+          contentType: 'text/html',
           upsert: true,
         })
       )
-      pdfUrl = `/api/reports/download/${reportId}.pdf`
+      pdfUrl = `/api/reports/download/${reportId}.html`
     }
 
     if (excelBuffer) {
