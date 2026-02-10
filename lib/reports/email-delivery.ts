@@ -1,16 +1,16 @@
 /**
  * Email Delivery System
  *
- * Sends reports via email using Resend API.
+ * Sends reports via email using SendGrid API.
  * Supports PDF and Excel attachments.
  */
 
-import { Resend } from 'resend'
+import sgMail from '@sendgrid/mail'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('reports:email-delivery')
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder')
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'SG.placeholder')
 
 /**
  * Email configuration
@@ -39,7 +39,7 @@ export interface EmailAttachment {
  * @param config - Email configuration
  * @param htmlContent - HTML email body
  * @param attachments - File attachments
- * @returns Email ID from Resend
+ * @returns Message ID from SendGrid
  */
 export async function sendReportEmail(
   config: EmailConfig,
@@ -47,31 +47,28 @@ export async function sendReportEmail(
   attachments: EmailAttachment[] = []
 ): Promise<{ id: string; success: boolean }> {
   try {
-    const response = await resend.emails.send({
-      from: config.from || 'ATO Tax Optimizer <reports@atooptimizer.com>',
+    const msg: sgMail.MailDataRequired = {
+      from: config.from || 'ATO Tax Optimizer <support@carsi.com.au>',
       to: Array.isArray(config.to) ? config.to : [config.to],
       subject: config.subject,
       html: htmlContent,
-      replyTo: config.replyTo,
+      replyTo: config.replyTo || 'phill.m@carsi.com.au',
       cc: config.cc ? (Array.isArray(config.cc) ? config.cc : [config.cc]) : undefined,
       bcc: config.bcc ? (Array.isArray(config.bcc) ? config.bcc : [config.bcc]) : undefined,
       attachments: attachments.map((att) => ({
         filename: att.filename,
-        content: att.content,
+        content: att.content.toString('base64'),
+        type: att.contentType,
+        disposition: 'attachment' as const,
       })),
-    })
-
-    if (response.error) {
-      console.error('Resend error:', response.error)
-      return {
-        id: '',
-        success: false,
-      }
     }
 
-    log.info('Email sent successfully', { emailId: response.data?.id })
+    const [response] = await sgMail.send(msg)
+    const messageId = response.headers['x-message-id'] || ''
+
+    log.info('Email sent successfully', { messageId, statusCode: response.statusCode })
     return {
-      id: response.data?.id || '',
+      id: messageId,
       success: true,
     }
   } catch (error) {

@@ -1,16 +1,16 @@
 /**
  * Alert Email Notification Service
  *
- * Sends email notifications for tax alerts using Resend
+ * Sends email notifications for tax alerts using SendGrid
  */
 
-import { Resend } from 'resend'
+import sgMail from '@sendgrid/mail'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('alerts:email-notifier')
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_placeholder')
+sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'SG.placeholder')
 
 interface TaxAlert {
   id: string
@@ -134,9 +134,10 @@ export async function sendAlertEmail(
     }
 
     // Send email
-    const { data, error } = await resend.emails.send({
-      from: 'ATO Tax Alerts <alerts@notifications.ato.app>',
+    const [response] = await sgMail.send({
+      from: 'ATO Tax Optimizer <support@carsi.com.au>',
       to: recipientEmail,
+      replyTo: 'phill.m@carsi.com.au',
       subject: `${config.icon} ${alert.title}`,
       html: `
         <!DOCTYPE html>
@@ -221,19 +222,12 @@ export async function sendAlertEmail(
       `
     })
 
-    if (error) {
-      console.error('Resend email error:', error)
-      return {
-        success: false,
-        error: error.message
-      }
-    }
-
-    log.info('Email sent for alert', { alertId: alert.id, recipientEmail })
+    const messageId = response.headers['x-message-id'] || ''
+    log.info('Email sent for alert', { alertId: alert.id, recipientEmail, messageId })
 
     return {
       success: true,
-      emailId: data?.id
+      emailId: messageId
     }
 
   } catch (error) {
