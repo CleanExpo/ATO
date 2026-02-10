@@ -1,10 +1,10 @@
 /**
  * Send Organization Invitation Emails
  *
- * Uses Resend to send invitation emails to new organization members
+ * Uses SendGrid to send invitation emails to new organization members
  */
 
-import { Resend } from 'resend'
+import sgMail from '@sendgrid/mail'
 import {
   getOrganizationInvitationSubject,
   getOrganizationInvitationHtml,
@@ -15,30 +15,23 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('email:invitation')
 
-// Lazy-initialize Resend client
-let resendInstance: Resend | null = null;
+// Initialize SendGrid
+let _sgInitialized = false;
 
-function getResendInstance(): Resend {
-  if (!resendInstance) {
-    const apiKey = process.env.RESEND_API_KEY;
+function ensureSendGridInit(): void {
+  if (!_sgInitialized) {
+    const apiKey = process.env.SENDGRID_API_KEY;
     if (!apiKey) {
-      throw new Error('RESEND_API_KEY not configured. Email delivery unavailable.');
+      throw new Error('SENDGRID_API_KEY not configured. Email delivery unavailable.');
     }
-    resendInstance = new Resend(apiKey);
+    sgMail.setApiKey(apiKey);
+    _sgInitialized = true;
   }
-  return resendInstance;
 }
 
-const resend = new Proxy({} as Resend, {
-  get(_target, prop) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Proxy pattern requires dynamic property access
-    return (getResendInstance() as any)[prop];
-  },
-});
-
-// Sender email (must be verified domain in Resend)
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'noreply@ato.app'
-const FROM_NAME = 'Australian Tax Optimizer'
+// Sender (must be verified in SendGrid)
+const FROM_EMAIL = 'ATO Tax Optimizer <support@carsi.com.au>'
+const REPLY_TO = 'phill.m@carsi.com.au'
 
 export interface SendInvitationEmailParams {
   to: string // Invitee email address
@@ -62,8 +55,8 @@ export async function sendOrganizationInvitationEmail(
 ): Promise<SendInvitationEmailResult> {
   try {
     // Validate required environment variables
-    if (!process.env.RESEND_API_KEY) {
-      console.error('RESEND_API_KEY environment variable is not set')
+    if (!process.env.SENDGRID_API_KEY) {
+      console.error('SENDGRID_API_KEY environment variable is not set')
       return {
         success: false,
         error: 'Email service not configured',
@@ -78,46 +71,35 @@ export async function sendOrganizationInvitationEmail(
       }
     }
 
+    ensureSendGridInit()
+
     // Generate email content
     const subject = getOrganizationInvitationSubject(params.invitationData)
     const html = getOrganizationInvitationHtml(params.invitationData)
     const text = getOrganizationInvitationText(params.invitationData)
 
-    // Send email via Resend
-    const response = await resend.emails.send({
-      from: `${FROM_NAME} <${FROM_EMAIL}>`,
+    // Send email via SendGrid
+    const [response] = await sgMail.send({
+      from: FROM_EMAIL,
       to: params.to,
+      replyTo: REPLY_TO,
       subject,
       html,
       text,
-      tags: [
-        {
-          name: 'type',
-          value: 'organization-invitation',
-        },
-        {
-          name: 'organization',
-          value: params.invitationData.organizationName,
-        },
-      ],
+      categories: ['organization-invitation'],
     })
 
-    if (!response || !response.data) {
-      return {
-        success: false,
-        error: 'Failed to send email via Resend',
-      }
-    }
+    const messageId = response.headers['x-message-id'] || ''
 
     log.info('Organization invitation email sent', {
-      messageId: response.data.id,
+      messageId,
       to: params.to,
       organization: params.invitationData.organizationName,
     })
 
     return {
       success: true,
-      messageId: response.data.id,
+      messageId,
     }
   } catch (error) {
     console.error('Failed to send organization invitation email:', error)
@@ -146,7 +128,7 @@ function isValidEmail(email: string): boolean {
 export async function sendBatchInvitationEmails(
   invitations: SendInvitationEmailParams[]
 ): Promise<SendInvitationEmailResult[]> {
-  // Send emails in parallel (Resend supports batch operations)
+  // Send emails in parallel
   const results = await Promise.allSettled(
     invitations.map((invitation) => sendOrganizationInvitationEmail(invitation))
   )

@@ -1,35 +1,28 @@
 /**
- * Resend Email Client
+ * SendGrid Email Client
  *
  * Email delivery service for organization invitations and notifications
  */
 
-import { Resend } from 'resend'
+import sgMail from '@sendgrid/mail'
 
-// Lazy-initialize Resend client
-let resendInstance: Resend | null = null;
+// Initialize SendGrid
+let _sgInitialized = false;
 
-function getResendInstance(): Resend {
-  if (!resendInstance) {
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey || apiKey === 're_placeholder') {
-      throw new Error('RESEND_API_KEY not configured. Email delivery unavailable.');
+function ensureSendGridInit(): void {
+  if (!_sgInitialized) {
+    const apiKey = process.env.SENDGRID_API_KEY;
+    if (!apiKey) {
+      throw new Error('SENDGRID_API_KEY not configured. Email delivery unavailable.');
     }
-    resendInstance = new Resend(apiKey);
+    sgMail.setApiKey(apiKey);
+    _sgInitialized = true;
   }
-  return resendInstance;
 }
 
-const resend = new Proxy({} as Resend, {
-  get(_target, prop) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Proxy pattern requires dynamic property access
-    return (getResendInstance() as any)[prop];
-  },
-});
-
-// Default sender email (must be verified in Resend)
-const DEFAULT_FROM_EMAIL =
-  process.env.RESEND_FROM_EMAIL || 'noreply@yourdomain.com'
+// Default sender (must be verified in SendGrid)
+const DEFAULT_FROM_EMAIL = 'ATO Tax Optimizer <support@carsi.com.au>'
+const DEFAULT_REPLY_TO = 'phill.m@carsi.com.au'
 
 export interface SendInvitationEmailParams {
   to: string
@@ -62,20 +55,18 @@ export async function sendInvitationEmail(
   params: SendInvitationEmailParams
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
-    const { data, error } = await resend.emails.send({
+    ensureSendGridInit()
+    const [response] = await sgMail.send({
       from: DEFAULT_FROM_EMAIL,
       to: params.to,
+      replyTo: DEFAULT_REPLY_TO,
       subject: `Invitation to join ${params.organizationName} on ATO Tax Optimizer`,
       html: getInvitationEmailHTML(params),
       text: getInvitationEmailText(params),
     })
 
-    if (error) {
-      console.error('Resend error:', error)
-      return { success: false, error: error.message }
-    }
-
-    return { success: true, messageId: data?.id }
+    const messageId = response.headers['x-message-id'] || ''
+    return { success: true, messageId }
   } catch (error) {
     console.error('Failed to send invitation email:', error)
     return {
@@ -92,20 +83,18 @@ export async function sendAccountantWelcomeEmail(
   params: SendAccountantWelcomeEmailParams
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
-    const { data, error } = await resend.emails.send({
+    ensureSendGridInit()
+    const [response] = await sgMail.send({
       from: DEFAULT_FROM_EMAIL,
       to: params.to,
+      replyTo: DEFAULT_REPLY_TO,
       subject: `Welcome to ATO Tax Optimizer - Your Application Has Been Approved`,
       html: getAccountantWelcomeEmailHTML(params),
       text: getAccountantWelcomeEmailText(params),
     })
 
-    if (error) {
-      console.error('Resend error:', error)
-      return { success: false, error: error.message }
-    }
-
-    return { success: true, messageId: data?.id }
+    const messageId = response.headers['x-message-id'] || ''
+    return { success: true, messageId }
   } catch (error) {
     console.error('Failed to send welcome email:', error)
     return {
@@ -122,20 +111,18 @@ export async function sendAccountantRejectionEmail(
   params: SendAccountantRejectionEmailParams
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
-    const { data, error } = await resend.emails.send({
+    ensureSendGridInit()
+    const [response] = await sgMail.send({
       from: DEFAULT_FROM_EMAIL,
       to: params.to,
+      replyTo: DEFAULT_REPLY_TO,
       subject: `ATO Tax Optimizer - Application Status Update`,
       html: getAccountantRejectionEmailHTML(params),
       text: getAccountantRejectionEmailText(params),
     })
 
-    if (error) {
-      console.error('Resend error:', error)
-      return { success: false, error: error.message }
-    }
-
-    return { success: true, messageId: data?.id }
+    const messageId = response.headers['x-message-id'] || ''
+    return { success: true, messageId }
   } catch (error) {
     console.error('Failed to send rejection email:', error)
     return {
@@ -607,20 +594,18 @@ export async function sendPurchaseConfirmationEmail(
   params: SendPurchaseConfirmationEmailParams
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
-    const { data, error } = await resend.emails.send({
+    ensureSendGridInit()
+    const [response] = await sgMail.send({
       from: DEFAULT_FROM_EMAIL,
       to: params.to,
+      replyTo: DEFAULT_REPLY_TO,
       subject: 'Your ATO Tax Optimizer purchase is confirmed',
       html: getPurchaseConfirmationEmailHTML(params),
       text: getPurchaseConfirmationEmailText(params),
     })
 
-    if (error) {
-      console.error('Resend error:', error)
-      return { success: false, error: error.message }
-    }
-
-    return { success: true, messageId: data?.id }
+    const messageId = response.headers['x-message-id'] || ''
+    return { success: true, messageId }
   } catch (error) {
     console.error('Failed to send purchase confirmation email:', error)
     return {
@@ -637,20 +622,18 @@ export async function sendPaymentFailureEmail(
   params: SendPaymentFailureEmailParams
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
   try {
-    const { data, error } = await resend.emails.send({
+    ensureSendGridInit()
+    const [response] = await sgMail.send({
       from: DEFAULT_FROM_EMAIL,
       to: params.to,
+      replyTo: DEFAULT_REPLY_TO,
       subject: 'Payment issue with your ATO Tax Optimizer order',
       html: getPaymentFailureEmailHTML(params),
       text: getPaymentFailureEmailText(params),
     })
 
-    if (error) {
-      console.error('Resend error:', error)
-      return { success: false, error: error.message }
-    }
-
-    return { success: true, messageId: data?.id }
+    const messageId = response.headers['x-message-id'] || ''
+    return { success: true, messageId }
   } catch (error) {
     console.error('Failed to send payment failure email:', error)
     return {
