@@ -226,7 +226,7 @@ function OrganizationRow({ org, onView }: {
         <div className="hidden md:flex items-center gap-6 text-xs">
           <div className="text-center">
             <p className="font-mono" style={{ color: SPECTRAL.cyan }}>
-              {org.transactionCount.toLocaleString()}
+              {(org.transactionCount ?? 0).toLocaleString()}
             </p>
             <p className="text-[8px] uppercase tracking-wider text-white/30">
               Transactions

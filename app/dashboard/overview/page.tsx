@@ -177,7 +177,16 @@ export default function TaxOverviewPage() {
           criticalIssues: summary.compliance?.division7aRisk || 0,
           dataQualityIssues: dqData.issuesFound || 0,
           complianceRisks: summary.compliance?.fbtImplications || 0,
-          recommendations: recsData.recommendations || [],
+          recommendations: (recsData.recommendations || []).map((r: Record<string, unknown>) => ({
+            id: r.id || String(Math.random()),
+            priority: r.priority === 'critical' ? 'high' : (r.priority || 'low'),
+            category: r.taxArea || r.category || 'general',
+            title: r.action || r.title || r.description || 'Recommendation',
+            description: r.description || '',
+            potentialSaving: r.estimatedBenefit ?? r.adjustedBenefit ?? r.potentialSaving ?? 0,
+            action: r.action || '',
+            confidence: r.confidence ?? 0,
+          })),
           lastAnalyzed: analysisData.lastAnalyzed || null,
           dataUpToDate: analysisData.results?.length > 0,
           analysisProgress: 100,
@@ -331,7 +340,7 @@ export default function TaxOverviewPage() {
             <div className="space-y-4">
               <div className="flex justify-between items-center text-xs">
                 <span className="text-[var(--text-muted)] font-bold">Division 7A Risk</span>
-                <span className="text-white font-mono">${overview.div7aRisk.toLocaleString()}</span>
+                <span className="text-white font-mono">${(overview.div7aRisk ?? 0).toLocaleString()}</span>
               </div>
               <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                 <motion.div initial={{ width: 0 }} animate={{ width: '65%' }} className="h-full bg-red-500" />
@@ -403,12 +412,12 @@ export default function TaxOverviewPage() {
                       }`} />
                     <div>
                       <p className="text-sm font-bold text-white group-hover:text-sky-400 transition-colors">{rec.title}</p>
-                      <p className="text-[10px] text-[var(--text-muted)] font-medium uppercase tracking-tight">{rec.category} • Confidence: {rec.confidence.toFixed(1)}%</p>
+                      <p className="text-[10px] text-[var(--text-muted)] font-medium uppercase tracking-tight">{rec.category} • Confidence: {(rec.confidence ?? 0).toFixed(1)}%</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-black text-emerald-400 font-mono">+${rec.potentialSaving.toLocaleString()}</p>
-                    <p className="text-[9px] text-[var(--text-muted)] font-bold">{rec.action.toUpperCase()}</p>
+                    <p className="text-xs font-black text-emerald-400 font-mono">+${(rec.potentialSaving ?? 0).toLocaleString()}</p>
+                    <p className="text-[9px] text-[var(--text-muted)] font-bold">{(rec.action || '').toUpperCase()}</p>
                   </div>
                 </motion.div>
               ))}
