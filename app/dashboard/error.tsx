@@ -12,6 +12,18 @@ export default function DashboardError({
 }) {
     useEffect(() => {
         console.error('Dashboard error:', error)
+        // Log to server for production debugging
+        fetch('/api/log-error', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: error.message,
+                stack: error.stack?.split('\n').slice(0, 10).join('\n'),
+                digest: error.digest,
+                url: typeof window !== 'undefined' ? window.location.href : 'unknown',
+                timestamp: new Date().toISOString(),
+            }),
+        }).catch(() => {}) // fire and forget
     }, [error])
 
     return (
@@ -45,14 +57,12 @@ export default function DashboardError({
                         Unable to load the dashboard. This might be due to a configuration issue or network problem.
                     </p>
 
-                    {process.env.NODE_ENV === 'development' && (
-                        <div className="mb-6 p-4 rounded-sm text-left" style={{ background: 'rgba(255, 68, 68, 0.08)', border: '0.5px solid rgba(255, 68, 68, 0.2)' }}>
-                            <p className="text-xs font-semibold mb-1" style={{ color: 'var(--color-error)' }}>Error Details:</p>
-                            <p className="text-sm font-mono break-words" style={{ color: 'rgba(255, 68, 68, 0.8)' }}>
-                                {error.message}
-                            </p>
-                        </div>
-                    )}
+                    <div className="mb-6 p-4 rounded-sm text-left" style={{ background: 'rgba(255, 68, 68, 0.08)', border: '0.5px solid rgba(255, 68, 68, 0.2)' }}>
+                        <p className="text-xs font-semibold mb-1" style={{ color: 'var(--color-error)' }}>Error Details:</p>
+                        <p className="text-sm font-mono break-words" style={{ color: 'rgba(255, 68, 68, 0.8)' }}>
+                            {error.message || error.digest || 'Unknown error'}
+                        </p>
+                    </div>
 
                     <div className="mb-6 p-4 rounded-sm text-left" style={{ background: 'rgba(0, 245, 255, 0.05)', border: '0.5px solid rgba(0, 245, 255, 0.15)' }}>
                         <p className="text-sm font-semibold mb-2" style={{ color: 'var(--accent-primary)' }}>Common Solutions:</p>
