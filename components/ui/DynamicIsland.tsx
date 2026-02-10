@@ -34,6 +34,7 @@ import {
 import { OrganizationSwitcher } from '@/components/dashboard/OrganizationSwitcher'
 import NotificationBell from '@/components/collaboration/NotificationBell'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { createClient } from '@/lib/supabase/client'
 
 // Icon mapping for rendering
 const iconMap: Record<IconName, React.ComponentType<{ size?: number }>> = {
@@ -117,17 +118,32 @@ function useOnboardingSteps(): OnboardingStep[] {
     }
 
     if (hasSyncedData && tenantId) {
+      // Check forensic analysis results directly via Supabase
       try {
-        const recRes = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
-        if (recRes.ok) {
-          const recData = await recRes.json()
-          const recs = Array.isArray(recData) ? recData : recData?.recommendations ?? []
-          hasResults = recs.some((r: { estimatedBenefit?: number; estimated_benefit?: number }) =>
-            (r.estimatedBenefit ?? r.estimated_benefit ?? 0) > 0
-          )
-        }
+        const supabase = createClient()
+        const { count } = await supabase
+          .from('forensic_analysis_results')
+          .select('*', { count: 'exact', head: true })
+          .eq('tenant_id', tenantId)
+        hasResults = (count ?? 0) > 0
       } catch {
-        // Results check failed
+        // Forensic results check failed — fall back to recommendations
+      }
+
+      // Fallback: check recommendations endpoint
+      if (!hasResults) {
+        try {
+          const recRes = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
+          if (recRes.ok) {
+            const recData = await recRes.json()
+            const recs = Array.isArray(recData) ? recData : recData?.recommendations ?? []
+            hasResults = recs.some((r: { estimatedBenefit?: number; estimated_benefit?: number }) =>
+              (r.estimatedBenefit ?? r.estimated_benefit ?? 0) > 0
+            )
+          }
+        } catch {
+          // Results check failed
+        }
       }
     }
 

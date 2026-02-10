@@ -24,6 +24,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getCachedTransactions } from '@/lib/xero/historical-fetcher'
 import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext, type BusinessContext, type ForensicAnalysis } from '@/lib/ai/forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now()
 
     try {
+        const requestForAuth = request.clone() as NextRequest
         const body = await request.json()
         let tenantId: string
 
@@ -68,7 +70,9 @@ export async function POST(request: NextRequest) {
                 return createValidationError('tenantId is required')
             }
         } else {
-            return createValidationError('Multi-user mode not supported')
+            const auth = await requireAuth(requestForAuth, { tenantIdSource: 'body' })
+            if (isErrorResponse(auth)) return auth
+            tenantId = auth.tenantId
         }
 
         // Parse optional fields
@@ -416,7 +420,9 @@ export async function GET(request: NextRequest) {
             return createValidationError('tenantId is required')
         }
     } else {
-        return createValidationError('Multi-user mode not supported')
+        const auth = await requireAuth(request)
+        if (isErrorResponse(auth)) return auth
+        tenantId = auth.tenantId
     }
 
     const supabase = createAdminClient()
