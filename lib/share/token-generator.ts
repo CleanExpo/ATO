@@ -60,7 +60,7 @@ export function getDisplayToken(token: string, displayLength: number = 6): strin
  * @returns Full share URL
  */
 export function buildShareUrl(token: string, baseUrl?: string): string {
-  const base = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  const base = baseUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://ato-ai.app';
   return `${base}/share/${token}`;
 }
 

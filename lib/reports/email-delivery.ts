@@ -10,7 +10,10 @@ import { createLogger } from '@/lib/logger'
 
 const log = createLogger('reports:email-delivery')
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || 'SG.placeholder')
+const _sgApiKey = process.env.SENDGRID_API_KEY
+if (_sgApiKey) {
+  sgMail.setApiKey(_sgApiKey)
+}
 
 /**
  * Email configuration
