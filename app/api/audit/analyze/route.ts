@@ -40,6 +40,9 @@ export const maxDuration = 300 // 5 minutes for Vercel Pro
 
 export async function POST(request: NextRequest) {
     try {
+        // Clone before validation so requireAuth can also read the body
+        const requestForAuth = request.clone() as NextRequest
+
         // Validate request body using Zod schema
         const bodyValidation = await validateRequestBody(request, analyzeRequestSchema)
         if (!bodyValidation.success) return bodyValidation.response
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
             validatedTenantId = tenantId
         } else {
             // Multi-user mode: Authenticate and validate tenant access
-            const auth = await requireAuth(request, { tenantIdSource: 'body' })
+            const auth = await requireAuth(requestForAuth, { tenantIdSource: 'body' })
             if (isErrorResponse(auth)) return auth
             validatedTenantId = auth.tenantId
         }

@@ -94,7 +94,9 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string, organization
 export async function POST(request: NextRequest) {
     try {
         const baseUrl = request.nextUrl.origin
-        const body = await request.json()
+        // Clone before reading body so requireAuth can also read it
+        const bodyClone = request.clone()
+        const body = await bodyClone.json()
         let tenantId: string
 
         if (isSingleUserMode()) {
