@@ -14,7 +14,7 @@ import { createLogger } from '@/lib/logger'
 import { getCachedTransactions, type HistoricalTransaction } from '@/lib/xero/historical-fetcher'
 import { getCachedMYOBTransactions, type MYOBHistoricalTransaction } from '@/lib/integrations/myob-historical-fetcher'
 import { getCachedQuickBooksTransactions, type QuickBooksTransaction } from '@/lib/integrations/quickbooks-historical-fetcher'
-import { analyzeTransactionBatch, estimateAnalysisCost, getModelInfo, type TransactionContext, type BusinessContext, type ForensicAnalysis } from './forensic-analyzer'
+import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext, type BusinessContext, type ForensicAnalysis } from './forensic-analyzer'
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { triggerAlertGeneration } from '@/lib/alerts/alert-generator'
 import slack from '@/lib/slack/slack-notifier'
@@ -266,34 +266,32 @@ export async function analyzeAllTransactions(
         // Get R&D statistics
         const { data: rndStats } = await supabase
             .from('forensic_analysis_results')
-            .select('is_rnd_candidate, adjusted_benefit')
+            .select('is_rnd_candidate, claimable_amount')
             .eq('tenant_id', tenantId)
-            .eq('platform', platform)
             .eq('financial_year', financialYear)
             .eq('is_rnd_candidate', true)
 
         const rndCandidates = rndStats?.length || 0
-        const potentialRndBenefit = rndStats?.reduce((sum, r) => sum + (r.adjusted_benefit || 0), 0) || 0
+        const potentialRndBenefit = rndStats?.reduce((sum, r) => sum + (r.claimable_amount || 0), 0) || 0
 
         // Get deduction statistics
         const { data: deductionStats } = await supabase
             .from('forensic_analysis_results')
-            .select('amount, flags')
+            .select('transaction_amount, compliance_notes')
             .eq('tenant_id', tenantId)
-            .eq('platform', platform)
             .eq('financial_year', financialYear)
 
         const deductionOpportunities = deductionStats?.filter(r =>
-            r.flags && Array.isArray(r.flags) && r.flags.some((flag: string) =>
-                flag.toLowerCase().includes('deduction') || flag.toLowerCase().includes('claim')
+            r.compliance_notes && Array.isArray(r.compliance_notes) && r.compliance_notes.some((note: string) =>
+                note.toLowerCase().includes('deduction') || note.toLowerCase().includes('claim')
             )
         ).length || 0
 
         const potentialDeductions = deductionStats?.filter(r =>
-            r.flags && Array.isArray(r.flags) && r.flags.some((flag: string) =>
-                flag.toLowerCase().includes('deduction') || flag.toLowerCase().includes('claim')
+            r.compliance_notes && Array.isArray(r.compliance_notes) && r.compliance_notes.some((note: string) =>
+                note.toLowerCase().includes('deduction') || note.toLowerCase().includes('claim')
             )
-        ).reduce((sum, r) => sum + Math.abs(r.amount), 0) || 0
+        ).reduce((sum, r) => sum + Math.abs(r.transaction_amount || 0), 0) || 0
 
         // Notify Slack: Analysis complete
         try {
@@ -316,7 +314,7 @@ export async function analyzeAllTransactions(
         log.error('Analysis failed', error instanceof Error ? error : undefined, { platform, tenantId })
 
         progress.status = 'error'
-        progress.errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        progress.errorMessage = error instanceof Error ? error.message : (typeof error === 'object' && error !== null ? JSON.stringify(error) : 'Unknown error')
 
         await updateAnalysisProgress(tenantId, progress, platform)
 
@@ -558,7 +556,6 @@ async function storeAnalysisResults(
             tenant_id: tenantId,
             transaction_id: analysis.transactionId,
             financial_year: financialYear,
-            platform: platform,
 
             // Transaction metadata (for aggregations and display)
             transaction_amount: txnAmount,
@@ -596,9 +593,6 @@ async function storeAnalysisResults(
             fbt_implications: analysis.complianceFlags.fbtImplications,
             division7a_risk: analysis.complianceFlags.division7aRisk,
             compliance_notes: analysis.complianceFlags.notes,
-
-            // Metadata
-            ai_model: getModelInfo().mode,
         }
     })
 
@@ -627,8 +621,8 @@ async function storeAnalysisResults(
         })
 
     if (error) {
-        log.error('Error storing analysis results', error instanceof Error ? error : undefined)
-        throw error
+        log.error('Error storing analysis results', error instanceof Error ? error : new Error(JSON.stringify(error)))
+        throw new Error(`Failed to store analysis results: ${JSON.stringify(error)}`)
     }
 
     log.info('Stored analysis results', { count: uniqueRecords.length })
@@ -655,7 +649,7 @@ async function updateAnalysisProgress(
             sync_status: progress.status === 'analyzing' ? 'syncing' : progress.status,
             transactions_synced: progress.transactionsAnalyzed,
             total_transactions: progress.totalTransactions,  // ✅ Fixed: was total_transactions_estimated
-            error_message: progress.errorMessage,
+            error_message: progress.errorMessage ?? null,
             updated_at: new Date().toISOString(),
         }, {
             onConflict: 'tenant_id,platform',  // Updated for multi-platform support
@@ -679,7 +673,6 @@ async function trackAnalysisCost(
     const supabase = createAdminClient()
 
     const costEstimate = estimateAnalysisCost(transactionCount)
-    const modelInfo = getModelInfo()
 
     const { error } = await supabase
         .from('ai_analysis_costs')
@@ -692,7 +685,6 @@ async function trackAnalysisCost(
             input_tokens: costEstimate.inputTokens,
             output_tokens: costEstimate.outputTokens,
             estimated_cost_usd: costUSD,
-            ai_model: modelInfo.mode,
         })
 
     if (error) {
