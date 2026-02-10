@@ -12,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient, createAdminClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
 import { sendAccountantWelcomeEmail } from '@/lib/email/resend-client';
 import { requireAdminRole } from '@/lib/middleware/admin-role';
@@ -97,12 +97,39 @@ export async function PATCH(
       );
     }
 
-    // Step 1: Create user account in auth.users (via Supabase Auth Admin API)
-    // For now, we'll create a placeholder and send magic link email
-    // In production, you'd use: supabase.auth.admin.createUser()
+    // Step 1: Create real user account via Supabase Auth Admin API
+    const adminClient = createAdminClient();
+    const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
+      email: application.email,
+      email_confirm: true,
+      user_metadata: {
+        first_name: application.first_name,
+        last_name: application.last_name,
+        firm_name: application.firm_name,
+        role: 'accountant',
+      },
+    });
 
-    // Generate a temporary user_id (in production, this would be from auth.users)
-    const tempUserId = crypto.randomUUID();
+    if (authError || !authUser.user) {
+      console.error('Error creating auth user:', authError);
+      return createErrorResponse(
+        new Error(authError?.message || 'Failed to create user account'),
+        { applicationId, email: application.email },
+        500
+      );
+    }
+
+    const userId = authUser.user.id;
+
+    // Generate a magic link so the accountant can set their password on first login
+    let magicLinkUrl: string | undefined;
+    const { data: linkData } = await adminClient.auth.admin.generateLink({
+      type: 'magiclink',
+      email: application.email,
+    });
+    if (linkData?.properties?.action_link) {
+      magicLinkUrl = linkData.properties.action_link;
+    }
 
     // Step 2: Create organization for the accountant's firm
     const { data: organization, error: orgError } = await supabase
@@ -126,11 +153,11 @@ export async function PATCH(
       console.warn('Continuing without organization creation');
     }
 
-    const organizationId = organization?.id || tempUserId;
+    const organizationId = organization?.id || userId;
 
     // Step 3: Create vetted accountant record
     const vettedAccountantData: Partial<VettedAccountant> = {
-      user_id: tempUserId,
+      user_id: userId,
       application_id: application.id,
       organization_id: organizationId,
       email: application.email,
@@ -168,7 +195,7 @@ export async function PATCH(
         status: 'approved',
         reviewed_at: new Date().toISOString(),
         internal_notes,
-        user_id: tempUserId,
+        user_id: userId,
         approved_organization_id: organizationId,
       })
       .eq('id', applicationId);
@@ -214,8 +241,8 @@ export async function PATCH(
       user_agent: getUserAgent(request) ?? undefined,
     });
 
-    // Step 6: Generate login URL
-    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth/login`;
+    // Step 6: Generate login URL (prefer magic link for first-time access)
+    const loginUrl = magicLinkUrl || `${process.env.NEXT_PUBLIC_APP_URL}/auth/login`;
 
     // Step 7: Send welcome email
     let emailSuccess = false;
@@ -263,7 +290,7 @@ export async function PATCH(
     const response: ApprovalResponse = {
       success: true,
       accountant_id: vettedAccountant.id,
-      user_id: tempUserId,
+      user_id: userId,
       organization_id: organizationId,
       magic_link: loginUrl,
       message,
