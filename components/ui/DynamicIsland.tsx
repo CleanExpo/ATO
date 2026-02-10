@@ -83,6 +83,7 @@ function useOnboardingSteps(): OnboardingStep[] {
     let hasConnection = false
     let hasSyncedData = false
     let hasResults = false
+    let tenantId: string | null = null
 
     try {
       const [xeroRes, myobRes] = await Promise.all([
@@ -90,16 +91,21 @@ function useOnboardingSteps(): OnboardingStep[] {
         fetch('/api/myob/connections').then(r => r.ok ? r.json() : null).catch(() => null),
       ])
 
-      const xeroOrgs = Array.isArray(xeroRes) ? xeroRes : xeroRes?.organizations ?? []
+      const xeroConns = Array.isArray(xeroRes) ? xeroRes : xeroRes?.connections ?? []
       const myobConns = Array.isArray(myobRes) ? myobRes : myobRes?.connections ?? []
-      hasConnection = xeroOrgs.length > 0 || myobConns.length > 0
+      hasConnection = xeroConns.length > 0 || myobConns.length > 0
+
+      // Extract first tenant_id for subsequent API calls
+      if (xeroConns.length > 0) {
+        tenantId = xeroConns[0].tenant_id ?? null
+      }
     } catch {
       // Connection check failed — step 1 stays active
     }
 
-    if (hasConnection) {
+    if (hasConnection && tenantId) {
       try {
-        const txRes = await fetch('/api/audit/cached-transactions?limit=1')
+        const txRes = await fetch(`/api/audit/cached-transactions?tenantId=${tenantId}&pageSize=1`)
         if (txRes.ok) {
           const txData = await txRes.json()
           const txList = Array.isArray(txData) ? txData : txData?.transactions ?? []
@@ -110,9 +116,9 @@ function useOnboardingSteps(): OnboardingStep[] {
       }
     }
 
-    if (hasSyncedData) {
+    if (hasSyncedData && tenantId) {
       try {
-        const recRes = await fetch('/api/audit/recommendations')
+        const recRes = await fetch(`/api/audit/recommendations?tenantId=${tenantId}`)
         if (recRes.ok) {
           const recData = await recRes.json()
           const recs = Array.isArray(recData) ? recData : recData?.recommendations ?? []
