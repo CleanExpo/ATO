@@ -780,6 +780,98 @@
   background: var(--accent-primary-glow);
 }
 
+/* Onboarding Steps - 3-step progress indicator */
+.onboarding-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 var(--space-sm);
+}
+
+.onboarding-steps__step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.onboarding-steps__circle {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  transition: all var(--transition-base);
+}
+
+.onboarding-steps__circle--pending {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  border: 0.5px solid var(--border-light);
+}
+
+.onboarding-steps__circle--active {
+  background: var(--accent-primary-dim);
+  color: var(--accent-primary);
+  border: 0.5px solid rgba(0, 245, 255, 0.40);
+  box-shadow: 0 0 12px rgba(0, 245, 255, 0.20);
+}
+
+.onboarding-steps__circle--complete {
+  background: var(--accent-primary);
+  color: var(--text-inverse);
+  border: 0.5px solid var(--accent-primary);
+}
+
+.onboarding-steps__connector {
+  width: 40px;
+  height: 1px;
+  flex-shrink: 0;
+  transition: background var(--transition-base);
+}
+
+.onboarding-steps__connector--pending {
+  background: var(--border-light);
+}
+
+.onboarding-steps__connector--complete {
+  background: var(--accent-primary);
+}
+
+.onboarding-steps__label {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  white-space: nowrap;
+  transition: color var(--transition-base);
+}
+
+.onboarding-steps__label--pending {
+  color: var(--text-muted);
+}
+
+.onboarding-steps__label--active {
+  color: var(--accent-primary);
+}
+
+.onboarding-steps__label--complete {
+  color: var(--text-secondary);
+}
+
+/* Compact variant for mobile */
+.onboarding-steps--compact {
+  justify-content: center;
+  padding: var(--space-sm) 0;
+}
+
+.onboarding-steps--compact .onboarding-steps__connector {
+  width: 24px;
+}
+
 /* Sidebar Navigation - OLED */
 .sidebar,
 .vertical-nav {
