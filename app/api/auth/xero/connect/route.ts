@@ -9,8 +9,8 @@ import { NextRequest, NextResponse } from 'next/server'
 export async function GET(_request: NextRequest) {
     try {
         // Check environment variables inline to provide better error messages
-        const xeroClientId = process.env.XERO_CLIENT_ID
-        const xeroClientSecret = process.env.XERO_CLIENT_SECRET
+        const xeroClientId = process.env.XERO_CLIENT_ID?.trim()
+        const xeroClientSecret = process.env.XERO_CLIENT_SECRET?.trim()
 
         if (!xeroClientId || !xeroClientSecret) {
             console.error('Missing Xero OAuth credentials:', {
@@ -31,9 +31,9 @@ export async function GET(_request: NextRequest) {
         }
 
         // Resolve base URL
-        let baseUrl = process.env.NEXT_PUBLIC_BASE_URL
+        let baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim()
         if (!baseUrl && process.env.VERCEL_URL) {
-            baseUrl = `https://${process.env.VERCEL_URL}`
+            baseUrl = `https://${process.env.VERCEL_URL.trim()}`
         }
         if (!baseUrl) {
             console.warn('NEXT_PUBLIC_BASE_URL and VERCEL_URL are both missing — OAuth redirect will use localhost fallback')

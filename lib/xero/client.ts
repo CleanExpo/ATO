@@ -35,18 +35,19 @@ type CreateXeroClientOptions = {
 
 function resolveBaseUrl(override?: string): string {
     // Use override if provided, otherwise resolve from environment
+    // Always trim to guard against stray whitespace/CRLF in env vars
     if (override) {
-        return override.replace(/\/+$/, '')
+        return override.trim().replace(/\/+$/, '')
     }
 
     // Try explicit base URL first
     if (process.env.NEXT_PUBLIC_BASE_URL) {
-        return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/+$/, '')
+        return process.env.NEXT_PUBLIC_BASE_URL.trim().replace(/\/+$/, '')
     }
 
     // Vercel deployment URL
     if (process.env.VERCEL_URL) {
-        return `https://${process.env.VERCEL_URL}`
+        return `https://${process.env.VERCEL_URL.trim()}`
     }
 
     // Local development fallback
@@ -55,9 +56,9 @@ function resolveBaseUrl(override?: string): string {
 }
 
 export function createXeroClient(options: CreateXeroClientOptions = {}): XeroClient {
-    // Get credentials directly from environment
-    const clientId = process.env.XERO_CLIENT_ID
-    const clientSecret = process.env.XERO_CLIENT_SECRET
+    // Get credentials directly from environment (trim to guard against stray whitespace/CRLF)
+    const clientId = process.env.XERO_CLIENT_ID?.trim()
+    const clientSecret = process.env.XERO_CLIENT_SECRET?.trim()
 
     if (!clientId || !clientSecret) {
         throw new Error(
