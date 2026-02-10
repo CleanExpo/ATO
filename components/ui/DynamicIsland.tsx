@@ -34,7 +34,6 @@ import {
 import { OrganizationSwitcher } from '@/components/dashboard/OrganizationSwitcher'
 import NotificationBell from '@/components/collaboration/NotificationBell'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import { createClient } from '@/lib/supabase/client'
 
 // Icon mapping for rendering
 const iconMap: Record<IconName, React.ComponentType<{ size?: number }>> = {
@@ -118,16 +117,15 @@ function useOnboardingSteps(): OnboardingStep[] {
     }
 
     if (hasSyncedData && tenantId) {
-      // Check forensic analysis results directly via Supabase
+      // Check forensic analysis results count via server-side endpoint
       try {
-        const supabase = createClient()
-        const { count } = await supabase
-          .from('forensic_analysis_results')
-          .select('*', { count: 'exact', head: true })
-          .eq('tenant_id', tenantId)
-        hasResults = (count ?? 0) > 0
+        const chunkRes = await fetch(`/api/audit/analyze-chunk?tenantId=${tenantId}`)
+        if (chunkRes.ok) {
+          const chunkData = await chunkRes.json()
+          hasResults = (chunkData?.transactionsAnalyzed ?? 0) > 0
+        }
       } catch {
-        // Forensic results check failed — fall back to recommendations
+        // Forensic results check failed
       }
 
       // Fallback: check recommendations endpoint
