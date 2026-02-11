@@ -46,6 +46,12 @@ next-env.d.ts
 .playwright-mcp/
 nul
 
+# Screenshots
+screenshot-*.png
+
+# Supabase temp
+supabase/.temp/
+
 # Temp files
 QUICK_ENV_SETUP.md
 add-env-vars.sh
