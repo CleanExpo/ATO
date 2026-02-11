@@ -35,22 +35,65 @@ export async function GET(_request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Use the helper function to get user's organizations
-    const { data, error } = await supabase.rpc('get_user_organizations', {
-      p_user_id: user.id,
-    })
+    // Query user_tenant_access directly (bypasses broken RPC that references
+    // non-existent deleted_at column on organizations table)
+    const { data: accessRows, error: accessError } = await supabase
+      .from('user_tenant_access')
+      .select('organization_id, tenant_id, role')
+      .eq('user_id', user.id)
 
-    if (error) {
-      console.error('Error fetching organizations:', error)
+    if (accessError) {
+      console.error('Error fetching user access:', accessError)
       return NextResponse.json(
         { error: 'Failed to fetch organizations' },
         { status: 500 }
       )
     }
 
-    return NextResponse.json({
-      organizations: data || [],
-    })
+    if (!accessRows || accessRows.length === 0) {
+      return NextResponse.json({ organizations: [] })
+    }
+
+    // Fetch full organization data
+    const orgIds = accessRows.map((r: { organization_id: string }) => r.organization_id)
+    const { data: fullOrgs, error: orgError } = await supabase
+      .from('organizations')
+      .select('*')
+      .in('id', orgIds)
+
+    if (orgError) {
+      console.error('Error fetching org data:', orgError)
+      return NextResponse.json(
+        { error: 'Failed to fetch organization details' },
+        { status: 500 }
+      )
+    }
+
+    // Build a role lookup from user_tenant_access
+    const roleLookup = new Map<string, string>()
+    for (const r of accessRows) {
+      roleLookup.set(r.organization_id, r.role)
+    }
+
+    // Transform snake_case DB rows to camelCase Organization objects
+    const organizations = (fullOrgs || []).map((org: Record<string, unknown>) => ({
+      id: org.id,
+      name: org.name,
+      abn: org.abn || undefined,
+      industry: org.industry || undefined,
+      businessSize: org.business_size || undefined,
+      xeroTenantId: org.xero_tenant_id || undefined,
+      xeroConnectedAt: org.xero_connected_at || undefined,
+      settings: org.settings || {},
+      subscriptionTier: org.subscription_tier || 'free',
+      subscriptionStatus: org.subscription_status || 'active',
+      createdAt: org.created_at,
+      updatedAt: org.updated_at,
+      // Include the user's role for convenience
+      role: roleLookup.get(org.id as string) || undefined,
+    }))
+
+    return NextResponse.json({ organizations })
   } catch (error) {
     console.error('Unexpected error in GET /api/organizations:', error)
     return NextResponse.json(

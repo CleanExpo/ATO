@@ -64,16 +64,25 @@ export function OrganizationProvider({
           localStorage.getItem('currentOrganizationId') ||
           data.organizations[0].id
 
-        const org = data.organizations.find((o: Organization) => o.id === orgId)
+        const org = data.organizations.find((o: Organization & { role?: string }) => o.id === orgId)
+          || data.organizations[0] // Fallback to first org if saved ID no longer exists
         if (org) {
           setCurrentOrganization(org)
           localStorage.setItem('currentOrganizationId', org.id)
 
-          // Fetch role for this organization
-          const roleResponse = await fetch(`/api/organizations/${org.id}/role`)
-          if (roleResponse.ok) {
-            const roleData = await roleResponse.json()
-            setCurrentRole(roleData.role)
+          // Use role from API response if included, otherwise fetch separately
+          if ((org as Organization & { role?: string }).role) {
+            setCurrentRole((org as Organization & { role?: string }).role as UserRole)
+          } else {
+            try {
+              const roleResponse = await fetch(`/api/organizations/${org.id}/role`)
+              if (roleResponse.ok) {
+                const roleData = await roleResponse.json()
+                setCurrentRole(roleData.role)
+              }
+            } catch {
+              // Role fetch failed — non-critical
+            }
           }
         }
       }
