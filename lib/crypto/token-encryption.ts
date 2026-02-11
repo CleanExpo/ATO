@@ -10,6 +10,11 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto'
 
 /**
+ * Production guard (SEC-010): Validated lazily in getEncryptionKey().
+ * Cannot throw at module load time because Next.js build runs with NODE_ENV=production.
+ */
+
+/**
  * Encryption configuration
  */
 const ALGORITHM = 'aes-256-gcm'

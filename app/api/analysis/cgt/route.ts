@@ -21,6 +21,7 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { analyzeCGT } from '@/lib/analysis/cgt-engine'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
   try {

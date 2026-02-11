@@ -4,12 +4,19 @@
  * GET - Retrieve current Australian tax rates (from cache or fresh fetch)
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
+import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const forceRefresh = searchParams.get('refresh') === 'true'
+
+  // Require authentication for refresh requests (cache-busting is a privileged operation)
+  if (forceRefresh) {
+    const auth = await requireAuthOnly(request)
+    if (isErrorResponse(auth)) return auth
+  }
 
   try {
     const rates = await getCurrentTaxRates(forceRefresh)

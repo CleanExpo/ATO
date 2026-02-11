@@ -37,6 +37,7 @@ import {
 } from 'recharts'
 import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
+import { GlassCard } from '@/components/ui/GlassCard'
 import { useOrganization } from '@/lib/context/OrganizationContext'
 import { ConsolidatedDashboard } from '@/components/dashboard/ConsolidatedDashboard'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
@@ -80,16 +81,6 @@ interface TaxOverview {
 }
 
 // --- Components ---
-
-const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode, className?: string, highlight?: boolean }) => (
-  <motion.div
-    initial={{ opacity: 0, scale: 0.98 }}
-    animate={{ opacity: 1, scale: 1 }}
-    className={`glass-card overflow-hidden border ${highlight ? 'border-sky-500/30 bg-sky-500/5' : 'border-white/10'} ${className}`}
-  >
-    {children}
-  </motion.div>
-);
 
 const MetricBlock = ({ label, value, prefix: _prefix = "$", variant = "default", trend }: { label: string; value: number; prefix?: string; variant?: 'default' | 'positive' | 'negative' | 'highlight' | 'warning' | 'success'; trend?: number }) => (
   <div className="flex flex-col">

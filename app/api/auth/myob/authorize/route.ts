@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import crypto from 'crypto'
 
 const MYOB_AUTH_URL = 'https://secure.myob.com/oauth2/account/authorize'
@@ -18,6 +19,10 @@ const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/myob/callback
  * Redirects to MYOB OAuth authorization page
  */
 export async function GET(request: NextRequest) {
+  // Rate limit OAuth initiation (SEC-003)
+  const rateLimitResult = applyRateLimit(request, RATE_LIMITS.auth, 'oauth:myob')
+  if (rateLimitResult) return rateLimitResult
+
   try {
     // Verify user is authenticated
     const supabase = await createClient()

@@ -28,23 +28,44 @@ export async function GET(_request: NextRequest) {
         if (analysisError) throw analysisError;
 
         // 3. Total Identified Savings
-        const { data: recsData, error: recsError } = await supabase
+        // Use count query first to check if aggregation is feasible, then fetch with limit
+        const { count: recsCount } = await supabase
             .from('tax_recommendations')
-            .select('estimated_benefit, adjusted_benefit');
+            .select('*', { count: 'exact', head: true });
 
-        if (recsError) throw recsError;
+        let totalBenefit = 0;
+        let adjustedBenefit = 0;
 
-        const totalBenefit = recsData.reduce((sum, r) => sum + Number(r.estimated_benefit || 0), 0);
-        const adjustedBenefit = recsData.reduce((sum, r) => sum + Number(r.adjusted_benefit || 0), 0);
+        // Only fetch data if there are rows (and limit to prevent memory issues)
+        if (recsCount && recsCount > 0) {
+            const { data: recsData, error: recsError } = await supabase
+                .from('tax_recommendations')
+                .select('estimated_benefit, adjusted_benefit')
+                .limit(10000);
+
+            if (recsError) throw recsError;
+
+            totalBenefit = (recsData || []).reduce((sum: number, r: { estimated_benefit: number | null; adjusted_benefit: number | null }) => sum + Number(r.estimated_benefit || 0), 0);
+            adjustedBenefit = (recsData || []).reduce((sum: number, r: { estimated_benefit: number | null; adjusted_benefit: number | null }) => sum + Number(r.adjusted_benefit || 0), 0);
+        }
 
         // 4. Total AI Costs
-        const { data: costData, error: costError } = await supabase
+        const { count: costsCount } = await supabase
             .from('ai_analysis_costs')
-            .select('estimated_cost_usd');
+            .select('*', { count: 'exact', head: true });
 
-        if (costError) throw costError;
+        let totalCost = 0;
 
-        const totalCost = costData.reduce((sum, c) => sum + Number(c.estimated_cost_usd || 0), 0);
+        if (costsCount && costsCount > 0) {
+            const { data: costData, error: costError } = await supabase
+                .from('ai_analysis_costs')
+                .select('estimated_cost_usd')
+                .limit(10000);
+
+            if (costError) throw costError;
+
+            totalCost = (costData || []).reduce((sum: number, c: { estimated_cost_usd: number | null }) => sum + Number(c.estimated_cost_usd || 0), 0);
+        }
 
         // 5. Recent Activity
         const { data: recentActivity, error: activityError } = await supabase

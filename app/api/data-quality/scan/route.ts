@@ -18,6 +18,7 @@ import { scanForDataQualityIssues, getScanStatus } from '@/lib/xero/data-quality
 import { applyAutoCorrestions } from '@/lib/xero/auto-correction-engine'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
+import { decryptStoredToken } from '@/lib/xero/token-store'
 
 const log = createLogger('api:data-quality:scan')
 
@@ -94,10 +95,11 @@ export async function POST(request: NextRequest) {
                     .maybeSingle()
 
                 if (connection) {
+                    // Decrypt tokens from database (SEC-001)
                     await applyAutoCorrestions(scanResult.issues, {
                         tenantId,
-                        accessToken: connection.access_token,
-                        refreshToken: connection.refresh_token,
+                        accessToken: decryptStoredToken(connection.access_token),
+                        refreshToken: decryptStoredToken(connection.refresh_token),
                         autoFixThreshold
                     })
                 }

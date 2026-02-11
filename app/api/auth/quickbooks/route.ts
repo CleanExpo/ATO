@@ -11,11 +11,16 @@ import { createClient } from '@/lib/supabase/server'
 import { QUICKBOOKS_CONFIG } from '@/lib/integrations/quickbooks-config'
 import { createErrorResponse } from '@/lib/api/errors'
 import { createLogger } from '@/lib/logger'
+import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import crypto from 'crypto'
 
 const log = createLogger('api:auth:quickbooks')
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+  // Rate limit OAuth initiation (SEC-003)
+  const rateLimitResult = applyRateLimit(request, RATE_LIMITS.auth, 'oauth:quickbooks')
+  if (rateLimitResult) return rateLimitResult
+
   try {
     // Get authenticated user
     const supabase = await createClient()

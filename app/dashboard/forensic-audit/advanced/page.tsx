@@ -14,7 +14,7 @@
 import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Beaker, TrendingDown, Building2, AlertCircle, CheckCircle, Clock } from 'lucide-react'
+import { Beaker, TrendingDown, Building2, AlertCircle, CheckCircle, Clock, Target } from 'lucide-react'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveChart from '@/components/dashboard/LiveChart'
@@ -572,7 +572,7 @@ function ClientView({ data }: { data: DashboardData }) {
     <div className="space-y-6">
       {/* Headline */}
       <div className="glass-card p-8 text-center">
-        <div className="text-4xl mb-2">🎯</div>
+        <div className="mb-2 flex justify-center"><Target className="w-10 h-10 text-sky-400" /></div>
         <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-4">
           {summary.headline}
         </h2>
@@ -643,8 +643,8 @@ function ClientView({ data }: { data: DashboardData }) {
 
       {/* Download Button */}
       <div className="flex justify-center">
-        <button className="btn btn-primary">
-          Download Client-Friendly Report
+        <button className="btn btn-primary opacity-50 cursor-not-allowed" disabled title="Coming soon">
+          Download Client-Friendly Report (Coming Soon)
         </button>
       </div>
     </div>
@@ -744,14 +744,14 @@ function TechnicalView({ data }: { data: DashboardData }) {
 
       {/* Download Buttons */}
       <div className="flex gap-4">
-        <button className="btn btn-primary flex-1">
-          Download Technical PDF
+        <button className="btn btn-primary flex-1 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+          Download Technical PDF (Coming Soon)
         </button>
-        <button className="btn btn-secondary flex-1">
-          Export Excel Workbook
+        <button className="btn btn-secondary flex-1 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+          Export Excel Workbook (Coming Soon)
         </button>
-        <button className="btn btn-secondary flex-1">
-          Amendment Schedules
+        <button className="btn btn-secondary flex-1 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+          Amendment Schedules (Coming Soon)
         </button>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { createErrorResponse, createValidationError, createNotFoundError } from 
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import type { TokenSet } from 'xero-node'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { decryptStoredToken, encryptTokenForStorage } from '@/lib/xero/token-store'
 
 type XeroReportCell = {
     value?: string
@@ -58,9 +59,10 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
         return null
     }
 
+    // Decrypt tokens from database (SEC-001)
     const tokenSet = {
-        access_token: connection.access_token,
-        refresh_token: connection.refresh_token,
+        access_token: decryptStoredToken(connection.access_token),
+        refresh_token: decryptStoredToken(connection.refresh_token),
         expires_at: connection.expires_at,
         id_token: connection.id_token,
         scope: connection.scope,
@@ -72,13 +74,12 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
         try {
             const newTokens = await refreshXeroTokens(tokenSet, baseUrl)
 
-            // Update stored tokens — match by tenant_id (unique) to avoid
-            // collision when multiple connections share the same refresh_token
+            // Encrypt new tokens before storage (SEC-001)
             await supabase
                 .from('xero_connections')
                 .update({
-                    access_token: newTokens.access_token,
-                    refresh_token: newTokens.refresh_token,
+                    access_token: encryptTokenForStorage(newTokens.access_token),
+                    refresh_token: encryptTokenForStorage(newTokens.refresh_token),
                     expires_at: newTokens.expires_at,
                     id_token: newTokens.id_token,
                     scope: newTokens.scope,

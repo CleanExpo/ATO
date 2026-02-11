@@ -16,19 +16,10 @@ import {
   Loader2
 } from 'lucide-react'
 import Link from 'next/link'
+import { GlassCard } from '@/components/ui/GlassCard'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
-
-const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode; className?: string; highlight?: boolean }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={`glass-card overflow-hidden border ${highlight ? 'border-sky-500/30 bg-sky-500/5' : 'border-white/10'} ${className}`}
-  >
-    {children}
-  </motion.div>
-);
 
 interface StrategyItemProps {
   title: string
@@ -296,21 +287,21 @@ export default function StrategiesPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-white/60">ATO.gov.au</span>
-                    <span className="text-emerald-400 font-bold">CONNECTED</span>
+                    <span className="text-sky-400 font-bold">AVAILABLE</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-white/60">Business.gov.au</span>
-                    <span className="text-emerald-400 font-bold">CONNECTED</span>
+                    <span className="text-sky-400 font-bold">AVAILABLE</span>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-white/60">Grants.gov.au</span>
-                    <span className="text-emerald-400 font-bold">CONNECTED</span>
+                    <span className="text-sky-400 font-bold">AVAILABLE</span>
                   </div>
                 </div>
               </div>
 
-              <button className="btn btn-secondary w-full border-white/5 font-bold py-3">
-                Update Intelligence Rules
+              <button className="btn btn-secondary w-full border-white/5 font-bold py-3 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+                Update Intelligence Rules (Coming Soon)
               </button>
             </GlassCard>
 

@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
+import { encryptTokenForStorage } from '@/lib/xero/token-store'
 
 const log = createLogger('api:auth:myob-callback')
 
@@ -189,13 +190,17 @@ export async function GET(request: NextRequest) {
       console.error('Error setting up organization for MYOB:', orgError)
     }
 
+    // Encrypt tokens before storage (SEC-001)
+    const encryptedAccessToken = encryptTokenForStorage(tokens.access_token)
+    const encryptedRefreshToken = encryptTokenForStorage(tokens.refresh_token)
+
     // Store/update connection with organization_id
     const { error: dbError } = await supabase.from('myob_connections').upsert({
       user_id: state,
       company_file_id: selectedCompanyFile.Id,
       company_file_name: selectedCompanyFile.Name,
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
+      access_token: encryptedAccessToken,
+      refresh_token: encryptedRefreshToken,
       expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
       connected_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

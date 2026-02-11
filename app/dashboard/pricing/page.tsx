@@ -20,6 +20,7 @@ import {
     Terminal,
     Loader2
 } from 'lucide-react'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 interface PricingCardProps {
     title: string
@@ -260,6 +261,8 @@ export default function PricingPage() {
                         </p>
                     </div>
                 </div>
+
+                <TaxDisclaimer />
             </div>
         </div>
     )

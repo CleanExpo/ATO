@@ -26,6 +26,7 @@ import {
   Users,
 } from 'lucide-react'
 import Link from 'next/link'
+import { GlassCard } from '@/components/ui/GlassCard'
 import { useOrganization } from '@/lib/context/OrganizationContext'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { PlatformBadge } from '@/components/ui/PlatformBadge'
@@ -100,29 +101,6 @@ function formatRelativeTime(dateStr: string | null): string {
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
   return date.toLocaleDateString('en-AU', { month: 'short', day: 'numeric' })
-}
-
-// ─── Glass Card Component ────────────────────────────────────────────
-
-function GlassCard({ children, className = '', highlight = false }: {
-  children: React.ReactNode
-  className?: string
-  highlight?: boolean
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4, ease: EASING.outExpo }}
-      className={`p-6 border-[0.5px] rounded-sm backdrop-blur-xl ${
-        highlight
-          ? 'border-cyan-500/30 bg-cyan-500/5'
-          : 'border-white/[0.08] bg-black/40'
-      } ${className}`}
-    >
-      {children}
-    </motion.div>
-  )
 }
 
 // ─── Metric Card Component ───────────────────────────────────────────

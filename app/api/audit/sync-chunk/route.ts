@@ -31,6 +31,7 @@ import { getFinancialYears } from '@/lib/types'
 import type { TokenSet } from 'xero-node'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
+import { decryptStoredToken, encryptTokenForStorage } from '@/lib/xero/token-store'
 
 const log = createLogger('api:audit:sync-chunk')
 
@@ -64,9 +65,10 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
         return null
     }
 
+    // Decrypt tokens from database (SEC-001)
     const tokenSet = {
-        access_token: connection.access_token,
-        refresh_token: connection.refresh_token,
+        access_token: decryptStoredToken(connection.access_token),
+        refresh_token: decryptStoredToken(connection.refresh_token),
         expires_at: connection.expires_at,
         id_token: connection.id_token,
         scope: connection.scope,
@@ -76,11 +78,12 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
     if (isTokenExpired(tokenSet)) {
         try {
             const newTokens = await refreshXeroTokens(tokenSet, baseUrl)
+            // Encrypt new tokens before storage (SEC-001)
             await supabase
                 .from('xero_connections')
                 .update({
-                    access_token: newTokens.access_token,
-                    refresh_token: newTokens.refresh_token,
+                    access_token: encryptTokenForStorage(newTokens.access_token),
+                    refresh_token: encryptTokenForStorage(newTokens.refresh_token),
                     expires_at: newTokens.expires_at,
                     id_token: newTokens.id_token,
                     scope: newTokens.scope,

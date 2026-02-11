@@ -86,7 +86,7 @@ function HistoricalAnalysisContent() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="loading-spinner mx-auto mb-4" />
-          <p className="text-gray-400">Loading connection...</p>
+          <p className="text-white/60">Loading connection...</p>
         </div>
       </div>
     )
@@ -98,24 +98,24 @@ function HistoricalAnalysisContent() {
         <div className="glass-card p-8 max-w-md text-center">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-white mb-2">Connection Error</h2>
-          <p className="text-gray-400">{tenantError}</p>
+          <p className="text-white/60">{tenantError}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-8">
+    <div className="min-h-screen bg-[var(--bg-dashboard)] text-white p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-blue-500/10 rounded-lg">
-              <TrendingUp className="w-8 h-8 text-blue-400" />
+            <div className="p-3 bg-[var(--accent)]/10 rounded-lg">
+              <TrendingUp className="w-8 h-8 text-[var(--accent)]" />
             </div>
             <div>
               <h1 className="text-3xl font-bold">Historical Analysis</h1>
-              <p className="text-gray-400 mt-1">
+              <p className="text-white/60 mt-1">
                 Multi-year trends and year-over-year comparisons
               </p>
             </div>
@@ -125,13 +125,13 @@ function HistoricalAnalysisContent() {
           {!isLoadingYears && availableYears.length > 0 && (
             <div className="flex items-center gap-4 px-6 py-3 bg-white/5 border border-white/10 rounded-lg">
               <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-400" />
-                <span className="text-sm text-gray-300">
+                <Calendar className="w-4 h-4 text-white/60" />
+                <span className="text-sm text-white/70">
                   {availableYears.length} financial years analyzed
                 </span>
               </div>
               <div className="w-px h-4 bg-white/10" />
-              <div className="text-sm text-gray-400">
+              <div className="text-sm text-white/60">
                 {availableYears[0]} to {availableYears[availableYears.length - 1]}
               </div>
             </div>
@@ -144,8 +144,8 @@ function HistoricalAnalysisContent() {
             onClick={() => setActiveTab('trends')}
             className={`px-4 py-3 flex items-center gap-2 border-b-2 transition-colors ${
               activeTab === 'trends'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-gray-300'
+                ? 'border-[var(--accent)] text-[var(--accent)]'
+                : 'border-transparent text-white/60 hover:text-white/70'
             }`}
           >
             <BarChart3 className="w-5 h-5" />
@@ -155,8 +155,8 @@ function HistoricalAnalysisContent() {
             onClick={() => setActiveTab('comparison')}
             className={`px-4 py-3 flex items-center gap-2 border-b-2 transition-colors ${
               activeTab === 'comparison'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-gray-300'
+                ? 'border-[var(--accent)] text-[var(--accent)]'
+                : 'border-transparent text-white/60 hover:text-white/70'
             }`}
           >
             <GitCompare className="w-5 h-5" />

@@ -19,6 +19,7 @@ import {
   Bell,
   Calendar,
 } from 'lucide-react'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 export default function OrganizationSettingsPage() {
   const { currentOrganization, currentRole, refreshOrganizations } =
@@ -135,10 +136,10 @@ export default function OrganizationSettingsPage() {
 
   if (!currentOrganization) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-dashboard)] text-white p-8 flex items-center justify-center">
         <div className="text-center">
-          <Building2 className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-400">No organization selected</p>
+          <Building2 className="w-12 h-12 text-white/40 mx-auto mb-4" />
+          <p className="text-white/60">No organization selected</p>
         </div>
       </div>
     )
@@ -146,7 +147,7 @@ export default function OrganizationSettingsPage() {
 
   if (!canEdit) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-8">
+      <div className="min-h-screen bg-[var(--bg-dashboard)] text-white p-8">
         <div className="max-w-4xl mx-auto">
           <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-6">
             <div className="flex items-start gap-3">
@@ -155,7 +156,7 @@ export default function OrganizationSettingsPage() {
                 <h3 className="text-lg font-semibold text-yellow-400 mb-2">
                   Insufficient Permissions
                 </h3>
-                <p className="text-gray-300">
+                <p className="text-white/70">
                   You don't have permission to manage organization settings.
                   Contact an owner or administrator.
                 </p>
@@ -168,17 +169,17 @@ export default function OrganizationSettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-8">
+    <div className="min-h-screen bg-[var(--bg-dashboard)] text-white p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-blue-500/10 rounded-lg">
-              <SettingsIcon className="w-8 h-8 text-blue-400" />
+            <div className="p-3 bg-[var(--accent)]/10 rounded-lg">
+              <SettingsIcon className="w-8 h-8 text-[var(--accent)]" />
             </div>
             <div>
               <h1 className="text-3xl font-bold">Organization Settings</h1>
-              <p className="text-gray-400 mt-1">
+              <p className="text-white/60 mt-1">
                 Manage {currentOrganization.name} preferences and configuration
               </p>
             </div>
@@ -204,7 +205,7 @@ export default function OrganizationSettingsPage() {
           {/* General Settings */}
           <div className="bg-white/5 border border-white/10 rounded-lg p-6">
             <div className="flex items-center gap-2 mb-6">
-              <Building2 className="w-5 h-5 text-blue-400" />
+              <Building2 className="w-5 h-5 text-[var(--accent)]" />
               <h2 className="text-xl font-semibold">General</h2>
             </div>
 
@@ -293,7 +294,7 @@ export default function OrganizationSettingsPage() {
                   }
                   className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-white/40 mt-1">
                   Default: 30 June (Australian standard)
                 </p>
               </div>
@@ -322,7 +323,7 @@ export default function OrganizationSettingsPage() {
                 />
                 <div>
                   <div className="font-medium">Auto-register R&D activities</div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-white/60">
                     Automatically track potential R&D tax incentive candidates
                   </div>
                 </div>
@@ -342,7 +343,7 @@ export default function OrganizationSettingsPage() {
                 />
                 <div>
                   <div className="font-medium">Division 7A monitoring</div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-white/60">
                     Monitor shareholder loans for Division 7A compliance
                   </div>
                 </div>
@@ -359,7 +360,7 @@ export default function OrganizationSettingsPage() {
                 />
                 <div>
                   <div className="font-medium">Quarterly BAS reporting</div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-white/60">
                     Enable quarterly Business Activity Statement tracking
                   </div>
                 </div>
@@ -386,7 +387,7 @@ export default function OrganizationSettingsPage() {
                 />
                 <div>
                   <div className="font-medium">Email reports automatically</div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-white/60">
                     Send reports to specified email address
                   </div>
                 </div>
@@ -459,7 +460,7 @@ export default function OrganizationSettingsPage() {
                 />
                 <div>
                   <div className="font-medium">Deadline reminders</div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-white/60">
                     Get notified about upcoming tax filing deadlines
                   </div>
                 </div>
@@ -479,7 +480,7 @@ export default function OrganizationSettingsPage() {
                 />
                 <div>
                   <div className="font-medium">Analysis completion</div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-white/60">
                     Notify when AI tax analysis is complete
                   </div>
                 </div>
@@ -499,7 +500,7 @@ export default function OrganizationSettingsPage() {
                 />
                 <div>
                   <div className="font-medium">New recommendations</div>
-                  <div className="text-sm text-gray-400">
+                  <div className="text-sm text-white/60">
                     Alert when new tax-saving opportunities are found
                   </div>
                 </div>
@@ -519,6 +520,8 @@ export default function OrganizationSettingsPage() {
             </button>
           </div>
         </form>
+
+        <TaxDisclaimer />
       </div>
     </div>
   )

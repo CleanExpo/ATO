@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react'
 import { MobileNav } from '@/components/ui/MobileNav'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 interface Finding {
   type: string
@@ -86,10 +88,10 @@ export default function AgentMonitorPage() {
       return priority[a.priority] - priority[b.priority]
     })
 
-  const statusIcon = {
-    healthy: '✅',
-    warning: '⚠️',
-    error: '❌'
+  const StatusIcon = ({ status }: { status: 'healthy' | 'warning' | 'error' }) => {
+    if (status === 'healthy') return <CheckCircle2 className="w-5 h-5 text-emerald-400 inline-block" />
+    if (status === 'warning') return <AlertTriangle className="w-5 h-5 text-amber-400 inline-block" />
+    return <XCircle className="w-5 h-5 text-red-400 inline-block" />
   }
 
   const severityStyles: Record<string, string> = {
@@ -169,7 +171,7 @@ export default function AgentMonitorPage() {
               style={{ background: cardStyle.bg, border: `0.5px solid ${cardStyle.border}` }}
             >
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-bold text-lg text-[var(--text-primary)]">{statusIcon[report.status]} {agentId}</h3>
+                <h3 className="font-bold text-lg text-[var(--text-primary)] flex items-center gap-2"><StatusIcon status={report.status} /> {agentId}</h3>
                 <div
                   className="text-xs font-semibold px-2 py-1 rounded-sm uppercase tracking-wider"
                   style={{
@@ -278,6 +280,8 @@ export default function AgentMonitorPage() {
         Monitoring updates every 10 seconds •{' '}
         <code className="px-2 py-1 rounded-sm" style={{ background: 'rgba(255, 255, 255, 0.05)', color: 'var(--accent-primary)' }}>npm run agents:help</code> for CLI commands
       </div>
+
+      <TaxDisclaimer />
 
       {/* Mobile Bottom Navigation */}
       <MobileNav />

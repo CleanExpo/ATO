@@ -20,6 +20,7 @@ import { createXeroClient, type XeroEmployee, type NormalizedEmployee } from '@/
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
+import { decryptStoredToken } from '@/lib/xero/token-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,9 +57,10 @@ export async function GET(request: NextRequest) {
     // Initialize Xero client
     const xeroClient = createXeroClient();
     await xeroClient.initialize();
+    // Decrypt tokens from database (SEC-001)
     xeroClient.setTokenSet({
-      access_token: connection.access_token,
-      refresh_token: connection.refresh_token,
+      access_token: decryptStoredToken(connection.access_token),
+      refresh_token: decryptStoredToken(connection.refresh_token),
       expires_at: connection.expires_at,
     });
 

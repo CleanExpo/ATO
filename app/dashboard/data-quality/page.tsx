@@ -20,19 +20,10 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
+import { GlassCard } from '@/components/ui/GlassCard'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import { ActivityItem } from '@/components/dashboard/ActivityFeed'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
-
-const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode; className?: string; highlight?: boolean }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={`glass-card overflow-hidden border ${highlight ? 'border-sky-500/30 bg-sky-500/5' : 'border-white/10'} ${className}`}
-  >
-    {children}
-  </motion.div>
-);
 
 export default function DataQualityPage() {
   const [isScanning, setIsScanning] = useState(false)

@@ -32,6 +32,7 @@ import { analyzeRequestSchema, tenantIdQuerySchema } from '@/lib/validation/sche
 import { retry } from '@/lib/api/retry'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
+import { applyDistributedRateLimit, DISTRIBUTED_RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 
 const log = createLogger('api:audit:analyze')
 
@@ -40,6 +41,14 @@ export const maxDuration = 300 // 5 minutes for Vercel Pro
 
 export async function POST(request: NextRequest) {
     try {
+        // Rate limit analysis requests (SEC-003: expensive AI operations)
+        const rateLimitResult = await applyDistributedRateLimit(
+          request,
+          DISTRIBUTED_RATE_LIMITS.analysis,
+          'audit:analyze'
+        )
+        if (rateLimitResult) return rateLimitResult
+
         // Clone before validation so requireAuth can also read the body
         const requestForAuth = request.clone() as NextRequest
 

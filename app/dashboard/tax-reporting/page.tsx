@@ -37,6 +37,7 @@ import {
   Info
 } from 'lucide-react';
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter';
+import { GlassCard } from '@/components/ui/GlassCard';
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer';
 
 // --- Interfaces ---
@@ -80,16 +81,6 @@ interface TaxReportingData {
 }
 
 // --- Components ---
-
-const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode, className?: string, highlight?: boolean }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={`glass-card overflow-hidden border ${highlight ? 'border-sky-500/30 bg-sky-500/5' : 'border-white/10'} ${className}`}
-  >
-    {children}
-  </motion.div>
-);
 
 const SectionHeader = ({ title, subtitle, icon: Icon }: { title: string, subtitle?: string, icon?: React.ComponentType<{ className?: string }> }) => (
   <div className="flex items-center gap-4 mb-6">

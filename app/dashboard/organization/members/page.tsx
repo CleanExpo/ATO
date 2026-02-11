@@ -141,17 +141,17 @@ export default function OrganizationMembersPage() {
 
   if (!currentOrganization) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-8 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg-dashboard)] text-white p-8 flex items-center justify-center">
         <div className="text-center">
-          <Users className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-          <p className="text-gray-400">No organization selected</p>
+          <Users className="w-12 h-12 text-white/40 mx-auto mb-4" />
+          <p className="text-white/60">No organization selected</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white p-8">
+    <div className="min-h-screen bg-[var(--bg-dashboard)] text-white p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -162,7 +162,7 @@ export default function OrganizationMembersPage() {
               </div>
               <div>
                 <h1 className="text-3xl font-bold">Team Members</h1>
-                <p className="text-gray-400 mt-1">
+                <p className="text-white/60 mt-1">
                   Manage access to {currentOrganization.name}
                 </p>
               </div>
@@ -209,9 +209,9 @@ export default function OrganizationMembersPage() {
 
           <div className="divide-y divide-white/10">
             {isLoading && members.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">Loading...</div>
+              <div className="p-8 text-center text-white/60">Loading...</div>
             ) : members.length === 0 ? (
-              <div className="p-8 text-center text-gray-400">
+              <div className="p-8 text-center text-white/60">
                 No members found
               </div>
             ) : (
@@ -228,7 +228,7 @@ export default function OrganizationMembersPage() {
                       <div className="font-medium">
                         {member.name || 'Unknown User'}
                       </div>
-                      <div className="text-sm text-gray-400">{member.email}</div>
+                      <div className="text-sm text-white/60">{member.email}</div>
                     </div>
                   </div>
 
@@ -239,7 +239,7 @@ export default function OrganizationMembersPage() {
                       {getRoleDisplayName(member.role as UserRole)}
                     </div>
 
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-white/60">
                       Joined{' '}
                       {new Date(member.joinedAt).toLocaleDateString('en-AU', {
                         year: 'numeric',
@@ -282,12 +282,12 @@ export default function OrganizationMembersPage() {
                   className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors"
                 >
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-gray-400">
+                    <div className="w-10 h-10 bg-white/[0.06] rounded-full flex items-center justify-center text-white/60">
                       <Mail className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
                       <div className="font-medium">{invitation.email}</div>
-                      <div className="text-sm text-gray-400">
+                      <div className="text-sm text-white/60">
                         Invited{' '}
                         {new Date(invitation.createdAt).toLocaleDateString(
                           'en-AU',
@@ -399,10 +399,10 @@ function InviteDialog({
       <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
 
       {/* Dialog */}
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-gray-900 border border-white/10 rounded-lg shadow-xl z-50">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-lg shadow-xl z-50">
         <div className="p-6 border-b border-white/10">
           <h2 className="text-xl font-semibold">Invite Team Member</h2>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="mt-1 text-sm text-white/60">
             Send an invitation to join this organization
           </p>
         </div>
@@ -438,7 +438,7 @@ function InviteDialog({
                 <option value="accountant">Accountant</option>
                 <option value="read_only">Read Only</option>
               </select>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-white/40">
                 {role === 'admin' && 'Can manage members and settings'}
                 {role === 'accountant' && 'Can view and generate reports'}
                 {role === 'read_only' && 'View-only access'}
@@ -479,7 +479,7 @@ function InviteDialog({
                 <div className="font-medium text-green-400">
                   Invitation Sent!
                 </div>
-                <div className="text-sm text-gray-300 mt-1">
+                <div className="text-sm text-white/70 mt-1">
                   An email has been sent to {email} with the invitation link.
                 </div>
               </div>
@@ -507,7 +507,7 @@ function InviteDialog({
                   )}
                 </button>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-white/40">
                 You can also share this link manually
               </p>
             </div>

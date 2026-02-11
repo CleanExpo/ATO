@@ -15,6 +15,7 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getCorrectionLogs, revertCorrection } from '@/lib/xero/auto-correction-engine'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
+import { decryptStoredToken } from '@/lib/xero/token-store'
 
 const log = createLogger('api:data-quality:corrections')
 
@@ -88,13 +89,14 @@ export async function POST(request: NextRequest) {
         }
 
         // Revert correction
+        // Decrypt tokens from database (SEC-001)
         const success = await revertCorrection(
             tenantId,
             correctionId,
             {
                 tenantId,
-                accessToken: connection.access_token,
-                refreshToken: connection.refresh_token
+                accessToken: decryptStoredToken(connection.access_token),
+                refreshToken: decryptStoredToken(connection.refresh_token)
             }
         )
 

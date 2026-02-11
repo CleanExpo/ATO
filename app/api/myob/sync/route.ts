@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { fetchMYOBHistoricalTransactions } from '@/lib/integrations/myob-historical-fetcher'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { createLogger } from '@/lib/logger'
+import { decryptStoredToken } from '@/lib/xero/token-store'
 
 const log = createLogger('api:myob:sync')
 
@@ -87,10 +88,11 @@ export async function POST(request: NextRequest) {
     log.info('Starting historical data sync', { companyFileId })
 
     // Start sync in background (don't await - let it run async)
+    // Decrypt tokens from database (SEC-001)
     fetchMYOBHistoricalTransactions(
       {
-        accessToken: connection.access_token,
-        refreshToken: connection.refresh_token,
+        accessToken: decryptStoredToken(connection.access_token),
+        refreshToken: decryptStoredToken(connection.refresh_token),
         companyFileId: connection.company_file_id,
         apiBaseUrl: connection.api_base_url,
       },

@@ -17,12 +17,21 @@ const log = createLogger('api:admin:reset-dashboard')
  * - Forensic analysis results
  * - Analysis recommendations
  */
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     // Require admin role - this is a destructive operation!
     const adminCheck = await requireAdminRole();
     if (!adminCheck.isAdmin) {
       return adminCheck.response;
+    }
+
+    // Require explicit confirmation code to prevent accidental resets
+    const { confirmationCode } = await request.json()
+    if (confirmationCode !== 'CONFIRM_RESET_ALL') {
+      return NextResponse.json(
+        { error: 'Invalid confirmation code. Pass confirmationCode: "CONFIRM_RESET_ALL"' },
+        { status: 400 }
+      )
     }
 
     const supabase = await createServiceClient()

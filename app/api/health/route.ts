@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { validateConfiguration, optionalConfig } from '@/lib/config/env'
 import { createServiceClient } from '@/lib/supabase/server'
 import { validateAIConfiguration, quickHealthCheck } from '@/lib/ai/health-check'
+import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,7 +41,11 @@ interface HealthCheckResult {
  * Query params:
  * - quick=true: Skip AI model test (faster, only checks config)
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
+    // Rate limit health checks (SEC-003)
+    const rateLimitResult = applyRateLimit(request, RATE_LIMITS.health, 'health')
+    if (rateLimitResult) return rateLimitResult
+
     const { searchParams } = new URL(request.url)
     const quick = searchParams.get('quick') === 'true'
 

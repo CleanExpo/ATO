@@ -8,6 +8,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { QUICKBOOKS_CONFIG, getQuickBooksApiUrl } from './quickbooks-config'
 import { createLogger } from '@/lib/logger'
+import { encryptTokenForStorage, decryptStoredToken } from '@/lib/xero/token-store'
 
 const log = createLogger('integrations:quickbooks')
 
@@ -51,12 +52,16 @@ export async function storeQuickBooksTokens(
 
   const expiresAt = Math.floor(Date.now() / 1000) + tokens.expires_in
 
+  // Encrypt tokens before storage (SEC-001)
+  const encryptedAccessToken = encryptTokenForStorage(tokens.access_token)
+  const encryptedRefreshToken = encryptTokenForStorage(tokens.refresh_token)
+
   const { error } = await supabase
     .from('quickbooks_tokens')
     .upsert({
       tenant_id: tenantId,
-      access_token: tokens.access_token,
-      refresh_token: tokens.refresh_token,
+      access_token: encryptedAccessToken,
+      refresh_token: encryptedRefreshToken,
       expires_at: expiresAt,
       realm_id: tokens.realm_id,
       token_type: 'Bearer',
@@ -102,7 +107,12 @@ export async function getQuickBooksTokens(
     throw new Error(`Failed to retrieve QuickBooks tokens: ${error.message}`)
   }
 
-  return data as QuickBooksTokens
+  // Decrypt tokens after reading from database (SEC-001)
+  return {
+    ...data,
+    access_token: decryptStoredToken(data.access_token),
+    refresh_token: decryptStoredToken(data.refresh_token),
+  } as QuickBooksTokens
 }
 
 /**

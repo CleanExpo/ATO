@@ -17,10 +17,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { lookupABN, searchABNByName, checkSupplierGSTStatus } from '@/lib/integrations/abn-lookup'
+import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuthOnly(request)
+  if (isErrorResponse(auth)) return auth
+
   try {
     const body = await request.json()
     const { abn, tenantId, action, name, state } = body
@@ -50,6 +54,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth = await requireAuthOnly(request)
+  if (isErrorResponse(auth)) return auth
+
   try {
     const { searchParams } = new URL(request.url)
     const abn = searchParams.get('abn')

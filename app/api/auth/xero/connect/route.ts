@@ -5,8 +5,24 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createClient } from '@/lib/supabase/server'
+import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
+    // Rate limit OAuth initiation (SEC-003)
+    const rateLimitResult = applyRateLimit(request, RATE_LIMITS.auth, 'oauth:xero:connect')
+    if (rateLimitResult) return rateLimitResult
+
+    // Require authentication (skip in single-user mode)
+    if (!isSingleUserMode()) {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+        }
+    }
+
     try {
         // Check environment variables inline to provide better error messages
         const xeroClientId = process.env.XERO_CLIENT_ID?.trim()

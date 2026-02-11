@@ -30,6 +30,7 @@ import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext,
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
+import { applyDistributedRateLimit, DISTRIBUTED_RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import type { SupabaseServiceClient } from '@/lib/supabase/server'
 
 const log = createLogger('api:audit:analyze-chunk')
@@ -60,6 +61,14 @@ export async function POST(request: NextRequest) {
     const startTime = Date.now()
 
     try {
+        // Rate limit analysis requests (SEC-003: expensive AI operations)
+        const rateLimitResult = await applyDistributedRateLimit(
+          request,
+          DISTRIBUTED_RATE_LIMITS.analysis,
+          'audit:analyze-chunk'
+        )
+        if (rateLimitResult) return rateLimitResult
+
         const requestForAuth = request.clone() as NextRequest
         const body = await request.json()
         let tenantId: string

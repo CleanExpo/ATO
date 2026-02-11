@@ -28,14 +28,14 @@ export default async function AlertsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-[var(--bg-dashboard)]">
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-3xl font-bold text-white mb-2">
             Tax Alerts
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-white/60">
             Stay on top of deadlines, opportunities, and compliance requirements
           </p>
         </div>

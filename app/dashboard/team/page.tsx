@@ -94,15 +94,15 @@ export default function TeamPage() {
   const getRoleColor = (role: string): string => {
     switch (role) {
       case 'owner':
-        return 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30';
+        return 'text-yellow-400 bg-yellow-500/10';
       case 'admin':
-        return 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30';
+        return 'text-purple-400 bg-purple-500/10';
       case 'accountant':
-        return 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30';
+        return 'text-blue-400 bg-blue-500/10';
       case 'read_only':
-        return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
+        return 'text-white/60 bg-white/[0.06]';
       default:
-        return 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800';
+        return 'text-white/60 bg-white/[0.06]';
     }
   };
 
@@ -110,8 +110,8 @@ export default function TeamPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600 dark:text-gray-400">Please select an organization</p>
+          <AlertCircle className="w-12 h-12 text-white/60 mx-auto mb-3" />
+          <p className="text-white/60">Please select an organization</p>
         </div>
       </div>
     );
@@ -123,12 +123,12 @@ export default function TeamPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Team Members</h1>
-          <p className="text-gray-400">
+          <p className="text-white/60">
             Manage team members and their access levels
           </p>
         </div>
         <button
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center space-x-2 transition-colors"
+          className="px-4 py-2 bg-[var(--accent)] hover:opacity-90 text-white rounded-lg flex items-center space-x-2 transition-colors"
           disabled={currentUserRole !== 'owner' && currentUserRole !== 'admin'}
         >
           <UserPlus className="w-4 h-4" />
@@ -137,35 +137,35 @@ export default function TeamPage() {
       </div>
 
       {/* Role Legend */}
-      <div className="mb-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
-        <h3 className="text-sm font-medium text-gray-400 mb-3">Role Permissions</h3>
+      <div className="mb-6 p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+        <h3 className="text-sm font-medium text-white/60 mb-3">Role Permissions</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <div className="flex items-start space-x-2">
             <Crown className="w-4 h-4 text-yellow-400 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-white">Owner</p>
-              <p className="text-xs text-gray-400">Full control & billing</p>
+              <p className="text-xs text-white/60">Full control & billing</p>
             </div>
           </div>
           <div className="flex items-start space-x-2">
             <Shield className="w-4 h-4 text-purple-400 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-white">Admin</p>
-              <p className="text-xs text-gray-400">Manage members & settings</p>
+              <p className="text-xs text-white/60">Manage members & settings</p>
             </div>
           </div>
           <div className="flex items-start space-x-2">
             <Users className="w-4 h-4 text-blue-400 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-white">Accountant</p>
-              <p className="text-xs text-gray-400">View & analyze data</p>
+              <p className="text-xs text-white/60">View & analyze data</p>
             </div>
           </div>
           <div className="flex items-start space-x-2">
-            <Eye className="w-4 h-4 text-gray-400 mt-0.5" />
+            <Eye className="w-4 h-4 text-white/60 mt-0.5" />
             <div>
               <p className="text-sm font-medium text-white">Read Only</p>
-              <p className="text-xs text-gray-400">View reports only</p>
+              <p className="text-xs text-white/60">View reports only</p>
             </div>
           </div>
         </div>
@@ -186,12 +186,12 @@ export default function TeamPage() {
       {loading && (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="animate-pulse p-4 bg-gray-800 rounded-lg border border-gray-700">
+            <div key={i} className="animate-pulse p-4 bg-white/[0.02] rounded-lg border border-white/[0.06]">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 bg-gray-700 rounded-full" />
+                <div className="w-12 h-12 bg-white/[0.06] rounded-full" />
                 <div className="flex-1 space-y-2">
-                  <div className="h-4 bg-gray-700 rounded w-1/3" />
-                  <div className="h-3 bg-gray-700 rounded w-1/4" />
+                  <div className="h-4 bg-white/[0.06] rounded w-1/3" />
+                  <div className="h-3 bg-white/[0.06] rounded w-1/4" />
                 </div>
               </div>
             </div>
@@ -201,10 +201,10 @@ export default function TeamPage() {
 
       {/* Team Members List */}
       {!loading && !error && members.length === 0 && (
-        <div className="text-center py-12 bg-gray-800 rounded-lg border border-gray-700">
-          <Users className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-          <p className="text-gray-400 mb-2">No team members yet</p>
-          <p className="text-sm text-gray-500">Invite team members to collaborate</p>
+        <div className="text-center py-12 bg-white/[0.02] rounded-lg border border-white/[0.06]">
+          <Users className="w-16 h-16 text-white/40 mx-auto mb-4" />
+          <p className="text-white/60 mb-2">No team members yet</p>
+          <p className="text-sm text-white/40">Invite team members to collaborate</p>
         </div>
       )}
 
@@ -213,7 +213,7 @@ export default function TeamPage() {
           {members.map((member) => (
             <div
               key={member.id}
-              className="p-4 bg-gray-800 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
+              className="p-4 bg-white/[0.02] rounded-lg border border-white/[0.06] hover:border-white/[0.12] transition-colors"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -228,7 +228,7 @@ export default function TeamPage() {
                       {member.user?.full_name || member.user?.email}
                     </p>
                     {member.user?.full_name && (
-                      <p className="text-sm text-gray-400">{member.user.email}</p>
+                      <p className="text-sm text-white/60">{member.user.email}</p>
                     )}
                   </div>
                 </div>
@@ -244,7 +244,7 @@ export default function TeamPage() {
 
                   {currentUserRole === 'owner' && member.role !== 'owner' && (
                     <button
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-900/20 rounded transition-colors"
+                      className="p-2 text-white/60 hover:text-red-500 hover:bg-red-900/20 rounded transition-colors"
                       title="Remove member"
                     >
                       <Trash2 className="w-4 h-4" />

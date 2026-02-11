@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createXeroClient, type XeroOrganization, type XeroTenant } from '@/lib/xero/client'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
+import { encryptTokenForStorage } from '@/lib/xero/token-store'
 
 const log = createLogger('api:auth:xero-callback')
 
@@ -167,6 +168,10 @@ export async function GET(request: NextRequest) {
                     }
                 }
 
+                // Encrypt tokens before storage (SEC-001)
+                const encryptedAccessToken = encryptTokenForStorage(tokenSet.access_token)
+                const encryptedRefreshToken = encryptTokenForStorage(tokenSet.refresh_token)
+
                 // Upsert the Xero connection with organization_id
                 const { error: connectionError } = await supabase
                     .from('xero_connections')
@@ -174,8 +179,8 @@ export async function GET(request: NextRequest) {
                         tenant_id: tenant.tenantId,
                         tenant_name: tenant.tenantName,
                         tenant_type: tenant.tenantType,
-                        access_token: tokenSet.access_token,
-                        refresh_token: tokenSet.refresh_token,
+                        access_token: encryptedAccessToken,
+                        refresh_token: encryptedRefreshToken,
                         expires_at: tokenSet.expires_at,
                         id_token: tokenSet.id_token,
                         scope: tokenSet.scope,

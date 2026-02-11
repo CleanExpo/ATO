@@ -24,6 +24,7 @@ import {
     Info
 } from 'lucide-react'
 import Link from 'next/link'
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 const steps = [
     { id: 'eligibility', label: 'Eligibility', icon: <ShieldCheck className="w-4 h-4" /> },
@@ -69,8 +70,8 @@ export default function GrantAcceleratorPage() {
                         <p className="text-sky-400 font-mono text-[10px] font-black uppercase tracking-[0.2em]">Strategy: QLD Business Growth Fund (Round 7)</p>
                     </div>
                     <div className="text-right">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-[9px] font-black text-red-500 uppercase tracking-widest animate-pulse">
-                            Deadline: 30 Jan, 5:00 PM
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-[9px] font-black text-amber-500 uppercase tracking-widest">
+                            Deadline: TBD (Check Portal)
                         </div>
                     </div>
                 </div>
@@ -102,10 +103,10 @@ export default function GrantAcceleratorPage() {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <EligibilityCheckItem label="Aggregated Turnover ($500k - $10M)" status="passed" value="$553,530.52" />
-                                        <EligibilityCheckItem label="Trading History (3+ Years)" status="passed" value="Active since 2019" />
+                                        <EligibilityCheckItem label="Aggregated Turnover ($500k - $10M)" status="passed" value="$553,530.52 (Demo Data)" />
+                                        <EligibilityCheckItem label="Trading History (3+ Years)" status="passed" value="Active since 2019 (Demo Data)" />
                                         <EligibilityCheckItem label="HQ Location (Queensland)" status="passed" value="Verified in Xero" />
-                                        <EligibilityCheckItem label="Headcount (< 20 Employees)" status="passed" value="12 Active Staff" />
+                                        <EligibilityCheckItem label="Headcount (< 20 Employees)" status="passed" value="12 Active Staff (Demo Data)" />
                                     </div>
 
                                     <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 flex items-start gap-4">
@@ -187,11 +188,11 @@ export default function GrantAcceleratorPage() {
                                     </div>
 
                                     <div className="flex flex-col items-center gap-4 pt-12">
-                                        <button className="px-12 py-5 bg-white text-[#050505] rounded-3xl text-sm font-black uppercase tracking-widest hover:bg-sky-400 hover:scale-105 transition-all shadow-2xl flex items-center gap-4 group">
-                                            Step 1: Open Grant Portal <ExternalLink className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                                        <button className="px-12 py-5 bg-white/50 text-[#050505] rounded-3xl text-sm font-black uppercase tracking-widest transition-all shadow-2xl flex items-center gap-4 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+                                            Step 1: Open Grant Portal (Coming Soon) <ExternalLink className="w-5 h-5" />
                                         </button>
-                                        <button className="px-12 py-5 bg-white/5 border border-white/10 text-white rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-4">
-                                            Download Prepared Asset Package (ZIP) <Download className="w-4 h-4" />
+                                        <button className="px-12 py-5 bg-white/5 border border-white/10 text-white rounded-3xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-4 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+                                            Download Prepared Asset Package (Coming Soon) <Download className="w-4 h-4" />
                                         </button>
                                     </div>
                                 </motion.div>
@@ -212,6 +213,8 @@ export default function GrantAcceleratorPage() {
                         </div>
                     </div>
                 </div>
+
+                <TaxDisclaimer />
 
                 {/* Secure Compliance Footer */}
                 <div className="flex justify-center gap-8 opacity-40">

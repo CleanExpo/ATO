@@ -16,35 +16,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse } from '@/lib/api/errors';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    // Authenticate and get user's accessible tenants
+    const auth = await requireAuth(request, { skipTenantValidation: true });
+    if (isErrorResponse(auth)) return auth;
+
+    const { user } = auth;
+    // Use service client for DB queries (user supabase may be null in single-user mode)
+    const supabase = auth.supabase || await createServiceClient();
+
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');
     const status = searchParams.get('status');
 
-    const supabase = await createServiceClient();
+    // Get user's accessible tenant IDs to filter results
+    const { data: accessibleTenants } = await supabase
+      .from('user_tenant_access')
+      .select('tenant_id')
+      .eq('user_id', user.id);
 
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return createErrorResponse(
-        new Error('Unauthorized'),
-        { operation: 'getQueueStatus' },
-        401
-      );
-    }
+    const accessibleTenantIds = (accessibleTenants || []).map((t: { tenant_id: string }) => t.tenant_id);
 
     // Build query
     let query = supabase.from('analysis_queue').select('*');
 
     if (tenantId) {
+      // If a specific tenantId is requested, ensure user has access
+      if (!accessibleTenantIds.includes(tenantId) && user.id !== 'single-user') {
+        return createErrorResponse(
+          new Error('Access denied to this tenant'),
+          { operation: 'getQueueStatus' },
+          403
+        );
+      }
       query = query.eq('tenant_id', tenantId);
+    } else if (user.id !== 'single-user' && accessibleTenantIds.length > 0) {
+      // Filter to only tenants the user has access to
+      query = query.in('tenant_id', accessibleTenantIds);
     }
 
     if (status) {
@@ -54,7 +67,9 @@ export async function GET(request: NextRequest) {
     // Order by creation time (most recent first)
     query = query.order('created_at', { ascending: false }).limit(100);
 
-    const { data: jobs, error } = await query;
+    const { data, error } = await query;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const jobs = data as any[] | null;
 
     if (error) {
       throw error;

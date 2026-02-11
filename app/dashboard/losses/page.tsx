@@ -18,18 +18,9 @@ import {
     FileText
 } from 'lucide-react'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
+import { GlassCard } from '@/components/ui/GlassCard'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
-
-const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode; className?: string; highlight?: boolean }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`glass-card overflow-hidden border ${highlight ? 'border-sky-500/30 bg-sky-500/5' : 'border-white/10'} ${className}`}
-    >
-        {children}
-    </motion.div>
-);
 
 export default function LossAnalysisPage() {
     const [connections, setConnections] = useState<Array<{ tenant_id: string; organisation_name: string }>>([])
@@ -179,8 +170,8 @@ export default function LossAnalysisPage() {
                                     </div>
                                 </div>
                                 <div className="pt-4 flex gap-3">
-                                    <button className="btn btn-primary btn-sm px-6">Generate Draft Agreement</button>
-                                    <button className="btn btn-secondary btn-sm px-6">Identify Transactions</button>
+                                    <button className="btn btn-primary btn-sm px-6 opacity-50 cursor-not-allowed" disabled title="Coming soon">Generate Draft Agreement (Coming Soon)</button>
+                                    <button className="btn btn-secondary btn-sm px-6 opacity-50 cursor-not-allowed" disabled title="Coming soon">Identify Transactions (Coming Soon)</button>
                                 </div>
                             </div>
 
@@ -216,7 +207,7 @@ export default function LossAnalysisPage() {
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center text-[10px] font-bold text-white/40 uppercase tracking-widest">
                                         <span>Division 7A Benchmark</span>
-                                        <span className="text-sky-400">8.27% (FY25)</span>
+                                        <span className="text-sky-400">8.77% (FY25)</span>
                                     </div>
                                     <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-[11px] text-white/60 leading-relaxed font-medium">
                                         Minimum Yearly Repayments (MYR) must be calculated using the ATO benchmark rate to avoid deemed dividends under s109E.

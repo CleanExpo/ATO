@@ -8,8 +8,12 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import _slack from '@/lib/slack/slack-notifier'
+import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
 export async function POST(_request: NextRequest) {
+  const auth = await requireAuthOnly(_request)
+  if (isErrorResponse(auth)) return auth
+
   try {
     // Send test message
     const testMessage = {

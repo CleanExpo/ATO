@@ -27,6 +27,7 @@ import { createErrorResponse } from '@/lib/api/errors';
 import { isValidTokenFormat, isExpired } from '@/lib/share/token-generator';
 import { compare } from 'bcryptjs';
 import { logShareBruteForce } from '@/lib/security/security-event-logger';
+import { applyDistributedRateLimit, applyRateLimit, DISTRIBUTED_RATE_LIMITS, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit';
 import type {
   AccessShareLinkResponse,
   ShareLinkError,
@@ -183,6 +184,10 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
+    // Rate limit share access (SEC-003)
+    const rateLimitResult = applyRateLimit(request, RATE_LIMITS.api, 'share-get');
+    if (rateLimitResult) return rateLimitResult;
+
     const { token } = await params;
     // GET does not accept password — use POST to submit a password
     return handleShareAccess(request, token, null);
@@ -202,6 +207,15 @@ export async function POST(
 ) {
   try {
     const { token } = await params;
+
+    // Rate limit password attempts (SEC-003/SEC-018: brute force prevention)
+    const rateLimitResult = await applyDistributedRateLimit(
+      request,
+      DISTRIBUTED_RATE_LIMITS.sharePassword,
+      `share:${token}`
+    );
+    if (rateLimitResult) return rateLimitResult;
+
     const body = await request.json();
     const password = typeof body.password === 'string' ? body.password : null;
     return handleShareAccess(request, token, password);

@@ -6,14 +6,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { CouncilOfLogicOrchestrator } from '@/agents/council/council-orchestrator'
 import type { CouncilContext, CouncilDecisionType } from '@/agents/council/types'
 
 export async function POST(request: NextRequest) {
-  // Authenticate user
-  const auth = await requireAuthOnly(request)
+  // Authenticate user and validate tenant access via organisationId
+  const auth = await requireAuth(request.clone() as NextRequest, {
+    tenantIdSource: 'body',
+    tenantIdParam: 'organisationId',
+  })
   if (isErrorResponse(auth)) return auth
 
   try {
@@ -84,8 +87,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  // Authenticate user
-  const auth = await requireAuthOnly(request)
+  // Authenticate user and validate tenant access via organisationId query param
+  const auth = await requireAuth(request, {
+    tenantIdSource: 'query',
+    tenantIdParam: 'organisationId',
+  })
   if (isErrorResponse(auth)) return auth
 
   const organisationId = request.nextUrl.searchParams.get('organisationId')
@@ -99,7 +105,8 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const supabase = await createServiceClient()
+  // Use authenticated supabase client, fall back to service client for single-user mode
+  const supabase = auth.supabase || await createServiceClient()
 
   try {
     const { data, error, count } = await supabase

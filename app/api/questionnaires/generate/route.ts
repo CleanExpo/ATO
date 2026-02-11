@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import {
   generateFuelTaxCreditQuestionnaire,
   generateTrustDistributionQuestionnaire,
@@ -34,14 +35,17 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' });
+    if (isErrorResponse(auth)) return auth;
+
+    const { user, tenantId } = auth;
+    // In single-user mode, requireAuth returns null supabase; fall back to service client
+    const supabase = auth.supabase || await createServiceClient();
+
     const body = await request.json();
-    const { tenantId, analysisId, analysisType, dataGaps } = body;
+    const { analysisId, analysisType, dataGaps } = body;
 
     // Validate required parameters
-    if (!tenantId || typeof tenantId !== 'string') {
-      return createValidationError('tenantId is required and must be a string');
-    }
-
     if (!analysisId || typeof analysisId !== 'string') {
       return createValidationError('analysisId is required and must be a string');
     }
@@ -52,22 +56,6 @@ export async function POST(request: NextRequest) {
 
     if (!dataGaps || typeof dataGaps !== 'object') {
       return createValidationError('dataGaps is required and must be an object');
-    }
-
-    // Get Supabase client
-    const supabase = await createServiceClient();
-
-    // Get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
-      return createErrorResponse(
-        new Error('Unauthorized'),
-        { operation: 'generateQuestionnaires' },
-        401
-      );
     }
 
     // Generate questionnaires based on analysis type

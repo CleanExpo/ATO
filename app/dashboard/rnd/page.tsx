@@ -243,11 +243,11 @@ export default function RnDAssessmentPage() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
-                        <button className="btn btn-secondary px-6 border-white/5 py-4">
-                            <Download className="w-4 h-4 mr-2" /> Export Schedule
+                        <button className="btn btn-secondary px-6 border-white/5 py-4 opacity-50 cursor-not-allowed" disabled title="Coming soon">
+                            <Download className="w-4 h-4 mr-2" /> Export Schedule (Coming Soon)
                         </button>
-                        <button className="btn btn-primary px-8 py-4 shadow-[0_0_50px_rgba(14,165,233,0.3)]">
-                            Register Activities <ChevronRight className="w-4 h-4 ml-2" />
+                        <button className="btn btn-primary px-8 py-4 shadow-[0_0_50px_rgba(14,165,233,0.3)] opacity-50 cursor-not-allowed" disabled title="Coming soon">
+                            Register Activities (Coming Soon) <ChevronRight className="w-4 h-4 ml-2" />
                         </button>
                     </div>
                 </div>
@@ -371,7 +371,7 @@ export default function RnDAssessmentPage() {
 
                                 <div className="space-y-4">
                                     {legislativeTestStatuses.map((item, i) => (
-                                        <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 hover:border-sky-500/30 transition-all cursor-crosshair">
+                                        <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/10 hover:border-sky-500/30 transition-all cursor-pointer">
                                             <span className="text-xs font-bold text-white/80">{item.label}</span>
                                             <span className="text-[10px] font-black text-sky-400 uppercase tracking-widest">{item.status}</span>
                                         </div>
@@ -380,10 +380,10 @@ export default function RnDAssessmentPage() {
                             </div>
 
                             <div className="pt-8 border-t border-white/10">
-                                <Link href="/dashboard/help" className="flex items-center justify-between group">
+                                <a href="https://www.ato.gov.au/businesses-and-organisations/income-deductions-and-concessions/r-and-d-tax-incentive" target="_blank" rel="noopener noreferrer" className="flex items-center justify-between group">
                                     <span className="text-xs font-bold text-white/60 group-hover:text-white transition-colors">Review R&D Guidelines</span>
                                     <ExternalLink className="w-4 h-4 text-white/20 group-hover:text-sky-400 transition-colors" />
-                                </Link>
+                                </a>
                             </div>
                         </div>
 

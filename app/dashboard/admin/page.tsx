@@ -21,6 +21,8 @@ import {
     Lock
 } from 'lucide-react';
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer';
 
 interface AdminStats {
     totalOrganizations: number;
@@ -38,16 +40,6 @@ interface ActivityLog {
     organizations: { name: string };
     metadata: Record<string, unknown>;
 }
-
-const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode, className?: string, highlight?: boolean }) => (
-    <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className={`glass-card overflow-hidden border ${highlight ? 'border-sky-500/30 bg-sky-500/5' : 'border-white/10'} ${className}`}
-    >
-        {children}
-    </motion.div>
-);
 
 const HealthTag = ({ status }: { status: string }) => (
     <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -257,25 +249,37 @@ export default function AdminDashboard() {
                                 <Database className="w-4 h-4" /> System Resources
                             </h3>
                             <div className="space-y-6">
-                                {[
-                                    { label: 'Database Storage', value: 84, color: 'sky' },
-                                    { label: 'API Quota (Gemini)', value: 12, color: 'emerald' },
-                                    { label: 'Compute Cycles', value: 45, color: 'amber' }
-                                ].map(res => (
-                                    <div key={res.label} className="space-y-2">
-                                        <div className="flex justify-between text-xs font-mono">
-                                            <span className="text-white/50">{res.label}</span>
-                                            <span className="text-white">{res.value}%</span>
+                                {(() => {
+                                    const colorClasses: Record<string, string> = {
+                                        blue: 'bg-blue-500',
+                                        green: 'bg-green-500',
+                                        purple: 'bg-purple-500',
+                                        amber: 'bg-amber-500',
+                                        red: 'bg-red-500',
+                                        cyan: 'bg-cyan-500',
+                                        sky: 'bg-sky-500',
+                                        emerald: 'bg-emerald-500',
+                                    };
+                                    return [
+                                        { label: 'Database Storage', value: 84, color: 'sky' },
+                                        { label: 'API Quota (Gemini)', value: 12, color: 'emerald' },
+                                        { label: 'Compute Cycles', value: 45, color: 'amber' }
+                                    ].map(res => (
+                                        <div key={res.label} className="space-y-2">
+                                            <div className="flex justify-between text-xs font-mono">
+                                                <span className="text-white/50">{res.label}</span>
+                                                <span className="text-white">{res.value}%</span>
+                                            </div>
+                                            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                                <motion.div
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${res.value}%` }}
+                                                    className={`h-full ${colorClasses[res.color] || 'bg-cyan-500'}`}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                            <motion.div
-                                                initial={{ width: 0 }}
-                                                animate={{ width: `${res.value}%` }}
-                                                className={`h-full bg-${res.color}-500`}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
+                                    ));
+                                })()}
                             </div>
                         </GlassCard>
 
@@ -292,6 +296,8 @@ export default function AdminDashboard() {
                 </div>
 
             </div>
+
+            <TaxDisclaimer />
         </div>
     );
 }

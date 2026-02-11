@@ -11,6 +11,7 @@ import { TokenSet } from 'xero-node'
 import { createServiceClient } from '@/lib/supabase/server'
 import { isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { withRetry } from '@/lib/xero/retry'
+import { decryptStoredToken, encryptTokenForStorage } from '@/lib/xero/token-store'
 
 // Rate limiting: Xero allows 60 requests/minute
 const RATE_LIMIT_DELAY_MS = 1500 // 1.5 seconds between calls
@@ -241,9 +242,10 @@ async function getAuthTokens(
     throw new Error(`No Xero connection found for tenant ${tenantId}`)
   }
 
+  // Decrypt tokens from database (SEC-001)
   let tokenSet = {
-    access_token: connection.access_token,
-    refresh_token: connection.refresh_token,
+    access_token: decryptStoredToken(connection.access_token),
+    refresh_token: decryptStoredToken(connection.refresh_token),
     expires_at: connection.expires_at,
     id_token: connection.id_token,
     scope: connection.scope,
@@ -253,11 +255,12 @@ async function getAuthTokens(
   if (isTokenExpired(tokenSet)) {
     tokenSet = await refreshXeroTokens(tokenSet)
 
+    // Encrypt new tokens before storage (SEC-001)
     await supabase
       .from('xero_connections')
       .update({
-        access_token: tokenSet.access_token,
-        refresh_token: tokenSet.refresh_token,
+        access_token: encryptTokenForStorage(tokenSet.access_token),
+        refresh_token: encryptTokenForStorage(tokenSet.refresh_token),
         expires_at: tokenSet.expires_at,
         id_token: tokenSet.id_token,
         updated_at: new Date().toISOString(),

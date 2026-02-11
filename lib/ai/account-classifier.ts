@@ -15,8 +15,18 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { optionalConfig } from '@/lib/config/env'
 import { createSupplierAnonymiser } from './pii-sanitizer'
 
-// Initialize Google AI
-const genAI = new GoogleGenerativeAI(optionalConfig.googleAiApiKey)
+// Initialize Google AI lazily to avoid errors when API key is missing
+let cachedGenAI: GoogleGenerativeAI | null = null
+function getGoogleAI(): GoogleGenerativeAI {
+  if (!cachedGenAI) {
+    const apiKey = optionalConfig.googleAiApiKey
+    if (!apiKey) {
+      throw new Error('GOOGLE_AI_API_KEY is not configured')
+    }
+    cachedGenAI = new GoogleGenerativeAI(apiKey)
+  }
+  return cachedGenAI
+}
 
 // Types
 export interface Transaction {
@@ -175,7 +185,7 @@ export async function classifyTransaction(
             .replace('{industryContext}', context.industryContext || 'General business');
 
         // Call Gemini API (using LATEST Gemini 2.0 Flash Exp - FREE)
-        const model = genAI.getGenerativeModel({
+        const model = getGoogleAI().getGenerativeModel({
             model: optionalConfig.googleAiModel,
             generationConfig: {
                 temperature: 0.1,  // Low temperature for consistent, deterministic results

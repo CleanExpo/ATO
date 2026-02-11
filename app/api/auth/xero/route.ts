@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createXeroClient } from '@/lib/xero/client'
 import crypto from 'crypto'
 import { createLogger } from '@/lib/logger'
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createClient } from '@/lib/supabase/server'
+import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 
 const log = createLogger('api:auth:xero')
 
@@ -9,8 +12,21 @@ const log = createLogger('api:auth:xero')
 // Single-user mode: No authentication required
 // Supports ?prompt=login to force account selection for connecting different Xero accounts
 export async function GET(request: NextRequest) {
+    // Rate limit OAuth initiation (SEC-003)
+    const rateLimitResult = applyRateLimit(request, RATE_LIMITS.auth, 'oauth:xero')
+    if (rateLimitResult) return rateLimitResult
+
     const baseUrl = request.nextUrl.origin
     const forceLogin = request.nextUrl.searchParams.get('prompt') === 'login'
+
+    // Require authentication (skip in single-user mode)
+    if (!isSingleUserMode()) {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+        }
+    }
 
     try {
         // Check environment variables before creating client
