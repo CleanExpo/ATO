@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { sendOrganizationInvitationEmail } from '@/lib/email/send-invitation'
 
+export const dynamic = 'force-dynamic'
+
 // Validation schema for creating invitations
 const createInvitationSchema = z.object({
   email: z.string().email('Invalid email address'),

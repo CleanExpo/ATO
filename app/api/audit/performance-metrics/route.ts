@@ -16,6 +16,8 @@ import performanceMonitor, { formatDuration, getPerformanceGrade } from '@/lib/m
 import cacheManager from '@/lib/cache/cache-manager'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth(request, { tenantIdSource: 'query' })

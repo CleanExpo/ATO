@@ -9,6 +9,8 @@ import { getCacheManager } from '@/lib/tax-data/cache-manager'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:tax-data:refresh')
 
 export async function POST(request: NextRequest) {

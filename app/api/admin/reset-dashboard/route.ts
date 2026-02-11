@@ -4,6 +4,8 @@ import { createErrorResponse } from '@/lib/api/errors'
 import { requireAdminRole } from '@/lib/middleware/admin-role'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:admin:reset-dashboard')
 
 /**

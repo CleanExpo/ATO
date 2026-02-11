@@ -24,6 +24,8 @@ import {
 } from '@/lib/types/rnd-registration'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:rnd:registrations:detail')
 
 /**

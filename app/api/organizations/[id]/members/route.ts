@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 // Validation schema for updating member roles
 const updateMemberSchema = z.object({
   role: z.enum(['owner', 'admin', 'accountant', 'read_only']),

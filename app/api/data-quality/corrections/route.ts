@@ -17,6 +17,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 import { decryptStoredToken } from '@/lib/xero/token-store'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:data-quality:corrections')
 
 export async function GET(request: NextRequest) {

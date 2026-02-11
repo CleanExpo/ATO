@@ -13,6 +13,8 @@ import {
   estimateSBEConcessionsValue,
 } from '@/lib/calculators/sbe-checker'
 
+export const dynamic = 'force-dynamic'
+
 // Validation schema
 const sbeCheckSchema = z.object({
   entities: z.array(

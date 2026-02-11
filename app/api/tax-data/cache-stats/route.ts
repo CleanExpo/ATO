@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCacheManager } from '@/lib/tax-data/cache-manager'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth(request, { skipTenantValidation: true })

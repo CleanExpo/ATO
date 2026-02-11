@@ -11,6 +11,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { checkOrganizationLicenseCompliance } from '@/lib/middleware/license-verification';
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const supabase = await createClient();

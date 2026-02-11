@@ -20,6 +20,8 @@ import type {
   AccountantApplication,
 } from '@/lib/types/accountant';
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(request, { skipTenantValidation: true })

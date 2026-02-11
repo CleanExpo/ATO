@@ -4,6 +4,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 import { encryptTokenForStorage } from '@/lib/xero/token-store'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:auth:xero-callback')
 
 type TenantWithOrg = XeroTenant & { orgData?: XeroOrganization }

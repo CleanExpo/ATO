@@ -16,6 +16,8 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getDataQualityIssues } from '@/lib/xero/data-quality-validator'
 import { createServiceClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
     try {
         // Authenticate and validate tenant access

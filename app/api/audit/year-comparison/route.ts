@@ -10,6 +10,8 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createValidationError } from '@/lib/api/errors'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
+export const dynamic = 'force-dynamic'
+
 interface YearComparison {
   metric: string
   year1Value: number

@@ -14,10 +14,12 @@ import {
 } from 'lucide-react'
 import { WorkflowFindings } from '@/components/accountant/WorkflowFindings'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentFinancialYear } from '@/lib/utils/financial-year'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Div7AWorkflowPage() {
+  const currentFY = getCurrentFinancialYear()
   const findings = await fetchFindings('div7a')
 
   return (
@@ -77,7 +79,7 @@ export default async function Div7AWorkflowPage() {
               <span className="text-[#00FF00] text-xs font-medium">1</span>
             </div>
             <div>
-              <strong className="text-white/80">Benchmark Interest Rate:</strong> FY2024-25
+              <strong className="text-white/80">Benchmark Interest Rate:</strong> {currentFY}
               rate is 8.77% p.a. (TD 2024/3)
             </div>
           </div>
@@ -112,7 +114,7 @@ export default async function Div7AWorkflowPage() {
 
         {/* Benchmark Rate */}
         <div className="mt-4 p-4 rounded-xl bg-[#00FF00]10 border border-[#00FF00]20">
-          <div className="text-xs text-white/60 mb-1">FY2024-25 Benchmark Rate</div>
+          <div className="text-xs text-white/60 mb-1">{currentFY} Benchmark Rate</div>
           <div className="text-xl font-light text-[#00FF00]">8.77% p.a.</div>
           <div className="text-xs text-white/40 mt-1">
             Source: TD 2024/3 (Taxation Determination)

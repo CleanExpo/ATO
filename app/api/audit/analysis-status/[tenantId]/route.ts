@@ -29,6 +29,8 @@ import { createAdminClient } from '@/lib/supabase/server'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:analysis-status')
 
 export async function GET(

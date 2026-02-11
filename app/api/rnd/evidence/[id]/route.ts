@@ -22,6 +22,8 @@ import {
 } from '@/lib/types/rnd-evidence'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:rnd:evidence:detail')
 
 interface RouteContext {

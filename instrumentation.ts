@@ -10,7 +10,8 @@
 export async function register() {
     // Only run on Node.js runtime (server-side)
     if (process.env.NEXT_RUNTIME === 'nodejs') {
-        // TODO(tracked): Initialize error tracking service when configured — requires Sentry setup
+        // Error tracking (e.g. Sentry) not configured. Errors are logged to console and security_events table.
+        // To enable Sentry: install @sentry/nextjs, configure DSN, and call Sentry.init() here.
 
         const { validateConfiguration, logConfigurationStatus } = await import('@/lib/config/env')
 

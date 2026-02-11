@@ -26,6 +26,8 @@ import { generateXeroUrl } from '@/lib/xero/url-generator'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:recommendations:transactions')
 
 const DEFAULT_LIMIT = 20

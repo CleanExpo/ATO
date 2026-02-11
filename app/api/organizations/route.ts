@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 // Validation schema for creating organizations
 const createOrganizationSchema = z.object({
   name: z.string().min(1, 'Organization name is required'),

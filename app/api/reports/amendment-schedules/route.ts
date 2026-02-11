@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:reports:amendment-schedules')
 
 export async function GET(request: NextRequest) {

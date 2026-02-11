@@ -41,6 +41,7 @@ import { SyncAllButton } from '@/components/dashboard/SyncAllButton'
 import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 import { ErrorState } from '@/components/ui/ErrorState'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { getCurrentFinancialYear } from '@/lib/utils/financial-year'
 
 interface Connection {
   tenant_id: string
@@ -114,6 +115,7 @@ interface RecentCompletion {
 }
 
 function DashboardContent() {
+  const currentFY = getCurrentFinancialYear()
   const searchParams = useSearchParams()
   const justConnected = searchParams.get('connected') === 'true'
 
@@ -341,7 +343,7 @@ function DashboardContent() {
             return [{
               id: 'dq-latest',
               type: 'Data Quality',
-              title: 'Data Quality Scan (FY2024-25)',
+              title: `Data Quality Scan (${currentFY})`,
               completedAt: new Date(),
               result: `${dqData.issuesFound} issues found`,
               value: dqData.issuesFound

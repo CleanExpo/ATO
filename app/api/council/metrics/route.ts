@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 import { CouncilOfLogicOrchestrator } from '@/agents/council/council-orchestrator'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   // Authenticate user
   const auth = await requireAuthOnly(request)

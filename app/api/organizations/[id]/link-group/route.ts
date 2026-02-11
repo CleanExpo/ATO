@@ -12,6 +12,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
 
+export const dynamic = 'force-dynamic'
+
 // POST - Link organization to group
 export async function POST(
   request: NextRequest,

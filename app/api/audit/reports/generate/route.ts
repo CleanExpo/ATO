@@ -29,6 +29,8 @@ import { generateExcelWorkbookData, exportWorkbookAsCSVZip } from '@/lib/reports
 import { generateAmendmentSchedules, generateAmendmentSummaryText } from '@/lib/reports/amendment-schedules'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:reports:generate')
 
 export async function POST(request: NextRequest) {

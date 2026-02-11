@@ -24,6 +24,8 @@ import {
 } from '@/lib/stripe/client';
 import { createLogger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:checkout:create');
 
 interface CheckoutSessionResponse {

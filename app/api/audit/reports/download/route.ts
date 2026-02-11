@@ -29,6 +29,8 @@ import archiver from 'archiver'
 import { createLogger } from '@/lib/logger'
 import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:reports:download')
 
 interface ExportFilters {

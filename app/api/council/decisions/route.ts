@@ -11,6 +11,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { CouncilOfLogicOrchestrator } from '@/agents/council/council-orchestrator'
 import type { CouncilContext, CouncilDecisionType } from '@/agents/council/types'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   // Authenticate user and validate tenant access via organisationId
   const auth = await requireAuth(request.clone() as NextRequest, {

@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/server'
 import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import crypto from 'crypto'
 
+export const dynamic = 'force-dynamic'
+
 const MYOB_AUTH_URL = 'https://secure.myob.com/oauth2/account/authorize'
 const MYOB_CLIENT_ID = process.env.MYOB_CLIENT_ID || ''
 const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/myob/callback`

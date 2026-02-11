@@ -28,6 +28,8 @@ import { sendForensicReport } from '@/lib/reports/email-delivery'
 import { z } from 'zod'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:reports:generate')
 
 const generateReportSchema = z.object({

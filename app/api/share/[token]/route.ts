@@ -38,6 +38,8 @@ import type {
   ReportMetadata,
 } from '@/lib/types/shared-reports';
 
+export const dynamic = 'force-dynamic'
+
 /**
  * Row shape returned by the get_shared_report_analysis() DB function.
  * Only the columns needed for report generation are included (B-4 fix).

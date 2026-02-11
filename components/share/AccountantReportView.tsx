@@ -154,7 +154,7 @@ export function AccountantReportView({
       </div>
 
       {/* Executive Summary Tab */}
-      {(activeTab === 'summary' || true) && (
+      {activeTab === 'summary' && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -214,7 +214,7 @@ export function AccountantReportView({
       )}
 
       {/* Findings Tab */}
-      {(activeTab === 'findings' || true) && (
+      {activeTab === 'findings' && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -245,7 +245,7 @@ export function AccountantReportView({
       )}
 
       {/* Recommendations Tab */}
-      {(activeTab === 'recommendations' || true) && recommendations && recommendations.length > 0 && (
+      {activeTab === 'recommendations' && recommendations && recommendations.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

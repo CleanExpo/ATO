@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
+export const dynamic = 'force-dynamic'
+
 // Validation schema
 const acceptInvitationSchema = z.object({
   token: z.string().min(1, 'Token is required'),

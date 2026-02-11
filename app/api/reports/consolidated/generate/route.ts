@@ -32,6 +32,8 @@ import { generateConsolidatedReport } from '@/lib/reports/consolidated-report-ge
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:reports:consolidated:generate');
 
 const generateConsolidatedReportSchema = z.object({

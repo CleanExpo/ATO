@@ -25,6 +25,8 @@ import {
 } from '@/lib/types/rnd-checklist'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:rnd:checklist')
 
 /**

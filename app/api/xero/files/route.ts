@@ -18,6 +18,8 @@ import { createValidationError, createErrorResponse } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { uploadReportToXero, listReportsInXero } from '@/lib/xero/files-api'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(request, { tenantIdSource: 'body' })

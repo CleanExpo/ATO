@@ -7,6 +7,8 @@ import type { TokenSet } from 'xero-node'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { decryptStoredToken, encryptTokenForStorage } from '@/lib/xero/token-store'
 
+export const dynamic = 'force-dynamic'
+
 // Helper to get valid token set for a tenant (single-user mode)
 async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<TokenSet | null> {
     const supabase = await createServiceClient()

@@ -14,10 +14,12 @@ import {
 } from 'lucide-react'
 import { WorkflowFindings } from '@/components/accountant/WorkflowFindings'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentFinancialYear } from '@/lib/utils/financial-year'
 
 export const dynamic = 'force-dynamic'
 
 export default async function FBTWorkflowPage() {
+  const currentFY = getCurrentFinancialYear()
   const findings = await fetchFindings('fbt')
 
   return (
@@ -114,7 +116,7 @@ export default async function FBTWorkflowPage() {
 
         {/* FBT Rate */}
         <div className="mt-4 p-4 rounded-xl bg-[#FFFF00]10 border border-[#FFFF00]20">
-          <div className="text-xs text-white/60 mb-1">FY2024-25 FBT Rate</div>
+          <div className="text-xs text-white/60 mb-1">{currentFY} FBT Rate</div>
           <div className="text-xl font-light text-[#FFFF00]">47%</div>
           <div className="text-xs text-white/40 mt-1">
             Grossed-up Type 1: 2.0802 | Type 2: 1.8868

@@ -9,6 +9,8 @@ import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createClient } from '@/lib/supabase/server'
 import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
     // Rate limit OAuth initiation (SEC-003)
     const rateLimitResult = applyRateLimit(request, RATE_LIMITS.auth, 'oauth:xero:connect')

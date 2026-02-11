@@ -3,6 +3,8 @@ import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createClient } from '@/lib/supabase/server'
 import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/xero/logout-and-connect
  *

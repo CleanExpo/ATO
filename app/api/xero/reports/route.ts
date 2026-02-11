@@ -7,6 +7,8 @@ import type { TokenSet } from 'xero-node'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { decryptStoredToken, encryptTokenForStorage } from '@/lib/xero/token-store'
 
+export const dynamic = 'force-dynamic'
+
 type XeroReportCell = {
     value?: string
     attributes?: Record<string, unknown>

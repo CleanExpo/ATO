@@ -14,6 +14,8 @@ import { QUICKBOOKS_CONFIG } from '@/lib/integrations/quickbooks-config'
 import { storeQuickBooksTokens, createQuickBooksClient } from '@/lib/integrations/quickbooks-client'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:auth:quickbooks-callback')
 
 export async function GET(request: NextRequest) {

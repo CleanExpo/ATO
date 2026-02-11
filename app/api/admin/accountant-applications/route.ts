@@ -17,6 +17,8 @@ import { createErrorResponse } from '@/lib/api/errors';
 import { requireAdminRole } from '@/lib/middleware/admin-role';
 import type { AccountantApplication } from '@/lib/types/accountant';
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     // Require admin role

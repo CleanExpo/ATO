@@ -18,6 +18,8 @@ import { TrackingOption, TrackingCategory } from 'xero-node'
 import { createLogger } from '@/lib/logger'
 import { decryptStoredToken, encryptTokenForStorage } from '@/lib/xero/token-store'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:xero:tracking-categories')
 
 // Helper to get valid token set for a tenant

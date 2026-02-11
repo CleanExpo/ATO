@@ -3,6 +3,8 @@ import { generatePDFReportData, generatePDFReportHTML } from '@/lib/reports/pdf-
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:reports:download-pdf')
 
 export async function GET(request: NextRequest) {

@@ -4,6 +4,8 @@ import { createValidationError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
+export const dynamic = 'force-dynamic'
+
 interface CachedTransaction {
   transaction_id: string
   total_amount: number | null

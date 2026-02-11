@@ -30,6 +30,8 @@ import {
 } from '@/lib/types/recommendation-documents';
 import { scanFile } from '@/lib/uploads/file-scanner';
 
+export const dynamic = 'force-dynamic'
+
 interface RouteContext {
   params: Promise<{ token: string }>;
 }

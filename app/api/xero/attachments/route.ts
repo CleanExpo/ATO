@@ -17,6 +17,8 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { attachFindingsToXero } from '@/lib/xero/attachments-api'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(request, { tenantIdSource: 'body' })

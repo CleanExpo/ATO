@@ -15,6 +15,8 @@ import { createErrorResponse } from '@/lib/api/errors';
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import type { AccountantPricingResponse } from '@/lib/types/accountant';
 
+export const dynamic = 'force-dynamic'
+
 // Standard pricing (non-accountant)
 const STANDARD_PRICE = 995.0;
 

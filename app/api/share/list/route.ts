@@ -24,6 +24,8 @@ import type {
   ShareLinkStatus,
 } from '@/lib/types/shared-reports';
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth(request, { tenantIdSource: 'query' })

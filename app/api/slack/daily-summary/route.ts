@@ -12,6 +12,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import slack from '@/lib/slack/slack-notifier'
 import type Stripe from 'stripe'
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     // Verify cron secret

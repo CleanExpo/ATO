@@ -13,6 +13,8 @@ import {
   compareLoanOptions,
 } from '@/lib/calculators/division7a-calculator'
 
+export const dynamic = 'force-dynamic'
+
 // Validation schema
 const div7aCalculationSchema = z.object({
   loanAmount: z.number().positive('Loan amount must be positive'),

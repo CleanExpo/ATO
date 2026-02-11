@@ -33,6 +33,8 @@ import type {
   ShareableReportType,
 } from '@/lib/types/shared-reports';
 
+export const dynamic = 'force-dynamic'
+
 const VALID_REPORT_TYPES: ShareableReportType[] = ['full', 'rnd', 'deductions', 'div7a', 'losses', 'custom'];
 const DEFAULT_EXPIRY_DAYS = 7;
 const MAX_EXPIRY_DAYS = 365;

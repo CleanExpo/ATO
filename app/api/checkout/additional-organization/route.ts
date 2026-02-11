@@ -12,6 +12,8 @@ import { createClient } from '@/lib/supabase/server';
 import { stripe, PRICING_CONFIG, createOrRetrieveCustomer } from '@/lib/stripe/client';
 import { checkOrganizationLicenseCompliance } from '@/lib/middleware/license-verification';
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient();

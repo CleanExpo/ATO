@@ -22,6 +22,8 @@ import { getSyncStatus } from '@/lib/xero/historical-fetcher'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:sync-status')
 
 export async function GET(

@@ -33,6 +33,8 @@ import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 import { decryptStoredToken, encryptTokenForStorage } from '@/lib/xero/token-store'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:sync-chunk')
 
 /** Shape of a raw Xero transaction (union of invoice/bank transaction fields) */

@@ -11,6 +11,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getMYOBSyncStatus } from '@/lib/integrations/myob-historical-fetcher'
 import { createErrorResponse } from '@/lib/api/errors'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/myob/sync-status/:companyFileId
  *

@@ -163,8 +163,7 @@ export function EvidenceWizard({
 
   // Edit evidence handler (navigate to edit page or show modal)
   const handleEditEvidence = (evidence: RndEvidence) => {
-    // For now, log - can expand to show edit modal
-    console.log('Edit evidence:', evidence)
+    // TODO: expand to show edit modal
   }
 
   // Delete evidence handler

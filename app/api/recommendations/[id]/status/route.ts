@@ -25,6 +25,8 @@ import type {
 } from '@/lib/types/recommendation-status';
 import { STATUS_CONFIG, isValidTransition } from '@/lib/types/recommendation-status';
 
+export const dynamic = 'force-dynamic'
+
 interface RouteContext {
   params: Promise<{ id: string }>;
 }

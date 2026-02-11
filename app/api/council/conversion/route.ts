@@ -11,6 +11,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { CouncilOfLogicOrchestrator } from '@/agents/council/council-orchestrator'
 import type { ConversionStage } from '@/agents/council/types'
 
+export const dynamic = 'force-dynamic'
+
 const VALID_STAGES: ConversionStage[] = [
   'awareness',
   'interest',

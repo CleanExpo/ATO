@@ -22,6 +22,8 @@ import { createAdminClient } from '@/lib/supabase/server'
 import cacheManager, { CacheTTL } from '@/lib/cache/cache-manager'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:cost-monitoring')
 
 export async function GET(request: NextRequest) {

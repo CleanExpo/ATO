@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { optionalConfig } from '@/lib/config/env'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
     const auth = await requireAuth(request, { skipTenantValidation: true })
     if (isErrorResponse(auth)) return auth

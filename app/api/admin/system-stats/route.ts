@@ -3,6 +3,8 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse } from '@/lib/api/errors';
 import { requireAdminRole } from '@/lib/middleware/admin-role';
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(_request: NextRequest) {
     try {
         // Require admin role

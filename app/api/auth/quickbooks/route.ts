@@ -14,6 +14,8 @@ import { createLogger } from '@/lib/logger'
 import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import crypto from 'crypto'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:auth:quickbooks')
 
 export async function GET(request: NextRequest) {

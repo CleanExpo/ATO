@@ -21,6 +21,8 @@ import type {
   FeedbackType,
 } from '@/lib/types/share-feedback';
 
+export const dynamic = 'force-dynamic'
+
 const VALID_FEEDBACK_TYPES: FeedbackType[] = ['comment', 'question', 'approval', 'concern'];
 
 /**

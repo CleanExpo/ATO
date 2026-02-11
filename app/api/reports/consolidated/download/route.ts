@@ -29,6 +29,8 @@ import ExcelJS from 'exceljs';
 import { z } from 'zod';
 import { createLogger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:reports:consolidated:download');
 
 const downloadConsolidatedReportSchema = z.object({

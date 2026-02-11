@@ -15,6 +15,8 @@ import { createErrorResponse } from '@/lib/api/errors';
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import type { VettedAccountant } from '@/lib/types/accountant';
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth(request, { skipTenantValidation: true })

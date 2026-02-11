@@ -12,6 +12,8 @@ import { createErrorResponse } from '@/lib/api/errors';
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import Decimal from 'decimal.js';
 
+export const dynamic = 'force-dynamic'
+
 /** Shape of a line item from Xero raw_data */
 interface XeroLineItem {
   AccountCode?: string;

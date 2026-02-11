@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { getCurrentFinancialYear } from '@/lib/utils/financial-year'
 
 const steps = [
     { id: 'eligibility', label: 'Eligibility', icon: <ShieldCheck className="w-4 h-4" /> },
@@ -34,6 +35,7 @@ const steps = [
 ]
 
 export default function GrantAcceleratorPage() {
+    const currentFY = getCurrentFinancialYear()
     const [currentStep, setCurrentStep] = useState(0)
     const [loading, setLoading] = useState(true)
     const [organization, setOrganization] = useState<{ organisation_name?: string } | null>(null)
@@ -127,7 +129,7 @@ export default function GrantAcceleratorPage() {
                                     </div>
 
                                     <div className="space-y-4">
-                                        <DocumentItem icon={<FileText className="w-5 h-5" />} label="FY2024-25 Profit & Loss" status="Live Draft Ready" size="244 KB" />
+                                        <DocumentItem icon={<FileText className="w-5 h-5" />} label={`${currentFY} Profit & Loss`} status="Live Draft Ready" size="244 KB" />
                                         <DocumentItem icon={<FileText className="w-5 h-5" />} label="Annual Financial Report (FY2023-24)" status="Certified Sync" size="1.2 MB" />
                                         <DocumentItem icon={<FileText className="w-5 h-5" />} label="Xero Organization Settings" status="Validated" size="12 KB" />
                                     </div>

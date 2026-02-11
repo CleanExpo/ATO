@@ -23,6 +23,8 @@ import {
 import { scanFile } from '@/lib/uploads/file-scanner';
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 
+export const dynamic = 'force-dynamic'
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }

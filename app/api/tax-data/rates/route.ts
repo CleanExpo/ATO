@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const forceRefresh = searchParams.get('refresh') === 'true'

@@ -33,6 +33,8 @@ import { createLogger } from '@/lib/logger'
 import { applyDistributedRateLimit, DISTRIBUTED_RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import type { SupabaseServiceClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:analyze-chunk')
 
 /** Shape of a raw cached transaction (union of Xero invoice/bank transaction fields) */

@@ -12,6 +12,8 @@ import { revokeQuickBooksAccess } from '@/lib/integrations/quickbooks-client'
 import { createErrorResponse } from '@/lib/api/errors'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:auth:quickbooks-disconnect')
 
 export async function POST(_request: NextRequest) {

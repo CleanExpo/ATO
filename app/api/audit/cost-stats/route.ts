@@ -16,6 +16,8 @@ import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getCostSummary } from '@/lib/ai/batch-processor'
 import cacheManager, { CacheTTL } from '@/lib/cache/cache-manager'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   try {
     // Authenticate and validate tenant access

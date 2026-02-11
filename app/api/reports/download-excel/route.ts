@@ -3,6 +3,8 @@ import { generateExcelFromTenant } from '@/lib/reports/excel-generator'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:reports:download-excel')
 
 export async function GET(request: NextRequest) {

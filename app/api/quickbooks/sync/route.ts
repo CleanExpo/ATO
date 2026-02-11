@@ -17,6 +17,8 @@ import { syncQuickBooksHistoricalData } from '@/lib/integrations/quickbooks-hist
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:quickbooks:sync')
 
 export async function POST(request: NextRequest) {

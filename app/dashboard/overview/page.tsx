@@ -42,6 +42,7 @@ import { useOrganization } from '@/lib/context/OrganizationContext'
 import { ConsolidatedDashboard } from '@/components/dashboard/ConsolidatedDashboard'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
+import { getCurrentFinancialYear } from '@/lib/utils/financial-year'
 
 // --- Interfaces ---
 
@@ -100,6 +101,7 @@ const MetricBlock = ({ label, value, prefix: _prefix = "$", variant = "default",
 // --- Main Page ---
 
 export default function TaxOverviewPage() {
+  const currentFY = getCurrentFinancialYear()
   const { organizations } = useOrganization()
   const [overview, setOverview] = useState<TaxOverview | null>(null)
   const [loading, setLoading] = useState(true)
@@ -440,7 +442,7 @@ export default function TaxOverviewPage() {
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-muted)]">Div 7A Benchmark</span>
-                <span className="text-xs font-mono text-white">8.77% (FY2024-25)</span>
+                <span className="text-xs font-mono text-white">8.77% ({currentFY})</span>
                 <Link href={overview.taxRates?.sources.div7a || '#'} target="_blank" className="text-[9px] text-sky-400 hover:underline flex items-center gap-1">
                   ATO SOURCE <ExternalLink className="w-2 h-2" />
                 </Link>

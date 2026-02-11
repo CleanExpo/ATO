@@ -14,6 +14,8 @@ import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
 import { createAdminClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:recommendations:detail')
 
 export async function GET(

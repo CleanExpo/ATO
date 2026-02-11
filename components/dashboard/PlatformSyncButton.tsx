@@ -48,8 +48,6 @@ export function PlatformSyncButton({
         throw new Error(`Unsupported platform: ${platform}`)
       }
 
-      console.log(`[${platform.toUpperCase()} Sync] Starting sync for ${connectionName}`)
-
       const response = await fetch(syncEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,7 +64,6 @@ export function PlatformSyncButton({
       }
 
       const data = await response.json()
-      console.log(`[${platform.toUpperCase()} Sync] Started successfully:`, data)
 
       // Redirect to forensic audit page with platform context
       router.push(`/dashboard/forensic-audit?platform=${platform}&tenantId=${tenantId}`)

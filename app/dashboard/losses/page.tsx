@@ -21,11 +21,24 @@ import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
+import { getCurrentFinancialYear, getPriorFinancialYear } from '@/lib/utils/financial-year'
+
+function generateFYOptions(count: number): string[] {
+    const options: string[] = []
+    let fy: string | null = getCurrentFinancialYear()
+    for (let i = 0; i < count && fy; i++) {
+        options.push(fy)
+        fy = getPriorFinancialYear(fy)
+    }
+    return options
+}
 
 export default function LossAnalysisPage() {
+    const currentFY = getCurrentFinancialYear()
+    const fyOptions = generateFYOptions(5)
     const [connections, setConnections] = useState<Array<{ tenant_id: string; organisation_name: string }>>([])
     const [activeTenantId, setActiveTenantId] = useState<string>('')
-    const [selectedFY, setSelectedFY] = useState('FY2024-25')
+    const [selectedFY, setSelectedFY] = useState(currentFY)
     const [loading, setLoading] = useState(true)
 
     const [metrics, setMetrics] = useState({
@@ -110,8 +123,9 @@ export default function LossAnalysisPage() {
                             onChange={(e) => setSelectedFY(e.target.value)}
                             className="bg-white/10 border border-white/20 rounded-2xl px-6 py-4 text-white font-bold text-sm focus:outline-none focus:border-sky-500 appearance-none"
                         >
-                            <option value="FY2024-25">FY2024-25</option>
-                            <option value="FY2023-24">FY2023-24</option>
+                            {fyOptions.map(fy => (
+                                <option key={fy} value={fy}>{fy}</option>
+                            ))}
                         </select>
                     </div>
                 </div>

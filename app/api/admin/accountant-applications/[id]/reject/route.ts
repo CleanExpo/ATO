@@ -20,6 +20,8 @@ import { requireAdminRole } from '@/lib/middleware/admin-role';
 import { logAdminAction, getIpAddress, getUserAgent } from '@/lib/audit/logger';
 import type { RejectionResponse } from '@/lib/types/accountant';
 
+export const dynamic = 'force-dynamic'
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

@@ -4,6 +4,8 @@ import { createErrorResponse } from '@/lib/api/errors'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
+export const dynamic = 'force-dynamic'
+
 // GET /api/xero/organizations - List connected organizations
 // In single-user mode: Returns all connections
 // In multi-user mode: Returns only connections user has access to

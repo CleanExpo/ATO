@@ -18,6 +18,8 @@ import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 
+export const dynamic = 'force-dynamic'
+
 // Fallback rates when live rates are unavailable (FY2024-25)
 const FALLBACK_CORPORATE_TAX_RATE = 0.25
 const FALLBACK_STANDARD_TAX_RATE = 0.30

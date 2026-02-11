@@ -29,6 +29,8 @@ import cacheManager, { CacheKeys, CacheTTL } from '@/lib/cache/cache-manager'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:audit:recommendations')
 
 export async function GET(request: NextRequest) {

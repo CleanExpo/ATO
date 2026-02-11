@@ -6,6 +6,8 @@ import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createClient } from '@/lib/supabase/server'
 import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:auth:xero')
 
 // GET /api/auth/xero - Initiate Xero OAuth flow

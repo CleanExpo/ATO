@@ -19,6 +19,8 @@ import type { TokenSet } from 'xero-node'
 import { createLogger } from '@/lib/logger'
 import { decryptStoredToken, encryptTokenForStorage } from '@/lib/xero/token-store'
 
+export const dynamic = 'force-dynamic'
+
 const log = createLogger('api:xero:invoices-search')
 
 /** Shape of a Xero invoice from the accounting API */
