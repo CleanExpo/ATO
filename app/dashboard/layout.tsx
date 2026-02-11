@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { OrganizationProvider } from '@/lib/context/OrganizationContext'
 import { VerticalNav, DynamicIsland } from '@/components/ui/DynamicIsland'
+import { Breadcrumb } from '@/components/ui/Breadcrumb'
 
 // Force dynamic rendering for all dashboard pages (require authentication)
 export const dynamic = 'force-dynamic'
@@ -30,6 +31,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           {/* Page content - centered with max-width */}
           <main className="flex-1 flex flex-col items-center w-full px-4 md:px-6 lg:px-8">
             <div className="w-full max-w-7xl">
+              <Breadcrumb />
               {children}
             </div>
           </main>
