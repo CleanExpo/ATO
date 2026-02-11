@@ -1154,3 +1154,58 @@ function createEmptySummary(): DeductionSummary {
     taxRateVerifiedAt: new Date().toISOString(),
   }
 }
+
+// ─── Tax Treatment Flagging ─────────────────────────────────────────────────
+
+export interface TaxTreatmentFlag {
+  findingType: string
+  txnId: string
+  periodHint: string
+  amount: number
+  reason: string
+  evidence: {
+    date: string
+    description?: string
+    accountCode?: string
+    taxAmount?: number
+    documentUrl?: string
+  }
+}
+
+/**
+ * Flag transactions where a tax amount is present but the tax code is
+ * missing or too short — indicating the bookkeeping data has an unclear
+ * tax treatment that needs review.
+ *
+ * This is a data-quality check, not a compliance determination.
+ * Transactions returned should be verified by a registered tax agent
+ * to ensure correct GST/BAS treatment (Division 11 GST Act 1999).
+ */
+export function flagTaxTreatmentUnclear(txns: Array<{
+  id: string
+  date: string
+  description?: string
+  gross: number
+  taxAmount?: number
+  taxCode?: string
+  accountCode?: string
+  documentUrl?: string
+}>): TaxTreatmentFlag[] {
+  return txns
+    .filter(t => (t.taxAmount ?? 0) !== 0)
+    .filter(t => !t.taxCode || t.taxCode.trim().length < 2)
+    .map(t => ({
+      findingType: 'Tax treatment unclear (review)',
+      txnId: t.id,
+      periodHint: t.date.slice(0, 7),
+      amount: t.gross,
+      reason: 'Tax amount present but missing/blank tax code in bookkeeping data',
+      evidence: {
+        date: t.date,
+        description: t.description,
+        accountCode: t.accountCode,
+        taxAmount: t.taxAmount,
+        documentUrl: t.documentUrl,
+      },
+    }))
+}
