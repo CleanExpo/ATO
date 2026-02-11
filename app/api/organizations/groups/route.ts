@@ -42,6 +42,10 @@ export async function GET() {
       .order('created_at', { ascending: false });
 
     if (groupsError) {
+      // If columns don't exist yet, return empty gracefully
+      if (groupsError.code === '42703') {
+        return NextResponse.json({ groups: [], total: 0 });
+      }
       console.error('Error fetching organization groups:', groupsError);
       return createErrorResponse(groupsError, { operation: 'fetchGroups' }, 500);
     }
@@ -49,10 +53,15 @@ export async function GET() {
     // Get organization counts for each group
     const groupsWithCounts = await Promise.all(
       (groups || []).map(async (group) => {
-        const { data: orgs } = await supabase
+        const { data: orgs, error: orgErr } = await supabase
           .from('organizations')
-          .select('id, name, xero_tenant_id')
+          .select('id, name, xero_tenant_id, is_primary_in_group')
           .eq('group_id', group.id);
+
+        if (orgErr && orgErr.code === '42703') {
+          // group_id column doesn't exist yet
+          return { ...group, organizationCount: 0, organizations: [] };
+        }
 
         return {
           ...group,
