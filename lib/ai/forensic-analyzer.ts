@@ -18,6 +18,7 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { optionalConfig } from '@/lib/config/env'
 import { createSupplierAnonymiser } from './pii-sanitizer'
+import { withRateLimitRetry, rateLimitTracker } from './rate-limiter'
 
 // Initialize Google AI lazily to avoid errors when API key is missing
 let genAI: GoogleGenerativeAI | null = null
@@ -314,12 +315,13 @@ Return ONLY valid JSON matching this structure (no markdown, no explanations out
 
 /**
  * Analyze a single transaction using the next model in the multi-provider pool.
+ * Includes rate limit retry logic with exponential backoff.
  */
 export async function analyzeTransaction(
     transaction: TransactionContext,
     business: BusinessContext
 ): Promise<ForensicAnalysis> {
-    try {
+    return withRateLimitRetry(async () => {
         // Anonymise supplier name before sending to AI (APP 8 data minimisation)
         const anonymiser = createSupplierAnonymiser()
         const anonymisedSupplier = anonymiser.anonymise(transaction.supplier)
@@ -340,6 +342,9 @@ export async function analyzeTransaction(
         // Round-robin across all available models (Gemini + OpenRouter)
         const modelEntry = getNextModel()
         let text: string
+
+        // Check rate limit status before making request
+        await rateLimitTracker.waitIfNeeded(modelEntry.provider)
 
         if (modelEntry.provider === 'gemini') {
             const model = getGoogleAI().getGenerativeModel({
@@ -367,12 +372,13 @@ export async function analyzeTransaction(
             deductionEligibility: analysis.deductionEligibility,
             complianceFlags: analysis.complianceFlags,
         }
-
-    } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        console.error(`AI analysis failed for ${transaction.transactionID}:`, errorMessage)
-        throw new Error(`AI analysis failed for transaction ${transaction.transactionID}: ${errorMessage}`)
-    }
+    }, `analyzeTransaction-${transaction.transactionID}`, {
+        maxAttempts: 5,
+        initialDelayMs: 2000, // Start with 2s delay for AI APIs
+        maxDelayMs: 60000,
+        backoffMultiplier: 2,
+        jitter: true,
+    })
 }
 
 /**

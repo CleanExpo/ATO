@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { createErrorResponse } from '@/lib/api/errors'
 import { requireAuthOnly, isErrorResponse } from '@/lib/auth/require-auth'
-
-// Single-user mode: Skip auth and return all connections
-const SINGLE_USER_MODE = process.env.SINGLE_USER_MODE === 'true'
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 // GET /api/xero/organizations - List connected organizations
 // In single-user mode: Returns all connections
@@ -14,7 +12,7 @@ export async function GET(request: NextRequest) {
         const supabase = createAdminClient()
 
         // Single-user mode: Return all connections without auth
-        if (SINGLE_USER_MODE) {
+        if (isSingleUserMode()) {
             const { data: connections, error } = await supabase
                 .from('xero_connections')
                 .select(`

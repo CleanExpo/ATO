@@ -2,9 +2,72 @@
 -- ATO TAX OPTIMIZATION - SUPABASE DATABASE SCHEMA
 -- ================================================================
 -- Run this in your Supabase SQL Editor to create the required tables
+-- Last Updated: 2026-02-11
+-- Includes: Multi-tenant support, Organization management, All integrations
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- ----------------------------------------------------------------
+-- ORGANIZATIONS TABLE
+-- ----------------------------------------------------------------
+-- Multi-tenant support: Stores organization data for accounting firms
+-- managing multiple client organizations
+
+CREATE TABLE IF NOT EXISTS organizations (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE,
+  xero_tenant_id TEXT UNIQUE,
+  settings JSONB DEFAULT '{}',
+  
+  -- Status
+  is_active BOOLEAN DEFAULT TRUE,
+  xero_connected BOOLEAN DEFAULT FALSE,
+  
+  -- Metadata
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_organizations_slug ON organizations(slug);
+CREATE INDEX IF NOT EXISTS idx_organizations_xero_tenant ON organizations(xero_tenant_id);
+
+COMMENT ON TABLE organizations IS 'Multi-tenant organization support for accounting firms managing multiple clients';
+
+-- ----------------------------------------------------------------
+-- USER TENANT ACCESS TABLE
+-- ----------------------------------------------------------------
+-- Links users to organizations with role-based access control
+
+CREATE TABLE IF NOT EXISTS user_tenant_access (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  tenant_id TEXT,
+  role TEXT NOT NULL DEFAULT 'member', -- 'owner', 'admin', 'member', 'viewer'
+  
+  -- Invitation tracking
+  invited_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  invited_at TIMESTAMPTZ,
+  accepted_at TIMESTAMPTZ,
+  
+  -- Metadata
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  
+  -- Ensure unique user-org combo
+  UNIQUE(user_id, organization_id)
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_user_tenant_access_user ON user_tenant_access(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tenant_access_org ON user_tenant_access(organization_id);
+CREATE INDEX IF NOT EXISTS idx_user_tenant_access_tenant ON user_tenant_access(tenant_id);
+
+COMMENT ON TABLE user_tenant_access IS 'Role-based access control linking users to organizations';
 
 -- ----------------------------------------------------------------
 -- XERO CONNECTIONS TABLE
@@ -15,6 +78,7 @@ CREATE TABLE IF NOT EXISTS xero_connections (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
   tenant_id TEXT UNIQUE NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL, -- Multi-org support
   tenant_name TEXT,
   tenant_type TEXT,
   
@@ -44,6 +108,9 @@ CREATE TABLE IF NOT EXISTS xero_connections (
 -- Index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_xero_connections_tenant_id ON xero_connections(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_xero_connections_user_id ON xero_connections(user_id);
+CREATE INDEX IF NOT EXISTS idx_xero_connections_organization_id ON xero_connections(organization_id);
+
+COMMENT ON COLUMN xero_connections.organization_id IS 'Links this Xero connection to an organization record for multi-org support';
 
 -- ----------------------------------------------------------------
 -- TAX AUDIT FINDINGS TABLE
@@ -281,6 +348,8 @@ CREATE INDEX IF NOT EXISTS idx_gov_ref_effective_from ON government_reference_va
 -- ----------------------------------------------------------------
 -- Enable RLS for all tables (configure policies as needed)
 
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_tenant_access ENABLE ROW LEVEL SECURITY;
 ALTER TABLE xero_connections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tax_audit_findings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rnd_activities ENABLE ROW LEVEL SECURITY;
@@ -290,6 +359,8 @@ ALTER TABLE audit_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE government_reference_values ENABLE ROW LEVEL SECURITY;
 
 -- Allow service role full access (for API routes)
+CREATE POLICY "Service role access" ON organizations FOR ALL USING (true);
+CREATE POLICY "Service role access" ON user_tenant_access FOR ALL USING (true);
 CREATE POLICY "Service role access" ON xero_connections FOR ALL USING (true);
 CREATE POLICY "Service role access" ON tax_audit_findings FOR ALL USING (true);
 CREATE POLICY "Service role access" ON rnd_activities FOR ALL USING (true);
@@ -312,6 +383,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers for updated_at
+CREATE TRIGGER update_organizations_updated_at
+  BEFORE UPDATE ON organizations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER update_user_tenant_access_updated_at
+  BEFORE UPDATE ON user_tenant_access
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 CREATE TRIGGER update_xero_connections_updated_at
   BEFORE UPDATE ON xero_connections
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

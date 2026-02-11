@@ -192,7 +192,20 @@ export async function GET(request: NextRequest) {
                     }, { onConflict: 'tenant_id' })
 
                 if (connectionError) {
-                    console.error('Connection error:', connectionError)
+                    console.error('Failed to save Xero connection:', {
+                        error: connectionError,
+                        tenantId: tenant.tenantId,
+                        tenantName: tenant.tenantName,
+                        organizationId,
+                        timestamp: new Date().toISOString(),
+                        step: 'database_upsert'
+                    })
+                    
+                    failedTenants.push({
+                        name: tenant.tenantName,
+                        reason: `Database error: ${connectionError.message}`
+                    })
+                    continue // Skip this tenant but continue with others
                 }
 
                 // Update organization connection status
@@ -207,7 +220,18 @@ export async function GET(request: NextRequest) {
                 }
             } catch (tenantError: unknown) {
                 const tenantMessage = tenantError instanceof Error ? tenantError.message : String(tenantError)
-                console.error('Tenant error:', tenantMessage)
+                console.error('Tenant processing error:', {
+                    tenantId: tenant.tenantId,
+                    tenantName: tenant.tenantName,
+                    error: tenantMessage,
+                    timestamp: new Date().toISOString(),
+                    step: 'tenant_processing'
+                })
+                
+                failedTenants.push({
+                    name: tenant.tenantName,
+                    reason: `Processing error: ${tenantMessage}`
+                })
             }
         }
 
