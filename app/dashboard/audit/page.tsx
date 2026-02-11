@@ -8,7 +8,12 @@ import {
     Filter,
     Download,
     Play,
-    AlertTriangle
+    AlertTriangle,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    ChevronLeft,
+    ChevronRight
 } from 'lucide-react'
 
 type Connection = {
@@ -88,6 +93,10 @@ export default function TaxAuditPage() {
     const [findingsLoading, setFindingsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [filterSignal, setFilterSignal] = useState<string>('all')
+    const [sortColumn, setSortColumn] = useState<'date' | 'amount' | 'description'>('date')
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [pageSize, setPageSize] = useState(25)
 
     useEffect(() => {
         let isMounted = true
@@ -185,6 +194,51 @@ export default function TaxAuditPage() {
             return true
         })
     }, [findings, filterSignal])
+
+    const sortedFindings = useMemo(() => {
+        const sorted = [...filteredFindings].sort((a, b) => {
+            let cmp = 0
+            if (sortColumn === 'date') {
+                const da = a.date ? new Date(a.date).getTime() : 0
+                const db = b.date ? new Date(b.date).getTime() : 0
+                cmp = da - db
+            } else if (sortColumn === 'amount') {
+                cmp = (a.amount ?? 0) - (b.amount ?? 0)
+            } else if (sortColumn === 'description') {
+                cmp = a.description.localeCompare(b.description)
+            }
+            return sortDirection === 'asc' ? cmp : -cmp
+        })
+        return sorted
+    }, [filteredFindings, sortColumn, sortDirection])
+
+    const totalPages = Math.max(1, Math.ceil(sortedFindings.length / pageSize))
+    const safePage = Math.min(currentPage, totalPages)
+    const paginatedFindings = useMemo(() => {
+        const start = (safePage - 1) * pageSize
+        return sortedFindings.slice(start, start + pageSize)
+    }, [sortedFindings, safePage, pageSize])
+
+    // Reset to page 1 when filter or sort changes
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [filterSignal, sortColumn, sortDirection])
+
+    function toggleSort(col: 'date' | 'amount' | 'description') {
+        if (sortColumn === col) {
+            setSortDirection(d => d === 'asc' ? 'desc' : 'asc')
+        } else {
+            setSortColumn(col)
+            setSortDirection(col === 'description' ? 'asc' : 'desc')
+        }
+    }
+
+    function SortIcon({ col }: { col: 'date' | 'amount' | 'description' }) {
+        if (sortColumn !== col) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-40" />
+        return sortDirection === 'asc'
+            ? <ArrowUp className="w-3 h-3 ml-1 text-sky-400" />
+            : <ArrowDown className="w-3 h-3 ml-1 text-sky-400" />
+    }
 
     const totalReviewItems = findings.length
     const missingTaxTypes = findings.filter(f => f.signals.missingTaxType).length
@@ -360,19 +414,64 @@ export default function TaxAuditPage() {
                 {/* Findings Table */}
                 {hasConnections && filteredFindings.length > 0 && (
                     <div className="table-container">
-                        <table className="table">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
+                            <span className="text-xs text-[var(--text-muted)]">
+                                {sortedFindings.length} result{sortedFindings.length !== 1 ? 's' : ''}
+                                {sortedFindings.length !== findings.length && ` (filtered from ${findings.length})`}
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-[var(--text-muted)]">Per page:</span>
+                                <select
+                                    value={pageSize}
+                                    onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
+                                    className="input w-20 text-xs py-1"
+                                >
+                                    <option value={25}>25</option>
+                                    <option value={50}>50</option>
+                                    <option value={100}>100</option>
+                                </select>
+                            </div>
+                        </div>
+                        <table className="table" role="grid">
                             <thead>
                                 <tr>
                                     <th>Signals</th>
-                                    <th>Date</th>
-                                    <th>Description</th>
-                                    <th>Amount</th>
+                                    <th>
+                                        <button onClick={() => toggleSort('date')} className="flex items-center hover:text-white transition-colors" aria-label="Sort by date">
+                                            Date <SortIcon col="date" />
+                                        </button>
+                                    </th>
+                                    <th>
+                                        <button onClick={() => toggleSort('description')} className="flex items-center hover:text-white transition-colors" aria-label="Sort by description">
+                                            Description <SortIcon col="description" />
+                                        </button>
+                                    </th>
+                                    <th>
+                                        <button onClick={() => toggleSort('amount')} className="flex items-center hover:text-white transition-colors" aria-label="Sort by amount">
+                                            Amount <SortIcon col="amount" />
+                                        </button>
+                                    </th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredFindings.map((finding) => (
-                                    <tr key={finding.id}>
+                                {paginatedFindings.map((finding, rowIdx) => (
+                                    <tr
+                                        key={finding.id}
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                            const rows = e.currentTarget.parentElement?.querySelectorAll('tr[tabindex]')
+                                            if (!rows) return
+                                            if (e.key === 'ArrowDown' && rowIdx < rows.length - 1) {
+                                                e.preventDefault();
+                                                (rows[rowIdx + 1] as HTMLElement).focus()
+                                            } else if (e.key === 'ArrowUp' && rowIdx > 0) {
+                                                e.preventDefault();
+                                                (rows[rowIdx - 1] as HTMLElement).focus()
+                                            }
+                                        }}
+                                        className="focus:outline-none focus-visible:ring-1 focus-visible:ring-sky-500/50"
+                                    >
                                         <td>
                                             <div className="flex flex-wrap gap-2">
                                                 {finding.signals.rndCandidate && (
@@ -420,6 +519,58 @@ export default function TaxAuditPage() {
                                 ))}
                             </tbody>
                         </table>
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
+                                <span className="text-xs text-[var(--text-muted)]">
+                                    Showing {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, sortedFindings.length)} of {sortedFindings.length}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={safePage <= 1}
+                                        className="btn btn-ghost p-1.5 disabled:opacity-30"
+                                        aria-label="Previous page"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
+                                        .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
+                                            if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push('ellipsis')
+                                            acc.push(p)
+                                            return acc
+                                        }, [])
+                                        .map((item, idx) =>
+                                            item === 'ellipsis' ? (
+                                                <span key={`e${idx}`} className="px-2 text-xs text-[var(--text-muted)]">...</span>
+                                            ) : (
+                                                <button
+                                                    key={item}
+                                                    onClick={() => setCurrentPage(item)}
+                                                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                                                        safePage === item
+                                                            ? 'bg-sky-500 text-white font-bold'
+                                                            : 'text-[var(--text-secondary)] hover:text-white hover:bg-white/5'
+                                                    }`}
+                                                    aria-label={`Page ${item}`}
+                                                    aria-current={safePage === item ? 'page' : undefined}
+                                                >
+                                                    {item}
+                                                </button>
+                                            )
+                                        )}
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={safePage >= totalPages}
+                                        className="btn btn-ghost p-1.5 disabled:opacity-30"
+                                        aria-label="Next page"
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 

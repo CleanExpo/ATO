@@ -53,8 +53,11 @@ const StrategyItem = ({ title, status, impact, category, deadline, action, descr
     <div className="flex justify-between items-start mb-4">
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${status === 'critical' ? 'bg-red-500 animate-pulse' : 'bg-sky-400'}`} />
-          <span className="text-[10px] font-black uppercase tracking-widest text-sky-400">{category}</span>
+          <span className={`w-2 h-2 rounded-full ${status === 'critical' ? 'bg-red-500 animate-pulse' : 'bg-sky-400'}`} aria-hidden="true" />
+          <span className="text-[10px] font-black uppercase tracking-widest text-sky-400">
+            {status === 'critical' && <span className="sr-only">Critical - </span>}
+            {category}
+          </span>
         </div>
         <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>
       </div>
