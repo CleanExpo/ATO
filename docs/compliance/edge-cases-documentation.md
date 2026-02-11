@@ -1,10 +1,11 @@
 # Edge Cases Documentation - Accountant Workflow System
 
-**Document Version**: 1.0
+**Document Version**: 2.0
 **Created**: 2026-01-30
+**Updated**: 2026-02-11
 **Linear Issue**: [UNI-279](https://linear.app/unite-hub/issue/UNI-279)
 **Validated By**: Tax Agent (Domain Specialist)
-**Financial Year**: FY2024-25
+**Financial Year**: FY2024-25 / FY2025-26
 **Next Review**: 2026-07-01 (FY2025-26 start)
 
 ---
@@ -30,6 +31,12 @@ This document catalogues edge cases, unusual scenarios, and boundary conditions 
 4. [Division 7A Edge Cases](#division-7a-edge-cases)
 5. [Substantiation Edge Cases](#substantiation-edge-cases)
 6. [Reconciliation Edge Cases](#reconciliation-edge-cases)
+7. [Trust Distribution Edge Cases](#trust-distribution-edge-cases)
+8. [Loss Engine Edge Cases](#loss-engine-edge-cases)
+9. [CGT Edge Cases](#cgt-edge-cases)
+10. [Fuel Tax Credit Edge Cases](#fuel-tax-credit-edge-cases)
+11. [Superannuation Edge Cases](#superannuation-edge-cases)
+12. [Known Remaining Gaps](#known-remaining-gaps)
 
 ---
 
@@ -169,6 +176,99 @@ Overseas R&D is only eligible if:
 
 ---
 
+### Edge Case RD-006: Refundable Offset Exceeds $4M Cap
+
+**Scenario**: Large R&D expenditure ($12M) generates offset ($5.22M) exceeding the $4M refundable cap.
+
+**System Behavior**:
+```typescript
+const totalOffset = 12_000_000 * 0.435; // $5,220,000
+const refundable = Math.min(totalOffset, 4_000_000); // $4,000,000
+const carryForward = totalOffset - refundable; // $1,220,000
+```
+
+**Compliance Consideration**:
+Section 355-100(3) ITAA 1997 caps the refundable R&D tax offset at $4M per annum (from FY2021-22). The excess becomes a non-refundable offset that can reduce tax liability or carry forward.
+
+**Accountant Action**:
+1. Calculate total offset and identify cap impact
+2. Determine if non-refundable carry-forward has value (i.e., company has future tax liability)
+3. Consider spreading R&D expenditure across years if cap is regularly hit
+4. Report both refundable and carry-forward amounts
+
+**Legislation**: Section 355-100(3), ITAA 1997
+
+---
+
+### Edge Case RD-007: Entity at 30% Corporate Rate Claims R&D
+
+**Scenario**: Company pays 30% corporate tax rate (turnover <$20M but >80% passive income, or turnover ≥$50M). R&D offset rate is 48.5%, not 43.5%.
+
+**System Behavior**:
+```typescript
+const corporateRate = 0.30; // 30% entity
+const premium = aggregatedTurnover < 20_000_000 ? 0.185 : 0.085;
+const offsetRate = corporateRate + premium; // 48.5% (not 43.5%)
+```
+
+**Impact**:
+- $200K expenditure @ 43.5% (25% entity) = $87,000
+- $200K expenditure @ 48.5% (30% entity) = $97,000
+- **Difference: $10,000** additional offset for 30% entities
+
+**Accountant Action**:
+1. Verify corporate tax rate (25% base rate or 30% standard)
+2. Check both turnover AND passive income tests for base rate entity status
+3. Apply correct offset rate based on actual corporate rate
+
+**Legislation**: Section 355-105, ITAA 1997
+
+---
+
+### Edge Case RD-008: R&D Results Commercialised (Clawback)
+
+**Scenario**: Company claimed $200K R&D offset in FY2022-23. In FY2024-25, the resulting IP is sold for $500K.
+
+**System Behavior**:
+- Per-project clawback warning generated
+- Recommendation to assess clawback obligation
+- Warning included in analysis summary
+
+**Compliance Consideration**:
+Section 355-450 ITAA 1997: When R&D results are commercialised, the original offset amount attributable to those results is included in assessable income. This effectively "claws back" the tax benefit.
+
+**Accountant Action**:
+1. Track R&D projects and their commercialisation status
+2. If results sold/licensed, calculate clawback amount
+3. Include clawback in assessable income for the year of commercialisation
+4. Consider timing of commercialisation events
+
+**Legislation**: Section 355-450, ITAA 1997
+
+---
+
+### Edge Case RD-009: Insufficient Evidence (<3 Items)
+
+**Scenario**: R&D activity claimed with only 1 supporting evidence item (a single timesheet).
+
+**System Behavior**:
+- Evidence count checked: minimum 3 items recommended
+- Confidence score reduced
+- Warning: "Insufficient R&D evidence - minimum 3 supporting items recommended"
+
+**Compliance Consideration**:
+While there is no legislative minimum evidence count, ATO audits typically require multiple forms of evidence (technical reports, timesheets, experiment logs, meeting notes) to substantiate each element of the four-element test.
+
+**Accountant Action**:
+1. Gather additional evidence (technical reports, project plans, experiment logs)
+2. Ensure evidence covers all four elements of the test
+3. If evidence is thin, consider not claiming (conservative approach)
+4. Prepare evidence bundle for potential ATO audit
+
+**Legislation**: Section 355-25, ITAA 1997 (evidence requirements per ATO guidelines)
+
+---
+
 ## Section 8-1 Deduction Edge Cases
 
 ### Edge Case DED-001: Expense Exactly $82.50 (Substantiation Threshold)
@@ -291,6 +391,64 @@ ATO queries clustering of expenses on 30 June (concern about prepayment or date 
 3. If prepayment, check 12-month rule (s 82KZMF)
 
 **Legislation**: Section 8-1, ITAA 1997
+
+---
+
+### Edge Case DED-006: Deduction FY Outside Amendment Period
+
+**Scenario**: System recommends amending FY2020-21 return for a company. The assessment was issued in December 2021, and the 4-year amendment period expires December 2025.
+
+**System Behavior**:
+```typescript
+const result = checkAmendmentPeriod({
+  entityType: 'company',
+  financialYear: 'FY2020-21',
+  assessmentDate: new Date('2021-12-15')
+});
+// withinPeriod: false (as of Feb 2026)
+// warning: "FY outside 4-year amendment period (s 170 TAA 1953)"
+```
+
+**Compliance Consideration**:
+Section 170 TAA 1953: Once the amendment period has expired, the Commissioner generally cannot amend the assessment (and neither can the taxpayer request an amendment).
+
+**Exception**: Fraud or evasion has no time limit.
+
+**Accountant Action**:
+1. Check assessment date (not just FY end date)
+2. If outside period, do NOT recommend amendment
+3. If fraud/evasion suspected, amendment period is unlimited
+4. Document the limitation for client
+
+**Legislation**: Section 170, TAA 1953
+
+---
+
+### Edge Case DED-007: Base Rate Entity Fails Passive Income Test
+
+**Scenario**: Company has turnover of $30M (<$50M threshold) but 85% passive income (rental income from investment properties).
+
+**System Behavior**:
+```typescript
+const isBaseRateEntity =
+  aggregatedTurnover < 50_000_000 &&
+  passiveIncomePercentage <= 80;
+// $30M turnover ✅ BUT 85% passive income ❌
+// Company pays 30% tax rate, NOT 25%
+```
+
+**Impact**:
+- If wrongly treated as base rate entity: tax at 25%
+- Correct treatment: tax at 30%
+- On $500K taxable income: $25,000 underpayment
+
+**Accountant Action**:
+1. Calculate passive income percentage (rental, interest, dividends, royalties, net capital gains)
+2. If >80%, entity pays 30% corporate rate
+3. This also affects R&D offset rate (48.5% instead of 43.5%)
+4. Verify both turnover AND passive income tests annually
+
+**Legislation**: Section 23AA, ITAA 1936
 
 ---
 
@@ -551,6 +709,98 @@ New loan: $150K, complying from 1 Jan
 
 ---
 
+### Edge Case DIV7A-006: Deemed Dividend Exceeds Distributable Surplus
+
+**Scenario**: Total deemed dividend risk ($250,000) exceeds the company's distributable surplus ($150,000).
+
+**System Behavior**:
+```typescript
+const cappedDividend = Math.min(totalDeemedDividendRisk, distributableSurplus);
+// $250,000 risk capped to $150,000 surplus
+```
+
+**Compliance Consideration**:
+Section 109Y ITAA 1936: A deemed dividend cannot exceed the company's distributable surplus. The surplus is calculated as net assets minus paid-up share capital minus non-commercial loans to the company.
+
+**Accountant Action**:
+1. Verify distributable surplus calculation from balance sheet
+2. If surplus is low, deemed dividend is naturally capped
+3. Consider retaining earnings before distributions to increase surplus
+4. Document surplus calculation for ATO compliance
+
+**Legislation**: Section 109Y, ITAA 1936
+
+---
+
+### Edge Case DIV7A-007: Multiple Loans to Same Shareholder (Amalgamation)
+
+**Scenario**: Private company has 3 separate loans to the same director-shareholder totaling $300,000.
+
+**System Behavior**:
+- `checkAmalgamationProvisions()` groups loans by shareholder name
+- Warning generated: "Multiple loans exist to same shareholder - consider amalgamation under s 109E(8)"
+- Each loan assessed independently for minimum repayment but amalgamation flag raised
+
+**Compliance Consideration**:
+Section 109E(8) allows multiple loans to be amalgamated into a single complying loan agreement. This can simplify compliance but requires a new written agreement covering the total balance.
+
+**Accountant Action**:
+1. Consider amalgamating loans into a single complying agreement
+2. Ensure new agreement covers total balance at benchmark rate
+3. Calculate minimum repayment on amalgamated balance
+4. Document amalgamation decision
+
+**Legislation**: Section 109E(8), ITAA 1936
+
+---
+
+### Edge Case DIV7A-008: Transaction Matches Safe Harbour Keyword
+
+**Scenario**: A $50,000 payment to a director is labelled "Salary - Director" in Xero. The safe harbour exclusion matches the keyword "salary".
+
+**System Behavior**:
+```typescript
+const SAFE_HARBOUR_KEYWORDS = ['salary', 'wages', 'rent', 'professional fees', ...];
+// Transaction description matched → excluded from Div 7A analysis
+```
+
+**Compliance Consideration**:
+Section 109RB provides safe harbour exclusions for payments at arm's length commercial terms. However, keyword matching alone is not definitive — the payment must genuinely be at market rate.
+
+**Edge Case**: Salary of $500,000 to a director who works 10 hours/week is NOT at arm's length despite matching "salary" keyword.
+
+**Accountant Action**:
+1. Verify safe harbour exclusion is genuine (arm's length terms)
+2. For large amounts, cross-check against market rate benchmarks
+3. Document commercial justification for excluded payments
+4. Flag if safe harbour amount appears excessive
+
+**Legislation**: Section 109RB, ITAA 1936
+
+---
+
+### Edge Case DIV7A-009: Written Agreement Status Unknown (Tri-State)
+
+**Scenario**: System cannot determine whether a complying loan agreement exists. The agreement status is "unknown" rather than "yes" or "no".
+
+**System Behavior**:
+- Agreement status tracked as tri-state: 'yes' | 'no' | 'unknown'
+- When unknown, system assumes non-complying (conservative)
+- Warning: "Written agreement status unknown - verify with client"
+
+**Compliance Consideration**:
+Without a written agreement, the loan is treated as non-complying. However, the agreement may exist but not be recorded in the accounting system.
+
+**Accountant Action**:
+1. Request copy of loan agreement from client
+2. If agreement exists, update status and recalculate
+3. If no agreement, recommend executing one before lodgment day
+4. Document inquiry and response
+
+**Legislation**: Section 109N(2), ITAA 1936
+
+---
+
 ## Substantiation Edge Cases
 
 ### Edge Case SUB-001: Invoice Lost After Expense Incurred
@@ -797,6 +1047,269 @@ First Digit | Expected %
 
 ---
 
+## Trust Distribution Edge Cases
+
+### Edge Case TRUST-001: Distribution to Minor with Family Dealing Exclusion
+
+**Scenario**: Trust distributes $5,000 to a 15-year-old grandchild for school expenses. Section 100A flag raised but family dealing exclusion applies.
+
+**System Behavior**:
+- Initial flag: "Distribution to minor beneficiary" (high severity)
+- Family dealing exclusion check: s 100A(13) applies (ordinary family purpose)
+- Severity downgraded: high → low
+- Risk reduction: 40 points applied
+
+**Compliance Consideration**:
+TR 2022/4 clarifies that distributions for ordinary family purposes (education, living expenses) between family members are generally excluded from s 100A.
+
+**Accountant Action**:
+1. Document family relationship and purpose of distribution
+2. Verify distribution is for genuine family purposes
+3. Retain evidence (school fee invoices, etc.)
+
+**Legislation**: Section 100A(13), ITAA 1936; TR 2022/4
+
+---
+
+### Edge Case TRUST-002: Undistributed Income Assessed at Wrong Penalty Rate
+
+**Scenario**: Trust fails to distribute all income. Trustee penalty tax calculated at 45% instead of 47%.
+
+**System Behavior**:
+- Penalty rate = 45% (top marginal) + 2% (Medicare Levy) = 47%
+- System uses 47% as implemented post-audit fix
+- Warning if historical data shows 45% used
+
+**Impact**:
+- On $100,000 undistributed: $45,000 (wrong) vs $47,000 (correct) = $2,000 underpayment
+
+**Accountant Action**:
+1. Always use 47% (45% + 2% Medicare Levy) per s 99A
+2. Check historical calculations for 45% error
+3. Amend if within amendment period
+
+**Legislation**: Section 99A, ITAA 1936
+
+---
+
+## Loss Engine Edge Cases
+
+### Edge Case LOSS-001: Capital Loss Applied Against Ordinary Income
+
+**Scenario**: Company has $50,000 capital loss and $200,000 ordinary income but no capital gains. Temptation to offset capital loss against ordinary income.
+
+**System Behavior**:
+```typescript
+// Capital losses can ONLY offset capital gains (s 102-5)
+const capitalLossOffset = Math.min(capitalLosses, capitalGains); // $0
+const capitalLossCarryForward = capitalLosses - capitalLossOffset; // $50,000 carried forward
+// Capital loss does NOT reduce $200,000 ordinary income
+```
+
+**Compliance Consideration**:
+Section 102-5 ITAA 1997: Capital losses are quarantined and can only offset capital gains. They carry forward indefinitely until used against future capital gains.
+
+**Accountant Action**:
+1. Maintain separate tracking of capital and revenue losses
+2. Never apply capital losses against ordinary assessable income
+3. Carry forward capital losses to future years with capital gains
+4. Document capital loss balance in working papers
+
+**Legislation**: Section 102-5, ITAA 1997
+
+---
+
+### Edge Case LOSS-002: Trust Loss Rules Incorrectly Use Division 165
+
+**Scenario**: System applies Division 165 (company COT/SBT rules) to a trust's loss recoupment analysis.
+
+**System Behavior**:
+- Entity type check: trust → route to Division 266/267 (NOT Division 165)
+- `analyzeTrustLossRecoupment()` applies Schedule 2F ITAA 1936
+- Family Trust Election (s 272-75) checked
+- Pattern of distributions test (s 269-60) applied
+
+**Compliance Consideration**:
+Trust losses are governed by Division 266/267, Schedule 2F, ITAA 1936. Division 165 applies ONLY to companies. Using the wrong rules could allow ineligible loss claims.
+
+**Accountant Action**:
+1. Verify entity type before applying loss rules
+2. For trusts: check FTE status, distributions test, income injection test
+3. For companies: check COT and SBT under Division 165
+4. Never mix company and trust loss rules
+
+**Legislation**: Division 266/267, Schedule 2F, ITAA 1936
+
+---
+
+## CGT Edge Cases
+
+### Edge Case CGT-001: Connected Entity Pushes Net Assets Over $6M
+
+**Scenario**: Taxpayer has $4M net assets. Connected family trust has $3M. Aggregated: $7M. Fails Division 152 net asset test.
+
+**System Behavior**:
+```typescript
+const aggregated = ownAssets + connectedEntityAssets;
+// $4M + $3M = $7M > $6M threshold → FAILS
+```
+
+**Compliance Consideration**:
+Subdivision 152-15 ITAA 1997 requires aggregating assets of the taxpayer, connected entities (s 152-30), and affiliates (s 152-25) for the $6M net asset value test.
+
+**Accountant Action**:
+1. Identify ALL connected entities and affiliates
+2. Aggregate net assets across all entities
+3. If close to threshold, consider restructuring
+4. Cliff edge warning: within 10% of $6M ($5.4M-$6M) triggers warning
+
+**Legislation**: Subdivision 152-15, ITAA 1997
+
+---
+
+### Edge Case CGT-002: Collectable Loss Cannot Offset Non-Collectable Gain
+
+**Scenario**: $20,000 loss on art sale. $50,000 gain on share sale. Art loss cannot offset share gain.
+
+**System Behavior**:
+```typescript
+// Art = collectable. Shares = ordinary CGT asset.
+// Collectable losses ONLY offset collectable gains (s 108-10)
+const collectableLossApplied = 0; // No collectable gains to offset
+const collectableLossCarryForward = 20_000; // Carried forward for future collectable gains
+const netCapitalGain = 50_000; // Share gain stands unreduced
+```
+
+**Accountant Action**:
+1. Classify CGT assets: collectable, personal use, or ordinary
+2. Quarantine collectable losses — only apply against future collectable gains
+3. Disregard personal use asset losses entirely (s 108-20)
+4. Track collectable loss balance separately
+
+**Legislation**: Section 108-10(1), Section 108-20(1), ITAA 1997
+
+---
+
+## Fuel Tax Credit Edge Cases
+
+### Edge Case FTC-001: Rate Changes Mid-Quarter
+
+**Scenario**: Fuel purchased in February uses Q3 rate, but ATO updates rate in late February for the remainder of the quarter.
+
+**System Behavior**:
+- `FUEL_TAX_CREDIT_RATES` map provides per-quarter rates
+- Transaction date determines applicable quarter/rate
+- Fallback to prior quarter if rate for current quarter not yet available
+
+**Compliance Consideration**:
+Fuel tax credit rates are updated quarterly by the ATO, typically at the start of each quarter (July, October, January, April). Occasionally, mid-quarter adjustments occur.
+
+**Accountant Action**:
+1. Use rate applicable at the date of fuel purchase
+2. Verify rate against ATO quarterly rate schedule
+3. If mid-quarter change, apportion if significant
+
+**Legislation**: Section 41-5, Fuel Tax Act 2006
+
+---
+
+### Edge Case FTC-002: Heavy Vehicle On-Road vs Off-Road Split
+
+**Scenario**: Heavy vehicle (>4.5t GVM) used 60% on public roads and 40% off-road. Road user charge only applies to on-road portion.
+
+**System Behavior**:
+```typescript
+const onRoadCredit = litres * 0.6 * (baseRate - roadUserCharge);
+const offRoadCredit = litres * 0.4 * baseRate;
+const totalCredit = onRoadCredit + offRoadCredit;
+```
+
+**Accountant Action**:
+1. Determine on-road vs off-road usage split (logbook or estimate)
+2. Apply road user charge reduction only to on-road portion
+3. Full credit rate applies to off-road portion
+4. Document usage split methodology
+
+**Legislation**: Section 43-10, Fuel Tax Act 2006
+
+---
+
+## Superannuation Edge Cases
+
+### Edge Case SUPER-001: SG Rate Straddles Financial Year Change
+
+**Scenario**: Employee's quarterly super is calculated in June 2025 (FY2024-25, 11.5%) but paid in July 2025 (FY2025-26, 12%).
+
+**System Behavior**:
+- SG rate determined by the quarter in which the salary was earned, not when super is paid
+- Q4 FY2024-25 (Apr-Jun 2025): 11.5% rate applies
+- Q1 FY2025-26 (Jul-Sep 2025): 12% rate applies
+
+**Accountant Action**:
+1. Apply SG rate for the quarter the salary was earned
+2. Not the quarter the super contribution was paid
+3. Verify payroll system uses correct rates at FY boundary
+4. Alert client about rate increase for planning purposes
+
+**Legislation**: Section 19, SGAA 1992
+
+---
+
+### Edge Case SUPER-002: Carry-Forward with Super Balance Exactly $500,000
+
+**Scenario**: Individual's total super balance at 30 June 2024 is exactly $500,000.
+
+**System Behavior**:
+```typescript
+const BALANCE_THRESHOLD = 500_000;
+if (totalSuperBalance < BALANCE_THRESHOLD) {
+  // Eligible for carry-forward
+} else {
+  // NOT eligible (must be LESS than $500,000)
+}
+// Exactly $500,000 → NOT eligible
+```
+
+**Impact**:
+- $499,999: Carry-forward available (up to 5 years unused cap)
+- $500,000: No carry-forward. Standard $30,000 cap only.
+- Difference could be $20,000+ additional cap
+
+**Accountant Action**:
+1. Check total super balance at 30 June of prior year
+2. If close to $500,000, consider strategy (contributions timing, pension drawdowns)
+3. Exactly $500,000 = NOT eligible (strict less-than test)
+
+**Legislation**: Section 291-20, ITAA 1997
+
+---
+
+## Known Remaining Gaps
+
+The following are known limitations in the current engine implementations that have been identified but not yet resolved:
+
+### GAP-1: Division 7A Fallback Rate Table (7A-1)
+
+**Issue**: The Division 7A engine's fallback benchmark interest rate table only covers rates through FY2024-25. When FY2025-26 begins (1 July 2025), the engine will need the new benchmark rate (published via ATO Tax Determination).
+
+**Current Behavior**: Falls back to FY2024-25 rate (8.77%) if FY2025-26 rate not yet fetched from live data.
+
+**Risk**: Incorrect interest calculations if live rate scraping fails after 30 June 2025.
+
+**Mitigation**: Live rate fetching is the primary mechanism. Fallback only used when live fetch fails. Rate table should be updated when ATO publishes TD 2025/x.
+
+### GAP-2: Part-Year Loan Minimum Repayment Not Pro-Rated (7A-2)
+
+**Issue**: Section 109E(5) ITAA 1936 provides that for loans made part-way through a financial year, the minimum repayment is proportionally reduced. The engine currently calculates full-year minimum repayment for all loans.
+
+**Current Behavior**: Full-year repayment calculated regardless of loan start date.
+
+**Risk**: Overstating minimum repayment shortfall for mid-year loans. This is conservative (may flag false positives) but does not understate risk.
+
+**Mitigation**: Since this is a conservative error (overstating compliance risk rather than understating), it has lower priority. Future enhancement to pro-rate by days remaining in FY.
+
+---
+
 ## Appendix: Handling Unknown Edge Cases
 
 ### General Approach for Unanticipated Edge Cases
@@ -836,7 +1349,7 @@ If genuinely unclear:
 ---
 
 **Edge Cases Documentation Status**: Complete
-**Total Edge Cases Documented**: 30+
-**Coverage**: All 6 workflow areas
+**Total Edge Cases Documented**: 50+
+**Coverage**: All 11 workflow areas + known gaps
 **Next Review**: 2026-07-01 (FY2025-26 start)
 **Document Owner**: Tax Agent (Domain Specialist)

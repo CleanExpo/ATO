@@ -1,10 +1,11 @@
 # Workflow Compliance Checklist - Accountant Workflow System
 
-**Document Version**: 1.0
+**Document Version**: 2.0
 **Created**: 2026-01-30
+**Updated**: 2026-02-11
 **Linear Issue**: [UNI-279](https://linear.app/unite-hub/issue/UNI-279)
 **Validated By**: Tax Agent (Domain Specialist)
-**Financial Year**: FY2024-25
+**Financial Year**: FY2024-25 / FY2025-26
 **Next Review**: 2026-07-01 (FY2025-26 start)
 
 ---
@@ -28,6 +29,11 @@ This checklist ensures all AI-generated findings comply with Australian tax legi
 4. [Division 7A](#division-7a)
 5. [Source Documents](#source-documents)
 6. [Reconciliation](#reconciliation)
+7. [Trust Distributions](#trust-distributions)
+8. [Tax Losses](#tax-losses)
+9. [Capital Gains Tax](#capital-gains-tax)
+10. [Fuel Tax Credits](#fuel-tax-credits)
+11. [Superannuation](#superannuation)
 
 ---
 
@@ -139,6 +145,24 @@ function checkRndDeadline(financialYear: string): {
   return { deadline, daysRemaining, urgency };
 }
 ```
+
+#### ✅ Checklist: R&D Offset Calculation (Post-Audit Updates)
+
+| # | Criterion | Check | Weight |
+|---|-----------|-------|--------|
+| 1 | **Tiered Offset Rate** | Rate = corporate tax rate + premium (18.5% or 8.5%) | CRITICAL |
+| 1.1 | Corporate rate identified | 25% (base rate entity) or 30% (standard) | HIGH |
+| 1.2 | Premium correct | 18.5% if turnover <$20M, 8.5% if ≥$20M | CRITICAL |
+| 1.3 | 30% entity check | Offset is 48.5% (not 43.5%) for 30% entities with <$20M turnover | HIGH |
+| 2 | **$4M Refundable Cap** | Refundable offset capped at $4,000,000 (s 355-100(3)) | CRITICAL |
+| 2.1 | Cap applied | If refundable offset exceeds $4M, excess is non-refundable | CRITICAL |
+| 2.2 | Carry-forward noted | Excess above cap carries forward as non-refundable offset | MEDIUM |
+| 3 | **Evidence Sufficiency** | Minimum 3 supporting evidence items per R&D project | HIGH |
+| 3.1 | Evidence count | At least 3 items (technical reports, timesheets, etc.) | HIGH |
+| 3.2 | Evidence quality | Each item supports a specific four-element test criterion | MEDIUM |
+| 4 | **Clawback Risk** | R&D clawback provisions checked (s 355-450) | HIGH |
+| 4.1 | Commercialisation check | Warning if R&D results have been commercialised | HIGH |
+| 4.2 | Per-project tracking | Clawback risk assessed per project, not aggregate | MEDIUM |
 
 ---
 
@@ -254,6 +278,19 @@ function checkSubstantiation(expense: Expense): SubstantiationCheck {
 }
 ```
 
+#### ✅ Checklist: Amendment Period & Entity Classification (Post-Audit Updates)
+
+| # | Criterion | Check | Weight |
+|---|-----------|-------|--------|
+| 1 | **Amendment Period** | Deduction within amendment window (s 170 TAA 1953) | CRITICAL |
+| 1.1 | Entity type identified | Individual/small business (2yr) or company/trust (4yr) | CRITICAL |
+| 1.2 | Period calculated | Assessment date + amendment period not exceeded | CRITICAL |
+| 1.3 | Warning issued | System warns when FY is outside amendment period | HIGH |
+| 2 | **Base Rate Entity Test** | Passive income ≤80% for 25% rate (s 23AA) | HIGH |
+| 2.1 | Passive income checked | Rental, interest, dividends, royalties ≤80% of assessable income | HIGH |
+| 2.2 | Both conditions met | Turnover <$50M AND passive income ≤80% | CRITICAL |
+| 2.3 | Warning when unknown | System warns when passive income data unavailable | MEDIUM |
+
 ---
 
 ## Fringe Benefits Tax (FBT)
@@ -354,6 +391,18 @@ function validateCarFBT(car: CarBenefit): ValidationResult {
 | 3.1 | Hypothetical deduction | Employee could've claimed if paid | HIGH |
 | 3.2 | Calculation correct | Reduction applied correctly | CRITICAL |
 
+#### ✅ Checklist: FBT Rate & Classification (Post-Audit Updates)
+
+| # | Criterion | Check | Weight |
+|---|-----------|-------|--------|
+| 1 | **Live Rates** | FBT rate, Type 1 and Type 2 gross-up rates from live data | CRITICAL |
+| 1.1 | Rates assigned | Live rates actually assigned to calculation variables | CRITICAL |
+| 1.2 | Fallback documented | If using fallback rates, source documented | HIGH |
+| 2 | **Type 1/Type 2 Determination** | Per-item GST credit analysis | HIGH |
+| 2.1 | Per-item check | Each benefit assessed individually for GST credit eligibility | HIGH |
+| 2.2 | Not aggregate | Determination is per-benefit, not aggregated | MEDIUM |
+| 2.3 | Xero tax codes | Uses Xero tax code data where available for GST determination | MEDIUM |
+
 ---
 
 ## Division 7A
@@ -447,6 +496,24 @@ function validateDiv7ALoan(loan: Div7ALoan): {
 | 2 | **Reasonable Remuneration** | Payment is salary/wages at market rate | s 109J |
 | 2.1 | Employment services | For services provided | HIGH |
 | 2.2 | Market rate | Remuneration not excessive | HIGH |
+
+#### ✅ Checklist: Division 7A Extended Compliance (Post-Audit Updates)
+
+| # | Criterion | Check | Legislation |
+|---|-----------|-------|-------------|
+| 1 | **Distributable Surplus Cap** | Deemed dividend ≤ distributable surplus | s 109Y |
+| 1.1 | Surplus estimated | Net assets − share capital − loans to company | HIGH |
+| 1.2 | Cap applied | Total deemed dividend risk capped by surplus | CRITICAL |
+| 1.3 | Unknown surplus warning | Warning when surplus cannot be determined | MEDIUM |
+| 2 | **Amalgamated Loans** | Multiple loans to same shareholder grouped | s 109E(8) |
+| 2.1 | Shareholder grouping | Loans grouped by recipient shareholder/associate | HIGH |
+| 2.2 | Amalgamation warning | Warning when multiple loans exist to same party | HIGH |
+| 3 | **Safe Harbour Exclusions** | Commercial payments excluded from Div 7A | s 109RB |
+| 3.1 | Keyword matching | Transactions matched against safe harbour terms | MEDIUM |
+| 3.2 | Exclusion documented | Safe harbour exclusions noted in analysis | MEDIUM |
+| 4 | **Written Agreement Status** | Tri-state tracking of agreement status | s 109N(2) |
+| 4.1 | Status recorded | Agreement status: 'yes', 'no', or 'unknown' | HIGH |
+| 4.2 | Unknown flagged | When agreement status unknown, flagged for review | HIGH |
 
 ---
 
@@ -663,6 +730,122 @@ function detectAnomalies(currentYear: FinancialData, priorYear: FinancialData): 
 
 ---
 
+## Trust Distributions
+
+### Trust Distribution Compliance
+
+**Legislation**: Section 100A, ITAA 1936; Section 99A, ITAA 1936
+
+#### ✅ Checklist: Section 100A Analysis
+
+| # | Criterion | Check | Weight |
+|---|-----------|-------|--------|
+| 1 | **Reimbursement Agreement** | Check for s 100A reimbursement agreement | CRITICAL |
+| 1.1 | Agreement identified | Distribution linked to reimbursement arrangement | HIGH |
+| 1.2 | Benefit identified | Low-tax beneficiary receives distribution | HIGH |
+| 2 | **Family Dealing Exclusion** | s 100A(13) ordinary family dealing check | HIGH |
+| 2.1 | Family relationship | Beneficiary is family member | MEDIUM |
+| 2.2 | Ordinary purpose | Distribution for ordinary family purposes | MEDIUM |
+| 2.3 | Severity adjustment | Flag severity downgraded when exclusion applies | HIGH |
+| 3 | **Trustee Penalty Rate** | Correct penalty rate applied | CRITICAL |
+| 3.1 | Rate = 47% | Top marginal (45%) + Medicare Levy (2%) | CRITICAL |
+| 3.2 | Not 45% | Must NOT use 45% alone | HIGH |
+
+---
+
+## Tax Losses
+
+### Loss Compliance
+
+**Legislation**: Division 36, Division 165, ITAA 1997; Division 266/267, ITAA 1936
+
+#### ✅ Checklist: Loss Classification & Utilisation
+
+| # | Criterion | Check | Weight |
+|---|-----------|-------|--------|
+| 1 | **Capital vs Revenue** | Loss type correctly classified | CRITICAL |
+| 1.1 | Capital loss identified | Capital losses only offset capital gains (s 102-5) | CRITICAL |
+| 1.2 | Revenue loss identified | Revenue losses offset assessable income | HIGH |
+| 1.3 | No cross-offset | Capital losses NOT applied to reduce ordinary income | CRITICAL |
+| 2 | **SBT Evidence** | Similar Business Test evidence-based | HIGH |
+| 2.1 | Transaction evidence | Expense categories compared across financial years | HIGH |
+| 2.2 | 70% threshold | ≥70% consistency = SBT likely satisfied | MEDIUM |
+| 2.3 | Below 40% alert | <40% consistency = SBT likely NOT satisfied | HIGH |
+| 3 | **Trust Loss Rules** | Correct rules for trusts | CRITICAL |
+| 3.1 | Not Division 165 | Trust losses use Division 266/267, NOT Division 165 | CRITICAL |
+| 3.2 | FTE considered | Family Trust Election status checked (s 272-75) | HIGH |
+| 3.3 | Distribution test | Pattern of distributions test applied (s 269-60) | MEDIUM |
+
+---
+
+## Capital Gains Tax
+
+### CGT Compliance
+
+**Legislation**: Parts 3-1 and 3-3, ITAA 1997
+
+#### ✅ Checklist: CGT Analysis
+
+| # | Criterion | Check | Weight |
+|---|-----------|-------|--------|
+| 1 | **Connected Entity Test** | Net assets include connected entities | CRITICAL |
+| 1.1 | Entities aggregated | Connected entity assets summed per Subdiv 152-15 | CRITICAL |
+| 1.2 | Affiliates included | Affiliate assets included in aggregation | HIGH |
+| 1.3 | $6M threshold | Aggregated net assets tested against $6M | CRITICAL |
+| 1.4 | Cliff edge warning | Warning when within 10% of threshold ($5.4M-$6M) | MEDIUM |
+| 1.5 | No entities warning | Warning when no connected entities provided | MEDIUM |
+| 2 | **Asset Quarantining** | Collectable/personal use losses handled correctly | CRITICAL |
+| 2.1 | Collectable quarantine | Collectable losses only offset collectable gains (s 108-10) | CRITICAL |
+| 2.2 | Personal use disregard | Personal use asset losses disregarded entirely (s 108-20) | CRITICAL |
+| 2.3 | Category classification | Assets categorised by keyword matching | HIGH |
+| 3 | **CGT Discount** | Entity-appropriate discount applied | HIGH |
+| 3.1 | Company ineligible | Companies cannot access 50% discount (s 115-25) | CRITICAL |
+| 3.2 | 12-month holding | Discount only for assets held ≥12 months | HIGH |
+
+---
+
+## Fuel Tax Credits
+
+### Fuel Tax Compliance
+
+**Legislation**: Fuel Tax Act 2006
+
+#### ✅ Checklist: Fuel Tax Credit Calculation
+
+| # | Criterion | Check | Weight |
+|---|-----------|-------|--------|
+| 1 | **Quarterly Rates** | Correct rate for quarter of transaction | CRITICAL |
+| 1.1 | Rate period matched | Transaction date mapped to correct quarter's rate | CRITICAL |
+| 1.2 | Rate source documented | ATO quarterly rate update referenced | HIGH |
+| 2 | **Road User Charge** | Deducted for on-road heavy vehicles | HIGH |
+| 2.1 | Vehicle classification | Heavy vehicle (>4.5t GVM) vs light vehicle | HIGH |
+| 2.2 | Charge deducted | Road user charge subtracted from credit (s 43-10) | CRITICAL |
+| 2.3 | Off-road exempt | Off-road use not subject to road user charge | HIGH |
+
+---
+
+## Superannuation
+
+### Superannuation Compliance
+
+**Legislation**: SGAA 1992; Section 291-20, ITAA 1997
+
+#### ✅ Checklist: Superannuation Analysis
+
+| # | Criterion | Check | Weight |
+|---|-----------|-------|--------|
+| 1 | **SG Rate FY-Aware** | Correct SG rate for financial year | CRITICAL |
+| 1.1 | FY2024-25 rate | 11.5% | CRITICAL |
+| 1.2 | FY2025-26 rate | 12.0% | CRITICAL |
+| 1.3 | Dynamic lookup | Rate determined by `getCurrentFinancialYear()` | HIGH |
+| 2 | **Carry-Forward Contributions** | Unused cap carried forward correctly | HIGH |
+| 2.1 | 5-year limit | Only amounts from last 5 financial years | HIGH |
+| 2.2 | Balance threshold | Total super balance <$500,000 at prior 30 June | CRITICAL |
+| 2.3 | From FY2018-19 | Carry-forward only available from FY2018-19 onwards | MEDIUM |
+| 2.4 | Cap amount | $30,000 concessional cap (FY2024-25) | HIGH |
+
+---
+
 ## Appendix: Compliance Score Calculation
 
 ### Overall Compliance Score
@@ -719,8 +902,8 @@ function calculateComplianceScore(checks: ComplianceChecks): {
 ---
 
 **Checklist Status**: Complete
-**Total Checklists**: 6 workflow areas
-**Total Checks**: 150+
+**Total Checklists**: 11 workflow areas
+**Total Checks**: 220+
 **Automation**: 100% (all checks automated)
 **Next Review**: 2026-07-01 (FY2025-26 start)
 **Document Owner**: Tax Agent (Domain Specialist)
