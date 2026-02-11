@@ -22,9 +22,12 @@ import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
 import {
   getCurrentFinancialYear,
+  getFinancialYearForDate,
+  getFYEndDate,
   getPriorFinancialYear as sharedGetPriorFinancialYear,
 } from '@/lib/utils/financial-year'
 import { createLogger } from '@/lib/logger'
+import Decimal from 'decimal.js'
 
 const log = createLogger('analysis:div7a')
 
@@ -98,6 +101,13 @@ export interface ShareholderLoan {
   classificationConfidence: number
   /** Fix 4d: Signals that contributed to the loan classification */
   classificationSignals: string[]
+  /**
+   * Date the loan was made (optional). Used for s 109E(5) ITAA 1936
+   * proportional first-year minimum repayment calculation.
+   * If provided and the loan falls within the current FY, the minimum
+   * yearly repayment is reduced proportionally: minRepayment × (days to 30 June) / 365
+   */
+  loanStartDate?: string
 }
 
 /** Fix 4c: Tax liability scenario at a specific marginal rate */
@@ -132,6 +142,10 @@ export interface Division7aAnalysis {
 
   // Repayment analysis
   minimumRepaymentRequired: number
+  /** Full-year minimum repayment before any s 109E(5) proportional reduction */
+  fullYearMinimumRepayment: number
+  /** s 109E(5) ITAA 1936: proportional reduction note for first-year loans (if applicable) */
+  partYearReductionNote?: string
   actualRepayment: number
   repaymentShortfall: number
 
@@ -368,6 +382,12 @@ async function identifyShareholderLoans(
     // Fix 4d: Calculate classification confidence from multiple signals
     const { confidence, signals } = calculateClassificationConfidence(transactions)
 
+    // Determine earliest transaction date as proxy for loan start date (s 109E(5) ITAA 1936)
+    const sortedByDate = [...transactions]
+      .filter((tx) => tx.transaction_date)
+      .sort((a, b) => (a.transaction_date! > b.transaction_date! ? 1 : -1))
+    const earliestDate = sortedByDate.length > 0 ? sortedByDate[0].transaction_date : undefined
+
     loans.push({
       loanId,
       shareholderName: firstTx.supplier_name || firstTx.contact_name || 'Unknown Shareholder',
@@ -376,6 +396,7 @@ async function identifyShareholderLoans(
       maxTermYears: loanType === 'secured' ? SECURED_LOAN_MAX_TERM : UNSECURED_LOAN_MAX_TERM,
       classificationConfidence: confidence,
       classificationSignals: signals,
+      loanStartDate: earliestDate ?? undefined,
     })
   })
 
@@ -539,12 +560,17 @@ async function analyzeSingleLoan(
   const benchmarkInterestRequired = closingBalance * benchmarkInterestRate
   const interestShortfall = Math.max(0, benchmarkInterestRequired - interestCharged)
 
-  // Calculate minimum repayment
-  const minimumRepaymentRequired = calculateMinimumRepayment(
+  // Calculate minimum repayment (with s 109E(5) part-year reduction if applicable)
+  const repaymentCalc = calculateMinimumRepayment(
     closingBalance,
     benchmarkInterestRate,
-    loan.maxTermYears
+    loan.maxTermYears,
+    loan.loanStartDate,
+    latestYear as string | undefined
   )
+  const minimumRepaymentRequired = repaymentCalc.amount
+  const fullYearMinimumRepayment = repaymentCalc.fullYearAmount
+  const partYearReductionNote = repaymentCalc.partYearNote
   const actualRepayment = repaymentsThisYear
   const repaymentShortfall = Math.max(0, minimumRepaymentRequired - actualRepayment)
 
@@ -568,14 +594,18 @@ async function analyzeSingleLoan(
   }
 
   // Fix 4b: Scenario A - WITH written agreement (complying loan per s 109N)
+  let scenarioNote = 'If a complying Division 7A loan agreement exists (s 109N ITAA 1936): ' +
+    'minimum yearly repayments and benchmark interest must be met. ' +
+    `Benchmark rate: ${(benchmarkInterestRate * 100).toFixed(2)}% for ${latestYear || 'current FY'}.`
+  if (partYearReductionNote) {
+    scenarioNote += ` ${partYearReductionNote}`
+  }
   const scenarioWithAgreement = {
     minimumRepaymentRequired,
     benchmarkInterestRequired,
     isCompliant: complianceIssues.length === 0,
     complianceIssues: [...complianceIssues],
-    note: 'If a complying Division 7A loan agreement exists (s 109N ITAA 1936): ' +
-      'minimum yearly repayments and benchmark interest must be met. ' +
-      `Benchmark rate: ${(benchmarkInterestRate * 100).toFixed(2)}% for ${latestYear || 'current FY'}.`,
+    note: scenarioNote,
   }
 
   // Fix 4b: Scenario B - WITHOUT written agreement (deemed dividend per s 109D)
@@ -663,6 +693,8 @@ async function analyzeSingleLoan(
     benchmarkInterestRequired,
     interestShortfall,
     minimumRepaymentRequired,
+    fullYearMinimumRepayment,
+    partYearReductionNote,
     actualRepayment,
     repaymentShortfall,
     hasWrittenAgreement,
@@ -781,22 +813,79 @@ function getPriorFinancialYear(financialYear: string): string | null {
 }
 
 /**
- * Calculate minimum yearly repayment for Division 7A loan
- * Formula: Principal × (r × (1+r)^n) / ((1+r)^n - 1)
- * Where r = benchmark rate, n = term in years
+ * Calculate minimum yearly repayment for Division 7A loan.
+ *
+ * Formula: Principal x (r x (1+r)^n) / ((1+r)^n - 1)
+ * Where r = benchmark rate, n = term in years.
+ *
+ * s 109E(5) ITAA 1936: For loans made part-way through a financial year,
+ * the minimum yearly repayment for the FIRST year is proportionally reduced:
+ *   Minimum repayment x (days from loan date to 30 June) / 365
+ *
+ * @param principal - Outstanding loan balance
+ * @param interestRate - Benchmark interest rate (e.g. 0.0877)
+ * @param termYears - Maximum loan term in years
+ * @param loanStartDate - Optional: date the loan was made (ISO string)
+ * @param financialYear - Optional: the FY being analysed (for part-year calc)
+ * @returns Object with full-year amount, actual (possibly reduced) amount, and note
  */
-function calculateMinimumRepayment(principal: number, interestRate: number, termYears: number): number {
+function calculateMinimumRepayment(
+  principal: number,
+  interestRate: number,
+  termYears: number,
+  loanStartDate?: string,
+  financialYear?: string
+): { amount: number; fullYearAmount: number; partYearNote?: string } {
   if (principal <= 0 || termYears <= 0) {
-    return 0
+    return { amount: 0, fullYearAmount: 0 }
   }
 
-  const r = interestRate
+  const r = new Decimal(interestRate)
   const n = termYears
-  const rPlus1PowerN = Math.pow(1 + r, n)
+  const rPlus1PowerN = r.plus(1).pow(n)
 
-  const minRepayment = principal * ((r * rPlus1PowerN) / (rPlus1PowerN - 1))
+  const fullYearAmount = new Decimal(principal)
+    .times(r.times(rPlus1PowerN).div(rPlus1PowerN.minus(1)))
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber()
 
-  return minRepayment
+  // s 109E(5) ITAA 1936: proportional reduction for first-year loans
+  if (loanStartDate && financialYear) {
+    const loanDate = new Date(loanStartDate)
+    if (!isNaN(loanDate.getTime())) {
+      // Determine which FY the loan start date falls in
+      const loanFY = getFinancialYearForDate(loanDate)
+
+      // Only apply proportional reduction if loan was made IN the FY being analysed
+      if (loanFY === financialYear) {
+        const fyEndDate = getFYEndDate(financialYear)
+        if (fyEndDate) {
+          // Calculate days from loan date to 30 June (inclusive of both dates)
+          const msPerDay = 1000 * 60 * 60 * 24
+          const daysRemaining = Math.floor(
+            (fyEndDate.getTime() - loanDate.getTime()) / msPerDay
+          ) + 1 // +1 to include the loan date itself
+
+          if (daysRemaining > 0 && daysRemaining < 365) {
+            const proportionalAmount = new Decimal(fullYearAmount)
+              .times(daysRemaining)
+              .div(365)
+              .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+              .toNumber()
+
+            const note =
+              `s 109E(5) ITAA 1936: Loan made on ${loanStartDate} (${daysRemaining} days remaining in ${financialYear}). ` +
+              `Full-year minimum repayment $${fullYearAmount.toFixed(2)} reduced proportionally: ` +
+              `$${fullYearAmount.toFixed(2)} x ${daysRemaining}/365 = $${proportionalAmount.toFixed(2)}.`
+
+            return { amount: proportionalAmount, fullYearAmount, partYearNote: note }
+          }
+        }
+      }
+    }
+  }
+
+  return { amount: fullYearAmount, fullYearAmount }
 }
 
 /**
@@ -1184,6 +1273,7 @@ function createDefaultLoanAnalysis(loan: ShareholderLoan): Division7aAnalysis {
     benchmarkInterestRequired: 0,
     interestShortfall: 0,
     minimumRepaymentRequired: 0,
+    fullYearMinimumRepayment: 0,
     actualRepayment: 0,
     repaymentShortfall: 0,
     hasWrittenAgreement: 'unknown',

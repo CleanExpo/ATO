@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import slack from '@/lib/slack/slack-notifier'
+import type Stripe from 'stripe'
 
 export async function POST(request: NextRequest) {
   try {
@@ -88,6 +89,73 @@ export async function POST(request: NextRequest) {
       .gte('triggered_at', startOfDay.toISOString())
       .lte('triggered_at', endOfDay.toISOString())
 
+    // Fetch revenue stats from Stripe (optional -- skipped if STRIPE_SECRET_KEY not configured)
+    let revenueStats = { totalRevenue: 0, newSubscriptions: 0, churnedSubscriptions: 0 };
+    if (process.env.STRIPE_SECRET_KEY) {
+      try {
+        const { stripe } = await import('@/lib/stripe/client');
+        const startTimestamp = Math.floor(startOfDay.getTime() / 1000);
+        const endTimestamp = Math.floor(endOfDay.getTime() / 1000);
+
+        // Fetch today's successful charges
+        const charges = await stripe.charges.list({
+          created: { gte: startTimestamp, lte: endTimestamp },
+          limit: 100,
+        });
+        const totalRevenue = charges.data
+          .filter((c: Stripe.Charge) => c.status === 'succeeded')
+          .reduce((sum: number, c: Stripe.Charge) => sum + c.amount, 0);
+
+        // Fetch today's new subscriptions and cancellations
+        const subscriptions = await stripe.subscriptions.list({
+          created: { gte: startTimestamp, lte: endTimestamp },
+          limit: 100,
+        });
+        const newSubscriptions = subscriptions.data.length;
+
+        // Fetch cancelled subscriptions (canceled_at within today)
+        const cancelledSubs = await stripe.subscriptions.list({
+          status: 'canceled',
+          limit: 100,
+        });
+        const churnedSubscriptions = cancelledSubs.data.filter(
+          (s: Stripe.Subscription) => s.canceled_at && s.canceled_at >= startTimestamp && s.canceled_at <= endTimestamp
+        ).length;
+
+        revenueStats = { totalRevenue, newSubscriptions, churnedSubscriptions };
+      } catch (stripeError) {
+        console.warn('Failed to fetch Stripe revenue stats for daily summary:', stripeError);
+        // Continue with zeroed revenue stats rather than failing the entire summary
+      }
+    }
+
+    // Fetch error stats from security_events table (Sentry not integrated -- using internal error tracking)
+    // If a Sentry API integration is needed in future, set SENTRY_API_TOKEN and SENTRY_ORG/PROJECT
+    // env vars and use https://sentry.io/api/0/projects/{org}/{project}/issues/?query=&statsPeriod=24h
+    let errorStats = { totalErrors: 0, criticalErrors: 0 };
+    try {
+      const { count: totalErrors } = await supabase
+        .from('security_events')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startOfDay.toISOString())
+        .lte('created_at', endOfDay.toISOString())
+
+      const { count: criticalErrors } = await supabase
+        .from('security_events')
+        .select('*', { count: 'exact', head: true })
+        .in('event_type', ['unauthorized_access', 'bulk_data_access', 'data_export'])
+        .gte('created_at', startOfDay.toISOString())
+        .lte('created_at', endOfDay.toISOString())
+
+      errorStats = {
+        totalErrors: totalErrors || 0,
+        criticalErrors: criticalErrors || 0,
+      };
+    } catch (errorTrackingErr) {
+      console.warn('Failed to fetch error stats for daily summary:', errorTrackingErr);
+      // security_events table may not exist yet -- continue with zeroed stats
+    }
+
     // Send daily summary to Slack
     await slack.notifyDailySummary({
       date: today.toLocaleDateString('en-AU', { timeZone: 'Australia/Sydney', dateStyle: 'full' }),
@@ -106,15 +174,8 @@ export async function POST(request: NextRequest) {
         totalAlerts: totalAlerts || 0,
         criticalAlerts: criticalAlerts || 0
       },
-      revenue: {
-        totalRevenue: 0, // TODO(tracked): Integrate with payment system — requires Stripe API
-        newSubscriptions: 0,
-        churnedSubscriptions: 0
-      },
-      errors: {
-        totalErrors: 0, // TODO(tracked): Integrate with error tracking — requires Sentry API
-        criticalErrors: 0
-      }
+      revenue: revenueStats,
+      errors: errorStats,
     })
 
     return NextResponse.json({

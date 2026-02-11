@@ -112,11 +112,20 @@ export async function GET(request: NextRequest) {
 
     const selectedCompanyFile = companyFiles[0]
 
-    // If multiple company files, use the first one or redirect to selection
+    // If multiple company files, auto-select the first one.
+    // FUTURE: Build a company file selection page at /dashboard/myob/select-company
+    //   - Display all company files with Name, Id, and Uri
+    //   - Store selected file ID in a cookie or query param, then redirect back here
+    //   - The OAuth tokens are already obtained at this point, so the selection page
+    //     would need to receive them via a short-lived server-side session or encrypted param
+    //   - For now, the first company file is always used. Users with multiple company files
+    //     should be aware only the first file (alphabetically by MYOB API order) is connected.
     if (companyFiles.length > 1) {
-      // TODO(tracked): Implement company file selection UI — requires new UI page
-      // For now, use the first one
-      log.info('Multiple MYOB company files found, using first', { companyName: selectedCompanyFile.Name })
+      log.info('Multiple MYOB company files found, auto-selecting first', {
+        selectedCompanyName: selectedCompanyFile.Name,
+        totalCompanyFiles: companyFiles.length,
+        allCompanyFiles: companyFiles.map((f: { Name: string; Id: string }) => ({ name: f.Name, id: f.Id })),
+      })
     }
 
     // Store connection in database

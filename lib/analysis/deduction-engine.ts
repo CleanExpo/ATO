@@ -38,8 +38,158 @@ const FALLBACK_CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% standard corporate rate
 // Small business turnover threshold for instant asset write-off - s 328-180 ITAA 1997
 const SMALL_BUSINESS_TURNOVER_THRESHOLD = 10_000_000 // $10M
 
+// ─── Historical Instant Asset Write-Off Thresholds (D-2) ────────────────────
+// s 328-180 ITAA 1997, Treasury Laws Amendment (2023 Measures No. 1) Act 2023
+// Thresholds changed multiple times; historical transactions must use the threshold
+// applicable at the date of purchase / first use.
+//
+// FY2019-20: $150,000 (COVID temporary expansion)
+// FY2020-21: Infinity (temporary full expensing — all eligible assets regardless of cost)
+// FY2021-22: Infinity (temporary full expensing continued)
+// FY2022-23: Infinity (temporary full expensing until 30 Jun 2023)
+// FY2023-24: $20,000 (threshold reverted)
+// FY2024-25: $20,000
+// FY2025-26: $20,000 (subject to budget announcements)
+const INSTANT_ASSET_WRITE_OFF_THRESHOLDS: Record<string, number> = {
+  'FY2019-20': 150_000,
+  'FY2020-21': Infinity, // Temporary full expensing — unlimited
+  'FY2021-22': Infinity, // Temporary full expensing continued
+  'FY2022-23': Infinity, // Temporary full expensing until 30 Jun 2023
+  'FY2023-24': 20_000,
+  'FY2024-25': 20_000,
+  'FY2025-26': 20_000,
+}
+
+/**
+ * Get the instant asset write-off threshold for a specific financial year (D-2).
+ *
+ * Uses historical thresholds where known. For unknown FYs (older than FY2019-20
+ * or future beyond FY2025-26), falls back to the general fallback threshold.
+ *
+ * References:
+ * - s 328-180 ITAA 1997 (simplified depreciation rules for small business entities)
+ * - Treasury Laws Amendment (2023 Measures No. 1) Act 2023 (temporary full expensing end)
+ * - Economic Recovery Plan (JobMaker) Amendment 2020 (temporary full expensing introduction)
+ *
+ * @param financialYear Financial year string (e.g., 'FY2023-24')
+ * @returns Threshold amount (Infinity for temporary full expensing periods)
+ */
+export function getWriteOffThreshold(financialYear: string): number {
+  return INSTANT_ASSET_WRITE_OFF_THRESHOLDS[financialYear] ?? FALLBACK_INSTANT_WRITEOFF_THRESHOLD
+}
+
 // Partial deductibility factors
-const ENTERTAINMENT_DEDUCTIBILITY_FACTOR = new Decimal('0.50') // 50% deductible - FBTAA 1986, s 32-5
+/** @deprecated Retained for backward compatibility in non-entertainment contexts. Use classifyEntertainment() for entertainment. */
+const ENTERTAINMENT_DEDUCTIBILITY_FACTOR = new Decimal('0.50') // Legacy 50% - replaced by classifyEntertainment()
+
+// ─── Entertainment Classification (D-1) ─────────────────────────────────────
+// Entertainment deductibility depends on category per FBTAA 1986 and s 32-5 ITAA 1997.
+// The flat 50% rule is an oversimplification. Actual treatment:
+//   - Meal entertainment (employer election under s 37AA FBTAA): 50% if election made, 0% if not
+//   - Recreational entertainment: generally non-deductible (s 32-5 ITAA 1997)
+//   - Seminars/conferences with incidental meals: 100% deductible
+//   - Taxi travel to/from work-related entertainment: 100% deductible (s 32-50 ITAA 1997)
+
+/** Keywords identifying seminar/conference entertainment (100% deductible) */
+const SEMINAR_KEYWORDS = ['seminar', 'conference', 'workshop', 'training', 'cpd', 'professional development']
+/** Keywords identifying taxi/rideshare transport (100% deductible under s 32-50) */
+const TAXI_KEYWORDS = ['taxi', 'uber', 'rideshare', 'cab', 'transport']
+/** Keywords identifying recreational entertainment (generally non-deductible) */
+const RECREATIONAL_KEYWORDS = ['sporting', 'concert', 'theatre', 'entertainment', 'tickets', 'event']
+
+export interface EntertainmentClassification {
+  /** Entertainment sub-category */
+  category: 'seminar_conference' | 'taxi_transport' | 'recreational' | 'meal_entertainment_election' | 'meal_entertainment_no_election' | 'client_business_development'
+  /** Percentage deductible (0-100 scale mapped to 0.0-1.0 factor) */
+  deductiblePercent: number
+  /** Legislative rule reference */
+  rule: string
+  /** Explanation note for the user */
+  note: string
+}
+
+/**
+ * Classify an entertainment expense into its correct deductibility category (D-1).
+ *
+ * Categories and rules:
+ * 1. Seminars/conferences with incidental meals → 100% deductible
+ * 2. Taxi travel to/from work-related entertainment → 100% deductible (s 32-50 ITAA 1997)
+ * 3. Recreational entertainment (sporting, concerts) → 0% unless client business development
+ * 4. Meal entertainment with employer election (s 37AA FBTAA) → 50% deductible, FBT applies
+ * 5. Meal entertainment without election (default for SMEs) → 0% deductible, no FBT
+ *
+ * Default assumption: no meal entertainment election (common for SMEs).
+ *
+ * @param description Transaction description for keyword matching
+ * @param _amount Transaction amount (reserved for future threshold-based rules)
+ */
+export function classifyEntertainment(
+  description: string,
+  _amount: number
+): EntertainmentClassification {
+  const descLower = (description || '').toLowerCase()
+
+  // 1. Seminars/conferences with incidental meals → 100% deductible
+  if (SEMINAR_KEYWORDS.some(kw => descLower.includes(kw))) {
+    return {
+      category: 'seminar_conference',
+      deductiblePercent: 100,
+      rule: 's 32-5 ITAA 1997 (incidental to seminar/conference — 100% deductible)',
+      note: 'Meals incidental to a seminar, conference, workshop, or training event are 100% deductible. ' +
+        'The primary purpose is education/professional development, not entertainment.',
+    }
+  }
+
+  // 2. Taxi travel to/from work-related entertainment → 100% deductible
+  if (TAXI_KEYWORDS.some(kw => descLower.includes(kw))) {
+    return {
+      category: 'taxi_transport',
+      deductiblePercent: 100,
+      rule: 's 32-50 ITAA 1997 (taxi travel to/from work-related entertainment)',
+      note: 'Taxi travel to or from a place of work-related entertainment is 100% deductible under s 32-50 ITAA 1997, ' +
+        'regardless of whether the entertainment itself is deductible.',
+    }
+  }
+
+  // 3. Recreational entertainment — generally non-deductible
+  if (RECREATIONAL_KEYWORDS.some(kw => descLower.includes(kw))) {
+    // Check for client/business development context
+    const isClientRelated = descLower.includes('client') || descLower.includes('business development') ||
+      descLower.includes('prospect') || descLower.includes('networking')
+
+    if (isClientRelated) {
+      return {
+        category: 'client_business_development',
+        deductiblePercent: 50,
+        rule: 'FBTAA 1986, s 32-5 ITAA 1997 (client entertainment — 50% deductible)',
+        note: 'Recreational entertainment provided to clients for business development purposes is 50% deductible. ' +
+          'The remaining 50% is non-deductible. Maintain records of business purpose and attendees.',
+      }
+    }
+
+    return {
+      category: 'recreational',
+      deductiblePercent: 0,
+      rule: 's 32-5 ITAA 1997 (recreational entertainment — generally non-deductible)',
+      note: 'Recreational entertainment (sporting events, concerts, theatre) is generally non-deductible under s 32-5 ITAA 1997. ' +
+        'If this was client entertainment for business development, reclassify and provide supporting records.',
+    }
+  }
+
+  // 4/5. Default: meal entertainment — assume NO employer election (common for SMEs)
+  // If employer HAS made a meal entertainment election under s 37AA FBTAA,
+  // then 50% deductible but FBT applies on the other 50%.
+  // Without an election: non-deductible but no FBT.
+  // Default to no election as conservative assumption for SMEs.
+  return {
+    category: 'meal_entertainment_no_election',
+    deductiblePercent: 0,
+    rule: 's 32-5 ITAA 1997, s 37AA FBTAA 1986 (meal entertainment — no employer election assumed)',
+    note: 'Meal entertainment without a meal entertainment election under s 37AA FBTAA is non-deductible but not subject to FBT. ' +
+      'If the employer has made a meal entertainment election, this would be 50% deductible with FBT on the remainder. ' +
+      'FLAG FOR REVIEW: Confirm whether a meal entertainment election is in place.',
+  }
+}
 
 /**
  * Entity type for tax rate determination
@@ -179,6 +329,8 @@ export interface DeductionTransaction {
   assetWriteOffEligible?: boolean
   /** Asset treatment note (instant write-off or depreciation) */
   assetTreatmentNote?: string
+  /** D-4: Whether this expense was flagged as a potential prepaid expense (s 82KZM ITAA 1936) */
+  prepaidExpenseFlag?: PrepaidExpenseCheck
 }
 
 export interface DeductionOpportunity {
@@ -344,6 +496,106 @@ function isSmallBusinessEntity(options?: DeductionAnalysisOptions): boolean {
   return false // Conservative default - don't assume small business
 }
 
+// ─── Prepaid Expense Apportionment (D-4) ────────────────────────────────────
+// s 82KZM ITAA 1936: Prepaid expenses covering a service period exceeding
+// 12 months must be apportioned. Only the portion relating to the current FY
+// is deductible in that year.
+// Exception: Small Business Entities (aggregated turnover < $10M) can
+// immediately deduct prepayments up to 12 months under s 82KZM(1A).
+
+/** Keywords suggesting an expense is a prepayment */
+const PREPAID_KEYWORDS = [
+  'prepaid', 'advance', 'annual subscription', 'yearly subscription',
+  'insurance premium', 'lease prepayment', 'retainer', 'membership annual',
+  'annual fee', 'annual licence', 'annual license', 'prepayment',
+  'paid in advance', '12 month', '12-month', 'yearly fee',
+]
+
+export interface PrepaidExpenseCheck {
+  /** Whether the expense appears to be a prepayment */
+  isPrepaid: boolean
+  /** Amount deductible in the current financial year */
+  currentYearDeductible: number
+  /** Amount deferred to future financial years */
+  deferred: number
+  /** Explanation note */
+  note: string
+}
+
+/**
+ * Check whether an expense is a prepaid expense requiring apportionment (D-4).
+ *
+ * Per s 82KZM ITAA 1936:
+ * - Prepaid expenses covering a service period >12 months must be apportioned
+ * - Only the portion relating to the current FY is deductible
+ * - Exception: SBEs (aggregated turnover < $10M) can immediately deduct
+ *   prepayments covering a period of 12 months or less
+ *
+ * Since we cannot determine the exact prepayment period from Xero transaction
+ * data alone, this function flags potential prepaid expenses for manual review
+ * rather than automatically apportioning.
+ *
+ * @param description Transaction description for keyword matching
+ * @param amount Transaction amount
+ * @param entityType Entity type string
+ * @param turnover Annual turnover (used to determine SBE eligibility)
+ */
+export function checkPrepaidExpense(
+  description: string,
+  amount: number,
+  entityType: string,
+  turnover?: number
+): PrepaidExpenseCheck {
+  const descLower = (description || '').toLowerCase()
+
+  // Check if description suggests a prepaid expense
+  const isPrepaid = PREPAID_KEYWORDS.some(kw => descLower.includes(kw))
+
+  if (!isPrepaid) {
+    return {
+      isPrepaid: false,
+      currentYearDeductible: amount,
+      deferred: 0,
+      note: '',
+    }
+  }
+
+  // Determine if entity is an SBE (turnover < $10M)
+  const isSbe = turnover !== undefined && turnover < SMALL_BUSINESS_TURNOVER_THRESHOLD
+
+  if (isSbe) {
+    // SBEs can immediately deduct prepayments covering up to 12 months (s 82KZM(1A))
+    return {
+      isPrepaid: true,
+      currentYearDeductible: amount,
+      deferred: 0,
+      note:
+        'Potential prepaid expense detected. As a Small Business Entity (turnover < $10M), ' +
+        'prepayments covering a period of 12 months or less can be immediately deducted ' +
+        'under s 82KZM(1A) ITAA 1936. If the service period exceeds 12 months, apportionment ' +
+        'is still required. Verify the service period with the invoice.',
+    }
+  }
+
+  // Non-SBE or unknown turnover: flag for review
+  // We cannot determine exact apportionment without knowing the service period,
+  // so we flag the full amount as requiring review rather than guessing.
+  return {
+    isPrepaid: true,
+    currentYearDeductible: amount, // Full amount pending review — actual apportionment requires service period
+    deferred: 0, // Cannot calculate without service period dates
+    note:
+      'POTENTIAL PREPAID EXPENSE REQUIRING REVIEW (s 82KZM ITAA 1936). ' +
+      'Prepaid expenses covering a service period exceeding 12 months must be apportioned — ' +
+      'only the portion relating to the current financial year is deductible. ' +
+      (turnover === undefined
+        ? 'Entity turnover unknown — if this is a Small Business Entity (turnover < $10M), ' +
+          'prepayments of 12 months or less may be immediately deductible under s 82KZM(1A). '
+        : `Entity turnover $${turnover.toLocaleString('en-AU')} (>= $10M) — SBE immediate deduction does not apply. `) +
+      'Check the invoice to determine the service period and apportion accordingly.',
+  }
+}
+
 /**
  * Apply partial deductibility rules based on expense category.
  * Returns the adjusted deductible amount and any notes about claiming rules.
@@ -370,14 +622,18 @@ function applyPartialDeductibilityRules(
   let factor = 1.0
 
   switch (category) {
-    case 'Entertainment & Meals':
-      // Entertainment expenses: 50% deductible - FBTAA 1986, s 32-5
-      factor = ENTERTAINMENT_DEDUCTIBILITY_FACTOR.toNumber()
+    case 'Entertainment & Meals': {
+      // D-1: Differentiated entertainment deductibility (replaces flat 50%)
+      const entertainmentClass = classifyEntertainment(description, amount)
+      factor = new Decimal(entertainmentClass.deductiblePercent).dividedBy(100).toNumber()
       notes.push(
-        'Entertainment/meal expenses are 50% deductible (FBTAA 1986, s 32-5). ' +
-        'The remaining 50% is subject to FBT or non-deductible.'
+        `Entertainment classification: ${entertainmentClass.category}. ` +
+        `${entertainmentClass.deductiblePercent}% deductible. ` +
+        `Rule: ${entertainmentClass.rule}.`
       )
+      notes.push(entertainmentClass.note)
       break
+    }
 
     case 'Home Office':
       notes.push(
@@ -427,7 +683,7 @@ function applyPartialDeductibilityRules(
       break
   }
 
-  // Also check description for entertainment-like expenses in other categories
+  // Also check description for entertainment-like expenses in other categories (D-1)
   if (category !== 'Entertainment & Meals' && category !== 'Non-Deductible (Private/Domestic)') {
     const descLower = (description || '').toLowerCase()
     if (
@@ -436,11 +692,15 @@ function applyPartialDeductibilityRules(
       descLower.includes('restaurant') ||
       descLower.includes('catering')
     ) {
-      factor = ENTERTAINMENT_DEDUCTIBILITY_FACTOR.toNumber()
+      // Use differentiated entertainment classification instead of flat 50%
+      const crossCategoryClass = classifyEntertainment(description, amount)
+      factor = new Decimal(crossCategoryClass.deductiblePercent).dividedBy(100).toNumber()
       notes.push(
-        'This expense appears to be entertainment-related. Entertainment expenses are 50% deductible ' +
-        '(FBTAA 1986, s 32-5). Review to confirm entertainment classification.'
+        `This expense appears to be entertainment-related (detected in ${category} category). ` +
+        `Entertainment classification: ${crossCategoryClass.category} — ${crossCategoryClass.deductiblePercent}% deductible. ` +
+        `Rule: ${crossCategoryClass.rule}. Review to confirm entertainment classification.`
       )
+      notes.push(crossCategoryClass.note)
     }
   }
 
@@ -450,37 +710,68 @@ function applyPartialDeductibilityRules(
 }
 
 /**
- * Apply instant asset write-off vs depreciation rules for capital assets.
+ * Apply instant asset write-off vs depreciation rules for capital assets (D-2 enhanced).
  *
- * - Asset < $20,000 AND small business (turnover < $10M): instant write-off (s 328-180 ITAA 1997)
- * - Asset >= $20,000 OR not small business: depreciate under Division 40 ITAA 1997
+ * Now uses per-FY thresholds from INSTANT_ASSET_WRITE_OFF_THRESHOLDS:
+ * - FY2019-20: $150,000
+ * - FY2020-21 to FY2022-23: Unlimited (temporary full expensing)
+ * - FY2023-24 onwards: $20,000
+ *
+ * Rules:
+ * - Asset < threshold AND small business (turnover < $10M): instant write-off (s 328-180 ITAA 1997)
+ * - Asset >= threshold OR not small business: depreciate under Division 40 ITAA 1997
  * - Small business depreciation pool: 15% first year, 30% subsequent (s 328-185 ITAA 1997)
+ * - During temporary full expensing (FY2020-23): ALL eligible assets regardless of cost
+ *
+ * @param amount Asset cost
+ * @param isSmallBusiness Whether entity qualifies as SBE (turnover < $10M)
+ * @param financialYear Financial year of first use (for threshold lookup)
+ * @param thresholdOverride Optional override (e.g., from live ATO rates)
  */
 function applyAssetWriteOffRules(
   amount: number,
   isSmallBusiness: boolean,
+  financialYear?: string,
   thresholdOverride?: number
 ): {
   eligible: boolean
   note: string
 } {
-  const threshold = thresholdOverride ?? FALLBACK_INSTANT_WRITEOFF_THRESHOLD
+  // D-2: Use FY-specific threshold, falling back to override or default
+  const fyThreshold = financialYear ? getWriteOffThreshold(financialYear) : undefined
+  const threshold = thresholdOverride ?? fyThreshold ?? FALLBACK_INSTANT_WRITEOFF_THRESHOLD
+  const isFullExpensing = threshold === Infinity
+
+  // Format threshold for display (handle Infinity for temporary full expensing periods)
+  const thresholdDisplay = isFullExpensing ? 'UNLIMITED (temporary full expensing)' : `$${threshold.toLocaleString('en-AU')}`
+  const fyNote = financialYear ? ` for ${financialYear}` : ''
+
+  if (isFullExpensing && isSmallBusiness) {
+    return {
+      eligible: true,
+      note:
+        `Eligible for immediate deduction under temporary full expensing${fyNote}. ` +
+        `All eligible depreciating assets can be immediately deducted regardless of cost ` +
+        `(s 328-180 ITAA 1997, Economic Recovery Plan). ` +
+        `Asset must be first used or installed ready for use in the relevant income year.`,
+    }
+  }
 
   if (amount < threshold && isSmallBusiness) {
     return {
       eligible: true,
       note:
-        `Eligible for instant asset write-off (cost $${amount.toLocaleString('en-AU')} < $${threshold.toLocaleString('en-AU')} threshold, ` +
+        `Eligible for instant asset write-off (cost $${amount.toLocaleString('en-AU')} < ${thresholdDisplay} threshold${fyNote}, ` +
         `small business entity). Claim immediate deduction under s 328-180 ITAA 1997. ` +
         `Asset must be first used or installed ready for use in the relevant income year.`,
     }
   }
 
-  if (amount >= threshold) {
+  if (!isFullExpensing && amount >= threshold) {
     return {
       eligible: false,
       note:
-        `Asset cost $${amount.toLocaleString('en-AU')} exceeds instant write-off threshold ($${threshold.toLocaleString('en-AU')}). ` +
+        `Asset cost $${amount.toLocaleString('en-AU')} exceeds instant write-off threshold (${thresholdDisplay}${fyNote}). ` +
         `Must be depreciated under Division 40 ITAA 1997 using effective life or diminishing value method. ` +
         (isSmallBusiness
           ? `Small business entities may add to general depreciation pool: 15% first year, 30% subsequent years (s 328-185 ITAA 1997).`
@@ -488,13 +779,14 @@ function applyAssetWriteOffRules(
     }
   }
 
-  // Not small business but under threshold
+  // Not small business but under threshold (or full expensing but not SBE)
   return {
     eligible: false,
     note:
       `Entity does not qualify as small business (turnover >= $10M). Asset must be depreciated under ` +
-      `Division 40 ITAA 1997 regardless of cost. Capital assets cannot be claimed as immediate deductions ` +
-      `unless eligible for instant asset write-off.`,
+      `Division 40 ITAA 1997 regardless of cost${fyNote}. Capital assets cannot be claimed as immediate deductions ` +
+      `unless eligible for instant asset write-off. ` +
+      `Threshold${fyNote}: ${thresholdDisplay} (s 328-180 ITAA 1997).`,
   }
 }
 
@@ -545,7 +837,7 @@ export async function analyzeDeductionOpportunities(
   const smallBusiness = isSmallBusinessEntity(options)
 
   // Group transactions by category and financial year
-  const opportunities = groupByDeductionCategory(transactions, taxRateInfo, smallBusiness)
+  const opportunities = groupByDeductionCategory(transactions, taxRateInfo, smallBusiness, options)
 
   // Determine source of rates (fetch again to get source metadata)
   const rateSource = (await getDeductionThresholds()).source
@@ -578,7 +870,8 @@ export async function analyzeDeductionOpportunities(
 function groupByDeductionCategory(
   transactions: DeductionForensicRow[],
   taxRateInfo: { rate: Decimal; rateNumber: number; note: string },
-  isSmallBusiness: boolean
+  isSmallBusiness: boolean,
+  options?: DeductionAnalysisOptions
 ): DeductionOpportunity[] {
   const categoryYearMap = new Map<string, DeductionForensicRow[]>()
 
@@ -602,7 +895,8 @@ function groupByDeductionCategory(
       year,
       txs,
       taxRateInfo,
-      isSmallBusiness
+      isSmallBusiness,
+      options
     )
 
     // Only include if there are potential deductions
@@ -635,7 +929,8 @@ function analyzeDeductionCategory(
   financialYear: string,
   transactions: DeductionForensicRow[],
   taxRateInfo: { rate: Decimal; rateNumber: number; note: string },
-  isSmallBusiness: boolean
+  isSmallBusiness: boolean,
+  options?: DeductionAnalysisOptions
 ): DeductionOpportunity {
   let totalAmount = 0
   // claimedAmount is always 0 - we cannot determine whether deductions were
@@ -664,9 +959,25 @@ function analyzeDeductionCategory(
     let assetWriteOffEligible: boolean | undefined
     let assetTreatmentNote: string | undefined
     if (isCapitalCategory) {
-      const assetRules = applyAssetWriteOffRules(amount, isSmallBusiness)
+      const assetRules = applyAssetWriteOffRules(amount, isSmallBusiness, financialYear)
       assetWriteOffEligible = assetRules.eligible
       assetTreatmentNote = assetRules.note
+    }
+
+    // D-4: Check for prepaid expense apportionment (s 82KZM ITAA 1936)
+    let prepaidExpenseFlag: PrepaidExpenseCheck | undefined
+    if (category !== 'Non-Deductible (Private/Domestic)') {
+      const prepaidCheck = checkPrepaidExpense(
+        description,
+        adjustedDeductibleAmount,
+        options?.entityType ?? 'unknown',
+        options?.annualTurnover
+      )
+      if (prepaidCheck.isPrepaid) {
+        prepaidExpenseFlag = prepaidCheck
+        // Add prepaid note to partial rules notes
+        partialRules.notes.push(prepaidCheck.note)
+      }
     }
 
     // Fix 3a: All deductions are 'potential' - confidence reflects how likely
@@ -699,6 +1010,8 @@ function analyzeDeductionCategory(
       // Fix 3d: Asset treatment
       assetWriteOffEligible,
       assetTreatmentNote,
+      // D-4: Prepaid expense flag
+      prepaidExpenseFlag,
     }
   })
 
@@ -866,7 +1179,7 @@ function getLegislativeReference(category: DeductionCategory): string {
     case 'Bad Debts':
       return 'Section 8-1 & Section 25-35 ITAA 1997 (Bad debts)'
     case 'Entertainment & Meals':
-      return 'FBTAA 1986, s 32-5 ITAA 1997 (Entertainment expenses - 50% deductible)'
+      return 'FBTAA 1986, s 32-5 ITAA 1997, s 32-50 ITAA 1997, s 37AA FBTAA 1986 (Entertainment expenses - deductibility varies by sub-category)'
     case 'Clothing & Uniforms':
       return 'Section 8-1 ITAA 1997 (Occupation-specific clothing and registered uniforms only)'
     case 'Phone & Internet':
@@ -937,7 +1250,9 @@ function generateDeductionRecommendations(
   if (category === 'Instant Asset Write-Off') {
     recommendations.push('Lodge amended return to claim instant asset write-off if not previously claimed')
     recommendations.push(
-      'Ensure assets are under $20,000 (s 328-180 ITAA 1997) and first used/installed ready for use'
+      'Instant asset write-off thresholds vary by FY (D-2): FY2019-20 $150K, FY2020-23 UNLIMITED (temporary full expensing), ' +
+      'FY2023-24+ $20K. Ensure correct threshold applied for the FY of first use (s 328-180 ITAA 1997, ' +
+      'Treasury Laws Amendment (2023 Measures No. 1) Act 2023).'
     )
     recommendations.push('Retain invoices and proof of payment')
   } else if (category === 'Capital Allowance (Division 40)') {
@@ -953,7 +1268,16 @@ function generateDeductionRecommendations(
     recommendations.push('Use cents per km method (85c/km for 2024-25 - TD 2024/3) or logbook method')
     recommendations.push('Maintain logbook for 12 continuous weeks if using logbook method')
   } else if (category === 'Entertainment & Meals') {
-    recommendations.push('Entertainment expenses are only 50% deductible (FBTAA 1986, s 32-5)')
+    recommendations.push(
+      'Entertainment deductibility varies by sub-category (D-1): ' +
+      'seminar/conference meals 100%, taxi to entertainment 100% (s 32-50), ' +
+      'recreational 0% (unless client business development 50%), ' +
+      'meal entertainment 0% without employer election / 50% with election (s 37AA FBTAA).'
+    )
+    recommendations.push(
+      'Review each transaction to confirm entertainment sub-category. ' +
+      'If a meal entertainment election under s 37AA FBTAA is in place, meal expenses become 50% deductible with FBT on the remainder.'
+    )
     recommendations.push('Consider whether FBT applies if provided to employees')
   } else if (category === 'Clothing & Uniforms') {
     recommendations.push(
@@ -1098,8 +1422,11 @@ function calculateDeductionSummary(
 /**
  * Identify instant asset write-off opportunities (s 328-180 ITAA 1997).
  *
+ * D-2 enhanced: Uses per-FY thresholds. During temporary full expensing
+ * (FY2020-21 to FY2022-23), ALL eligible assets qualify regardless of cost.
+ *
  * Assets must be:
- * - Under the current threshold (default $20,000)
+ * - Under the threshold for the relevant FY (varies: $20K, $150K, or unlimited)
  * - Owned by a small business entity (turnover < $10M)
  * - First used or installed ready for use in the relevant income year
  */
@@ -1108,13 +1435,21 @@ export async function identifyInstantWriteOffs(
   options?: DeductionAnalysisOptions
 ): Promise<DeductionOpportunity[]> {
   const summary = await analyzeDeductionOpportunities(tenantId, undefined, undefined, options)
-  const { instantWriteOffThreshold } = await getDeductionThresholds()
+  const { instantWriteOffThreshold: liveThreshold } = await getDeductionThresholds()
   const smallBusiness = isSmallBusinessEntity(options)
 
   return summary.opportunities.filter((opp) => {
     return (
       (opp.category === 'Capital Allowance (Division 40)' || opp.category === 'Instant Asset Write-Off') &&
-      opp.transactions.some((tx) => tx.amount < instantWriteOffThreshold && smallBusiness)
+      opp.transactions.some((tx) => {
+        // D-2: Use FY-specific threshold for this opportunity's financial year
+        const fyThreshold = getWriteOffThreshold(opp.financialYear)
+        // Use the FY-specific threshold if known, otherwise fall back to live rate
+        const effectiveThreshold = INSTANT_ASSET_WRITE_OFF_THRESHOLDS[opp.financialYear] !== undefined
+          ? fyThreshold
+          : liveThreshold
+        return tx.amount < effectiveThreshold && smallBusiness
+      })
     )
   })
 }

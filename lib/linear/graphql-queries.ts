@@ -348,7 +348,73 @@ const labelCache: LabelCache = {};
 const CACHE_TTL_MS = 3600000; // 1 hour
 
 /**
+ * Fetch all labels for a team from Linear
+ *
+ * @param teamId - Linear team ID
+ * @returns Array of label objects with id, name, and color
+ */
+export async function fetchLabels(
+  teamId: string
+): Promise<{ id: string; name: string; color: string }[]> {
+  const { createLinearClient } = await import('@/lib/linear/api-client');
+  const client = createLinearClient();
+  const team = await client.team(teamId);
+
+  if (!team) {
+    throw new Error(`Team ${teamId} not found`);
+  }
+
+  const labels = await team.labels();
+  return labels.nodes.map((label) => ({
+    id: label.id,
+    name: label.name,
+    color: label.color,
+  }));
+}
+
+/**
+ * Create a new label for a team in Linear
+ *
+ * @param teamId - Linear team ID
+ * @param name - Label name
+ * @param color - Optional hex color (e.g., "#0066FF"). Linear assigns a default if omitted.
+ * @returns Created label with id, name, and color
+ */
+export async function createLabel(
+  teamId: string,
+  name: string,
+  color?: string
+): Promise<{ id: string; name: string; color: string }> {
+  const { createLinearClient } = await import('@/lib/linear/api-client');
+  const client = createLinearClient();
+
+  const payload = await client.createIssueLabel({
+    teamId,
+    name,
+    ...(color ? { color } : {}),
+  });
+
+  if (!payload.success) {
+    throw new Error(`Failed to create label "${name}" for team ${teamId}`);
+  }
+
+  const label = await payload.issueLabel;
+  if (!label) {
+    throw new Error('Label creation succeeded but label data is null');
+  }
+
+  return {
+    id: label.id,
+    name: label.name,
+    color: label.color,
+  };
+}
+
+/**
  * Get or create labels for issue
+ *
+ * Fetches existing labels from Linear (with 1-hour cache), then creates any
+ * missing labels. Returns an array of label IDs matching the requested names.
  *
  * @param teamId - Linear team ID
  * @param labelNames - Array of label names
@@ -358,20 +424,71 @@ export async function getOrCreateLabels(
   teamId: string,
   labelNames: string[]
 ): Promise<string[]> {
+  if (labelNames.length === 0) return [];
+
   // Check cache
   const cached = labelCache[teamId];
   const now = Date.now();
 
-  if (cached && (now - cached[0].timestamp) < CACHE_TTL_MS) {
-    return labelNames
-      .map(name => cached.find(l => l.name === name)?.id)
+  if (cached && cached.length > 0 && (now - cached[0].timestamp) < CACHE_TTL_MS) {
+    // Try to resolve all names from cache
+    const resolved = labelNames
+      .map(name => cached.find(l => l.name.toLowerCase() === name.toLowerCase())?.id)
       .filter((id): id is string => id !== undefined);
+
+    // If all names resolved from cache, return early
+    if (resolved.length === labelNames.length) {
+      return resolved;
+    }
   }
 
-  // Cache miss - would need to fetch labels from Linear
-  // For now, return empty array
-  // TODO(tracked): Implement label fetching and creation — Linear API enhancement
-  return [];
+  // Fetch fresh labels from Linear
+  try {
+    const labels = await fetchLabels(teamId);
+
+    // Update cache
+    labelCache[teamId] = labels.map(l => ({
+      id: l.id,
+      name: l.name,
+      timestamp: now,
+    }));
+
+    // Resolve existing labels
+    const labelIds: string[] = [];
+
+    for (const name of labelNames) {
+      const existing = labels.find(l => l.name.toLowerCase() === name.toLowerCase());
+      if (existing) {
+        labelIds.push(existing.id);
+      } else {
+        // Create missing label
+        try {
+          const newLabel = await createLabel(teamId, name);
+          labelIds.push(newLabel.id);
+          // Update cache with new label
+          labelCache[teamId].push({
+            id: newLabel.id,
+            name: newLabel.name,
+            timestamp: now,
+          });
+        } catch (createError) {
+          console.warn(`Failed to create label "${name}":`, createError);
+          // Continue without this label rather than failing the whole operation
+        }
+      }
+    }
+
+    return labelIds;
+  } catch (error) {
+    console.warn('Failed to fetch/create labels from Linear:', error);
+    // Return whatever we can resolve from stale cache, or empty array
+    if (cached) {
+      return labelNames
+        .map(name => cached.find(l => l.name.toLowerCase() === name.toLowerCase())?.id)
+        .filter((id): id is string => id !== undefined);
+    }
+    return [];
+  }
 }
 
 /**

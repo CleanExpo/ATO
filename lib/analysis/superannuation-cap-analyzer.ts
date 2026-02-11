@@ -106,21 +106,84 @@ export interface SuperannuationCapAnalysis {
 
   compliance_summary: string;
   professional_review_required: boolean;
+  /** Source of the superannuation cap values used for this analysis */
+  cap_source: string;
+  /** Warning when using fallback cap values for an unconfirmed FY */
+  cap_fallback_warning?: string;
 }
 
 /**
- * Concessional contributions cap by financial year
+ * Superannuation contribution caps by financial year.
+ *
+ * Both concessional and non-concessional caps are tracked.
+ * Source: ATO — Key super rates and thresholds
+ * https://www.ato.gov.au/rates/key-superannuation-rates-and-thresholds/
+ *
+ * Division 291 ITAA 1997 (concessional caps)
+ * Division 292 ITAA 1997 (non-concessional caps)
  */
-const CONCESSIONAL_CAP_BY_FY: Record<string, Decimal> = {
-  'FY2025-26': new Decimal('30000'), // Confirmed $30,000
-  'FY2024-25': new Decimal('30000'),
-  'FY2023-24': new Decimal('27500'),
-  'FY2022-23': new Decimal('27500'),
-  'FY2021-22': new Decimal('27500'),
-  'FY2020-21': new Decimal('25000'),
-  'FY2019-20': new Decimal('25000'),
-  'FY2018-19': new Decimal('25000'), // Carry-forward starts from this FY
+const SUPER_CAPS: Record<string, { concessional: Decimal; nonConcessional: Decimal }> = {
+  'FY2025-26': { concessional: new Decimal('30000'), nonConcessional: new Decimal('120000') }, // Confirmed
+  'FY2024-25': { concessional: new Decimal('30000'), nonConcessional: new Decimal('120000') },
+  'FY2023-24': { concessional: new Decimal('27500'), nonConcessional: new Decimal('110000') },
+  'FY2022-23': { concessional: new Decimal('27500'), nonConcessional: new Decimal('110000') },
+  'FY2021-22': { concessional: new Decimal('27500'), nonConcessional: new Decimal('110000') },
+  'FY2020-21': { concessional: new Decimal('25000'), nonConcessional: new Decimal('100000') },
+  'FY2019-20': { concessional: new Decimal('25000'), nonConcessional: new Decimal('100000') },
+  'FY2018-19': { concessional: new Decimal('25000'), nonConcessional: new Decimal('100000') }, // Carry-forward starts from this FY
 };
+
+/** The most recent FY with confirmed cap values (used for fallback) */
+const LATEST_CONFIRMED_FY = 'FY2025-26';
+
+/**
+ * Get superannuation caps for a given financial year with source attribution.
+ *
+ * Looks up confirmed caps for the given FY. If the FY is not found in
+ * the known caps table (e.g. a future year), falls back to the latest
+ * known values with a warning.
+ *
+ * @param financialYear - FY string in 'FY2024-25' format
+ * @returns Caps, source attribution, and optional fallback warning
+ */
+export function getSuperCaps(financialYear: string): {
+  concessional: Decimal;
+  nonConcessional: Decimal;
+  source: string;
+  fallbackWarning?: string;
+} {
+  const caps = SUPER_CAPS[financialYear];
+
+  if (caps) {
+    return {
+      concessional: caps.concessional,
+      nonConcessional: caps.nonConcessional,
+      source: `ATO confirmed caps for ${financialYear} (Division 291/292 ITAA 1997)`,
+    };
+  }
+
+  // Fallback to latest known caps
+  const latestCaps = SUPER_CAPS[LATEST_CONFIRMED_FY];
+  return {
+    concessional: latestCaps.concessional,
+    nonConcessional: latestCaps.nonConcessional,
+    source: `Fallback to ${LATEST_CONFIRMED_FY} caps (${financialYear} not yet confirmed)`,
+    fallbackWarning:
+      `Superannuation caps for ${financialYear} not yet confirmed. ` +
+      `Using latest known values from ${LATEST_CONFIRMED_FY} ` +
+      `(concessional: $${latestCaps.concessional.toFixed(0)}, ` +
+      `non-concessional: $${latestCaps.nonConcessional.toFixed(0)}). ` +
+      'Verify at ato.gov.au/rates/key-superannuation-rates-and-thresholds/',
+  };
+}
+
+/**
+ * Legacy accessor: concessional cap by FY (for carry-forward calculations).
+ * Delegates to getSuperCaps() to maintain a single source of truth.
+ */
+function getConcessionalCapForFY(financialYear: string): Decimal {
+  return getSuperCaps(financialYear).concessional;
+}
 
 // Carry-forward constants (s 291-20 ITAA 1997)
 const CARRY_FORWARD_BALANCE_THRESHOLD = 500_000; // $500K total super balance
@@ -198,11 +261,19 @@ function analyzeOneTenant(
 
   // Analyze each employee
   const employeeSummaries: EmployeeSuperSummary[] = [];
-  const concessionalCap = CONCESSIONAL_CAP_BY_FY[fy] || new Decimal('30000');
+  const superCaps = getSuperCaps(fy);
+  const concessionalCap = superCaps.concessional;
 
   for (const [employeeId, employeeContribs] of employeeMap.entries()) {
     const summary = analyzeEmployee(employeeId, fy, employeeContribs, concessionalCap);
     employeeSummaries.push(summary);
+  }
+
+  // If using fallback caps, add warning to all employee summaries
+  if (superCaps.fallbackWarning) {
+    for (const summary of employeeSummaries) {
+      summary.warnings.push(superCaps.fallbackWarning);
+    }
   }
 
   // Calculate totals
@@ -230,8 +301,8 @@ function analyzeOneTenant(
     totalDivision291Tax
   );
 
-  // Professional review required if any cap breaches
-  const professionalReviewRequired = employeesBreachingCap > 0 || totalDivision291Tax > 0;
+  // Professional review required if any cap breaches or using fallback caps
+  const professionalReviewRequired = employeesBreachingCap > 0 || totalDivision291Tax > 0 || !!superCaps.fallbackWarning;
 
   return {
     tenant_id: tenantId,
@@ -246,6 +317,8 @@ function analyzeOneTenant(
     employees_approaching_cap: employeesApproachingCap,
     compliance_summary: complianceSummary,
     professional_review_required: professionalReviewRequired,
+    cap_source: superCaps.source,
+    cap_fallback_warning: superCaps.fallbackWarning,
   };
 }
 
@@ -304,7 +377,7 @@ function calculateCarryForward(
     // Carry-forward only available from FY2018-19 onwards
     if (priorFY < CARRY_FORWARD_START_FY) continue;
 
-    const priorCap = CONCESSIONAL_CAP_BY_FY[priorFY] || baseCap;
+    const priorCap = getConcessionalCapForFY(priorFY);
     const priorContrib = priorContributions[priorFY] || 0;
     const unused = Math.max(0, priorCap.toNumber() - priorContrib);
 

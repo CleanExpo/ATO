@@ -104,6 +104,11 @@ export interface CGTEvent {
   assetCategory: CGTAssetCategory
   /** Explanation of asset category classification */
   assetCategoryNote: string
+  /**
+   * s 112-30 ITAA 1997: Warning when a prior CGT event on the same asset
+   * may have modified the cost base of this event.
+   */
+  priorEventWarning?: string
 }
 
 export interface Div152Analysis {
@@ -335,6 +340,9 @@ export async function analyzeCGT(
     }
   })
 
+  // s 112-30 ITAA 1997: Flag CGT events where prior events on same asset may modify cost base
+  adjustCostBaseForPriorEvents(events)
+
   // Calculate totals with loss quarantining (s 108-10, s 108-20 ITAA 1997)
   const totalCapitalGains = events.reduce((sum, e) => sum + e.capitalGain, 0)
   const totalCapitalLosses = events.reduce((sum, e) => sum + e.capitalLoss, 0)
@@ -423,6 +431,7 @@ export async function analyzeCGT(
     legislativeReferences: [
       'Division 102 ITAA 1997 (CGT events)',
       'Division 110 ITAA 1997 (Cost base)',
+      's 112-30 ITAA 1997 (Prior CGT events modify cost base of subsequent events)',
       's 108-10 ITAA 1997 (Collectable losses quarantined — only offset collectable gains)',
       's 108-20 ITAA 1997 (Personal use asset losses disregarded)',
       'Division 115 ITAA 1997 (50% CGT discount)',
@@ -702,6 +711,82 @@ function classifyAssetCategory(
   }
 }
 
+/** CGT event types that may modify cost base of subsequent events (s 112-30 ITAA 1997) */
+const COST_BASE_MODIFYING_EVENT_TYPES: CGTEventType[] = ['A1', 'C2', 'D1', 'H2']
+
+/**
+ * Detect CGT event interactions that may modify cost base (s 112-30 ITAA 1997).
+ *
+ * When multiple CGT events occur on the same asset, prior events can modify
+ * the cost base used for calculating gains/losses on subsequent events.
+ * Common scenarios:
+ * - Partial disposal (A1) apportions cost base to the disposed portion
+ * - Asset destruction (C2) preceding disposal (A1) affects cost base
+ * - Creating contractual rights (D1) modifies cost base of underlying asset
+ * - Receipt of assessable amounts (H2) adjusts subsequent cost base
+ *
+ * This function does NOT attempt to calculate the actual cost base adjustment
+ * (which requires full asset register data). It flags the interaction for
+ * professional review.
+ *
+ * @param events - Array of CGT events to analyse
+ * @returns The same events with priorEventWarning populated where applicable
+ */
+function adjustCostBaseForPriorEvents(events: CGTEvent[]): CGTEvent[] {
+  if (events.length <= 1) return events
+
+  // Group events by asset description (normalised to lowercase, trimmed)
+  const assetGroups = new Map<string, CGTEvent[]>()
+
+  for (const event of events) {
+    // Use normalised asset description as the grouping key
+    const assetKey = event.assetDescription.toLowerCase().trim()
+    if (!assetKey || assetKey === '') continue
+
+    if (!assetGroups.has(assetKey)) {
+      assetGroups.set(assetKey, [])
+    }
+    assetGroups.get(assetKey)!.push(event)
+  }
+
+  // For assets with multiple events, sort chronologically and flag interactions
+  for (const [, assetEvents] of assetGroups) {
+    if (assetEvents.length < 2) continue
+
+    // Sort by disposal date ascending
+    assetEvents.sort((a, b) => {
+      const dateA = a.disposalDate || ''
+      const dateB = b.disposalDate || ''
+      return dateA.localeCompare(dateB)
+    })
+
+    // For each event after the first, check if any prior event could modify cost base
+    for (let i = 1; i < assetEvents.length; i++) {
+      const currentEvent = assetEvents[i]
+      const priorEvents = assetEvents.slice(0, i)
+
+      // Find prior events with cost-base-modifying event types
+      const modifyingPriorEvents = priorEvents.filter(
+        (pe) => COST_BASE_MODIFYING_EVENT_TYPES.includes(pe.eventType)
+      )
+
+      if (modifyingPriorEvents.length > 0) {
+        const priorDates = modifyingPriorEvents
+          .map((pe) => `${pe.eventType} on ${pe.disposalDate || 'unknown date'}`)
+          .join('; ')
+
+        currentEvent.priorEventWarning =
+          `s 112-30 ITAA 1997: Cost base may be modified by ${modifyingPriorEvents.length} prior CGT event(s) ` +
+          `on the same asset (${priorDates}). ` +
+          'Prior CGT events can affect the cost base or reduced cost base used for this event. ' +
+          'Review with tax advisor to ensure correct cost base allocation.'
+      }
+    }
+  }
+
+  return events
+}
+
 /**
  * Estimate holding period in months from transaction data
  */
@@ -762,6 +847,15 @@ function generateCGTRecommendations(
 
   if (div152?.basicConditionsMet) {
     recommendations.push('Division 152 Small Business CGT Concessions are available')
+  }
+
+  // s 112-30 cost base interaction warnings
+  const eventsWithPriorWarning = events.filter(e => e.priorEventWarning)
+  if (eventsWithPriorWarning.length > 0) {
+    recommendations.push(
+      `${eventsWithPriorWarning.length} CGT event(s) may have cost base modified by prior events on the same asset ` +
+      '(s 112-30 ITAA 1997). Professional review required to verify correct cost base allocation.'
+    )
   }
 
   const uncertainEvents = events.filter(e => e.confidence < 60)

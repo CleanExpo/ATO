@@ -132,6 +132,7 @@ function DashboardContent() {
     licensedOrganizations: number
     needsAdditionalLicenses: number
   } | null>(null)
+  const [orgGroupMap, setOrgGroupMap] = useState<Record<string, { group_id: string | null; is_primary_in_group: boolean }>>({})
 
   const fetchSummary = useCallback(async (tenantId: string) => {
     try {
@@ -195,8 +196,8 @@ function DashboardContent() {
 
   const fetchConnections = useCallback(async () => {
     try {
-      // Fetch Xero, MYOB connections, and license compliance in parallel
-      const [xeroData, myobData, licenseData] = await Promise.all([
+      // Fetch Xero, MYOB connections, license compliance, and org groups in parallel
+      const [xeroData, myobData, licenseData, groupsData] = await Promise.all([
         apiRequest<{ connections: Connection[] }>('/api/xero/organizations').catch(() => ({ connections: [] })),
         apiRequest<{ connections: MYOBConnection[] }>('/api/myob/connections').catch(() => ({ connections: [] })),
         apiRequest<{
@@ -204,8 +205,28 @@ function DashboardContent() {
           connectedOrganizations: number
           licensedOrganizations: number
           needsAdditionalLicenses: number
-        }>('/api/license/check-compliance').catch(() => null)
+        }>('/api/license/check-compliance').catch(() => null),
+        apiRequest<{
+          groups: Array<{
+            id: string
+            organizations: Array<{ id: string; is_primary_in_group: boolean }>
+          }>
+        }>('/api/organizations/groups').catch(() => ({ groups: [] }))
       ])
+
+      // Build a lookup map of org ID -> group info from the groups API response
+      const groupMap: Record<string, { group_id: string | null; is_primary_in_group: boolean }> = {};
+      if (groupsData?.groups) {
+        for (const group of groupsData.groups) {
+          for (const org of group.organizations || []) {
+            groupMap[org.id] = {
+              group_id: group.id,
+              is_primary_in_group: org.is_primary_in_group ?? false,
+            };
+          }
+        }
+      }
+      setOrgGroupMap(groupMap);
 
       // Set license compliance status
       if (licenseData) {
@@ -766,13 +787,16 @@ function DashboardContent() {
             {/* Organization Grouping */}
             {connections.length > 0 && (
               <OrganizationGroupManager
-                organizations={connections.map(conn => ({
-                  id: conn.tenant_id,
-                  name: conn.organisation_name || conn.tenant_name,
-                  group_id: null, // TODO(tracked): Fetch group_id from API — requires org grouping feature
-                  is_primary_in_group: false,
-                  xero_tenant_id: conn.tenant_id,
-                }))}
+                organizations={connections.map(conn => {
+                  const groupInfo = orgGroupMap[conn.tenant_id];
+                  return {
+                    id: conn.tenant_id,
+                    name: conn.organisation_name || conn.tenant_name,
+                    group_id: groupInfo?.group_id ?? null,
+                    is_primary_in_group: groupInfo?.is_primary_in_group ?? false,
+                    xero_tenant_id: conn.tenant_id,
+                  };
+                })}
                 onOrganizationsUpdated={() => {
                   fetchConnections()
                 }}

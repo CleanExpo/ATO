@@ -38,7 +38,29 @@ vi.mock('@/lib/tax-data/cache-manager', () => ({
 }))
 
 vi.mock('@/lib/utils/financial-year', () => ({
-  getCurrentFinancialYear: vi.fn(() => 'FY2024-25'),
+  getCurrentFinancialYear: vi.fn((date?: Date) => {
+    if (date) {
+      const month = date.getMonth()
+      const year = date.getFullYear()
+      const startYear = month >= 6 ? year : year - 1
+      const endYear = startYear + 1
+      return `FY${startYear}-${String(endYear).slice(-2)}`
+    }
+    return 'FY2024-25'
+  }),
+  getFinancialYearForDate: vi.fn((date: Date) => {
+    const month = date.getMonth()
+    const year = date.getFullYear()
+    const startYear = month >= 6 ? year : year - 1
+    const endYear = startYear + 1
+    return `FY${startYear}-${String(endYear).slice(-2)}`
+  }),
+  getFYEndDate: vi.fn((fy: string) => {
+    const match = fy.match(/FY(\d{4})-(\d{2})/)
+    if (!match) return null
+    const endYear = match[2].length === 2 ? 2000 + parseInt(match[2], 10) : parseInt(match[2], 10)
+    return new Date(endYear, 5, 30) // June 30
+  }),
   getPriorFinancialYear: vi.fn((fy: string) => {
     const match = fy.match(/^FY(\d{4})-(\d{2})$/)
     if (!match) return null

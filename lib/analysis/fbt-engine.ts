@@ -63,6 +63,44 @@ export type FBTCategory =
   | 'exempt_benefit'            // s 57A, s 58X
   | 'otherwise_deductible'      // s 24
 
+/** Car fringe benefit valuation detail (s 9 / s 10 FBTAA 1986) */
+export interface CarBenefitDetail {
+  /** GST-inclusive cost price of the vehicle */
+  baseValue: number
+  /** Number of days in FBT year car was available for private use */
+  daysAvailable: number
+  /** Employee after-tax contribution toward running costs */
+  employeeContribution: number
+  /** Total operating costs: fuel, insurance, rego, maintenance, lease, depreciation */
+  totalOperatingCosts: number
+  /** Private km / total km (0-1). If no log book, deemed 1.0 (100%) */
+  privateUsePercentage: number
+  /** Whether a valid 12-week log book exists (s 10A FBTAA 1986) */
+  logBookAvailable: boolean
+
+  // Calculated results
+  /** Taxable value under statutory formula method (s 9 FBTAA) */
+  statutoryValue: number
+  /** Taxable value under operating cost method (s 10 FBTAA) */
+  operatingCostValue: number
+  /** Which method produces the lower taxable value */
+  recommendedMethod: 'statutory_formula' | 'operating_cost'
+  /** Dollar savings from using optimal method vs the other */
+  savings: number
+}
+
+/** Otherwise deductible rule result (s 24 FBTAA 1986) */
+export interface OtherwiseDeductibleResult {
+  /** The portion of the benefit that would be deductible under s 8-1 ITAA 1997 */
+  reduction: number
+  /** Taxable value after applying the ODR reduction */
+  adjustedTaxableValue: number
+  /** Description of the rule applied */
+  rule: string
+  /** The otherwise deductible percentage (0-1) */
+  otherwiseDeductiblePercentage: number
+}
+
 export interface FBTItem {
   transactionId: string
   transactionDate: string
@@ -79,6 +117,11 @@ export interface FBTItem {
   fbtLiability: number
   confidence: number
   legislativeReference: string
+
+  /** Car fringe benefit valuation detail (populated for car_fringe_benefit items with sufficient data) */
+  carBenefitDetail: CarBenefitDetail | null
+  /** Otherwise deductible rule result (s 24 FBTAA 1986) — populated when ODR applies */
+  otherwiseDeductibleResult: OtherwiseDeductibleResult | null
 }
 
 export interface FBTSummary {
@@ -103,6 +146,14 @@ export interface FBTSummary {
   lodgmentDeadline: string // 21 May after FBT year end
   lodgmentStatus: 'upcoming' | 'due_soon' | 'overdue'
 
+  // Car benefit valuation (Change 1: FBT P1-3)
+  carBenefitCount: number
+  carBenefitTotalSavings: number // Total savings from using optimal valuation method
+
+  // Otherwise deductible rule (Change 2: s 24 FBTAA)
+  odrAppliedCount: number
+  odrTotalReduction: number // Total taxable value reduction from ODR
+
   // Provenance
   taxRateSource: string
   taxRateVerifiedAt: string
@@ -118,6 +169,200 @@ const FBT_HOUSING_KEYWORDS = ['housing', 'accommodation', 'rent', 'rental proper
 const FBT_LOAN_KEYWORDS = ['loan', 'employee loan', 'staff loan', 'advance']
 const FBT_EXPENSE_KEYWORDS = ['reimbursement', 'expense claim', 'staff expense', 'employee expense']
 const FBT_EDUCATION_KEYWORDS = ['training', 'education', 'course', 'conference', 'seminar']
+
+// Otherwise deductible rule category mappings (s 24 FBTAA 1986)
+// Maps description keywords to the proportion that would be deductible under s 8-1 ITAA 1997
+const ODR_WORK_TRAVEL_KEYWORDS = ['business travel', 'work travel', 'client visit', 'site visit', 'work trip', 'business trip']
+const ODR_PHONE_KEYWORDS = ['mobile phone', 'phone plan', 'mobile plan', 'telecommunications']
+const ODR_TOOL_KEYWORDS = ['laptop', 'computer', 'tablet', 'tools', 'equipment', 'software licence', 'software license']
+const ODR_PROFESSIONAL_KEYWORDS = ['professional development', 'training course', 'conference', 'seminar', 'workshop', 'cpd']
+
+/**
+ * Statutory fraction for car fringe benefits.
+ * Flat 20% since FY2014-15 for all km ranges (s 9(2) FBTAA 1986).
+ * Prior to FY2014-15, the rate varied by total km (0.26, 0.20, 0.11, 0.07).
+ */
+const STATUTORY_FRACTION = new Decimal('0.20')
+
+/** Days in a standard FBT year (non-leap) */
+const DAYS_IN_FBT_YEAR = 365
+
+/**
+ * Calculate car fringe benefit under both valuation methods (FBT P1-3).
+ *
+ * Statutory Formula Method (s 9 FBTAA 1986):
+ *   Taxable value = (Base value x Statutory fraction x Days available / 365)
+ *                   - Employee contribution
+ *
+ * Operating Cost Method (s 10 FBTAA 1986):
+ *   Taxable value = (Total operating costs x Private use %)
+ *                   - Employee contribution
+ *   Requires 12-week log book per s 10A FBTAA 1986.
+ *   If no log book: deemed 100% private use.
+ *
+ * @param baseValue - GST-inclusive cost price of the vehicle
+ * @param daysAvailable - Days in FBT year car was available for private use
+ * @param employeeContribution - After-tax employee contribution
+ * @param totalOperatingCosts - Fuel, insurance, rego, maintenance, lease, depreciation
+ * @param privateUsePercentage - Private km / total km (0-1); defaults to 1.0 if no log book
+ * @param logBookAvailable - Whether a valid 12-week log book exists
+ * @returns CarBenefitDetail with both valuations and recommended method
+ */
+export function calculateCarBenefit(
+  baseValue: number,
+  daysAvailable: number,
+  employeeContribution: number,
+  totalOperatingCosts: number,
+  privateUsePercentage: number,
+  logBookAvailable: boolean
+): CarBenefitDetail {
+  const decBaseValue = new Decimal(baseValue)
+  const decDaysAvailable = new Decimal(Math.min(Math.max(daysAvailable, 0), DAYS_IN_FBT_YEAR))
+  const decEmployeeContribution = new Decimal(employeeContribution)
+
+  // Statutory Formula Method (s 9 FBTAA 1986)
+  // Taxable value = (Base value x 0.20 x Days available / 365) - Employee contribution
+  const statutoryGross = decBaseValue
+    .times(STATUTORY_FRACTION)
+    .times(decDaysAvailable)
+    .dividedBy(DAYS_IN_FBT_YEAR)
+  const statutoryValue = Decimal.max(
+    statutoryGross.minus(decEmployeeContribution),
+    new Decimal(0)
+  )
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber()
+
+  // Operating Cost Method (s 10 FBTAA 1986)
+  // If no log book, private use is deemed 100% (s 10A FBTAA 1986)
+  const effectivePrivateUse = logBookAvailable
+    ? new Decimal(Math.min(Math.max(privateUsePercentage, 0), 1))
+    : new Decimal(1)
+  const decTotalOperatingCosts = new Decimal(totalOperatingCosts)
+  const operatingCostGross = decTotalOperatingCosts.times(effectivePrivateUse)
+  const operatingCostValue = Decimal.max(
+    operatingCostGross.minus(decEmployeeContribution),
+    new Decimal(0)
+  )
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber()
+
+  // Recommend the method producing the lower taxable value
+  const recommendedMethod: 'statutory_formula' | 'operating_cost' =
+    statutoryValue <= operatingCostValue ? 'statutory_formula' : 'operating_cost'
+  const savings = new Decimal(Math.abs(statutoryValue - operatingCostValue))
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber()
+
+  return {
+    baseValue,
+    daysAvailable: decDaysAvailable.toNumber(),
+    employeeContribution,
+    totalOperatingCosts,
+    privateUsePercentage: effectivePrivateUse.toNumber(),
+    logBookAvailable,
+    statutoryValue,
+    operatingCostValue,
+    recommendedMethod,
+    savings,
+  }
+}
+
+/**
+ * Apply the Otherwise Deductible Rule (s 24 FBTAA 1986).
+ *
+ * Reduces the taxable value of a fringe benefit by the amount that would
+ * have been an allowable income tax deduction to the employee under s 8-1
+ * ITAA 1997 if the employee had incurred the expense themselves.
+ *
+ * Common cases:
+ * - Work-related travel: typically 100% otherwise deductible -> taxable value $0
+ * - Mobile phone with personal use: pro-rata based on work-use percentage
+ * - Laptop/tools for work: typically 100% otherwise deductible
+ * - Professional development/training: typically 100% otherwise deductible
+ *
+ * The ODR is applied BEFORE gross-up, reducing the base taxable value.
+ *
+ * @param taxableValue - The gross taxable value before ODR
+ * @param description - Transaction description for category matching
+ * @param category - FBT category of the item
+ * @returns OtherwiseDeductibleResult or null if ODR does not apply
+ */
+export function applyOtherwiseDeductibleRule(
+  taxableValue: number,
+  description: string,
+  category: FBTCategory
+): OtherwiseDeductibleResult | null {
+  const desc = description.toLowerCase()
+  const decTaxableValue = new Decimal(taxableValue)
+
+  // Determine otherwise deductible percentage based on benefit type
+  let odrPercentage: Decimal | null = null
+  let rule = ''
+
+  // 1. Work-related travel: 100% otherwise deductible (s 8-1 ITAA 1997 — travel in course of employment)
+  if (ODR_WORK_TRAVEL_KEYWORDS.some(kw => desc.includes(kw))) {
+    odrPercentage = new Decimal(1)
+    rule = 's 24 FBTAA 1986 — work-related travel: 100% otherwise deductible under s 8-1 ITAA 1997'
+  }
+
+  // 2. Professional development/training: 100% otherwise deductible (s 8-1 — maintaining/improving work skills)
+  if (odrPercentage === null && ODR_PROFESSIONAL_KEYWORDS.some(kw => desc.includes(kw))) {
+    odrPercentage = new Decimal(1)
+    rule = 's 24 FBTAA 1986 — professional development: 100% otherwise deductible under s 8-1 ITAA 1997'
+  }
+
+  // 3. Laptop/tools/equipment: 100% otherwise deductible (s 8-1 — tools of trade for employment)
+  if (odrPercentage === null && ODR_TOOL_KEYWORDS.some(kw => desc.includes(kw))) {
+    odrPercentage = new Decimal(1)
+    rule = 's 24 FBTAA 1986 — work tools/equipment: 100% otherwise deductible under s 8-1 ITAA 1997'
+  }
+
+  // 4. Mobile phone/telecommunications: pro-rata based on assumed 75% work use
+  //    (conservative estimate; actual % would require employee declaration)
+  if (odrPercentage === null && ODR_PHONE_KEYWORDS.some(kw => desc.includes(kw))) {
+    odrPercentage = new Decimal('0.75')
+    rule = 's 24 FBTAA 1986 — mobile phone: 75% otherwise deductible (estimated work-use proportion under s 8-1 ITAA 1997)'
+  }
+
+  // 5. Education/training categories classified as 'otherwise_deductible': 100%
+  if (odrPercentage === null && category === 'otherwise_deductible') {
+    odrPercentage = new Decimal(1)
+    rule = 's 24 FBTAA 1986 — education/training: 100% otherwise deductible under s 8-1 ITAA 1997'
+  }
+
+  // 6. Expense payments that are clearly work-related (reimbursement for work expenses)
+  if (odrPercentage === null && category === 'expense_payment') {
+    const WORK_EXPENSE_KEYWORDS = ['work expense', 'business expense', 'work-related', 'business purpose']
+    if (WORK_EXPENSE_KEYWORDS.some(kw => desc.includes(kw))) {
+      odrPercentage = new Decimal(1)
+      rule = 's 24 FBTAA 1986 — work-related expense payment: 100% otherwise deductible under s 8-1 ITAA 1997'
+    }
+  }
+
+  if (odrPercentage === null) {
+    return null
+  }
+
+  // Calculate the reduction
+  const reduction = decTaxableValue
+    .times(odrPercentage)
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+
+  const adjustedTaxableValue = Decimal.max(
+    decTaxableValue.minus(reduction),
+    new Decimal(0)
+  )
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber()
+
+  return {
+    reduction: reduction.toNumber(),
+    adjustedTaxableValue,
+    rule,
+    otherwiseDeductiblePercentage: odrPercentage.toNumber(),
+  }
+}
 
 /**
  * Analyse FBT liability for a tenant
@@ -216,8 +461,19 @@ export async function analyzeFBT(
   if (daysUntilDeadline < 0) lodgmentStatus = 'overdue'
   else if (daysUntilDeadline < 30) lodgmentStatus = 'due_soon'
 
+  // Aggregate car benefit and ODR statistics
+  const carBenefitItems = items.filter(i => i.carBenefitDetail !== null)
+  const carBenefitTotalSavings = carBenefitItems.reduce(
+    (sum, i) => sum + (i.carBenefitDetail?.savings ?? 0), 0
+  )
+  const odrAppliedItems = items.filter(i => i.otherwiseDeductibleResult !== null)
+  const odrTotalReduction = odrAppliedItems.reduce(
+    (sum, i) => sum + (i.otherwiseDeductibleResult?.reduction ?? 0), 0
+  )
+
   const recommendations = generateFBTRecommendations(
-    totalFBTLiability, taxableItems, exemptItems, lodgmentStatus, byCategory
+    totalFBTLiability, taxableItems, exemptItems, lodgmentStatus, byCategory,
+    carBenefitItems, carBenefitTotalSavings, odrAppliedItems, odrTotalReduction
   )
 
   return {
@@ -236,6 +492,10 @@ export async function analyzeFBT(
     items,
     lodgmentDeadline: lodgmentDeadline.toISOString().split('T')[0],
     lodgmentStatus,
+    carBenefitCount: carBenefitItems.length,
+    carBenefitTotalSavings,
+    odrAppliedCount: odrAppliedItems.length,
+    odrTotalReduction,
     taxRateSource: rateSource,
     taxRateVerifiedAt: new Date().toISOString(),
     legislativeReferences: [
@@ -243,7 +503,11 @@ export async function analyzeFBT(
       's 136 FBTAA 1986 (FBT rate)',
       's 57A FBTAA 1986 (Exempt benefits)',
       's 58X FBTAA 1986 (Minor benefits exemption - $300)',
+      's 9 FBTAA 1986 (Car fringe benefit - statutory formula method)',
+      's 10 FBTAA 1986 (Car fringe benefit - operating cost method)',
+      's 10A FBTAA 1986 (Log book method substantiation)',
       's 24 FBTAA 1986 (Otherwise deductible rule)',
+      's 8-1 ITAA 1997 (General deductions - otherwise deductible test)',
     ],
     recommendations,
     professionalReviewRequired: totalFBTLiability > 10000,
@@ -251,7 +515,17 @@ export async function analyzeFBT(
 }
 
 /**
- * Classify transaction and calculate FBT liability
+ * Classify transaction and calculate FBT liability.
+ *
+ * Flow:
+ * 1. Classify the benefit category
+ * 2. Determine Type 1 / Type 2 (GST credit entitlement)
+ * 3. Check exemptions (s 57A / s 58X)
+ * 4. Calculate gross taxable value
+ * 5. If car benefit with sufficient data: run car benefit valuation (s 9 / s 10)
+ * 6. Apply Otherwise Deductible Rule (s 24) BEFORE gross-up
+ * 7. Gross up the (possibly reduced) taxable value
+ * 8. Calculate FBT liability
  */
 function classifyAndCalculateFBT(
   tx: FBTForensicRow,
@@ -271,13 +545,67 @@ function classifyAndCalculateFBT(
   // Check for exemptions
   const exemption = checkFBTExemptions(category, amount, description)
 
-  // Calculate taxable value
+  // Step 4: Calculate gross taxable value
   let taxableValue = amount
   if (exemption) {
     taxableValue = 0 // Exempt
   }
 
-  // Gross up
+  // Step 5: Car fringe benefit valuation (s 9 / s 10 FBTAA 1986)
+  // If car-related and we have base value data from the transaction, calculate both methods.
+  // In practice, base value data would come from asset registers or supplementary input.
+  // We attempt to use available transaction metadata if present.
+  let carBenefitDetail: CarBenefitDetail | null = null
+  if (category === 'car_fringe_benefit' && !exemption) {
+    // Check if extended data is available on the transaction row (e.g., from fbt_items table)
+    const txAny = tx as unknown as Record<string, unknown>
+    const baseValue = typeof txAny['base_value'] === 'number' ? txAny['base_value'] as number : null
+    const daysAvailable = typeof txAny['days_available'] === 'number' ? txAny['days_available'] as number : DAYS_IN_FBT_YEAR
+    const empContribution = typeof txAny['employee_contribution'] === 'number' ? txAny['employee_contribution'] as number : 0
+    const totalOpCosts = typeof txAny['total_operating_costs'] === 'number' ? txAny['total_operating_costs'] as number : null
+    const privateUsePct = typeof txAny['private_use_percentage'] === 'number' ? txAny['private_use_percentage'] as number : 1.0
+    const logBook = typeof txAny['log_book_available'] === 'boolean' ? txAny['log_book_available'] as boolean : false
+
+    if (baseValue !== null && baseValue > 0) {
+      // We have enough data for at least statutory formula.
+      // For operating cost method, use totalOperatingCosts if available, otherwise fall back to transaction amount.
+      const effectiveOpCosts = totalOpCosts !== null && totalOpCosts > 0
+        ? totalOpCosts
+        : amount // Fallback: use the transaction amount as a proxy for operating costs
+
+      carBenefitDetail = calculateCarBenefit(
+        baseValue,
+        daysAvailable,
+        empContribution,
+        effectiveOpCosts,
+        privateUsePct,
+        logBook
+      )
+
+      // Use the recommended (lower) method's taxable value
+      taxableValue = carBenefitDetail.recommendedMethod === 'statutory_formula'
+        ? carBenefitDetail.statutoryValue
+        : carBenefitDetail.operatingCostValue
+    }
+    // If no base value data available, taxableValue remains as the raw transaction amount.
+    // A recommendation will be generated to collect car benefit data.
+  }
+
+  // Step 6: Apply Otherwise Deductible Rule (s 24 FBTAA 1986) BEFORE gross-up
+  // This reduces the taxable value by the portion deductible under s 8-1 ITAA 1997
+  let otherwiseDeductibleResult: OtherwiseDeductibleResult | null = null
+  if (taxableValue > 0 && !exemption) {
+    otherwiseDeductibleResult = applyOtherwiseDeductibleRule(
+      taxableValue,
+      tx.transaction_description || '',
+      category
+    )
+    if (otherwiseDeductibleResult) {
+      taxableValue = otherwiseDeductibleResult.adjustedTaxableValue
+    }
+  }
+
+  // Step 7: Gross up the (possibly reduced) taxable value
   const grossUpRate = benefitType === 'type_1' ? grossUpRate1 : grossUpRate2
   const grossedUpValue = new Decimal(taxableValue)
     .times(grossUpRate)
@@ -289,7 +617,7 @@ function classifyAndCalculateFBT(
     ? new Decimal(taxableValue).dividedBy(11).toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber()
     : 0
 
-  // FBT liability
+  // Step 8: FBT liability
   const fbtLiability = new Decimal(grossedUpValue)
     .times(fbtRate)
     .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
@@ -307,10 +635,12 @@ function classifyAndCalculateFBT(
     grossedUpValue,
     gstCredits,
     exemptionApplied: exemption,
-    employeeContribution: 0, // Would need employee contribution data
+    employeeContribution: carBenefitDetail?.employeeContribution ?? 0,
     fbtLiability,
     confidence: tx.category_confidence || 50,
     legislativeReference: getLegislativeRef(category),
+    carBenefitDetail,
+    otherwiseDeductibleResult,
   }
 }
 
@@ -456,7 +786,11 @@ function generateFBTRecommendations(
   taxableItems: FBTItem[],
   exemptItems: FBTItem[],
   lodgmentStatus: string,
-  byCategory: Record<string, { count: number; taxableValue: number; grossedUpValue: number; fbtLiability: number }>
+  byCategory: Record<string, { count: number; taxableValue: number; grossedUpValue: number; fbtLiability: number }>,
+  carBenefitItems: FBTItem[],
+  carBenefitTotalSavings: number,
+  odrAppliedItems: FBTItem[],
+  odrTotalReduction: number
 ): string[] {
   const recs: string[] = []
 
@@ -481,11 +815,56 @@ function generateFBTRecommendations(
   if (byCategory['meal_entertainment']) {
     recs.push('Meal entertainment benefits detected - consider the 50-50 split method or 12-week register method for valuation')
   }
+
+  // Car fringe benefit recommendations (s 9 / s 10 FBTAA 1986)
   if (byCategory['car_fringe_benefit']) {
-    recs.push('Car fringe benefits detected - compare statutory formula method vs operating cost method for lowest FBT')
+    if (carBenefitItems.length > 0 && carBenefitTotalSavings > 0) {
+      recs.push(
+        `Car fringe benefits: ${carBenefitItems.length} vehicle(s) valued using both statutory formula (s 9) and operating cost (s 10) methods. ` +
+        `Potential savings of $${carBenefitTotalSavings.toFixed(2)} by using optimal method per vehicle.`
+      )
+      // Recommend log book if any car items lack one
+      const missingLogBook = carBenefitItems.filter(i => i.carBenefitDetail && !i.carBenefitDetail.logBookAvailable)
+      if (missingLogBook.length > 0) {
+        recs.push(
+          `${missingLogBook.length} car benefit(s) lack a valid log book (s 10A FBTAA 1986). ` +
+          'Without a 12-week log book, private use is deemed 100%. Maintaining a log book may significantly reduce FBT via the operating cost method.'
+        )
+      }
+    } else {
+      // Car benefits classified but no valuation data available
+      const carCount = byCategory['car_fringe_benefit'].count
+      recs.push(
+        `${carCount} car fringe benefit(s) detected but base value data not available for valuation. ` +
+        'Provide vehicle cost price and operating cost data to compare statutory formula (s 9) vs operating cost (s 10) methods for potential FBT savings.'
+      )
+    }
   }
 
-  recs.push('Consider employee contributions (s 24 FBTAA 1986) to reduce FBT taxable value')
+  // Otherwise Deductible Rule recommendations (s 24 FBTAA 1986)
+  if (odrAppliedItems.length > 0) {
+    recs.push(
+      `Otherwise deductible rule (s 24 FBTAA 1986) applied to ${odrAppliedItems.length} benefit(s), ` +
+      `reducing total taxable value by $${odrTotalReduction.toFixed(2)}. ` +
+      'The ODR reduces taxable value where the employee could have claimed a deduction under s 8-1 ITAA 1997.'
+    )
+  }
+
+  // Check for items that might qualify for ODR but were not matched
+  const potentialOdrItems = taxableItems.filter(
+    i => i.otherwiseDeductibleResult === null &&
+      i.category !== 'exempt_benefit' &&
+      i.category !== 'car_fringe_benefit' &&
+      i.taxableValue > 0
+  )
+  if (potentialOdrItems.length > 0) {
+    recs.push(
+      `${potentialOdrItems.length} benefit(s) may qualify for the otherwise deductible rule (s 24 FBTAA 1986). ` +
+      'Review whether these benefits would have been deductible to the employee under s 8-1 ITAA 1997 to reduce FBT.'
+    )
+  }
+
+  recs.push('Consider employee contributions to further reduce FBT taxable value')
   recs.push('Review salary packaging arrangements to optimise FBT position')
   recs.push('Maintain FBT records for 5 years from date of lodgment')
 
@@ -516,6 +895,10 @@ function createEmptyFBTSummary(fbtYear: string): FBTSummary {
     items: [],
     lodgmentDeadline: '',
     lodgmentStatus: 'upcoming',
+    carBenefitCount: 0,
+    carBenefitTotalSavings: 0,
+    odrAppliedCount: 0,
+    odrTotalReduction: 0,
     taxRateSource: 'none',
     taxRateVerifiedAt: new Date().toISOString(),
     legislativeReferences: [],

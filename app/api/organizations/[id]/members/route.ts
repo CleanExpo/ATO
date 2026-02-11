@@ -62,7 +62,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
         created_at,
         auth.users (
           email,
-          raw_user_meta_data
+          raw_user_meta_data,
+          last_sign_in_at
         )
       `
       )
@@ -78,8 +79,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
 
     // Format response
+    // Note: `last_sign_in_at` comes from Supabase auth and reflects the user's most recent
+    // sign-in across the platform (not specific to this organization). For per-organization
+    // activity tracking, a `user_activity` table with (user_id, organization_id, last_active_at)
+    // and middleware to update it on each authenticated request would be needed. The migration
+    // would add:
+    //   CREATE TABLE user_activity (
+    //     user_id UUID REFERENCES auth.users(id),
+    //     organization_id UUID REFERENCES organizations(id),
+    //     last_active_at TIMESTAMPTZ DEFAULT NOW(),
+    //     PRIMARY KEY (user_id, organization_id)
+    //   );
+    // Until then, `last_sign_in_at` serves as a reasonable proxy for recent activity.
     const formattedMembers = members.map((member: unknown) => {
-      const m = member as { user_id: string; role: string; created_at: string; users?: { email?: string; raw_user_meta_data?: Record<string, unknown> } }
+      const m = member as { user_id: string; role: string; created_at: string; users?: { email?: string; raw_user_meta_data?: Record<string, unknown>; last_sign_in_at?: string } }
       const userMeta = m.users?.raw_user_meta_data || {}
       return {
         userId: m.user_id,
@@ -87,7 +100,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
         name: (userMeta as Record<string, unknown>).full_name || (userMeta as Record<string, unknown>).name || null,
         role: m.role,
         joinedAt: m.created_at,
-        lastActiveAt: null, // TODO(tracked): Track last activity — requires migration + middleware
+        lastActiveAt: m.users?.last_sign_in_at || null,
       }
     })
 
