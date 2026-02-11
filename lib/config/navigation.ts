@@ -60,7 +60,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     icon: 'Search',
     matchPaths: ['/dashboard/data-quality'],
     showInMobile: false, // Combined with Audit in mobile
-    showInDesktop: true,
+    showInDesktop: false, // Sub-step of Forensic Audit, confusing as top-level item
   },
   {
     href: '/dashboard/forensic-audit',
@@ -77,8 +77,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Accountant',
     icon: 'Briefcase',
     matchPaths: ['/dashboard/accountant'],
-    showInMobile: true,
-    showInDesktop: true,
+    showInMobile: false, // Not useful without data pipeline
+    showInDesktop: false, // Hardcoded 0 findings, no data pipeline
   },
   {
     href: '/dashboard/tax-reporting',
@@ -94,8 +94,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
     label: 'R&D Assessment',
     shortLabel: 'R&D',
     icon: 'Beaker',
-    matchPaths: ['/dashboard/rnd'],
-    showInMobile: true,
+    matchPaths: ['/dashboard/rnd', '/dashboard/forensic-audit/rnd'],
+    showInMobile: false, // Keep mobile nav focused
     showInDesktop: true,
   },
   {
@@ -104,8 +104,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Projections',
     icon: 'Gauge',
     matchPaths: ['/dashboard/projections'],
-    showInMobile: true,
-    showInDesktop: true,
+    showInMobile: false, // Always shows empty state
+    showInDesktop: false, // hasData hardcoded false, always empty
   },
   {
     href: '/dashboard/calendar',
@@ -122,7 +122,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Losses',
     icon: 'TrendingDown',
     matchPaths: ['/dashboard/losses'],
-    showInMobile: true,
+    showInMobile: false, // Keep mobile nav focused
     showInDesktop: true,
   },
   {
@@ -140,8 +140,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Strtgy',
     icon: 'BrainCircuit',
     matchPaths: ['/dashboard/strategies'],
-    showInMobile: true,
-    showInDesktop: true,
+    showInMobile: false, // Requires completed audit
+    showInDesktop: false, // Empty for new users without audit data
   },
   {
     href: '/dashboard/admin',
@@ -150,7 +150,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     icon: 'Terminal',
     matchPaths: ['/dashboard/admin'],
     showInMobile: false,
-    showInDesktop: true,
+    showInDesktop: false, // Internal metrics, not client-facing
   },
   {
     href: '/dashboard/pricing',
@@ -158,7 +158,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Pricing',
     icon: 'CreditCard',
     matchPaths: ['/dashboard/pricing'],
-    showInMobile: true,
+    showInMobile: false, // Keep mobile nav focused
     showInDesktop: true,
   },
   {
@@ -167,8 +167,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Help',
     icon: 'HelpCircle',
     matchPaths: ['/dashboard/help'],
-    showInMobile: true,
-    showInDesktop: true,
+    showInMobile: false, // Stub page, all links non-functional
+    showInDesktop: false, // Pure stub with no working features
   },
 ]
 

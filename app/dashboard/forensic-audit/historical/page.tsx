@@ -6,29 +6,67 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { TrendsAnalysis } from '@/components/forensic-audit/TrendsAnalysis'
 import { YearComparison } from '@/components/forensic-audit/YearComparison'
-import { BarChart3, GitCompare, Calendar, TrendingUp } from 'lucide-react'
-
-const TENANT_ID = '8a8caf6c-614b-45a5-9e15-46375122407c'
+import { BarChart3, GitCompare, Calendar, TrendingUp, AlertCircle } from 'lucide-react'
 
 type TabType = 'trends' | 'comparison'
 
 export default function HistoricalAnalysisPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>}>
+      <HistoricalAnalysisContent />
+    </Suspense>
+  )
+}
+
+function HistoricalAnalysisContent() {
+  const searchParams = useSearchParams()
+  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [tenantError, setTenantError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<TabType>('trends')
   const [availableYears, setAvailableYears] = useState<string[]>([])
   const [isLoadingYears, setIsLoadingYears] = useState(true)
 
+  // Resolve tenant ID dynamically
   useEffect(() => {
+    async function fetchTenantId() {
+      try {
+        const urlTenantId = searchParams.get('tenantId')
+        if (urlTenantId) {
+          setTenantId(urlTenantId)
+          return
+        }
+
+        const response = await fetch('/api/xero/organizations')
+        const data = await response.json()
+
+        if (data.connections && data.connections.length > 0) {
+          setTenantId(data.connections[0].tenant_id)
+        } else {
+          setTenantError('No Xero connections found. Please connect your Xero account first.')
+        }
+      } catch (err) {
+        console.error('Failed to fetch tenant ID:', err)
+        setTenantError('Failed to load Xero connection')
+      }
+    }
+    fetchTenantId()
+  }, [searchParams])
+
+  useEffect(() => {
+    if (!tenantId) return
     fetchAvailableYears()
-  }, [])
+  }, [tenantId])
 
   const fetchAvailableYears = async () => {
+    if (!tenantId) return
     try {
       setIsLoadingYears(true)
-      const response = await fetch(`/api/audit/trends?tenantId=${TENANT_ID}`)
+      const response = await fetch(`/api/audit/trends?tenantId=${tenantId}`)
       if (response.ok) {
         const data = await response.json()
         const years = data.yearlyMetrics
@@ -41,6 +79,29 @@ export default function HistoricalAnalysisPage() {
     } finally {
       setIsLoadingYears(false)
     }
+  }
+
+  if (!tenantId && !tenantError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="loading-spinner mx-auto mb-4" />
+          <p className="text-gray-400">Loading connection...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (tenantError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="glass-card p-8 max-w-md text-center">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Connection Error</h2>
+          <p className="text-gray-400">{tenantError}</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -105,9 +166,9 @@ export default function HistoricalAnalysisPage() {
 
         {/* Tab Content */}
         <div className="mt-6">
-          {activeTab === 'trends' && <TrendsAnalysis tenantId={TENANT_ID} />}
-          {activeTab === 'comparison' && (
-            <YearComparison tenantId={TENANT_ID} availableYears={availableYears} />
+          {activeTab === 'trends' && tenantId && <TrendsAnalysis tenantId={tenantId} />}
+          {activeTab === 'comparison' && tenantId && (
+            <YearComparison tenantId={tenantId} availableYears={availableYears} />
           )}
         </div>
       </div>
