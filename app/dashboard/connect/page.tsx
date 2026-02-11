@@ -9,18 +9,22 @@
  */
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Shield, Database, Eye, Lock, ArrowLeft, ExternalLink, Cpu, Globe } from 'lucide-react'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 
 export default function XeroConnectPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [acknowledged, setAcknowledged] = useState(false)
+
+  // If ?add=true, force a fresh Xero login to allow connecting a different account
+  const isAddingAccount = searchParams.get('add') === 'true'
 
   const handleConnect = () => {
     if (acknowledged) {
-      router.push('/api/auth/xero')
+      router.push(isAddingAccount ? '/api/auth/xero?prompt=login' : '/api/auth/xero')
     }
   }
 
@@ -41,9 +45,13 @@ export default function XeroConnectPage() {
           <ArrowLeft size={14} />
           Back to Dashboard
         </Link>
-        <h1 className="typo-headline">Connect Your Xero Account</h1>
+        <h1 className="typo-headline">
+          {isAddingAccount ? 'Connect Another Xero Account' : 'Connect Your Xero Account'}
+        </h1>
         <p className="typo-subtitle" style={{ marginTop: 'var(--space-xs)' }}>
-          Before connecting, please review what data we access and how it is used.
+          {isAddingAccount
+            ? 'You will be prompted to log in to a different Xero account. Select the organisation you want to add.'
+            : 'Before connecting, please review what data we access and how it is used.'}
         </p>
       </div>
 
@@ -193,7 +201,7 @@ export default function XeroConnectPage() {
             }}
             aria-disabled={!acknowledged}
           >
-            Connect to Xero
+            {isAddingAccount ? 'Connect Another Account' : 'Connect to Xero'}
             <ExternalLink size={14} style={{ marginLeft: 'var(--space-xs)' }} />
           </button>
 

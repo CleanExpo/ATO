@@ -33,10 +33,10 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
     // Refresh if expired
     if (isTokenExpired(tokenSet)) {
         try {
-            const previousRefreshToken = tokenSet.refresh_token
             const newTokens = await refreshXeroTokens(tokenSet, baseUrl)
 
-            // Update stored tokens
+            // Update stored tokens — match by tenant_id (unique) to avoid
+            // collision when multiple connections share the same refresh_token
             await supabase
                 .from('xero_connections')
                 .update({
@@ -47,7 +47,7 @@ async function getValidTokenSet(tenantId: string, baseUrl?: string): Promise<Tok
                     scope: newTokens.scope,
                     updated_at: new Date().toISOString()
                 })
-                .eq('refresh_token', previousRefreshToken)
+                .eq('tenant_id', tenantId)
 
             return newTokens
         } catch (error) {

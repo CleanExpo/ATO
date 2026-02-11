@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useOrganization } from '@/lib/context/OrganizationContext'
-import { ChevronDown, Plus, Building2, Check, Settings, Users } from 'lucide-react'
+import { ChevronDown, Plus, Building2, Check, Settings, Users, LinkIcon } from 'lucide-react'
 import {
   getRoleBadgeColor,
   getRoleDisplayName,
@@ -146,8 +146,16 @@ export function OrganizationSwitcher() {
                 </Link>
               </div>
 
-              {/* Create New Organization */}
-              <div className="p-2 border-t border-white/10">
+              {/* Add Xero Account & Create Organization */}
+              <div className="p-2 border-t border-white/10 space-y-1">
+                <Link
+                  href="/dashboard/connect?add=true"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-cyan-400 hover:bg-cyan-500/10 rounded-lg transition-colors"
+                >
+                  <LinkIcon className="w-4 h-4" />
+                  Connect Xero Account
+                </Link>
                 <button
                   onClick={() => {
                     setIsOpen(false)

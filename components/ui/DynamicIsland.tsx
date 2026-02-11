@@ -70,13 +70,15 @@ type StepStatus = 'complete' | 'active' | 'pending'
 interface OnboardingStep {
   label: string
   status: StepStatus
+  hint: string
+  href: string
 }
 
 function useOnboardingSteps(): OnboardingStep[] {
   const [steps, setSteps] = useState<OnboardingStep[]>([
-    { label: 'Connect', status: 'active' },
-    { label: 'Analyse', status: 'pending' },
-    { label: 'Results', status: 'pending' },
+    { label: 'Connect', status: 'active', hint: 'Link your Xero account', href: '/dashboard/connect' },
+    { label: 'Analyse', status: 'pending', hint: 'Sync and scan transactions', href: '/dashboard/forensic-audit/historical' },
+    { label: 'Results', status: 'pending', hint: 'Run AI forensic analysis', href: '/dashboard/forensic-audit' },
   ])
 
   const fetchStepState = useCallback(async () => {
@@ -146,9 +148,24 @@ function useOnboardingSteps(): OnboardingStep[] {
     }
 
     const newSteps: OnboardingStep[] = [
-      { label: 'Connect', status: hasConnection ? 'complete' : 'active' },
-      { label: 'Analyse', status: hasSyncedData ? 'complete' : hasConnection ? 'active' : 'pending' },
-      { label: 'Results', status: hasResults ? 'complete' : hasSyncedData ? 'active' : 'pending' },
+      {
+        label: 'Connect',
+        status: hasConnection ? 'complete' : 'active',
+        hint: hasConnection ? 'Xero connected' : 'Link your Xero account',
+        href: '/dashboard/connect',
+      },
+      {
+        label: 'Analyse',
+        status: hasSyncedData ? 'complete' : hasConnection ? 'active' : 'pending',
+        hint: hasSyncedData ? 'Data synced' : 'Sync historical transactions',
+        href: '/dashboard/forensic-audit/historical',
+      },
+      {
+        label: 'Results',
+        status: hasResults ? 'complete' : hasSyncedData ? 'active' : 'pending',
+        hint: hasResults ? 'Analysis complete' : 'Run AI forensic analysis',
+        href: '/dashboard/forensic-audit',
+      },
     ]
 
     setSteps(newSteps)
@@ -161,26 +178,61 @@ function useOnboardingSteps(): OnboardingStep[] {
   return steps
 }
 
+function StepContent({ step, index, prevStatus, compact }: {
+  step: OnboardingStep; index: number; prevStatus?: StepStatus; compact: boolean
+}) {
+  return (
+    <>
+      {index > 0 && (
+        <div className={`onboarding-steps__connector onboarding-steps__connector--${prevStatus === 'complete' ? 'complete' : 'pending'}`} />
+      )}
+      <div className={`onboarding-steps__circle onboarding-steps__circle--${step.status}`}>
+        {step.status === 'complete' ? (
+          <Check size={12} strokeWidth={3} />
+        ) : (
+          <span>{index + 1}</span>
+        )}
+      </div>
+      <div className="onboarding-steps__text">
+        <span className={`onboarding-steps__label onboarding-steps__label--${step.status}`}>
+          {step.label}
+        </span>
+        {!compact && (
+          <span className={`onboarding-steps__hint onboarding-steps__hint--${step.status}`}>
+            {step.hint}
+          </span>
+        )}
+      </div>
+    </>
+  )
+}
+
 function OnboardingSteps({ steps, compact = false }: { steps: OnboardingStep[]; compact?: boolean }) {
   return (
     <div className={`onboarding-steps ${compact ? 'onboarding-steps--compact' : ''}`} role="list" aria-label="Onboarding progress">
-      {steps.map((step, i) => (
-        <div key={step.label} className="onboarding-steps__step" role="listitem">
-          {i > 0 && (
-            <div className={`onboarding-steps__connector onboarding-steps__connector--${steps[i - 1].status === 'complete' ? 'complete' : 'pending'}`} />
-          )}
-          <div className={`onboarding-steps__circle onboarding-steps__circle--${step.status}`}>
-            {step.status === 'complete' ? (
-              <Check size={12} strokeWidth={3} />
-            ) : (
-              <span>{i + 1}</span>
-            )}
+      {steps.map((step, i) => {
+        const isClickable = step.status === 'active'
+
+        if (isClickable) {
+          return (
+            <Link
+              key={step.label}
+              href={step.href}
+              className="onboarding-steps__step onboarding-steps__step--clickable"
+              role="listitem"
+              title={step.hint}
+            >
+              <StepContent step={step} index={i} prevStatus={steps[i - 1]?.status} compact={compact} />
+            </Link>
+          )
+        }
+
+        return (
+          <div key={step.label} className="onboarding-steps__step" role="listitem" title={step.hint}>
+            <StepContent step={step} index={i} prevStatus={steps[i - 1]?.status} compact={compact} />
           </div>
-          <span className={`onboarding-steps__label onboarding-steps__label--${step.status}`}>
-            {step.label}
-          </span>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
