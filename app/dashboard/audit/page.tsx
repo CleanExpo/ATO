@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { EmptyState } from '@/components/ui/EmptyState'
 import {
     ArrowLeft,
     Filter,
@@ -337,15 +338,12 @@ export default function TaxAuditPage() {
                 )}
 
                 {!loading && !hasConnections && (
-                    <div className="glass-card p-8 text-center">
-                        <h3 className="text-lg font-semibold mb-2">No Xero connection</h3>
-                        <p className="text-[var(--text-secondary)] mb-6">
-                            Connect a Xero organization to generate audit findings.
-                        </p>
-                        <Link href="/api/auth/xero" className="btn btn-xero">
-                            Connect Xero
-                        </Link>
-                    </div>
+                    <EmptyState
+                        title="No Xero Connection"
+                        message="Connect a Xero organisation to generate audit findings."
+                        actionLabel="Connect Xero"
+                        actionHref="/api/auth/xero"
+                    />
                 )}
 
                 {/* Stats */}

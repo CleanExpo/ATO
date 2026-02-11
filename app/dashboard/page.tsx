@@ -38,6 +38,9 @@ import { PlatformConnections } from '@/components/dashboard/PlatformConnections'
 import { AdditionalOrganizationPrompt } from '@/components/dashboard/AdditionalOrganizationPrompt'
 import { OrganizationGroupManager } from '@/components/dashboard/OrganizationGroupManager'
 import { SyncAllButton } from '@/components/dashboard/SyncAllButton'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
+import { ErrorState } from '@/components/ui/ErrorState'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface Connection {
   tenant_id: string
@@ -448,56 +451,19 @@ function DashboardContent() {
         )}
 
         {summaryError && (
-          <div className="alert alert--error" style={{ marginBottom: 'var(--space-lg)' }}>
-            <AlertTriangle className="w-5 h-5" />
-            <span>{summaryError}</span>
-          </div>
+          <ErrorState message={summaryError} className="mb-6" />
         )}
 
         {loading ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-            <div className="loading-spinner" />
-          </div>
+          <PageSkeleton variant="default" />
         ) : !hasConnections ? (
-          /* Empty State - No Connections */
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.23, 1, 0.32, 1] }}
-            style={{ textAlign: 'center', paddingTop: 'var(--space-3xl)', paddingBottom: 'var(--space-3xl)' }}
-          >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2, duration: 0.6 }}
-              style={{
-                width: 80,
-                height: 80,
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--accent-xero-dim)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto var(--space-xl)',
-              }}
-            >
-              <Building2 className="w-10 h-10" style={{ color: 'var(--accent-xero)' }} />
-            </motion.div>
-
-            <h1 className="typo-display" style={{ marginBottom: 'var(--space-md)' }}>
-              Connect Your Data
-            </h1>
-            <p className="typo-subtitle" style={{ maxWidth: 480, margin: '0 auto var(--space-xl)' }}>
-              Link your Xero account to unlock AI-powered tax analysis
-              and discover optimisation opportunities.
-            </p>
-
-            <Link href="/api/auth/xero" className="btn btn-xero" style={{ padding: 'var(--space-md) var(--space-xl)' }}>
-              <DollarSign className="w-5 h-5" />
-              Connect Xero Account
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-          </motion.div>
+          <EmptyState
+            icon={<Building2 className="w-7 h-7" style={{ color: 'var(--accent-xero)' }} />}
+            title="Connect Your Data"
+            message="Link your Xero account to unlock AI-powered tax analysis and discover optimisation opportunities."
+            actionLabel="Connect Xero Account"
+            actionHref="/api/auth/xero"
+          />
         ) : (
           <>
             {/* Active Operations - Enhanced with clear progress */}

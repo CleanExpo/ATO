@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode; className?: string; highlight?: boolean }) => (
   <motion.div
@@ -142,30 +144,18 @@ export default function StrategiesPage() {
     return recommendations.filter(r => r.priority === 'critical' || r.priority === 'high').length
   }, [recommendations])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-12 h-12 text-sky-500 animate-spin" />
-          <p className="text-xs font-black text-sky-400 uppercase tracking-widest animate-pulse">Syncing Strategies</p>
-        </div>
-      </div>
-    )
-  }
+  if (loading) return <PageSkeleton variant="analysis" />
 
   if (!tenantId) {
     return (
       <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center p-8">
-        <GlassCard className="max-w-md p-12 text-center space-y-6">
-          <div className="w-16 h-16 bg-sky-500/10 rounded-2xl flex items-center justify-center mx-auto">
-            <ShieldCheck className="w-8 h-8 text-sky-400" />
-          </div>
-          <h2 className="text-2xl font-bold text-white">No Connection Detected</h2>
-          <p className="text-white/40">Connect your Xero account to unlock forensic tax optimization strategies.</p>
-          <Link href="/dashboard/settings" className="btn btn-primary block w-full">
-            Establish Connection
-          </Link>
-        </GlassCard>
+        <EmptyState
+          icon={<ShieldCheck className="w-7 h-7" style={{ color: 'var(--accent, #00F5FF)' }} />}
+          title="No Connection Detected"
+          message="Connect your Xero account to unlock forensic tax optimisation strategies."
+          actionLabel="Establish Connection"
+          actionHref="/dashboard/settings"
+        />
       </div>
     )
   }

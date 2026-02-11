@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 
 const GlassCard = ({ children, className = '', highlight = false }: { children: React.ReactNode; className?: string; highlight?: boolean }) => (
     <motion.div
@@ -86,12 +87,7 @@ export default function LossAnalysisPage() {
         fetchMetrics()
     }, [activeTenantId])
 
-    if (loading) return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-dashboard)] space-y-8">
-            <div className="w-16 h-16 rounded-3xl border-2 border-[var(--accent-primary)]/20 border-t-[var(--accent-primary)] animate-spin" />
-            <p className="text-xs font-black text-[var(--accent-primary)] uppercase tracking-widest animate-pulse">Syncing Ledger History</p>
-        </div>
-    )
+    if (loading) return <PageSkeleton variant="analysis" />
 
     return (
         <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">

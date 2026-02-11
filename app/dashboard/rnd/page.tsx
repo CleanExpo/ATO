@@ -26,6 +26,9 @@ import {
 import Link from 'next/link'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
+import { ErrorState } from '@/components/ui/ErrorState'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 interface RndProject {
     id: string
@@ -192,12 +195,7 @@ export default function RnDAssessmentPage() {
         ]
     }, [hasData, avgConfidence])
 
-    if (loading) return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-dashboard)] space-y-8">
-            <Loader2 className="w-16 h-16 text-sky-500 animate-spin" />
-            <p className="text-xs font-black text-sky-400 uppercase tracking-widest animate-pulse">Scanning Legislative Matrix</p>
-        </div>
-    )
+    if (loading) return <PageSkeleton variant="analysis" />
 
     if (!tenantId) return (
         <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center p-8">
@@ -216,14 +214,7 @@ export default function RnDAssessmentPage() {
 
     if (error) return (
         <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center p-8">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card max-w-md p-12 text-center space-y-6 border border-white/10">
-                <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto" />
-                <h2 className="text-2xl font-bold text-white">Analysis Error</h2>
-                <p className="text-white/40">{error}</p>
-                <button onClick={() => tenantId && fetchRndData(tenantId)} className="btn btn-primary block w-full">
-                    Retry Analysis
-                </button>
-            </motion.div>
+            <ErrorState title="Analysis Error" message={error} onRetry={() => tenantId && fetchRndData(tenantId)} />
         </div>
     )
 
@@ -352,14 +343,13 @@ export default function RnDAssessmentPage() {
                                                     )
                                                 })
                                             ) : (
-                                                <div className="p-12 text-center space-y-4">
-                                                    <AlertTriangle className="w-12 h-12 text-amber-400 mx-auto" />
-                                                    <p className="text-white/60">No R&D candidates identified yet.</p>
-                                                    <p className="text-white/40 text-sm">Run a forensic audit to analyse your transactions for Division 355 eligibility.</p>
-                                                    <Link href="/dashboard/forensic-audit" className="btn btn-secondary inline-flex">
-                                                        Launch Forensic Scan
-                                                    </Link>
-                                                </div>
+                                                <EmptyState
+                                                    icon={<AlertTriangle className="w-7 h-7" style={{ color: 'var(--accent, #00F5FF)' }} />}
+                                                    title="No R&D Candidates Identified"
+                                                    message="Run a forensic audit to analyse your transactions for Division 355 eligibility."
+                                                    actionLabel="Launch Forensic Scan"
+                                                    actionHref="/dashboard/forensic-audit"
+                                                />
                                             )}
                                         </motion.div>
                                     )}

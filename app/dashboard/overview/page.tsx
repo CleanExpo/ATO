@@ -40,6 +40,7 @@ import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { useOrganization } from '@/lib/context/OrganizationContext'
 import { ConsolidatedDashboard } from '@/components/dashboard/ConsolidatedDashboard'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 
 // --- Interfaces ---
 
@@ -246,7 +247,7 @@ export default function TaxOverviewPage() {
     )
   }
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center bg-[var(--bg-dashboard)]"><div className="loading-spinner" /></div>
+  if (loading) return <PageSkeleton variant="default" />
 
   if (!overview || !overview.dataUpToDate) return (
     <div className="min-h-screen flex items-center justify-center p-8 bg-[var(--bg-dashboard)]">
