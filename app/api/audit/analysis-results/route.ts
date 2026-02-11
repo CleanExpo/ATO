@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
             CacheTTL.costSummary
         )
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             results: paginatedResults,
             pagination: {
                 page,
@@ -106,6 +106,8 @@ export async function GET(request: NextRequest) {
                 cost: costSummary
             }
         })
+        response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+        return response
 
     } catch (error) {
         console.error('Failed to get analysis results:', error)

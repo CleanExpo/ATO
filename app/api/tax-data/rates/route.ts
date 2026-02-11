@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   try {
     const rates = await getCurrentTaxRates(forceRefresh)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         // Deduction rates
@@ -48,6 +48,8 @@ export async function GET(request: NextRequest) {
         sources: rates.sources,
       },
     })
+    response.headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=300')
+    return response
   } catch (error: unknown) {
     console.error('Failed to fetch tax rates:', error)
     const errorMessage = error instanceof Error ? error.message : 'Unknown error'

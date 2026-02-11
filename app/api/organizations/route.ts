@@ -95,7 +95,9 @@ export async function GET(_request: NextRequest) {
       role: roleLookup.get(org.id as string) || undefined,
     }))
 
-    return NextResponse.json({ organizations })
+    const response = NextResponse.json({ organizations })
+    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+    return response
   } catch (error) {
     console.error('Unexpected error in GET /api/organizations:', error)
     return NextResponse.json(

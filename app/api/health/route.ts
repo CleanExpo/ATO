@@ -1,144 +1,90 @@
+/**
+ * GET /api/health
+ *
+ * Lightweight health check endpoint for uptime monitors.
+ * No authentication required. Returns basic status, version, and uptime.
+ * Checks Supabase connectivity with a simple query.
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
-import { validateConfiguration, optionalConfig } from '@/lib/config/env'
-import { createServiceClient } from '@/lib/supabase/server'
-import { validateAIConfiguration, quickHealthCheck } from '@/lib/ai/health-check'
-import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
+import { createAdminClient } from '@/lib/supabase/server'
+import { rateLimit, createRateLimitResponse } from '@/lib/middleware/rate-limit'
 
 export const dynamic = 'force-dynamic'
 
-interface HealthCheckResult {
-    status: 'healthy' | 'degraded' | 'unhealthy'
-    timestamp: string
-    checks: {
-        environment: {
-            status: 'pass' | 'fail'
-            errors?: string[]
-            warnings?: string[]
-        }
-        database: {
-            status: 'pass' | 'fail'
-            message?: string
-        }
-        aiModel: {
-            status: 'pass' | 'fail'
-            message?: string
-            modelName?: string
-            errors?: string[]
-        }
-    }
-    version?: string
-}
+// Read version once at module load time
+const APP_VERSION = process.env.npm_package_version || '0.1.0'
 
 /**
- * GET /api/health - Health check endpoint
- *
- * Returns the health status of the application including:
- * - Environment variable validation
- * - Database connectivity
- * - AI model configuration and accessibility
- * - Overall system status
- *
- * Query params:
- * - quick=true: Skip AI model test (faster, only checks config)
+ * Extract client IP using rightmost X-Forwarded-For (B-5 pattern)
  */
+function getClientIp(request: NextRequest): string {
+  const xff = request.headers.get('x-forwarded-for')
+  if (xff) {
+    const ips = xff.split(',').map(ip => ip.trim())
+    return ips[ips.length - 1] || 'unknown'
+  }
+  return request.headers.get('x-real-ip') || 'unknown'
+}
+
 export async function GET(request: NextRequest) {
-    // Rate limit health checks (SEC-003)
-    const rateLimitResult = applyRateLimit(request, RATE_LIMITS.health, 'health')
-    if (rateLimitResult) return rateLimitResult
+  // Rate limit: 60 requests/minute per IP
+  const ip = getClientIp(request)
+  const rateLimitResult = rateLimit({
+    identifier: `health:${ip}`,
+    limit: 60,
+    windowSeconds: 60,
+  })
 
-    const { searchParams } = new URL(request.url)
-    const quick = searchParams.get('quick') === 'true'
+  if (!rateLimitResult.success) {
+    return createRateLimitResponse(rateLimitResult)
+  }
 
-    const result: HealthCheckResult = {
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        checks: {
-            environment: {
-                status: 'pass',
-            },
-            database: {
-                status: 'pass',
-            },
-            aiModel: {
-                status: 'pass',
-            },
-        },
+  const timestamp = new Date().toISOString()
+
+  // Check Supabase connectivity with a simple query
+  try {
+    const supabase = createAdminClient()
+    const { error } = await supabase.rpc('version' as never)
+
+    // If the RPC doesn't exist, try a simple FROM query as fallback
+    if (error) {
+      // Attempt a lightweight query instead
+      const { error: fallbackError } = await supabase
+        .from('xero_connections')
+        .select('tenant_id')
+        .limit(1)
+
+      if (fallbackError) {
+        return NextResponse.json(
+          {
+            status: 'degraded',
+            error: 'Database unreachable',
+            timestamp,
+            version: APP_VERSION,
+            uptime: process.uptime(),
+          },
+          { status: 200 }
+        )
+      }
     }
 
-    // Check environment configuration
-    try {
-        const envValidation = validateConfiguration()
-
-        if (!envValidation.valid) {
-            result.checks.environment.status = 'fail'
-            result.checks.environment.errors = envValidation.errors
-            result.status = 'unhealthy'
-        } else if (envValidation.warnings.length > 0) {
-            result.checks.environment.warnings = envValidation.warnings
-            result.status = 'degraded'
-        }
-    } catch (error) {
-        result.checks.environment.status = 'fail'
-        result.checks.environment.errors = [
-            error instanceof Error ? error.message : 'Environment validation failed'
-        ]
-        result.status = 'unhealthy'
-    }
-
-    // Check database connectivity
-    try {
-        const supabase = await createServiceClient()
-        const { error } = await supabase
-            .from('xero_connections')
-            .select('tenant_id')
-            .limit(1)
-
-        if (error) {
-            result.checks.database.status = 'fail'
-            result.checks.database.message = 'Database query failed'
-            result.status = 'unhealthy'
-        } else {
-            result.checks.database.message = 'Connected'
-        }
-    } catch (error) {
-        result.checks.database.status = 'fail'
-        result.checks.database.message = error instanceof Error ? error.message : 'Unknown error'
-        result.status = 'unhealthy'
-    }
-
-    // Check AI model configuration
-    try {
-        if (quick) {
-            const aiQuickCheck = quickHealthCheck()
-            if (!aiQuickCheck.valid) {
-                result.checks.aiModel.status = 'fail'
-                result.checks.aiModel.message = 'AI configuration invalid'
-                result.checks.aiModel.errors = aiQuickCheck.errors
-                result.status = 'unhealthy'
-            } else {
-                result.checks.aiModel.message = 'Configuration valid (not tested)'
-                result.checks.aiModel.modelName = optionalConfig.googleAiModel
-            }
-        } else {
-            const aiCheck = await validateAIConfiguration()
-            if (!aiCheck.valid) {
-                result.checks.aiModel.status = 'fail'
-                result.checks.aiModel.message = 'AI model not accessible'
-                result.checks.aiModel.errors = aiCheck.errors
-                result.status = 'unhealthy'
-            } else {
-                result.checks.aiModel.message = 'Model accessible and responding'
-                result.checks.aiModel.modelName = aiCheck.details.modelName
-            }
-        }
-    } catch (error) {
-        result.checks.aiModel.status = 'fail'
-        result.checks.aiModel.message = error instanceof Error ? error.message : 'Unknown error'
-        result.status = 'unhealthy'
-    }
-
-    // Set appropriate status code
-    const statusCode = result.status === 'healthy' ? 200 : result.status === 'degraded' ? 200 : 503
-
-    return NextResponse.json(result, { status: statusCode })
+    return NextResponse.json({
+      status: 'ok',
+      timestamp,
+      version: APP_VERSION,
+      uptime: process.uptime(),
+    })
+  } catch {
+    return NextResponse.json(
+      {
+        status: 'degraded',
+        error: 'Database unreachable',
+        timestamp,
+        version: APP_VERSION,
+        uptime: process.uptime(),
+      },
+      { status: 200 }
+    )
+  }
 }

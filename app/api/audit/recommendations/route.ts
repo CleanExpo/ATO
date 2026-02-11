@@ -70,11 +70,13 @@ export async function GET(request: NextRequest) {
         CacheTTL.recommendations
       )
 
-      return NextResponse.json({
+      const priorityResponse = NextResponse.json({
         filter: { priority },
         count: recommendations.length,
         recommendations,
       })
+      priorityResponse.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+      return priorityResponse
     }
 
     // If filtering by tax area
@@ -91,11 +93,13 @@ export async function GET(request: NextRequest) {
         CacheTTL.recommendations
       )
 
-      return NextResponse.json({
+      const taxAreaResponse = NextResponse.json({
         filter: { taxArea },
         count: recommendations.length,
         recommendations,
       })
+      taxAreaResponse.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+      return taxAreaResponse
     }
 
     // Get all recommendations with full summary (cache for 30 minutes)
@@ -106,7 +110,7 @@ export async function GET(request: NextRequest) {
       CacheTTL.recommendations
     )
 
-    return NextResponse.json({
+    const fullResponse = NextResponse.json({
       summary: {
         totalRecommendations: summary.totalRecommendations,
         totalEstimatedBenefit: summary.totalEstimatedBenefit,
@@ -120,6 +124,8 @@ export async function GET(request: NextRequest) {
       criticalRecommendations: summary.criticalRecommendations,
       recommendations: summary.recommendations,
     })
+    fullResponse.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+    return fullResponse
   } catch (error) {
     console.error('Failed to get recommendations:', error)
     return createErrorResponse(error, { operation: 'getRecommendations' }, 500)

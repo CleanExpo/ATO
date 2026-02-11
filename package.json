@@ -37,7 +37,8 @@
     "senior-pm:orchestrate": "tsx scripts/senior-pm/orchestrate-project.ts",
     "senior-pm:daily-report": "tsx scripts/senior-pm/generate-daily-report.ts",
     "senior-pm:test-workflow": "tsx scripts/test-senior-pm-workflow.ts",
-    "orchestrator:decompose": "tsx scripts/orchestrator/decompose-task.ts"
+    "orchestrator:decompose": "tsx scripts/orchestrator/decompose-task.ts",
+    "analyze": "ANALYZE=true pnpm build"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -66,6 +67,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.3",
     "@faker-js/faker": "^10.3.0",
+    "@next/bundle-analyzer": "^16.1.6",
     "@next/eslint-plugin-next": "^16.1.4",
     "@playwright/test": "^1.58.0",
     "@tailwindcss/postcss": "^4",

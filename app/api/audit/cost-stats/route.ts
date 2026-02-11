@@ -34,7 +34,9 @@ export async function GET(request: NextRequest) {
       CacheTTL.costSummary
     )
 
-    return NextResponse.json(stats)
+    const response = NextResponse.json(stats)
+    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+    return response
   } catch (error) {
     console.error('Failed to get cost stats:', error)
     return createErrorResponse(error, { operation: 'getCostStats' }, 500)

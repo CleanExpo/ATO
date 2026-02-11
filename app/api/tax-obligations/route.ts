@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())
       .slice(0, 5);
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         financialYear: currentFY,
@@ -131,6 +131,8 @@ export async function GET(request: NextRequest) {
         generatedAt: new Date().toISOString()
       }
     });
+    response.headers.set('Cache-Control', 'public, max-age=3600, stale-while-revalidate=300')
+    return response;
 
   } catch (error) {
     console.error('Error fetching tax obligations:', error);

@@ -26,6 +26,10 @@ on:
   schedule:
     - cron: '0 2 * * 0' # Every Sunday at 2am UTC
 
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9"
+
 jobs:
   unit-tests:
     if: inputs.test_type == 'all' || inputs.test_type == 'unit' || github.event_name == 'schedule'
@@ -37,17 +41,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run Unit Tests with Coverage
-        run: npm run test:unit -- --run --coverage --reporter=verbose
+        run: pnpm test:unit -- --run --coverage --reporter=verbose
         env:
           NODE_ENV: test
 
@@ -77,17 +86,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run Integration Tests with Coverage
-        run: npm run test:integration -- --run --coverage --reporter=verbose
+        run: pnpm test:integration -- --run --coverage --reporter=verbose
         env:
           NODE_ENV: test
 
@@ -122,17 +136,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
 
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps
+
+      - name: Install Playwright system deps
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps
 
       - name: Determine Test URL
         id: test-url
@@ -144,7 +177,7 @@ jobs:
           fi
 
       - name: Run E2E Tests (Shard ${{ matrix.shard }}/10)
-        run: npm run test:e2e:full -- --shard=${{ matrix.shard }}/10
+        run: pnpm test:e2e:full -- --shard=${{ matrix.shard }}/10
         env:
           PLAYWRIGHT_BASE_URL: ${{ steps.test-url.outputs.url }}
 
@@ -166,17 +199,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run Security Tests
-        run: npm run test:security -- --run --reporter=verbose
+        run: pnpm test:security -- --run --reporter=verbose
         env:
           NODE_ENV: test
 
@@ -206,17 +244,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Run Performance Tests
-        run: npm run test:performance -- --run --reporter=verbose
+        run: pnpm test:performance -- --run --reporter=verbose
         env:
           NODE_ENV: test
 
