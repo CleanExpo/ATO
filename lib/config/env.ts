@@ -166,7 +166,7 @@ export const sharedConfig = new Proxy({} as ReturnType<typeof validateSharedConf
 // Optional configuration (with defaults)
 export const optionalConfig = {
   googleAiApiKey: getOptionalEnv('GOOGLE_AI_API_KEY', ''),
-  googleAiModel: getOptionalEnv('GOOGLE_AI_MODEL', 'gemini-3-pro-preview'),
+  googleAiModel: getOptionalEnv('GOOGLE_AI_MODEL', 'gemini-2.0-flash'),
   openRouterApiKey: getOptionalEnv('OPENROUTER_API_KEY', ''),
   braveApiKey: getOptionalEnv('BRAVE_API_KEY', ''),
   businessName: getOptionalEnv('BUSINESS_NAME', 'Your Business'),

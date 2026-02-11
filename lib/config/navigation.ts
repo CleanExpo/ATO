@@ -104,8 +104,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Projections',
     icon: 'Gauge',
     matchPaths: ['/dashboard/projections'],
-    showInMobile: false, // Always shows empty state
-    showInDesktop: false, // hasData hardcoded false, always empty
+    showInMobile: false,
+    showInDesktop: true,
   },
   {
     href: '/dashboard/calendar',
@@ -140,8 +140,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Strtgy',
     icon: 'BrainCircuit',
     matchPaths: ['/dashboard/strategies'],
-    showInMobile: false, // Requires completed audit
-    showInDesktop: false, // Empty for new users without audit data
+    showInMobile: false,
+    showInDesktop: true,
   },
   {
     href: '/dashboard/admin',
@@ -160,15 +160,6 @@ export const NAV_ITEMS: NavItemConfig[] = [
     matchPaths: ['/dashboard/pricing'],
     showInMobile: false, // Keep mobile nav focused
     showInDesktop: true,
-  },
-  {
-    href: '/dashboard/help',
-    label: 'Help Center',
-    shortLabel: 'Help',
-    icon: 'HelpCircle',
-    matchPaths: ['/dashboard/help'],
-    showInMobile: false, // Stub page, all links non-functional
-    showInDesktop: false, // Pure stub with no working features
   },
 ]
 
