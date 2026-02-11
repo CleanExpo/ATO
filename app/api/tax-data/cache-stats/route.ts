@@ -4,11 +4,15 @@
  * GET - Get cache statistics (age, expiry, etc.)
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCacheManager } from '@/lib/tax-data/cache-manager'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET(_request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const cacheManager = getCacheManager()
     const stats = await cacheManager.getCacheStats()
 

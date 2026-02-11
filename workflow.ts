@@ -14,7 +14,7 @@
 import * as dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { validateQueueItem } from './lib/queue/pm-validator';
-import { getNextPendingItem, markAsValidated } from './lib/queue/work-queue-manager';
+import { getNextPendingItem as _getNextPendingItem, markAsValidated as _markAsValidated } from './lib/queue/work-queue-manager';
 import { createIssue } from './lib/linear/api-client';
 import { buildIssueFromQueue } from './lib/linear/graphql-queries';
 
@@ -58,7 +58,7 @@ async function showStatus() {
   const statuses = ['pending', 'validating', 'validated', 'processing', 'complete', 'failed'];
 
   for (const status of statuses) {
-    const { data, error } = await supabase
+    const { data, error: _error } = await supabase
       .from('work_queue')
       .select('id, title, priority, complexity, created_at')
       .eq('status', status)

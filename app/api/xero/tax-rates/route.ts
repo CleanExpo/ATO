@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import type { TokenSet } from 'xero-node'
 import { TaxRate } from 'xero-node'
 import { createLogger } from '@/lib/logger'
@@ -85,6 +86,9 @@ const BAS_MAPPING: Record<string, { basField: string; description: string }> = {
 
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAuth(request, { tenantIdSource: 'query' })
+        if (isErrorResponse(auth)) return auth
+
         const tenantId = request.nextUrl.searchParams.get('tenantId')
 
         if (!tenantId) {

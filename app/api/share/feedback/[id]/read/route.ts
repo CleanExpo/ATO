@@ -8,12 +8,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');

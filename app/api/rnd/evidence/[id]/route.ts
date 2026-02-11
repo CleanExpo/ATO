@@ -15,6 +15,7 @@ import {
   createValidationError,
   createNotFoundError,
 } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import {
   type UpdateRndEvidenceRequest,
   dbRowToRndEvidence,
@@ -40,6 +41,9 @@ interface RouteContext {
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await context.params
     const searchParams = request.nextUrl.searchParams
     const tenantId = searchParams.get('tenantId')
@@ -101,6 +105,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
  */
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await context.params
     const body: UpdateRndEvidenceRequest & { tenantId?: string } =
       await request.json()
@@ -210,6 +217,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await context.params
     const searchParams = request.nextUrl.searchParams
     const tenantId = searchParams.get('tenantId')

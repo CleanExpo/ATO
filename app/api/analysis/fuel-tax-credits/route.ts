@@ -19,6 +19,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import {
   analyzeFuelTaxCredits,
   type FuelPurchase,
@@ -68,13 +69,12 @@ interface XeroTransactionRow {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { tenantId, financialYear } = body;
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' });
+    if (isErrorResponse(auth)) return auth;
 
-    // Validate required parameters
-    if (!tenantId || typeof tenantId !== 'string') {
-      return createValidationError('tenantId is required');
-    }
+    const body = await request.json();
+    const { financialYear } = body;
+    const tenantId = auth.tenantId;
 
     // Get Supabase client
     const supabase = await createServiceClient();

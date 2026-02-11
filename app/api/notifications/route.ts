@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
 /**
  * GET /api/notifications
@@ -20,6 +21,9 @@ import { createClient } from '@/lib/supabase/server'
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const supabase = await createClient()
 
     // Get authenticated user
@@ -100,6 +104,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const supabase = await createClient()
 
     // This endpoint should typically only be called by service role

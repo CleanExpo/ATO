@@ -15,10 +15,14 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createValidationError, createErrorResponse } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { uploadReportToXero, listReportsInXero } from '@/lib/xero/files-api'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const body = await request.json()
     const { tenantId, reportType, reportContent, fileName } = body
 
@@ -63,6 +67,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const { searchParams } = new URL(request.url)
     const tenantId = searchParams.get('tenantId')
 

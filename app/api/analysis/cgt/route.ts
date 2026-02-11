@@ -17,20 +17,20 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { analyzeCGT } from '@/lib/analysis/cgt-engine'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const body = await request.json()
-    const { tenantId, financialYear, entityType, aggregatedTurnover, netAssetValue } = body
+    const { financialYear, entityType, aggregatedTurnover, netAssetValue } = body
 
-    if (!tenantId || typeof tenantId !== 'string') {
-      return createValidationError('tenantId is required')
-    }
-
-    const result = await analyzeCGT(tenantId, financialYear, {
+    const result = await analyzeCGT(auth.tenantId, financialYear, {
       entityType,
       aggregatedTurnover,
       netAssetValue,

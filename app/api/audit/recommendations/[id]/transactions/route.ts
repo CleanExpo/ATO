@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { getRecommendation } from '@/lib/recommendations/recommendation-engine'
 import { generateXeroUrl } from '@/lib/xero/url-generator'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
@@ -61,6 +62,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     // Authentication
     let tenantId: string
     if (isSingleUserMode()) {
@@ -69,7 +73,7 @@ export async function GET(
         return createValidationError('tenantId is required')
       }
     } else {
-      return createValidationError('Multi-user mode not implemented')
+      tenantId = auth.tenantId
     }
 
     const { id: recommendationId } = await params

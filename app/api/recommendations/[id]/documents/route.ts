@@ -21,6 +21,7 @@ import {
   type DocumentErrorResponse,
 } from '@/lib/types/recommendation-documents';
 import { scanFile } from '@/lib/uploads/file-scanner';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,6 +39,9 @@ export async function GET(
   { params }: RouteParams
 ): Promise<NextResponse<DocumentListResponse | DocumentErrorResponse>> {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth as NextResponse<DocumentErrorResponse>
+
     const { id: recommendationId } = await params;
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');
@@ -114,6 +118,11 @@ export async function POST(
   { params }: RouteParams
 ): Promise<NextResponse<DocumentUploadResponse | DocumentErrorResponse>> {
   try {
+    // tenantId is in form data (not JSON body), so skip tenant validation here
+    // and let the existing tenantId check below handle it
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth as NextResponse<DocumentErrorResponse>
+
     const { id: recommendationId } = await params;
     const formData = await request.formData();
 
@@ -258,6 +267,9 @@ export async function DELETE(
   { params }: RouteParams
 ): Promise<NextResponse<{ success: true } | DocumentErrorResponse>> {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth as NextResponse<DocumentErrorResponse>
+
     const { id: recommendationId } = await params;
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');

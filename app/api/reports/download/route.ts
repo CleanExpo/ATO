@@ -13,10 +13,14 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const searchParams = request.nextUrl.searchParams
     const reportId = searchParams.get('reportId')
     const format = searchParams.get('format')

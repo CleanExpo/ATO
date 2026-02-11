@@ -20,6 +20,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { generatePDFReportData, generatePDFReportHTML } from '@/lib/reports/pdf-generator'
 import { generateExcelFromTenant } from '@/lib/reports/excel-generator'
@@ -40,6 +41,9 @@ const generateReportSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const body = await request.json()
 
     // Validate request

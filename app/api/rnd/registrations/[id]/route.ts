@@ -15,6 +15,7 @@ import {
   createValidationError,
   createNotFoundError,
 } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import {
   type RndRegistration,
   type UpdateRndRegistrationRequest,
@@ -38,6 +39,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await params
 
     if (!id) {
@@ -116,6 +120,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await params
     const body: UpdateRndRegistrationRequest = await request.json()
 
@@ -237,6 +244,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await params
 
     if (!id) {

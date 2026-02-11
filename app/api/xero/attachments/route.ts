@@ -13,11 +13,15 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createValidationError, createErrorResponse } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { attachFindingsToXero } from '@/lib/xero/attachments-api'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const body = await request.json()
     const { tenantId, recommendationIds } = body
 

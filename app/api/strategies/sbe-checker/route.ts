@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import {
   checkSBEEligibility,
   calculateTurnoverReductionStrategies,
@@ -42,6 +43,9 @@ const valueEstimateSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const body = await request.json()
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action') || 'check'

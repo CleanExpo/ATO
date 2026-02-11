@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse } from '@/lib/api/errors';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import type { AccountantPricingResponse } from '@/lib/types/accountant';
 
 // Standard pricing (non-accountant)
@@ -19,6 +20,9 @@ const STANDARD_PRICE = 995.0;
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const { searchParams } = new URL(request.url);
     const email = searchParams.get('email');
 

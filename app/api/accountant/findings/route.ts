@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,6 +28,9 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const supabase = await createServiceClient()
 
     // Get query parameters
@@ -149,6 +153,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const supabase = await createServiceClient()
     const body = await request.json()
 

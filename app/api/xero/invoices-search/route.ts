@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createXeroClient, isTokenExpired, refreshXeroTokens } from '@/lib/xero/client'
 import { createErrorResponse, createValidationError, createNotFoundError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import type { TokenSet } from 'xero-node'
 import { createLogger } from '@/lib/logger'
 
@@ -106,6 +107,9 @@ async function getValidTokenSet(tenantId: string): Promise<TokenSet | null> {
 
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAuth(request, { tenantIdSource: 'query' })
+        if (isErrorResponse(auth)) return auth
+
         const tenantId = request.nextUrl.searchParams.get('tenantId')
         const search = request.nextUrl.searchParams.get('search')
         const status = request.nextUrl.searchParams.get('status')

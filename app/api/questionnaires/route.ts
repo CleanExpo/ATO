@@ -18,11 +18,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' });
+    if (isErrorResponse(auth)) return auth;
+
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');
     const status = searchParams.get('status');

@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +49,9 @@ interface ConfidenceFactor {
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const body = await request.json()
 
     // Validate required fields

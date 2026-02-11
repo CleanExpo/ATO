@@ -4,10 +4,14 @@
  * Diagnostic endpoint to check if AI configuration is properly set up.
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { optionalConfig } from '@/lib/config/env'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const hasGoogleAiKey = Boolean(optionalConfig.googleAiApiKey)
     const keyLength = optionalConfig.googleAiApiKey?.length || 0
     const keyPrefix = optionalConfig.googleAiApiKey?.substring(0, 8) || 'NOT_SET'

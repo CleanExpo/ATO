@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import type {
   RecommendationStatus,
   StatusUpdate,
@@ -30,6 +31,9 @@ interface RouteContext {
 
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const { id: recommendationId } = await context.params;
     const { searchParams } = new URL(request.url);
     const tenantId = searchParams.get('tenantId');
@@ -87,6 +91,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const { id: recommendationId } = await context.params;
     const body = await request.json();
 

@@ -22,20 +22,20 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { analyzePAYGInstalments } from '@/lib/analysis/payg-instalment-engine'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const body = await request.json()
-    const { tenantId, financialYear, ...options } = body
+    const { financialYear, ...options } = body
 
-    if (!tenantId || typeof tenantId !== 'string') {
-      return createValidationError('tenantId is required')
-    }
-
-    const result = await analyzePAYGInstalments(tenantId, financialYear, options)
+    const result = await analyzePAYGInstalments(auth.tenantId, financialYear, options)
 
     return NextResponse.json(result)
   } catch (error) {

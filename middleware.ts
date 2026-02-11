@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
 
   // API audit logging
   if (pathname.startsWith('/api/')) {
-    let userId: string | null = user?.id ?? null
+    const userId: string | null = user?.id ?? null
 
     const tenantId =
       request.nextUrl.searchParams.get('tenantId') ||

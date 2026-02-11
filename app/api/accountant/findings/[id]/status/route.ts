@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { sendAlertEmail } from '@/lib/alerts/email-notifier'
 
 export const dynamic = 'force-dynamic'
@@ -31,6 +32,9 @@ interface RouteParams {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await params
     const supabase = await createServiceClient()
     const body = await request.json()

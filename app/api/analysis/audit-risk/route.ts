@@ -17,20 +17,20 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { assessAuditRisk } from '@/lib/analysis/audit-risk-engine'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const body = await request.json()
-    const { tenantId, financialYear, industryCode, entityType } = body
+    const { financialYear, industryCode, entityType } = body
 
-    if (!tenantId || typeof tenantId !== 'string') {
-      return createValidationError('tenantId is required')
-    }
-
-    const result = await assessAuditRisk(tenantId, financialYear, industryCode, entityType)
+    const result = await assessAuditRisk(auth.tenantId, financialYear, industryCode, entityType)
 
     return NextResponse.json(result)
   } catch (error) {

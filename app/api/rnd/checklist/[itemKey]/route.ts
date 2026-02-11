@@ -16,6 +16,7 @@ import {
   createValidationError,
   createNotFoundError,
 } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import {
   type UpdateChecklistItemRequest,
   dbRowToChecklistItem,
@@ -49,6 +50,9 @@ interface RouteContext {
  */
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const { itemKey } = await context.params
     const body: UpdateChecklistItemRequest = await request.json()
 

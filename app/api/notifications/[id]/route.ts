@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -18,6 +19,9 @@ interface RouteContext {
  */
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await context.params
     const supabase = await createClient()
 
@@ -89,6 +93,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const { id } = await context.params
     const supabase = await createClient()
 

@@ -8,7 +8,7 @@
  * duplicate detection, missing entries, account/year breakdowns.
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 // ---------------------------------------------------------------------------
 // Supabase mock infrastructure

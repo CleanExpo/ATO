@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import {
   type EvidenceElement,
   type RndEvidenceScore,
@@ -54,6 +55,9 @@ const DESCRIPTION_BONUS_MAX = 10 // For detailed descriptions
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const searchParams = request.nextUrl.searchParams
     const tenantId = searchParams.get('tenantId')
     const registrationId = searchParams.get('registrationId')

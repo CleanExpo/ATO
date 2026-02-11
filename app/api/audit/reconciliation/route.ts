@@ -12,10 +12,14 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createValidationError, createErrorResponse } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { analyzeReconciliation } from '@/lib/analysis/reconciliation-engine'
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const { searchParams } = new URL(request.url)
     const tenantId = searchParams.get('tenantId')
 

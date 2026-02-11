@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import { processAnalysisQueue } from '@/lib/analysis/reanalysis-worker';
 import { createLogger } from '@/lib/logger';
 
@@ -24,6 +25,9 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { skipTenantValidation: true });
+    if (isErrorResponse(auth)) return auth;
+
     const body = await request.json().catch(() => ({}));
     const { maxJobs = 10 } = body;
 

@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createLogger } from '@/lib/logger'
 
@@ -17,6 +18,9 @@ const log = createLogger('api:audit:reset-analysis')
 
 export async function POST(request: NextRequest) {
     try {
+        const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+        if (isErrorResponse(auth)) return auth
+
         const body = await request.json()
         let tenantId: string
 
@@ -26,7 +30,7 @@ export async function POST(request: NextRequest) {
                 return createValidationError('tenantId is required')
             }
         } else {
-            return createValidationError('Multi-user mode not supported for this endpoint')
+            tenantId = auth.tenantId
         }
 
         log.info('Resetting analysis status', { tenantId })

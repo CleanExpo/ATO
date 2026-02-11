@@ -4,14 +4,18 @@
  * POST - Force refresh tax rates from ATO.gov.au
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getCacheManager } from '@/lib/tax-data/cache-manager'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:tax-data:refresh')
 
-export async function POST(_request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     const cacheManager = getCacheManager()
 
     log.info('Forcing tax rates refresh')

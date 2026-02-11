@@ -19,15 +19,18 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { analyzePSI } from '@/lib/analysis/psi-engine'
 
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const body = await request.json()
     const {
-      tenantId,
       financialYear,
       hasPSBDetermination,
       providesOwnTools,
@@ -36,11 +39,7 @@ export async function POST(request: NextRequest) {
       unrelatedClientCount,
     } = body
 
-    if (!tenantId || typeof tenantId !== 'string') {
-      return createValidationError('tenantId is required')
-    }
-
-    const result = await analyzePSI(tenantId, financialYear, {
+    const result = await analyzePSI(auth.tenantId, financialYear, {
       hasPSBDetermination,
       providesOwnTools,
       liableForDefects,

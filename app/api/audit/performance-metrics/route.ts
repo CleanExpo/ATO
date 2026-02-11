@@ -11,12 +11,16 @@
  * - cacheStats: Cache hit/miss statistics
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import performanceMonitor, { formatDuration, getPerformanceGrade } from '@/lib/monitoring/performance-monitor'
 import cacheManager from '@/lib/cache/cache-manager'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     // Get performance summaries
     const summaries = performanceMonitor.getAllSummaries()
     const slowOperations = performanceMonitor.getSlowOperations(1000)

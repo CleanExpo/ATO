@@ -24,6 +24,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError, createAuthError } from '@/lib/api/errors';
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import { generateShareToken, buildShareUrl, calculateExpiryDate } from '@/lib/share/token-generator';
 import { hash } from 'bcryptjs';
 import type {
@@ -39,6 +40,9 @@ const MIN_PASSWORD_LENGTH = 6;
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { skipTenantValidation: true })
+    if (isErrorResponse(auth)) return auth
+
     // Get authenticated user
     const authSupabase = await createClient();
     const {

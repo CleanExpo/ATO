@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import {
   type EvidenceElement,
   type EvidenceType,
@@ -40,6 +41,9 @@ const VALID_EVIDENCE_TYPES: EvidenceType[] = ['document', 'description', 'refere
  */
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuth(request, { tenantIdSource: 'query' })
+    if (isErrorResponse(auth)) return auth
+
     const searchParams = request.nextUrl.searchParams
     const tenantId = searchParams.get('tenantId')
     const registrationId = searchParams.get('registrationId')
@@ -133,6 +137,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+    if (isErrorResponse(auth)) return auth
+
     const body: CreateRndEvidenceRequest = await request.json()
 
     // Validate required fields

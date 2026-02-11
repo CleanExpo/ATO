@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 
 interface CachedTransaction {
@@ -12,6 +13,9 @@ interface CachedTransaction {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuth(request.clone() as NextRequest, { tenantIdSource: 'body' })
+  if (isErrorResponse(auth)) return auth
+
   let tenantId: string
 
   if (isSingleUserMode()) {
@@ -21,7 +25,7 @@ export async function POST(request: NextRequest) {
       return createValidationError('tenantId is required')
     }
   } else {
-    return createValidationError('Multi-user mode not supported for backfill')
+    tenantId = auth.tenantId
   }
 
   try {

@@ -4,12 +4,16 @@
  * List available Google AI models for debugging.
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { optionalConfig } from '@/lib/config/env'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAuth(request, { skipTenantValidation: true })
+        if (isErrorResponse(auth)) return auth
+
         if (!optionalConfig.googleAiApiKey) {
             return NextResponse.json({
                 error: 'GOOGLE_AI_API_KEY not configured'

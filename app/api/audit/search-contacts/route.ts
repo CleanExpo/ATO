@@ -11,12 +11,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('api:audit:search-contacts')
 
 export async function GET(request: NextRequest) {
     try {
+        const auth = await requireAuth(request, { tenantIdSource: 'query' })
+        if (isErrorResponse(auth)) return auth
+
         const tenantId = request.nextUrl.searchParams.get('tenantId')
         const search = request.nextUrl.searchParams.get('search')
 
