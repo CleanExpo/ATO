@@ -1,92 +1,101 @@
 /**
- * Root Middleware - API Request Audit Logging
+ * Root Middleware - Supabase Auth Session Refresh + API Audit Logging
  *
- * Logs every API request as a single structured JSON line to stdout.
- * Edge Runtime compatible - no Node.js APIs, no async I/O for logging.
- * Adds x-request-id header for correlation.
+ * CRITICAL: This middleware refreshes the Supabase auth session on every request.
+ * Without this, server-side auth (getUser) fails because expired tokens are never refreshed.
+ * See: https://supabase.com/docs/guides/auth/server-side/nextjs
+ *
+ * Also protects /dashboard routes (redirects to /auth/login if unauthenticated)
+ * and logs API requests for audit purposes.
  */
 
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export const config = {
-  matcher: '/api/:path*',
+  matcher: [
+    // Match all routes except static files and images
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const requestId = crypto.randomUUID()
-  const start = Date.now()
 
-  // Extract userId from Supabase auth cookie JWT (best-effort, no verification)
-  let userId: string | null = null
-  try {
-    const authCookie =
-      request.cookies.get('sb-access-token')?.value ||
-      request.cookies.get('sb-auth-token')?.value
+  // Create a response that we can modify (pass updated cookies through)
+  let supabaseResponse = NextResponse.next({ request })
 
-    // Also check for the base64-encoded Supabase auth cookie pattern
-    if (!authCookie) {
-      for (const [name, cookie] of request.cookies) {
-        if (name.startsWith('sb-') && name.endsWith('-auth-token')) {
-          try {
-            const parsed = JSON.parse(cookie.value)
-            const token = parsed?.access_token || parsed?.[0]?.access_token
-            if (token) {
-              const payload = token.split('.')[1]
-              if (payload) {
-                const decoded = JSON.parse(atob(payload))
-                userId = decoded.sub || null
-              }
-            }
-          } catch {
-            // Ignore parse failures
-          }
-          break
-        }
-      }
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll()
+        },
+        setAll(cookiesToSet) {
+          // Update cookies on the request (for downstream server components)
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
+          // Recreate the response with updated request
+          supabaseResponse = NextResponse.next({ request })
+          // Set cookies on the response (sent back to browser)
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
+        },
+      },
     }
+  )
 
-    if (authCookie && !userId) {
-      const payload = authCookie.split('.')[1]
-      if (payload) {
-        const decoded = JSON.parse(atob(payload))
-        userId = decoded.sub || null
-      }
-    }
-  } catch {
-    // JWT decode failed - continue without userId
+  // IMPORTANT: Do NOT use getSession() — it reads from cookies without validation.
+  // getUser() sends a request to the Supabase Auth server to validate and refresh the token.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  // Protect dashboard routes — redirect to login if not authenticated
+  const pathname = request.nextUrl.pathname
+  if (pathname.startsWith('/dashboard') && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    url.searchParams.set('redirectTo', pathname)
+    return NextResponse.redirect(url)
   }
 
-  // Extract tenantId from query params or path
-  const tenantId =
-    request.nextUrl.searchParams.get('tenantId') ||
-    request.nextUrl.searchParams.get('tenant_id') ||
-    null
+  // API audit logging
+  if (pathname.startsWith('/api/')) {
+    let userId: string | null = user?.id ?? null
 
-  // Build log entry
-  const entry = {
-    level: 'INFO',
-    module: 'middleware:api-audit',
-    msg: 'API request',
-    ts: new Date().toISOString(),
-    requestId,
-    method: request.method,
-    path: request.nextUrl.pathname,
-    userId,
-    tenantId,
-    ip: (() => {
-      const xff = request.headers.get('x-forwarded-for')
-      if (!xff) return null
-      const parts = xff.split(',').map(s => s.trim()).filter(Boolean)
-      return parts[parts.length - 1] || null
-    })(),
+    const tenantId =
+      request.nextUrl.searchParams.get('tenantId') ||
+      request.nextUrl.searchParams.get('tenant_id') ||
+      null
+
+    const entry = {
+      level: 'INFO',
+      module: 'middleware:api-audit',
+      msg: 'API request',
+      ts: new Date().toISOString(),
+      requestId,
+      method: request.method,
+      path: pathname,
+      userId,
+      tenantId,
+      ip: (() => {
+        const xff = request.headers.get('x-forwarded-for')
+        if (!xff) return null
+        const parts = xff.split(',').map(s => s.trim()).filter(Boolean)
+        return parts[parts.length - 1] || null
+      })(),
+    }
+
+    console.log(JSON.stringify(entry))
   }
-
-  // Emit single JSON line (works in both Edge and Node runtimes)
-  console.log(JSON.stringify(entry))
 
   // Add request ID to response headers
-  const response = NextResponse.next()
-  response.headers.set('x-request-id', requestId)
+  supabaseResponse.headers.set('x-request-id', requestId)
 
-  return response
+  return supabaseResponse
 }

@@ -1,4 +1,4 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseAdminClient, type SupabaseClient } from '@supabase/supabase-js'
 
 /** Type alias for the Supabase service client used across analysis engines and report generators */
@@ -33,21 +33,17 @@ export async function createClient() {
             clientConfig.supabase.anonKey,
             {
                 cookies: {
-                    async get(name: string) {
-                        return cookieStore.get(name)?.value
+                    getAll() {
+                        return cookieStore.getAll()
                     },
-                    async set(name: string, value: string, options: CookieOptions) {
+                    setAll(cookiesToSet) {
                         try {
-                            cookieStore.set({ name, value, ...options })
-                        } catch (error) {
-                            console.error('Failed to set cookie:', name, error)
-                        }
-                    },
-                    async remove(name: string, options: CookieOptions) {
-                        try {
-                            cookieStore.set({ name, value: '', ...options })
-                        } catch (error) {
-                            console.error('Failed to remove cookie:', name, error)
+                            cookiesToSet.forEach(({ name, value, options }) =>
+                                cookieStore.set(name, value, options)
+                            )
+                        } catch {
+                            // setAll can be called from Server Components where cookies are read-only.
+                            // This is expected — the middleware handles cookie refresh.
                         }
                     },
                 },
@@ -70,21 +66,17 @@ export async function createServiceClient() {
             serverConfig.supabase.serviceRoleKey,
             {
                 cookies: {
-                    async get(name: string) {
-                        return cookieStore.get(name)?.value
+                    getAll() {
+                        return cookieStore.getAll()
                     },
-                    async set(name: string, value: string, options: CookieOptions) {
+                    setAll(cookiesToSet) {
                         try {
-                            cookieStore.set({ name, value, ...options })
-                        } catch (error) {
-                            console.error('Failed to set cookie:', name, error)
-                        }
-                    },
-                    async remove(name: string, options: CookieOptions) {
-                        try {
-                            cookieStore.set({ name, value: '', ...options })
-                        } catch (error) {
-                            console.error('Failed to remove cookie:', name, error)
+                            cookiesToSet.forEach(({ name, value, options }) =>
+                                cookieStore.set(name, value, options)
+                            )
+                        } catch {
+                            // setAll can be called from Server Components where cookies are read-only.
+                            // This is expected — the middleware handles cookie refresh.
                         }
                     },
                 },
