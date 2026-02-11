@@ -1,7 +1,8 @@
 # ADR-017: Accountant Workflow Integration Architecture
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-01-30
+**Updated**: 2026-02-11
 **Deciders**: Specialist A (Architecture), Senior PM, Tax Agent
 **Linear Issue**: [UNI-278](https://linear.app/unite-hub/issue/UNI-278)
 
@@ -78,6 +79,8 @@ Automated emails with findings sent weekly/monthly.
 - Notifications solve the "remember to check" problem
 - Aligns with existing ATO dashboard architecture
 
+**Implementation Note**: Findings use `organization_id` (UUID FK to `organizations` table) rather than `tenant_id` for scoping. The `tenant_id` (Xero org ID) is resolved to `organization_id` via the `xero_connections` table at generation time. This ensures findings are tied to the platform's organisation model, not directly to Xero tenant identifiers.
+
 ---
 
 ## Architecture Overview
@@ -92,9 +95,9 @@ Automated emails with findings sent weekly/monthly.
         ┌───────────────────┼───────────────────┐
         │                   │                   │
    ┌────▼────┐       ┌─────▼──────┐      ┌────▼─────┐
-   │ 6-Area  │       │   Smart    │      │  Client  │
-   │Dashboard│       │Notification│      │  Report  │
-   │         │       │   Engine   │      │ Generator│
+   │ 6-Area  │       │  Forensic  │      │Accountant│
+   │Dashboard│       │ to Findings│      │ Vetting  │
+   │         │       │   Mapper   │      │ Pipeline │
    └────┬────┘       └─────┬──────┘      └────┬─────┘
         │                  │                   │
         └──────────────────┼───────────────────┘
@@ -117,6 +120,101 @@ Automated emails with findings sent weekly/monthly.
 
 ---
 
+## Forensic-to-Findings Mapper
+
+**Source**: `lib/accountant/forensic-findings-mapper.ts`
+**Endpoint**: `POST /api/accountant/findings/generate`
+
+The forensic-to-findings mapper is the bridge between the AI forensic analysis pipeline (Gemini) and the accountant workflow dashboard. It transforms rows from `forensic_analysis_results` into actionable `accountant_findings` records.
+
+### Priority-Based Routing
+
+Each forensic analysis row is routed to exactly one workflow area using a first-match-wins priority system (7 levels):
+
+| Priority | Condition | Workflow Area | Rationale |
+|----------|-----------|---------------|-----------|
+| 1 | `is_rnd_candidate` OR `meets_div355_criteria` | `sundries` | R&D/Division 355 has highest financial impact (43.5% offset) |
+| 2 | `division7a_risk` | `div7a` | Compliance risk — deemed dividends |
+| 3 | `fbt_implications` | `fbt` | FBT liability at 47% rate |
+| 4 | `requires_documentation` | `documents` | Missing substantiation (s 900-70) |
+| 5 | `is_fully_deductible` AND `deduction_confidence < 80` | `deductions` | Low-confidence deductions need review |
+| 6 | `category_confidence < 50` | `reconciliation` | Potential misclassification |
+| 7 | None of the above | *(skipped)* | Not an actionable finding |
+
+### Confidence Scoring Algorithm
+
+Confidence is calculated as a weighted average of available factors:
+
+| Factor | Weight | Source Field | Positive Threshold |
+|--------|--------|-------------|-------------------|
+| Category classification | 40% | `category_confidence` | >= 70% |
+| R&D eligibility (if applicable) | 25% | `rnd_confidence` | >= 70% |
+| Deduction confidence (if available) | 20% | `deduction_confidence` | >= 70% |
+| Documentation completeness | 15% | `requires_documentation` | `false` = positive |
+
+**Score formula**: `weighted_sum / total_weight` (normalised across available factors)
+
+**Level thresholds**:
+- **High**: score >= 80
+- **Medium**: score >= 60
+- **Low**: score < 60
+
+### Benefit Estimation Formulas
+
+Each workflow area uses a specific formula to estimate the financial benefit:
+
+| Area | Formula | Legislation |
+|------|---------|-------------|
+| `sundries` | `claimable_amount * 0.435` | Division 355 ITAA 1997 (43.5% R&D offset) |
+| `deductions` | `claimable_amount * 0.25` | s 23AA ITAA 1997 (25% small business rate) |
+| `fbt` | `transaction_amount * 0.47` | FBTAA 1986 (47% FBT rate) |
+| `div7a` | `transaction_amount * 1.0` | Division 7A ITAA 1936 (full deemed dividend) |
+| `documents` | `0` | Compliance item, no direct monetary benefit |
+| `reconciliation` | `claimable_amount * 0.25` | Potential misclassification recovery at 25% |
+
+### Deduplication Strategy
+
+Before inserting, the mapper checks for existing findings using a composite key:
+
+```
+transaction_id + organization_id + workflow_area
+```
+
+This ensures:
+- Re-running the mapper is safe (idempotent)
+- The same transaction is not flagged twice for the same area
+- Different workflow areas for the same transaction are allowed (e.g., an R&D candidate that also requires documentation)
+
+---
+
+## Accountant Vetting Pipeline
+
+**Migration**: `supabase/migrations/20260129_accountant_vetting_system.sql`
+
+The vetting pipeline manages accountant partner onboarding:
+
+### Flow
+
+```
+Apply → Verify → Pricing → Onboarded
+```
+
+1. **Apply** (`POST /api/accountant/apply`): Accountant submits application with credentials (CPA, CA, RTA, BAS Agent, FTA). Zod-validated. Duplicate detection by email. Activity logged.
+
+2. **Verify** (`GET /api/accountant/verify?email=`): Check if an email belongs to a vetted accountant. Returns `is_vetted` boolean and accountant details.
+
+3. **Pricing** (`GET /api/accountant/pricing?email=`): Returns wholesale vs standard pricing. Vetted accountants receive 50% discount ($495 vs $995).
+
+4. **Application Status** (`GET /api/accountant/application/{id}`): Check application status by UUID.
+
+### Database Tables
+
+- `accountant_applications` — Application lifecycle (`pending → under_review → approved/rejected`)
+- `vetted_accountants` — Fast lookup for approved partners with discount rates
+- `accountant_activity_log` — Full audit trail
+
+---
+
 ## Component Design
 
 ### 1. Six-Area Dashboard
@@ -124,273 +222,83 @@ Automated emails with findings sent weekly/monthly.
 **Purpose**: Central hub for accountants to review findings across all workflow areas.
 
 **Areas**:
-1. **Sundries** (`/dashboard/accountant/sundries`)
-   - Miscellaneous transactions flagged for R&D potential
-   - Reclassification suggestions
+1. **Sundries** (`/dashboard/accountant/sundries`) — R&D candidates, reclassification suggestions
+2. **Deductions** (`/dashboard/accountant/deductions`) — Section 8-1 deduction scanner
+3. **FBT** (`/dashboard/accountant/fbt`) — Fringe Benefits Tax calculator
+4. **Division 7A** (`/dashboard/accountant/div7a`) — Shareholder loan tracker
+5. **Documents** (`/dashboard/accountant/documents`) — Missing documentation flagging
+6. **Reconciliation** (`/dashboard/accountant/reconciliation`) — Forensic anomaly detection
 
-2. **Deductions** (`/dashboard/accountant/deductions`)
-   - Section 8-1 deduction scanner
-   - Missed deduction opportunities
-
-3. **FBT** (`/dashboard/accountant/fbt`)
-   - Fringe Benefits Tax calculator
-   - Trigger detection (car benefits, entertainment)
-
-4. **Division 7A** (`/dashboard/accountant/div7a`)
-   - Shareholder loan tracker
-   - Compliance monitoring (8.77% benchmark)
-
-5. **Documents** (`/dashboard/accountant/documents`)
-   - Missing documentation flagging
-   - Document requirement generator
-
-6. **Reconciliation** (`/dashboard/accountant/reconciliation`)
-   - Forensic anomaly detection
-   - Multi-year consistency validation
-
-**Design Pattern**: Each area follows consistent structure:
-```tsx
-<WorkflowArea
-  title="Area Name"
-  findings={findings}
-  confidenceScorer={scorer}
-  legislationLinker={linker}
-  onReview={handleReview}
-  onApprove={handleApprove}
-  onReject={handleReject}
-/>
-```
-
----
-
-### 2. Smart Notification Engine
+### 2. Smart Notification Engine (Planned — Phase 2)
 
 **Purpose**: Alert accountants to high-value findings without requiring constant dashboard checking.
 
-**Notification Triggers**:
-- **High Value**: Opportunity > $50,000
-- **Compliance Risk**: Non-compliant Division 7A loans, FBT exposure
-- **Deadline Approaching**: R&D registration due within 30 days
-- **Critical Anomaly**: Forensic analysis detects significant discrepancy
+**Status**: Not yet implemented. Currently mitigated by dashboard summary statistics that highlight high-value finding counts.
 
-**Notification Channels**:
-- **In-App**: Badge count on dashboard nav
-- **Email Digest**: Daily/weekly summary (configurable)
-- **Future**: SMS/Slack integration (Phase 2)
+**Planned Notification Triggers**:
+- High Value: Opportunity > $50,000
+- Compliance Risk: Non-compliant Division 7A loans, FBT exposure
+- Deadline Approaching: R&D registration due within 30 days
+- Critical Anomaly: Forensic analysis detects significant discrepancy
 
-**Priority Levels**:
-- 🔴 **Critical**: Immediate action required (compliance risk)
-- 🟠 **High**: High-value opportunity (>$50K)
-- 🟡 **Medium**: Standard findings
-- 🔵 **Info**: FYI, no action needed
+### 3. Client Report Generator (Planned — Phase 3)
 
----
+**Purpose**: Create customisable, professional reports for client delivery.
 
-### 3. Client Report Generator
-
-**Purpose**: Create customizable, professional reports for client delivery.
-
-**Workflow**:
-```
-1. Accountant reviews findings in dashboard
-2. Selects findings to include in report
-3. Previews report with customization options
-4. Adds accountant notes/commentary
-5. Approves report for sending
-6. System generates PDF + sends via email
-```
-
-**Report Sections**:
-- **Executive Summary**: Key findings and value
-- **Detailed Findings**: By category (Deductions, R&D, etc.)
-- **Legislation References**: Supporting tax law citations
-- **Action Items**: What client should do next
-- **Accountant Commentary**: Professional review notes
-
-**Customization Options**:
-- Include/exclude specific findings
-- Add custom sections
-- Adjust tone (formal/conversational)
-- Branding (logo, colours)
-
----
+**Status**: Not yet implemented.
 
 ### 4. Confidence Scoring System
 
-**Purpose**: Quantify certainty of recommendations to help accountants prioritize.
+**Purpose**: Quantify certainty of recommendations to help accountants prioritise.
 
-**Scoring Algorithm**:
-```typescript
-interface ConfidenceScore {
-  score: number; // 0-100
-  level: 'High' | 'Medium' | 'Low';
-  factors: ConfidenceFactor[];
-}
+**Endpoint**: `POST /api/accountant/confidence-score`
 
-interface ConfidenceFactor {
-  name: string;
-  impact: number; // -50 to +50
-  reasoning: string;
-}
-```
-
-**Confidence Factors**:
-- **Legislation Match** (+50): Direct match to tax legislation
-- **Precedent Cases** (+30): ATO rulings support claim
-- **Documentation Quality** (+20): Strong supporting documents
-- **Amount Threshold** (-10): Large claims increase risk
-- **Complexity** (-20): Novel or complex interpretations
-- **Ambiguity** (-30): Unclear application of law
-
-**Score Interpretation**:
-- **90-100 (High)**: Strong legislative support, low risk
-- **60-89 (Medium)**: Reasonable claim, standard due diligence needed
-- **0-59 (Low)**: Complex case, may require ATO private ruling
-
----
+Two scoring approaches are implemented:
+- **Mapper confidence**: Weighted multi-factor scoring (see Forensic-to-Findings Mapper section above)
+- **Standalone confidence**: Factor-based additive scoring for ad-hoc calculations via the API endpoint
 
 ### 5. Legislation Linker
 
 **Purpose**: Provide instant access to relevant tax legislation for every recommendation.
 
-**Features**:
-- **Deep Links**: Direct links to specific sections (e.g., Section 8-1 ITAA 1997)
-- **Hover Tooltips**: Quick summary without leaving page
-- **Full Text**: Complete section text available
-- **Related Provisions**: Links to related legislation
-- **ATO Guidance**: Links to relevant ATO rulings and guidance
+Each finding includes an array of `legislation_refs` with section, act, and relevance description. References are determined by workflow area (see `getLegislationRefs()` in the mapper).
 
-**Link Format**:
-```tsx
-<LegislationLink
-  section="Section 8-1"
-  act="ITAA 1997"
-  url="https://www.ato.gov.au/..."
-  summary="General deductions for business expenses"
-/>
-```
+---
+
+## Implementation Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Accountant findings CRUD | **Implemented** | `GET/POST /api/accountant/findings`, `PATCH /api/accountant/findings/{id}/status` |
+| Forensic-to-findings mapper | **Implemented** | `POST /api/accountant/findings/generate`, `lib/accountant/forensic-findings-mapper.ts` |
+| Accountant vetting pipeline | **Implemented** | Apply, verify, pricing, application status endpoints |
+| Confidence score calculator | **Implemented** | `POST /api/accountant/confidence-score` |
+| Finding status workflow | **Implemented** | `pending → approved/rejected/deferred` with email notifications on approval |
+| Notification system | **Not implemented** | Planned Phase 2. Current mitigation: dashboard summary stats |
+| Report generator | **Not implemented** | Planned Phase 3 |
+| Legislation lookup endpoint | **Not implemented** | Planned. Legislation refs are embedded in findings via mapper |
+
+### Implemented API Endpoints (8 total)
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/accountant/findings` | List findings with filters |
+| `POST` | `/api/accountant/findings` | Create finding |
+| `POST` | `/api/accountant/findings/generate` | Run forensic-to-findings mapper |
+| `PATCH` | `/api/accountant/findings/{id}/status` | Update finding status (approve/reject/defer) |
+| `POST` | `/api/accountant/confidence-score` | Calculate confidence score |
+| `POST` | `/api/accountant/apply` | Submit partner application |
+| `GET` | `/api/accountant/verify` | Check vetted accountant status |
+| `GET` | `/api/accountant/pricing` | Get accountant pricing |
+| `GET` | `/api/accountant/application/{id}` | Check application status |
 
 ---
 
 ## Database Schema
 
-### New Tables Required
+See [accountant-workflow-erd.md](../diagrams/accountant-workflow-erd.md) for the complete ERD.
 
-```sql
--- Accountant workflow findings
-CREATE TABLE accountant_findings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES auth.users(id),
-    tenant_id TEXT NOT NULL,
-    workflow_area TEXT NOT NULL CHECK (workflow_area IN (
-        'sundries', 'deductions', 'fbt', 'div7a', 'documents', 'reconciliation'
-    )),
-    finding_type TEXT NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    amount DECIMAL(15,2),
-    confidence_score INTEGER CHECK (confidence_score >= 0 AND confidence_score <= 100),
-    confidence_level TEXT CHECK (confidence_level IN ('High', 'Medium', 'Low')),
-    legislation_refs JSONB NOT NULL DEFAULT '[]',
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN (
-        'pending', 'reviewed', 'approved', 'rejected', 'actioned'
-    )),
-    reviewed_at TIMESTAMPTZ,
-    reviewed_by UUID REFERENCES auth.users(id),
-    accountant_notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Notifications
-CREATE TABLE accountant_notifications (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES auth.users(id),
-    tenant_id TEXT NOT NULL,
-    priority TEXT NOT NULL CHECK (priority IN ('critical', 'high', 'medium', 'info')),
-    category TEXT NOT NULL,
-    title TEXT NOT NULL,
-    message TEXT NOT NULL,
-    finding_id UUID REFERENCES accountant_findings(id),
-    action_url TEXT,
-    read_at TIMESTAMPTZ,
-    dismissed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Client reports
-CREATE TABLE client_reports (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id UUID NOT NULL REFERENCES auth.users(id),
-    tenant_id TEXT NOT NULL,
-    report_type TEXT NOT NULL DEFAULT 'tax_opportunities',
-    title TEXT NOT NULL,
-    findings JSONB NOT NULL DEFAULT '[]', -- Array of finding IDs
-    customization JSONB NOT NULL DEFAULT '{}',
-    accountant_commentary TEXT,
-    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN (
-        'draft', 'reviewed', 'approved', 'sent'
-    )),
-    generated_pdf_url TEXT,
-    sent_at TIMESTAMPTZ,
-    sent_to TEXT[], -- Email addresses
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Confidence factors tracking
-CREATE TABLE confidence_factors (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    finding_id UUID NOT NULL REFERENCES accountant_findings(id),
-    factor_name TEXT NOT NULL,
-    impact INTEGER NOT NULL,
-    reasoning TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Indexes
-CREATE INDEX idx_findings_user_tenant ON accountant_findings(user_id, tenant_id);
-CREATE INDEX idx_findings_workflow_area ON accountant_findings(workflow_area);
-CREATE INDEX idx_findings_status ON accountant_findings(status);
-CREATE INDEX idx_notifications_user_unread ON accountant_notifications(user_id) WHERE read_at IS NULL;
-CREATE INDEX idx_reports_user_tenant ON client_reports(user_id, tenant_id);
-```
-
----
-
-## API Design
-
-### RESTful Endpoints
-
-```yaml
-# Findings
-GET    /api/accountant/findings                    # List all findings
-GET    /api/accountant/findings/:area              # Findings by area
-GET    /api/accountant/findings/:id                # Single finding
-POST   /api/accountant/findings/:id/review         # Review finding
-POST   /api/accountant/findings/:id/approve        # Approve finding
-POST   /api/accountant/findings/:id/reject         # Reject finding
-
-# Notifications
-GET    /api/accountant/notifications               # List notifications
-POST   /api/accountant/notifications/:id/read      # Mark as read
-POST   /api/accountant/notifications/:id/dismiss   # Dismiss notification
-GET    /api/accountant/notifications/unread-count  # Badge count
-
-# Reports
-GET    /api/accountant/reports                     # List reports
-POST   /api/accountant/reports                     # Create draft report
-GET    /api/accountant/reports/:id                 # Get report
-PUT    /api/accountant/reports/:id                 # Update report
-POST   /api/accountant/reports/:id/approve         # Approve for sending
-POST   /api/accountant/reports/:id/send            # Send to client
-
-# Confidence Scoring
-POST   /api/accountant/confidence-score            # Calculate confidence
-
-# Legislation References
-GET    /api/accountant/legislation/:section        # Get legislation details
-```
+Key table: `accountant_findings` — uses `organization_id` (UUID FK) for scoping, not `tenant_id`. Status enum: `pending | approved | rejected | deferred`.
 
 ---
 
@@ -403,40 +311,12 @@ GET    /api/accountant/legislation/:section        # Get legislation details
 | **State** | React Query + Context | Server state + local state |
 | **Database** | Supabase (PostgreSQL) | Existing, RLS support |
 | **AI Analysis** | Google Gemini 2.0 Flash | Existing, forensic analysis |
-| **PDF Generation** | Puppeteer | Existing, full control |
-| **Email** | Resend | Existing, reliable delivery |
 
 ---
 
 ## Risk Assessment
 
-### High Risk
-
-**Risk**: Accountants don't trust AI recommendations
-- **Mitigation**: Always show confidence scores, legislation references, and require explicit approval
-- **Mitigation**: Include "Review by qualified accountant required" disclaimers
-
-**Risk**: Incorrect tax advice leads to client penalties
-- **Mitigation**: System provides "intelligence" not "advice" - accountant is decision-maker
-- **Mitigation**: Tax agent validates all formulas and logic
-- **Mitigation**: Confidence scoring flags high-risk recommendations
-
-### Medium Risk
-
-**Risk**: Dashboard becomes "yet another tool to check"
-- **Mitigation**: Smart notifications for high-value findings (>$50K)
-- **Mitigation**: Email digests for weekly summary
-- **Mitigation**: Integration with existing workflow (Phase 2: Xero add-on)
-
-**Risk**: Report generation doesn't match accountant's style
-- **Mitigation**: Full customization options (tone, sections, branding)
-- **Mitigation**: Accountant can add commentary and edit findings
-
-### Low Risk
-
-**Risk**: Performance issues with large datasets
-- **Mitigation**: Pagination, lazy loading, caching
-- **Mitigation**: Background processing for analysis
+See [accountant-workflow-risk-assessment.md](../risk/accountant-workflow-risk-assessment.md) for the full risk assessment covering the implemented system.
 
 ---
 
@@ -447,8 +327,7 @@ GET    /api/accountant/legislation/:section        # Get legislation details
 | Dashboard Load Time | < 2s | User perception threshold |
 | Finding Retrieval | < 500ms | Feels instant |
 | Confidence Scoring | < 1s | Acceptable for calculation |
-| Report Generation | < 10s | Acceptable for complex task |
-| Notification Delivery | < 30s | Near real-time |
+| Findings Generation | < 30s | Batch processing of forensic results |
 
 ---
 
@@ -456,36 +335,38 @@ GET    /api/accountant/legislation/:section        # Get legislation details
 
 ### Positive
 
-✅ **Accountant Efficiency**: Faster identification of opportunities
-✅ **Client Value**: More deductions and credits claimed
-✅ **Risk Reduction**: Compliance monitoring prevents penalties
-✅ **Professional Authority**: Accountant remains decision-maker
-✅ **Scalability**: Dashboard can handle unlimited findings
-✅ **Extensibility**: Easy to add new workflow areas
+- **Accountant Efficiency**: Faster identification of opportunities
+- **Client Value**: More deductions and credits claimed
+- **Risk Reduction**: Compliance monitoring prevents penalties
+- **Professional Authority**: Accountant remains decision-maker
+- **Scalability**: Dashboard can handle unlimited findings
+- **Extensibility**: Easy to add new workflow areas
 
 ### Negative
 
-❌ **Learning Curve**: Accountants need to learn new interface
-❌ **Change Management**: Requires process adjustment
-❌ **Dependency**: Relies on accurate Xero data
+- **Learning Curve**: Accountants need to learn new interface
+- **Change Management**: Requires process adjustment
+- **Dependency**: Relies on accurate Xero data
 
 ---
 
 ## Future Enhancements (Out of Scope)
 
-**Phase 2** (if successful):
+**Phase 2** (Notification System):
+- In-app badge notifications for high-value findings
+- Email digest (daily/weekly, configurable)
+- Slack/Teams integration
+
+**Phase 3** (Report Generator):
+- PDF report generation
+- Accountant branding and customisation
+- Email delivery to clients
+
+**Phase 4** (if successful):
 - Xero Add-on integration (direct UI flags)
 - Mobile app for on-the-go review
-- Slack/Teams integration for notifications
 - AI chat assistant for questions
-- Multi-tenant agency view (supervising accountant)
-- Automated workflow triggers (e.g., auto-generate report weekly)
-
----
-
-## Implementation Plan
-
-See [ACCOUNTANT_WORKFLOW_ORCHESTRATION.md](../../ACCOUNTANT_WORKFLOW_ORCHESTRATION.md) for detailed implementation plan with 6 specialist tasks.
+- Multi-tenant agency view
 
 ---
 
@@ -493,12 +374,14 @@ See [ACCOUNTANT_WORKFLOW_ORCHESTRATION.md](../../ACCOUNTANT_WORKFLOW_ORCHESTRATI
 
 - [UNI-277: Parent Issue](https://linear.app/unite-hub/issue/UNI-277)
 - [UNI-278: Architecture & Design](https://linear.app/unite-hub/issue/UNI-278)
-- [ACCOUNTANT_WORKFLOW_ORCHESTRATION.md](../../ACCOUNTANT_WORKFLOW_ORCHESTRATION.md)
-- [SENIOR_PM_WORKFLOW.md](../../SENIOR_PM_WORKFLOW.md)
+- [OpenAPI Spec](../api-specs/accountant-workflow.yaml)
+- [System Diagrams](../diagrams/accountant-workflow-system.md)
+- [Database ERD](../diagrams/accountant-workflow-erd.md)
+- [Risk Assessment](../risk/accountant-workflow-risk-assessment.md)
 
 ---
 
-**Status**: Proposed → Ready for Implementation
-**Next Step**: Create OpenAPI specification (UNI-278 deliverable 2)
+**Status**: Accepted
 **Created By**: Specialist A (Architecture & Design)
 **Date**: 2026-01-30
+**Updated**: 2026-02-11 (synced with implementation per commit 927de1a)
