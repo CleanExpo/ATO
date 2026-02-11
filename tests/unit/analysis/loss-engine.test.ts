@@ -1,551 +1,461 @@
 /**
- * Tax Loss Engine Tests (Subdivision 36-A ITAA 1997)
+ * @vitest-environment node
  *
- * Tests for tax loss carry-forward analysis:
- * - Continuity of Ownership Test (COT)
- * - Same Business Test (SBT)
- * - Loss recoupment calculations
- * - Prior year loss tracking
- * - Business continuity assessment
+ * Loss Carry-Forward Optimization Engine Tests
+ *
+ * Tests for lib/analysis/loss-engine.ts
+ * - Division 36 ITAA 1997: Tax losses carried forward
+ * - Division 165 ITAA 1997: Company loss recoupment (COT/SBT)
+ * - Division 266/267 Schedule 2F ITAA 1936: Trust loss recoupment
+ * - s 102-5 ITAA 1997: Capital losses can ONLY offset capital gains
+ * - SBT transaction evidence enrichment (s 165-13 ITAA 1997)
  */
 
-import { describe, it, expect } from 'vitest'
-import { ValidatorMockFactory } from '@/tests/__mocks__/data/validator-fixtures'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// ---------------------------------------------------------------------------
+// Mocks — must be declared before any import that touches the mocked modules
+// ---------------------------------------------------------------------------
+
+vi.mock('@/lib/supabase/server', () => ({
+  createServiceClient: vi.fn(),
+}))
+
+vi.mock('@/lib/tax-data/cache-manager', () => ({
+  getCurrentTaxRates: vi.fn(),
+}))
+
+vi.mock('@/lib/utils/financial-year', () => ({
+  checkAmendmentPeriod: vi.fn(),
+}))
+
+vi.mock('@/lib/logger', () => ({
+  createLogger: vi.fn(() => ({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  })),
+}))
+
+// ---------------------------------------------------------------------------
+// Imports under test (after mocks)
+// ---------------------------------------------------------------------------
+
+import {
+  analyzeLossPosition,
+  calculateUnutilizedLossValue,
+  type LossSummary,
+  type EntityType,
+} from '@/lib/analysis/loss-engine'
+
+import { createServiceClient } from '@/lib/supabase/server'
+import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
+import { checkAmendmentPeriod } from '@/lib/utils/financial-year'
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const mockedCreateServiceClient = vi.mocked(createServiceClient)
+const mockedGetCurrentTaxRates = vi.mocked(getCurrentTaxRates)
+const mockedCheckAmendmentPeriod = vi.mocked(checkAmendmentPeriod)
+
+/**
+ * Build a minimal Supabase mock that supports the chained query interface
+ * used by fetchLossPositions and enrichSbtWithTransactionEvidence.
+ *
+ * @param historicalData - rows returned by `historical_transactions_cache` query
+ * @param forensicData  - rows returned by `forensic_analysis_results` query (SBT enrichment)
+ */
+function buildSupabaseMock(
+  historicalData: Array<{ financial_year: string; raw_data: Record<string, unknown> }> = [],
+  forensicData: Array<{ financial_year: string; primary_category: string | null; supplier_name: string | null }> = []
+) {
+  const historicalChain = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    gte: vi.fn().mockReturnThis(),
+    lte: vi.fn().mockReturnThis(),
+    then: undefined as unknown,
+  }
+  // Terminal await resolves to { data, error }
+  Object.defineProperty(historicalChain, 'then', {
+    get() {
+      return (resolve: (v: unknown) => void) => resolve({ data: historicalData, error: null })
+    },
+  })
+
+  const forensicChain = {
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    not: vi.fn().mockReturnThis(),
+    order: vi.fn().mockReturnThis(),
+    then: undefined as unknown,
+  }
+  Object.defineProperty(forensicChain, 'then', {
+    get() {
+      return (resolve: (v: unknown) => void) => resolve({ data: forensicData, error: null })
+    },
+  })
+
+  const from = vi.fn((table: string) => {
+    if (table === 'historical_transactions_cache') return historicalChain
+    if (table === 'forensic_analysis_results') return forensicChain
+    // Fallback — empty
+    return historicalChain
+  })
+
+  return { from }
+}
+
+function setupDefaultTaxRates() {
+  mockedGetCurrentTaxRates.mockResolvedValue({
+    corporateTaxRateSmall: 0.25,
+    corporateTaxRateStandard: 0.30,
+    sources: { corporateTax: 'ATO_LIVE_TEST' },
+    cacheHit: true,
+  } as any)
+}
+
+// ---------------------------------------------------------------------------
+// Test Suite
+// ---------------------------------------------------------------------------
 
 describe('LossEngine', () => {
-  describe('Continuity of Ownership Test (COT)', () => {
-    it('should pass COT when ownership unchanged for entire loss year', () => {
-      const ownership = {
-        lossYear: 'FY2022-23',
-        testPeriod: {
-          start: new Date('2022-07-01'),
-          end: new Date('2023-06-30'),
-        },
-        shareholding: [
-          { shareholder: 'John Smith', percentage: 60, period: 'entire year' },
-          { shareholder: 'Jane Doe', percentage: 40, period: 'entire year' },
-        ],
-      }
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setupDefaultTaxRates()
+    mockedCheckAmendmentPeriod.mockReturnValue(undefined)
+  })
 
-      // COT requires > 50% ownership maintained throughout test period
-      const majorityHolder = ownership.shareholding.find(sh => sh.percentage > 50)
-      const cotPassed = majorityHolder?.period === 'entire year'
+  // =========================================================================
+  // analyzeLossPosition
+  // =========================================================================
 
-      expect(cotPassed).toBe(true)
+  describe('analyzeLossPosition', () => {
+    it('returns a valid LossSummary structure when Supabase returns loss data', async () => {
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2022-23', raw_data: { Type: 'ACCREC', Total: '50000' } },
+        { financial_year: 'FY2022-23', raw_data: { Type: 'ACCPAY', Total: '-80000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
+
+      const result: LossSummary = await analyzeLossPosition('tenant-1')
+
+      // Structure checks — all LossSummary properties present
+      expect(result).toHaveProperty('totalAvailableLosses')
+      expect(result).toHaveProperty('totalUtilizedLosses')
+      expect(result).toHaveProperty('totalExpiredLosses')
+      expect(result).toHaveProperty('totalFutureTaxValue')
+      expect(result).toHaveProperty('revenueLosses')
+      expect(result).toHaveProperty('capitalLosses')
+      expect(result).toHaveProperty('lossesByYear')
+      expect(result).toHaveProperty('utilizationRate')
+      expect(result).toHaveProperty('averageRiskLevel')
+      expect(result).toHaveProperty('optimizationOpportunities')
+      expect(result).toHaveProperty('lossHistory')
+      expect(result).toHaveProperty('taxRateSource')
+      expect(result).toHaveProperty('taxRateVerifiedAt')
     })
 
-    it('should fail COT when majority ownership changes', () => {
-      const ownership = {
-        lossYear: 'FY2022-23',
-        ownershipChange: {
-          date: new Date('2023-01-15'),
-          description: 'Sale of 60% shares to new investor',
-        },
-        beforeChange: [
-          { shareholder: 'Original Owner', percentage: 60 },
-        ],
-        afterChange: [
-          { shareholder: 'New Investor', percentage: 60 },
-        ],
-      }
+    it('returns an empty summary when no data exists', async () => {
+      const supabase = buildSupabaseMock([])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      // Ownership change occurred during test period
-      const cotPassed = false // Majority ownership changed
+      const result = await analyzeLossPosition('tenant-empty')
 
-      expect(cotPassed).toBe(false)
+      expect(result.totalAvailableLosses).toBe(0)
+      expect(result.totalUtilizedLosses).toBe(0)
+      expect(result.totalExpiredLosses).toBe(0)
+      expect(result.totalFutureTaxValue).toBe(0)
+      expect(result.revenueLosses).toBe(0)
+      expect(result.capitalLosses).toBe(0)
+      expect(result.lossHistory).toHaveLength(0)
+      expect(result.utilizationRate).toBe(0)
+      expect(result.averageRiskLevel).toBe('low')
+      expect(result.taxRateSource).toBe('none')
     })
 
-    it('should allow minor ownership changes under 50% threshold', () => {
-      const ownership = {
-        shareholding: [
-          { shareholder: 'Majority Owner', percentage: 70, stable: true },
-          { shareholder: 'Minor Investor A', percentage: 15 },
-          { shareholder: 'Minor Investor B', percentage: 15 },
-        ],
-      }
+    it('classifies losses as revenue by default (lossType field)', async () => {
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCREC', Total: '10000' } },
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCPAY', Total: '-50000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      // Minor investors changed, but majority owner (70%) unchanged
-      const majorityStable = ownership.shareholding.find(sh => sh.percentage > 50)?.stable
+      const result = await analyzeLossPosition('tenant-rev')
 
-      expect(majorityStable).toBe(true)
-    })
-
-    it('should track beneficial ownership, not just legal ownership', () => {
-      const ownership = {
-        legalOwner: 'Trust ABC',
-        beneficialOwners: [
-          { name: 'John Smith', percentage: 60 },
-          { name: 'Jane Doe', percentage: 40 },
-        ],
-      }
-
-      // COT looks through trusts to beneficial ownership
-      const beneficialMajority = ownership.beneficialOwners.find(bo => bo.percentage > 50)
-
-      expect(beneficialMajority).toBeDefined()
-      expect(beneficialMajority?.percentage).toBe(60)
-    })
-
-    const cotScenarios = [
-      {
-        scenario: 'No ownership change',
-        ownershipStable: true,
-        cotPasses: true,
-      },
-      {
-        scenario: 'Sale of 51% shares',
-        ownershipStable: false,
-        cotPasses: false,
-      },
-      {
-        scenario: 'Death of majority shareholder',
-        ownershipStable: false,
-        cotPasses: false,
-      },
-      {
-        scenario: 'Share buyback maintaining proportions',
-        ownershipStable: true,
-        cotPasses: true,
-      },
-    ]
-
-    cotScenarios.forEach(({ scenario, ownershipStable, cotPasses }) => {
-      it(`should handle ${scenario}`, () => {
-        expect(ownershipStable).toBe(cotPasses)
+      // Every year in lossHistory should have lossType = 'revenue'
+      expect(result.lossHistory.length).toBeGreaterThan(0)
+      result.lossHistory.forEach((analysis) => {
+        expect(analysis.lossType).toBe('revenue')
       })
     })
-  })
 
-  describe('Same Business Test (SBT)', () => {
-    it('should pass SBT when business activities unchanged', () => {
-      const business = {
-        lossYearActivities: [
-          'Software development',
-          'IT consulting',
-          'Cloud infrastructure',
-        ],
-        currentActivities: [
-          'Software development',
-          'IT consulting',
-          'Cloud infrastructure',
-        ],
-      }
+    it('separates capital vs revenue losses in the summary (s 102-5)', async () => {
+      // The engine defaults all losses to 'revenue'; capital losses would only
+      // appear if the CGT engine classified them. With revenue-only defaults the
+      // capitalLosses field should be 0 and revenueLosses should hold the balance.
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2022-23', raw_data: { Type: 'ACCPAY', Total: '-100000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      const activitiesMatch = JSON.stringify(business.lossYearActivities.sort()) ===
-                              JSON.stringify(business.currentActivities.sort())
+      const result = await analyzeLossPosition('tenant-cap')
 
-      expect(activitiesMatch).toBe(true)
-    })
-
-    it('should fail SBT when business completely changes', () => {
-      const business = {
-        lossYearActivities: ['Software development'],
-        currentActivities: ['Property investment', 'Real estate sales'],
-      }
-
-      const activitiesOverlap = business.lossYearActivities.some(activity =>
-        business.currentActivities.includes(activity)
+      expect(result.capitalLosses).toBe(0)
+      expect(result.revenueLosses).toBeGreaterThan(0)
+      // Capital losses can ONLY offset capital gains (s 102-5 ITAA 1997).
+      // Since engine default is revenue, capital offset path is not triggered.
+      expect(result.revenueLosses).toBe(
+        result.lossHistory[result.lossHistory.length - 1]?.closingLossBalance ?? 0
       )
-
-      expect(activitiesOverlap).toBe(false)
     })
 
-    it('should allow incremental business expansion', () => {
-      const business = {
-        lossYearActivities: [
-          'Software development',
-          'IT consulting',
-        ],
-        currentActivities: [
-          'Software development',
-          'IT consulting',
-          'Cloud infrastructure', // New but related
-        ],
-      }
+    it('revenue losses offset assessable income (Division 36)', async () => {
+      // Year 1: net loss  |  Year 2: net profit  => losses utilised
+      const supabase = buildSupabaseMock([
+        // FY2022-23: loss year
+        { financial_year: 'FY2022-23', raw_data: { Type: 'ACCREC', Total: '10000' } },
+        { financial_year: 'FY2022-23', raw_data: { Type: 'ACCPAY', Total: '-60000' } },
+        // FY2023-24: profit year
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCREC', Total: '100000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      // Original activities still present
-      const originalActivitiesContinue = business.lossYearActivities.every(activity =>
-        business.currentActivities.includes(activity)
-      )
+      const result = await analyzeLossPosition('tenant-rev-offset')
 
-      expect(originalActivitiesContinue).toBe(true)
+      // The loss from FY2022-23 should have been utilised against FY2023-24 profit
+      expect(result.totalUtilizedLosses).toBeGreaterThan(0)
+      expect(result.utilizationRate).toBeGreaterThan(0)
     })
 
-    it('should assess business assets and employees for continuity', () => {
-      const businessContinuity = {
-        assets: {
-          lossYear: ['Office building', 'Software licenses', 'Client contracts'],
-          current: ['Office building', 'Software licenses', 'Client contracts'],
-          retained: true,
-        },
-        employees: {
-          lossYear: ['John (CEO)', 'Jane (CTO)', '10 developers'],
-          current: ['John (CEO)', 'Jane (CTO)', '12 developers'],
-          keyPersonnelRetained: true,
-        },
-        customers: {
-          lossYear: ['Client A', 'Client B', 'Client C'],
-          current: ['Client A', 'Client B', 'Client C', 'Client D'],
-          existingClientsRetained: true,
-        },
-      }
+    it('returns COT/SBT analysis structure for company entities', async () => {
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCPAY', Total: '-50000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      const sbtFactorsPositive = businessContinuity.assets.retained &&
-                                 businessContinuity.employees.keyPersonnelRetained &&
-                                 businessContinuity.customers.existingClientsRetained
+      const result = await analyzeLossPosition('tenant-cot', undefined, undefined, 'company')
 
-      expect(sbtFactorsPositive).toBe(true)
+      const analysis = result.lossHistory[0]
+      expect(analysis).toBeDefined()
+
+      const cot = analysis.cotSbtAnalysis
+      expect(cot).toHaveProperty('cotSatisfied')
+      expect(cot).toHaveProperty('cotConfidence')
+      expect(cot).toHaveProperty('cotNotes')
+      expect(cot).toHaveProperty('sbtRequired')
+      expect(cot).toHaveProperty('sbtSatisfied')
+      expect(cot).toHaveProperty('sbtConfidence')
+      expect(cot).toHaveProperty('sbtNotes')
+      expect(cot).toHaveProperty('isEligibleForCarryforward')
+      expect(cot).toHaveProperty('professionalReviewRequired')
+      expect(cot).toHaveProperty('riskLevel')
+      // Company uses Division 165 => trustLossRule = 'not_applicable'
+      expect(cot.trustLossRule).toBe('not_applicable')
     })
 
-    const sbtScenarios = [
-      {
-        scenario: 'Expansion into related services',
-        businessChanged: false,
-        sbtPasses: true,
-      },
-      {
-        scenario: 'Complete pivot to unrelated industry',
-        businessChanged: true,
-        sbtPasses: false,
-      },
-      {
-        scenario: 'Scaling existing operations',
-        businessChanged: false,
-        sbtPasses: true,
-      },
-      {
-        scenario: 'Acquisition of competitor (same business)',
-        businessChanged: false,
-        sbtPasses: true,
-      },
-    ]
+    it('trust entities use Division 266/267 NOT Division 165 (A-9 compliance)', async () => {
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCPAY', Total: '-80000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-    sbtScenarios.forEach(({ scenario, businessChanged, sbtPasses }) => {
-      it(`should handle ${scenario}`, () => {
-        const result = !businessChanged
-        expect(result).toBe(sbtPasses)
-      })
-    })
-  })
+      const result = await analyzeLossPosition('tenant-trust', undefined, undefined, 'trust')
 
-  describe('Loss Recoupment Calculation', () => {
-    it('should deduct prior year losses from current year profit', () => {
-      const currentYear = {
-        taxableIncome: 150_000,
-        priorYearLosses: 80_000,
-      }
+      const analysis = result.lossHistory[0]
+      const cot = analysis.cotSbtAnalysis
 
-      const netTaxableIncome = currentYear.taxableIncome - currentYear.priorYearLosses
+      // Trust-specific fields
+      expect(cot.trustLossRule).toBe('division_266')
+      expect(cot).toHaveProperty('familyTrustElection')
+      expect(cot).toHaveProperty('trustNotes')
+      expect(Array.isArray(cot.trustNotes)).toBe(true)
 
-      expect(netTaxableIncome).toBe(70_000)
+      // COT confidence should be 0 for trusts (Division 165 does not apply)
+      expect(cot.cotConfidence).toBe(0)
+      expect(cot.sbtConfidence).toBe(0)
+
+      // Risk must be high (trust losses always high risk without deed analysis)
+      expect(cot.riskLevel).toBe('high')
+      expect(cot.professionalReviewRequired).toBe(true)
+
+      // Verify trust notes reference correct legislation
+      const allNotes = (cot.trustNotes ?? []).join(' ')
+      expect(allNotes).toContain('Division 266')
+      expect(allNotes).toContain('Division 267')
+      expect(allNotes).toContain('Schedule 2F')
+      expect(allNotes).not.toContain('Division 165 applies')
     })
 
-    it('should carry forward unused losses to future years', () => {
-      const currentYear = {
-        taxableIncome: 50_000,
-        priorYearLosses: 100_000,
-      }
-
-      const lossesUsed = Math.min(currentYear.taxableIncome, currentYear.priorYearLosses)
-      const lossesCarriedForward = currentYear.priorYearLosses - lossesUsed
-
-      expect(lossesUsed).toBe(50_000)
-      expect(lossesCarriedForward).toBe(50_000)
-    })
-
-    it('should apply losses in chronological order (FIFO)', () => {
-      const losses = [
-        { year: 'FY2020-21', amount: 30_000 },
-        { year: 'FY2021-22', amount: 40_000 },
-        { year: 'FY2022-23', amount: 20_000 },
+    it('enriches SBT analysis with transaction evidence when forensic data exists', async () => {
+      // Two financial years with overlapping expense categories
+      const historicalData = [
+        { financial_year: 'FY2022-23', raw_data: { Type: 'ACCPAY', Total: '-50000' } },
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCPAY', Total: '-60000' } },
       ]
-
-      const currentYearProfit = 50_000
-
-      let remainingProfit = currentYearProfit
-      const lossesApplied = []
-
-      for (const loss of losses) {
-        if (remainingProfit <= 0) break
-
-        const lossUsed = Math.min(remainingProfit, loss.amount)
-        lossesApplied.push({ year: loss.year, amount: lossUsed })
-        remainingProfit -= lossUsed
-      }
-
-      expect(lossesApplied).toHaveLength(2)
-      expect(lossesApplied[0]).toEqual({ year: 'FY2020-21', amount: 30_000 })
-      expect(lossesApplied[1]).toEqual({ year: 'FY2021-22', amount: 20_000 })
-      expect(remainingProfit).toBe(0)
-    })
-
-    it('should calculate tax savings from loss recoupment', () => {
-      const scenario = {
-        profitWithoutLosses: 100_000,
-        priorYearLosses: 60_000,
-        corporateTaxRate: 0.30, // 30%
-      }
-
-      const taxableIncomeWithLosses = scenario.profitWithoutLosses - scenario.priorYearLosses
-      const taxWithLosses = taxableIncomeWithLosses * scenario.corporateTaxRate
-
-      const taxWithoutLosses = scenario.profitWithoutLosses * scenario.corporateTaxRate
-      const taxSavings = taxWithoutLosses - taxWithLosses
-
-      expect(taxableIncomeWithLosses).toBe(40_000)
-      expect(taxSavings).toBe(18_000) // $60k loss × 30% = $18k saved
-    })
-  })
-
-  describe('Multi-Year Loss Tracking', () => {
-    it('should track losses across multiple years', () => {
-      interface YearlyResults {
-        year: string
-        profit: number
-        lossCarriedForward: number
-      }
-
-      const yearlyResults: YearlyResults[] = [
-        { year: 'FY2020-21', profit: -50_000, lossCarriedForward: 50_000 },
-        { year: 'FY2021-22', profit: -30_000, lossCarriedForward: 80_000 },
-        { year: 'FY2022-23', profit: 40_000, lossCarriedForward: 40_000 },
-        { year: 'FY2023-24', profit: 60_000, lossCarriedForward: 0 },
+      const forensicData = [
+        // FY2022-23 categories
+        { financial_year: 'FY2022-23', primary_category: 'Office Supplies', supplier_name: 'Officeworks' },
+        { financial_year: 'FY2022-23', primary_category: 'IT Services', supplier_name: 'AWS' },
+        { financial_year: 'FY2022-23', primary_category: 'Rent', supplier_name: 'Landlord Pty Ltd' },
+        // FY2023-24 categories (high overlap)
+        { financial_year: 'FY2023-24', primary_category: 'Office Supplies', supplier_name: 'Officeworks' },
+        { financial_year: 'FY2023-24', primary_category: 'IT Services', supplier_name: 'AWS' },
+        { financial_year: 'FY2023-24', primary_category: 'Rent', supplier_name: 'Landlord Pty Ltd' },
+        { financial_year: 'FY2023-24', primary_category: 'Marketing', supplier_name: 'Google Ads' },
       ]
+      const supabase = buildSupabaseMock(historicalData, forensicData)
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      // Verify cumulative loss tracking
-      expect(yearlyResults[0].lossCarriedForward).toBe(50_000)
-      expect(yearlyResults[1].lossCarriedForward).toBe(80_000) // 50k + 30k
-      expect(yearlyResults[2].lossCarriedForward).toBe(40_000) // 80k - 40k
-      expect(yearlyResults[3].lossCarriedForward).toBe(0) // 40k - 40k (fully recouped)
-    })
+      const result = await analyzeLossPosition('tenant-sbt', undefined, undefined, 'company')
 
-    it('should calculate total losses available for recoupment', () => {
-      const lossHistory = [
-        { year: 'FY2020-21', loss: 50_000, used: 0, remaining: 50_000 },
-        { year: 'FY2021-22', loss: 30_000, used: 0, remaining: 30_000 },
-        { year: 'FY2022-23', loss: 20_000, used: 0, remaining: 20_000 },
-      ]
+      // Find the FY2023-24 analysis which should have SBT enrichment
+      const fy2324 = result.lossHistory.find((a) => a.financialYear === 'FY2023-24')
+      expect(fy2324).toBeDefined()
 
-      const totalLossesAvailable = lossHistory.reduce((sum, entry) => sum + entry.remaining, 0)
-
-      expect(totalLossesAvailable).toBe(100_000)
-    })
-
-    it('should track partial loss utilization across years', () => {
-      const lossYear = {
-        year: 'FY2020-21',
-        originalLoss: 100_000,
-        utilizationHistory: [
-          { year: 'FY2021-22', used: 30_000 },
-          { year: 'FY2022-23', used: 40_000 },
-          { year: 'FY2023-24', used: 20_000 },
-        ],
+      const evidence = fy2324!.cotSbtAnalysis.sbtEvidence
+      if (evidence) {
+        expect(evidence).toHaveProperty('currentYearCategories')
+        expect(evidence).toHaveProperty('priorYearCategories')
+        expect(evidence).toHaveProperty('consistentCategories')
+        expect(evidence).toHaveProperty('consistencyRatio')
+        expect(evidence).toHaveProperty('recurringSuppliers')
+        expect(evidence).toHaveProperty('note')
+        // 3 of 4 total categories consistent => 75% ratio
+        expect(evidence.consistencyRatio).toBeGreaterThanOrEqual(0.7)
+        expect(evidence.recurringSuppliers).toContain('Officeworks')
+        expect(evidence.recurringSuppliers).toContain('AWS')
       }
+    })
 
-      const totalUsed = lossYear.utilizationHistory.reduce((sum, u) => sum + u.used, 0)
-      const remaining = lossYear.originalLoss - totalUsed
+    it('uses base rate entity tax rate (25%) when isBaseRateEntity is true', async () => {
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCPAY', Total: '-100000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      expect(totalUsed).toBe(90_000)
-      expect(remaining).toBe(10_000)
+      const result = await analyzeLossPosition('tenant-br', undefined, undefined, 'company', true)
+
+      // Future tax value should use 25% rate
+      const analysis = result.lossHistory[0]
+      // closingLossBalance * 0.25
+      const expectedFTV = Math.round(analysis.closingLossBalance * 0.25 * 100) / 100
+      expect(analysis.futureTaxValue).toBeCloseTo(expectedFTV, 2)
     })
   })
 
-  describe('Trust Loss Rules (Schedule 2F)', () => {
-    it('should require 50%+ stake for trust loss recoupment', () => {
-      const trust = {
-        type: 'discretionary',
-        beneficiaries: [
-          { name: 'John Smith', fixedEntitlement: 60 },
-          { name: 'Jane Doe', fixedEntitlement: 40 },
-        ],
-      }
+  // =========================================================================
+  // calculateUnutilizedLossValue
+  // =========================================================================
 
-      // For trust losses, need 50%+ fixed entitlement
-      const eligibleBeneficiary = trust.beneficiaries.find(b => b.fixedEntitlement > 50)
+  describe('calculateUnutilizedLossValue', () => {
+    it('returns the totalFutureTaxValue from analyzeLossPosition', async () => {
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCPAY', Total: '-200000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      expect(eligibleBeneficiary).toBeDefined()
-      expect(eligibleBeneficiary?.fixedEntitlement).toBe(60)
+      const value = await calculateUnutilizedLossValue('tenant-val', 'company')
+
+      // Should be closingLossBalance * 0.30 (standard rate)
+      expect(value).toBeGreaterThan(0)
+      // 200000 * 0.30 = 60000
+      expect(value).toBeCloseTo(60000, 2)
     })
 
-    it('should prevent loss streaming to tax-exempt entities', () => {
-      const distribution = {
-        loss: 50_000,
-        proposedBeneficiary: {
-          name: 'Charity Foundation',
-          taxExempt: true,
-        },
-      }
+    it('returns 0 when there are no losses', async () => {
+      const supabase = buildSupabaseMock([])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      // Cannot stream losses to tax-exempt beneficiaries
-      const canStreamLoss = !distribution.proposedBeneficiary.taxExempt
+      const value = await calculateUnutilizedLossValue('tenant-none')
 
-      expect(canStreamLoss).toBe(false)
-    })
-
-    it('should apply family trust election for trust losses', () => {
-      const trust = {
-        hasFamilyTrustElection: true,
-        familyGroup: ['John Smith', 'Jane Smith', 'Children'],
-        outsideBeneficiary: 'Unrelated Party',
-      }
-
-      // Family trust election restricts distributions to family group
-      const canDistributeToOutsider = !trust.hasFamilyTrustElection
-
-      expect(canDistributeToOutsider).toBe(false)
+      expect(value).toBe(0)
     })
   })
 
-  describe('Loss Integrity Rules', () => {
-    it('should prevent loss trafficking (Section 175-10)', () => {
-      const transaction = {
-        description: 'Acquisition of loss company',
-        lossCompany: {
-          losses: 500_000,
-          netAssets: 100_000, // Losses exceed net assets significantly
-        },
-        purchasePrice: 150_000,
-        primaryPurpose: 'acquire_losses', // Red flag
-      }
-
-      // Loss trafficking indicators
-      const lossesExceedAssets = transaction.lossCompany.losses > transaction.lossCompany.netAssets * 2
-      const suspiciousPurpose = transaction.primaryPurpose === 'acquire_losses'
-
-      const isLossTrafficking = lossesExceedAssets && suspiciousPurpose
-
-      expect(isLossTrafficking).toBe(true)
-    })
-
-    it('should apply commercial debt forgiveness (Section 245-35)', () => {
-      const debtForgiveness = {
-        originalDebt: 200_000,
-        amountForgiven: 150_000,
-        priorYearLosses: 100_000,
-      }
-
-      // Commercial debt forgiveness reduces prior year losses first
-      const lossReduction = Math.min(debtForgiveness.amountForgiven, debtForgiveness.priorYearLosses)
-      const remainingLosses = debtForgiveness.priorYearLosses - lossReduction
-
-      expect(lossReduction).toBe(100_000)
-      expect(remainingLosses).toBe(0)
-    })
-  })
-
-  describe('Integration with Mock Data', () => {
-    it('should validate loss calculations with validator', () => {
-      const result = ValidatorMockFactory.lossResult(true, {
-        lossYear: 'FY2022-23',
-        lossAmount: 80_000,
-        cotPassed: true,
-        sbtPassed: true,
-      } as any)
-
-      expect(result.passed).toBe(true)
-      expect(result.confidence).toBeGreaterThan(85)
-    })
-
-    it('should flag COT/SBT failures', () => {
-      const result = ValidatorMockFactory.lossResult(false, {
-        lossYear: 'FY2022-23',
-        lossAmount: 80_000,
-        cotPassed: false,
-        sbtPassed: false,
-      } as any)
-
-      expect(result.passed).toBe(false)
-      expect(result.issues.length).toBeGreaterThan(0)
-      expect(result.issues).toContain('COT failed - ownership change detected')
-    })
-  })
+  // =========================================================================
+  // Edge Cases
+  // =========================================================================
 
   describe('Edge Cases', () => {
-    it('should handle zero losses', () => {
-      const year = {
-        taxableIncome: 100_000,
-        priorYearLosses: 0,
-      }
+    it('handles zero losses (profit-only scenario)', async () => {
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCREC', Total: '100000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      const netIncome = year.taxableIncome - year.priorYearLosses
+      const result = await analyzeLossPosition('tenant-zero')
 
-      expect(netIncome).toBe(100_000)
+      // No losses incurred — closingLossBalance should be 0
+      expect(result.totalAvailableLosses).toBe(0)
+      expect(result.totalFutureTaxValue).toBe(0)
+      expect(result.lossHistory.length).toBeGreaterThan(0)
+      const fy = result.lossHistory[0]
+      expect(fy.closingLossBalance).toBe(0)
+      expect(fy.currentYearLoss).toBe(0)
+      // LossAnalysis doesn't carry currentYearProfit; verify via futureTaxValue = 0
+      expect(fy.futureTaxValue).toBe(0)
+      expect(fy.openingLossBalance).toBe(0)
     })
 
-    it('should handle very old losses (no time limit)', () => {
-      const loss = {
-        year: 'FY2010-11', // 13 years old
-        amount: 50_000,
-        cotMaintained: true,
-      }
+    it('handles mixed capital and revenue losses across years', async () => {
+      // Since the engine defaults all losses to 'revenue', mixed classification
+      // relies on external CGT engine. Verify summary correctly aggregates.
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2022-23', raw_data: { Type: 'ACCPAY', Total: '-40000' } },
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCPAY', Total: '-60000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      // Australian tax losses have no expiry if COT maintained
-      const canUse = loss.cotMaintained
+      const result = await analyzeLossPosition('tenant-mix')
 
-      expect(canUse).toBe(true)
+      // Both years default to revenue, so capitalLosses stays 0
+      expect(result.capitalLosses).toBe(0)
+      expect(result.revenueLosses).toBeGreaterThan(0)
+      // Verify two separate years are tracked
+      expect(Object.keys(result.lossesByYear)).toHaveLength(2)
+      expect(result.lossesByYear).toHaveProperty('FY2022-23')
+      expect(result.lossesByYear).toHaveProperty('FY2023-24')
     })
 
-    it('should handle losses exceeding current year profit', () => {
-      const scenario = {
-        currentProfit: 30_000,
-        priorLosses: 100_000,
-      }
+    it('includes amendment period warnings on old financial years', async () => {
+      const warningMessage =
+        'FY2020-21: Outside the standard 4-year amendment period for companies/trusts (s 170 TAA 1953).'
+      mockedCheckAmendmentPeriod.mockReturnValue(warningMessage)
 
-      const taxableIncome = Math.max(0, scenario.currentProfit - scenario.priorLosses)
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2020-21', raw_data: { Type: 'ACCPAY', Total: '-50000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      expect(taxableIncome).toBe(0)
+      const result = await analyzeLossPosition('tenant-old', undefined, undefined, 'company')
+
+      // The amendment period warning should flow through to recommendations
+      expect(mockedCheckAmendmentPeriod).toHaveBeenCalled()
+      const analysis = result.lossHistory[0]
+      const amendmentRec = analysis.recommendations.find((r) => r.includes('AMENDMENT PERIOD'))
+      expect(amendmentRec).toBeDefined()
+      expect(amendmentRec).toContain(warningMessage)
     })
 
-    it('should handle company restructures and demergers', () => {
-      const restructure = {
-        type: 'demerger',
-        originalCompany: 'Parent Co',
-        newEntity: 'Demerged Co',
-        lossAllocation: {
-          parent: 60_000,
-          demerged: 40_000,
-        },
-      }
+    it('falls back to hardcoded rates when getCurrentTaxRates throws', async () => {
+      mockedGetCurrentTaxRates.mockRejectedValue(new Error('Cache unavailable'))
 
-      const totalLosses = restructure.lossAllocation.parent + restructure.lossAllocation.demerged
+      const supabase = buildSupabaseMock([
+        { financial_year: 'FY2023-24', raw_data: { Type: 'ACCPAY', Total: '-100000' } },
+      ])
+      mockedCreateServiceClient.mockResolvedValue(supabase as any)
 
-      expect(totalLosses).toBe(100_000)
-    })
-  })
+      // Should not throw — falls back to 30% hardcoded rate
+      const result = await analyzeLossPosition('tenant-fallback', undefined, undefined, 'company')
 
-  describe('Reporting and Documentation', () => {
-    it('should require Schedule 36 for loss recoupment', () => {
-      const taxReturn = {
-        hasSchedule36: true,
-        lossDetails: {
-          currentYearLoss: 0,
-          priorYearLosses: 80_000,
-          lossesApplied: 50_000,
-          lossesCarriedForward: 30_000,
-        },
-      }
-
-      expect(taxReturn.hasSchedule36).toBe(true)
-      expect(taxReturn.lossDetails.lossesApplied + taxReturn.lossDetails.lossesCarriedForward)
-        .toBe(taxReturn.lossDetails.priorYearLosses)
-    })
-
-    it('should document COT/SBT compliance', () => {
-      const documentation = {
-        cotEvidence: [
-          'Share register for loss year',
-          'Share register for current year',
-          'Statutory declarations from shareholders',
-        ],
-        sbtEvidence: [
-          'Business activity statements',
-          'Customer contracts',
-          'Asset register',
-        ],
-      }
-
-      expect(documentation.cotEvidence.length).toBeGreaterThan(0)
-      expect(documentation.sbtEvidence.length).toBeGreaterThan(0)
+      expect(result.lossHistory.length).toBeGreaterThan(0)
+      const analysis = result.lossHistory[0]
+      // Future tax value at fallback 30%: 100000 * 0.30 = 30000
+      expect(analysis.futureTaxValue).toBeCloseTo(30000, 2)
     })
   })
 })
