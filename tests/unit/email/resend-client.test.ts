@@ -10,20 +10,22 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Set API key before importing the module so getResendInstance() does not throw
-process.env.RESEND_API_KEY = 'test-key-for-unit-tests';
+// Set API key before importing the module so ensureSendGridInit() does not throw
+process.env.SENDGRID_API_KEY = 'test-key-for-unit-tests';
 
-// Mock the Resend client
-vi.mock('resend', () => {
+// Mock the SendGrid client (resend-client.ts actually uses @sendgrid/mail)
+vi.mock('@sendgrid/mail', () => {
   return {
-    Resend: vi.fn().mockImplementation(() => ({
-      emails: {
-        send: vi.fn().mockResolvedValue({
-          data: { id: 'mock-email-id-123' },
-          error: null,
-        }),
-      },
-    })),
+    default: {
+      setApiKey: vi.fn(),
+      send: vi.fn().mockResolvedValue([
+        {
+          statusCode: 202,
+          headers: { 'x-message-id': 'mock-email-id-123' },
+          body: '',
+        },
+      ]),
+    },
   };
 });
 

@@ -7,6 +7,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
+// Mock next/server's after() which requires a request scope
+vi.mock('next/server', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('next/server')>()
+  return {
+    ...actual,
+    after: vi.fn((fn: () => void) => { /* no-op in tests */ }),
+  }
+})
+
 // Enable single-user mode so requireAuth is bypassed
 vi.mock('@/lib/auth/single-user-check', () => ({
   isSingleUserMode: vi.fn(() => true)
@@ -26,11 +35,25 @@ function createChainableMock(resolvedValue: any) {
 
 // Mock Supabase with proper chaining
 vi.mock('@/lib/supabase/server', () => ({
-  createServiceClient: vi.fn(() => ({
-    from: vi.fn(() => createChainableMock({
-      data: { id: 'test-id', tenant_id: 'test-tenant', sync_status: 'idle', transactions_synced: 0, total_transactions: 0 },
-      error: null
-    }))
+  createServiceClient: vi.fn(() =>
+    Promise.resolve({
+      from: vi.fn(() => createChainableMock({
+        data: { id: 'test-id', tenant_id: 'test-tenant', sync_status: 'idle', transactions_synced: 0, total_transactions: 0 },
+        error: null
+      }))
+    })
+  ),
+  createAdminClient: vi.fn(() => ({
+    from: vi.fn(() => {
+      const chain: any = {}
+      chain.select = vi.fn(() => chain)
+      chain.eq = vi.fn(() => chain)
+      chain.is = vi.fn(() => chain)
+      chain.update = vi.fn(() => chain)
+      chain.then = (resolve: (val: any) => void) =>
+        Promise.resolve({ count: 5, error: null }).then(resolve)
+      return chain
+    })
   }))
 }))
 

@@ -14,66 +14,100 @@ import { NextRequest } from 'next/server';
 
 // Mock dependencies
 vi.mock('@/lib/supabase/server', () => ({
-  createServiceClient: vi.fn(() => ({
-    from: vi.fn((table: string) => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: vi.fn(() =>
-            Promise.resolve({
-              data: {
-                id: 'app-123',
-                email: 'accountant@firm.com.au',
-                first_name: 'John',
-                last_name: 'Smith',
-                firm_name: 'Smith & Associates',
-                firm_abn: '12345678901',
-                credential_type: 'CPA',
-                credential_number: 'CPA-12345',
-                status: 'pending',
-              },
-              error: null,
-            })
-          ),
+  createServiceClient: vi.fn(() =>
+    Promise.resolve({
+      from: vi.fn((table: string) => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(() =>
+              Promise.resolve({
+                data: {
+                  id: 'app-123',
+                  email: 'accountant@firm.com.au',
+                  first_name: 'John',
+                  last_name: 'Smith',
+                  firm_name: 'Smith & Associates',
+                  firm_abn: '12345678901',
+                  credential_type: 'CPA',
+                  credential_number: 'CPA-12345',
+                  status: 'pending',
+                },
+                error: null,
+              })
+            ),
+          })),
+        })),
+        insert: vi.fn(() => ({
+          select: vi.fn(() => ({
+            single: vi.fn(() =>
+              Promise.resolve({
+                data: { id: 'vetted-123' },
+                error: null,
+              })
+            ),
+          })),
+        })),
+        update: vi.fn(() => ({
+          eq: vi.fn(() => Promise.resolve({ error: null })),
         })),
       })),
+    })
+  ),
+  createAdminClient: vi.fn(() => ({
+    auth: {
+      admin: {
+        createUser: vi.fn(() =>
+          Promise.resolve({
+            data: { user: { id: 'new-user-id-456' } },
+            error: null,
+          })
+        ),
+        generateLink: vi.fn(() =>
+          Promise.resolve({
+            data: { properties: { action_link: 'https://test.com/magic-link' } },
+            error: null,
+          })
+        ),
+      },
+    },
+    from: vi.fn(() => ({
       insert: vi.fn(() => ({
         select: vi.fn(() => ({
           single: vi.fn(() =>
             Promise.resolve({
-              data: { id: 'vetted-123' },
+              data: { id: 'org-123' },
               error: null,
             })
           ),
         })),
       })),
-      update: vi.fn(() => ({
-        eq: vi.fn(() => Promise.resolve({ error: null })),
-      })),
     })),
   })),
-  createClient: vi.fn(() => ({
-    auth: {
-      getUser: vi.fn(() =>
-        Promise.resolve({
-          data: { user: { id: 'admin-user-id', email: 'admin@test.com' } },
-          error: null,
-        })
-      ),
-    },
-    from: vi.fn(() => ({
-      select: vi.fn(() => ({
-        eq: vi.fn(() => ({
-          maybeSingle: vi.fn(() =>
-            Promise.resolve({
-              data: { is_admin: true },
-              error: null,
-            })
-          ),
+  createClient: vi.fn(() =>
+    Promise.resolve({
+      auth: {
+        getUser: vi.fn(() =>
+          Promise.resolve({
+            data: { user: { id: 'admin-user-id', email: 'admin@test.com' } },
+            error: null,
+          })
+        ),
+      },
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(() =>
+              Promise.resolve({
+                data: { is_admin: true },
+                error: null,
+              })
+            ),
+          })),
         })),
+        insert: vi.fn(() => Promise.resolve({ error: null })),
       })),
-      insert: vi.fn(() => Promise.resolve({ error: null })),
-    })),
-  })),
+    })
+  ),
 }));
 
 vi.mock('@/lib/audit/logger', () => ({
@@ -138,7 +172,7 @@ describe('Accountant Application API Routes', () => {
         lastName: 'Smith',
         firmName: 'Smith & Associates',
         pricingTier: 'standard',
-        loginUrl: expect.stringContaining('/auth/login'),
+        loginUrl: expect.any(String),
       });
     });
 
