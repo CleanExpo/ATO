@@ -209,7 +209,7 @@ export class TaxDataFreshnessAgent extends Agent {
         'https://r.jina.ai/https://www.ato.gov.au/business/depreciation-and-capital-expenses-and-allowances/simpler-depreciation-for-small-business/instant-asset-write-off',
         {
           headers: {
-            'Authorization': 'Bearer jina_c016fb6c12c1444c98737d7e9f70966eNpogql_hauwHSi3Ta2KPptcvhXLc'
+            'Authorization': `Bearer ${process.env.JINA_API_KEY}`
           }
         }
       )

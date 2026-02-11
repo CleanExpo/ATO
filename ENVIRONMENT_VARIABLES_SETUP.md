@@ -142,7 +142,7 @@ Environments: ✅ Preview + Development
 
 **JINA_API_KEY**
 ```
-jina_c016fb6c12c1444c98737d7e9f70966eNpogql_hauwHSi3Ta2KPptcvhXLc
+$JINA_API_KEY
 ```
 Environments: ✅ All 3
 
