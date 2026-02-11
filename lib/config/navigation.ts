@@ -77,8 +77,8 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Accountant',
     icon: 'Briefcase',
     matchPaths: ['/dashboard/accountant'],
-    showInMobile: false, // Not useful without data pipeline
-    showInDesktop: false, // Hardcoded 0 findings, no data pipeline
+    showInMobile: false, // Desktop-oriented workflow
+    showInDesktop: true,
   },
   {
     href: '/dashboard/tax-reporting',
