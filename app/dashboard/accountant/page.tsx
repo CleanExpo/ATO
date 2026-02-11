@@ -25,6 +25,7 @@ import {
   TrendingUp,
   Loader2,
   Zap,
+  Download,
 } from 'lucide-react'
 
 type WorkflowAreaId = 'sundries' | 'deductions' | 'fbt' | 'div7a' | 'documents' | 'reconciliation'
@@ -116,6 +117,10 @@ export default function AccountantWorkflowPage() {
     highValue: 0,
     avgConfidence: 0,
   })
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [showExportOptions, setShowExportOptions] = useState(false)
+  const [exportStatuses, setExportStatuses] = useState<string[]>(['approved'])
 
   // Resolve tenantId from URL param or first Xero connection
   useEffect(() => {
@@ -207,6 +212,49 @@ export default function AccountantWorkflowPage() {
       setGenerateError(err instanceof Error ? err.message : 'Network error')
     } finally {
       setGenerating(false)
+    }
+  }
+
+  async function handleExport() {
+    if (!tenantId) return
+
+    setExporting(true)
+    setExportError(null)
+
+    try {
+      const response = await fetch('/api/accountant/reports/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId,
+          format: 'excel',
+          statuses: exportStatuses,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        setExportError(data.error || 'Failed to generate report')
+        return
+      }
+
+      // Download the file
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const disposition = response.headers.get('Content-Disposition')
+      const filename = disposition?.match(/filename="(.+)"/)?.[1] || 'accountant-report.xlsx'
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+      setShowExportOptions(false)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : 'Network error')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -349,6 +397,102 @@ export default function AccountantWorkflowPage() {
                 )}
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* Export Report */}
+      <div
+        className="p-6 rounded-2xl"
+        style={{
+          background: 'var(--void-elevated)',
+          border: '1px solid var(--glass-border)',
+        }}
+      >
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h3 className="text-lg font-light text-white/90 mb-2">
+              Export Findings Report
+            </h3>
+            <p className="text-sm text-white/60 max-w-xl">
+              Generate an Excel report from your reviewed findings. Includes summary, detail, and legislation reference sheets.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!showExportOptions ? (
+              <button
+                onClick={() => setShowExportOptions(true)}
+                disabled={summary.total === 0}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  background: '#00FF00',
+                  color: '#000',
+                }}
+              >
+                <Download size={16} />
+                Export Report
+              </button>
+            ) : (
+              <div className="flex flex-col gap-3 w-full">
+                <div className="flex items-center gap-3 flex-wrap text-sm">
+                  <span className="text-white/60">Include:</span>
+                  {(['approved', 'pending', 'rejected', 'deferred'] as const).map((status) => (
+                    <label key={status} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={exportStatuses.includes(status)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setExportStatuses((prev) => [...prev, status])
+                          } else {
+                            setExportStatuses((prev) => prev.filter((s) => s !== status))
+                          }
+                        }}
+                        className="rounded"
+                      />
+                      <span className="text-white/70 capitalize">{status}</span>
+                    </label>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleExport}
+                    disabled={exporting || exportStatuses.length === 0}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    style={{
+                      background: exporting ? 'var(--glass-border)' : '#00FF00',
+                      color: exporting ? 'var(--text-secondary)' : '#000',
+                    }}
+                  >
+                    {exporting ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={14} />
+                        Download Excel
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={() => setShowExportOptions(false)}
+                    className="px-4 py-2 rounded-xl text-sm text-white/40 hover:text-white/70 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {exportError && (
+          <div className="mt-4 p-3 rounded-xl text-sm text-[#F87171]" style={{ background: 'rgba(248, 113, 113, 0.1)' }}>
+            {exportError}
           </div>
         )}
       </div>

@@ -18,6 +18,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
+import { after } from 'next/server'
 import { createErrorResponse, createValidationError } from '@/lib/api/errors'
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
@@ -87,6 +88,57 @@ export async function POST(request: NextRequest) {
     )
 
     const total = result.created + result.skipped
+
+    // Create notifications for high-value and compliance findings in background
+    if (result.created > 0 && !isSingleUserMode()) {
+      after(async () => {
+        try {
+          const adminClient = createAdminClient()
+
+          // Query recently created high-value or compliance findings
+          const { data: notifiableFindings } = await adminClient
+            .from('accountant_findings')
+            .select('id, workflow_area, description, estimated_benefit, tenant_id')
+            .eq('tenant_id', validatedTenantId)
+            .eq('status', 'pending')
+            .or('estimated_benefit.gte.50000,workflow_area.eq.div7a')
+            .order('created_at', { ascending: false })
+            .limit(20)
+
+          if (!notifiableFindings || notifiableFindings.length === 0) return
+
+          // Find a user associated with this tenant for notification FK
+          const { data: access } = await adminClient
+            .from('user_tenant_access')
+            .select('user_id')
+            .eq('tenant_id', validatedTenantId)
+            .limit(1)
+            .single()
+
+          if (!access?.user_id) return
+
+          for (const finding of notifiableFindings) {
+            const isHighValue = (finding.estimated_benefit ?? 0) >= 50000
+
+            const type = isHighValue ? 'high_value_finding' : 'compliance_risk'
+            const title = isHighValue
+              ? `High-Value Finding: $${(finding.estimated_benefit ?? 0).toLocaleString()}`
+              : `Compliance Risk: Division 7A`
+
+            await adminClient.from('notifications').insert({
+              user_id: access.user_id,
+              type,
+              title,
+              message: finding.description?.substring(0, 200) || 'New finding requires review',
+              action_url: `/dashboard/accountant/${finding.workflow_area}`,
+              metadata: { finding_id: finding.id, estimated_benefit: finding.estimated_benefit },
+            })
+          }
+        } catch (notifyError) {
+          console.error('Failed to create finding notifications:', notifyError)
+        }
+      })
+    }
 
     return NextResponse.json({
       status: 'complete',

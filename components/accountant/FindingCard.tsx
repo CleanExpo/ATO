@@ -16,7 +16,7 @@ import { Check, X, Clock, ChevronDown, ChevronUp, DollarSign } from 'lucide-reac
 import { ConfidenceBadge } from './ConfidenceBadge'
 import { LegislationLink, LegislationBadge } from './LegislationLink'
 
-interface Finding {
+export interface Finding {
   id: string
   transactionId: string
   date: string
@@ -62,6 +62,8 @@ export function FindingCard({
 }: FindingCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [showRejectInput, setShowRejectInput] = useState(false)
+  const [rejectReason, setRejectReason] = useState('')
 
   const handleApprove = async () => {
     if (!onApprove) return
@@ -77,10 +79,15 @@ export function FindingCard({
 
   const handleReject = async () => {
     if (!onReject) return
-    const reason = prompt('Reason for rejection (optional):')
+    if (!showRejectInput) {
+      setShowRejectInput(true)
+      return
+    }
     setIsProcessing(true)
     try {
-      await onReject(finding.id, reason || '')
+      await onReject(finding.id, rejectReason)
+      setShowRejectInput(false)
+      setRejectReason('')
     } catch (error) {
       console.error('Failed to reject finding:', error)
     } finally {
@@ -248,7 +255,34 @@ export function FindingCard({
 
         {/* Approval Actions */}
         {finding.status === 'pending' && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {showRejectInput && (
+              <div className="flex items-center gap-2 w-full mb-2">
+                <input
+                  type="text"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Reason for rejection (optional)"
+                  className="flex-1 px-3 py-1.5 rounded-lg text-xs bg-transparent text-white/90 placeholder:text-white/30"
+                  style={{ border: '1px solid #FF008040' }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleReject() }}
+                />
+                <button
+                  onClick={handleReject}
+                  disabled={isProcessing}
+                  className="px-3 py-1.5 rounded-lg text-xs disabled:opacity-50"
+                  style={{ background: '#FF008030', color: '#FF0080' }}
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => { setShowRejectInput(false); setRejectReason('') }}
+                  className="px-3 py-1.5 rounded-lg text-xs text-white/40 hover:text-white/70"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
             <button
               onClick={handleDefer}
               disabled={isProcessing}

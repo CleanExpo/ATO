@@ -12,7 +12,7 @@ import {
   FileText,
   AlertTriangle,
 } from 'lucide-react'
-import { FindingCard } from '@/components/accountant/FindingCard'
+import { WorkflowFindings } from '@/components/accountant/WorkflowFindings'
 import { createServiceClient } from '@/lib/supabase/server'
 
 export const dynamic = 'force-dynamic'
@@ -85,138 +85,8 @@ export default async function SundriesWorkflowPage() {
         </div>
       </header>
 
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div
-          className="p-4 rounded-2xl"
-          style={{
-            background: 'var(--void-elevated)',
-            border: '1px solid var(--glass-border)',
-          }}
-        >
-          <div className="text-xs text-white/60 mb-1">Total Findings</div>
-          <div className="text-2xl font-light text-white/90">{findings.length}</div>
-        </div>
-
-        <div
-          className="p-4 rounded-2xl"
-          style={{
-            background: 'var(--void-elevated)',
-            border: '1px solid var(--glass-border)',
-          }}
-        >
-          <div className="text-xs text-white/60 mb-1">Pending Review</div>
-          <div className="text-2xl font-light text-white/90">
-            {findings.filter((f) => f.status === 'pending').length}
-          </div>
-        </div>
-
-        <div
-          className="p-4 rounded-2xl"
-          style={{
-            background: 'var(--void-elevated)',
-            border: '1px solid var(--glass-border)',
-          }}
-        >
-          <div className="text-xs text-white/60 mb-1">Approved</div>
-          <div className="text-2xl font-light text-white/90">
-            {findings.filter((f) => f.status === 'approved').length}
-          </div>
-        </div>
-
-        <div
-          className="p-4 rounded-2xl"
-          style={{
-            background: 'var(--void-elevated)',
-            border: '1px solid var(--glass-border)',
-          }}
-        >
-          <div className="text-xs text-white/60 mb-1">Estimated Benefit</div>
-          <div className="text-2xl font-light text-white/90">
-            ${findings.reduce((sum, f) => sum + (f.estimatedBenefit || 0), 0).toLocaleString()}
-          </div>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <button
-          className="px-4 py-2 rounded-xl text-sm transition-all"
-          style={{
-            background: 'var(--accent-primary)',
-            color: '#000',
-          }}
-        >
-          All Findings
-        </button>
-        <button
-          className="px-4 py-2 rounded-xl text-sm transition-all text-white/60 hover:text-white/90"
-          style={{
-            background: 'var(--void-elevated)',
-            border: '1px solid var(--glass-border)',
-          }}
-        >
-          High Confidence
-        </button>
-        <button
-          className="px-4 py-2 rounded-xl text-sm transition-all text-white/60 hover:text-white/90"
-          style={{
-            background: 'var(--void-elevated)',
-            border: '1px solid var(--glass-border)',
-          }}
-        >
-          Pending Review
-        </button>
-        <button
-          className="px-4 py-2 rounded-xl text-sm transition-all text-white/60 hover:text-white/90"
-          style={{
-            background: 'var(--void-elevated)',
-            border: '1px solid var(--glass-border)',
-          }}
-        >
-          High Value (&gt;$50K)
-        </button>
-      </div>
-
-      {/* Findings List */}
-      {findings.length === 0 ? (
-        <div
-          className="p-12 rounded-2xl text-center"
-          style={{
-            background: 'var(--void-elevated)',
-            border: '1px solid var(--glass-border)',
-          }}
-        >
-          <FileText className="w-12 h-12 text-white/20 mx-auto mb-4" />
-          <h3 className="text-lg font-light text-white/90 mb-2">
-            No Sundries Findings Yet
-          </h3>
-          <p className="text-sm text-white/60 mb-6 max-w-md mx-auto">
-            Run a forensic audit to analyze your Xero transactions and identify
-            miscellaneous items requiring classification.
-          </p>
-          <Link
-            href="/dashboard/forensic-audit"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all"
-            style={{
-              background: 'var(--accent-primary)',
-              color: '#000',
-            }}
-          >
-            Run Forensic Audit
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {findings.map((finding) => (
-            <FindingCard
-              key={finding.id}
-              finding={finding}
-              workflowArea="sundries"
-            />
-          ))}
-        </div>
-      )}
+      {/* Interactive Findings with filters + actions */}
+      <WorkflowFindings initialFindings={findings} workflowArea="sundries" />
 
       {/* Help Section */}
       <div
