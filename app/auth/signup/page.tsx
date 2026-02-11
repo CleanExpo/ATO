@@ -116,14 +116,14 @@ export default function SignupPage() {
             first_name: firstName,
             last_name: lastName,
           },
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm`,
         },
       })
 
       if (error) throw error
 
       // Show success message or redirect to verification page
-      router.push('/auth/verify-email')
+      router.push(`/auth/verify-email?email=${encodeURIComponent(email)}`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to sign up')
       setLoading(false)
