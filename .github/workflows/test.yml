@@ -155,3 +155,12 @@ jobs:
           name: playwright-results
           path: test-results/
           retention-days: 14
+
+      # Accessibility tests (axe-core) — runs against the same server as E2E tests
+      # To run locally: pnpm exec playwright test tests/e2e/accessibility.spec.ts
+      - name: Run accessibility tests (axe-core)
+        run: pnpm exec playwright test tests/e2e/accessibility.spec.ts --project=chromium
+        continue-on-error: true
+        env:
+          CI: true
+          PLAYWRIGHT_BASE_URL: http://localhost:3000

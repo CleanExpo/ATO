@@ -8,6 +8,9 @@ import { defineConfig, devices } from '@playwright/test'
  * - Xero connection flow
  * - Forensic audit analysis
  * - Dashboard navigation
+ *
+ * Mobile viewport tests are behind MOBILE_TESTS=true env flag.
+ * Run with: pnpm test:e2e:mobile
  */
 
 export default defineConfig({
@@ -84,16 +87,18 @@ export default defineConfig({
       },
     },
 
-    // Mobile browsers (optional - disabled by default for CI speed)
-    // Uncomment to test mobile viewports
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
+    // Mobile viewport projects — enabled via MOBILE_TESTS=true env var
+    // Run with: pnpm test:e2e:mobile
+    ...(process.env.MOBILE_TESTS === 'true' ? [
+      {
+        name: 'Mobile Chrome',
+        use: { ...devices['Pixel 5'] },
+      },
+      {
+        name: 'Mobile Safari',
+        use: { ...devices['iPhone 13'] },
+      },
+    ] : []),
   ],
 
   // Run your local dev server before starting the tests (disabled in CI)

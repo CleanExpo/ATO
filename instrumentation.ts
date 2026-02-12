@@ -2,17 +2,24 @@
  * Instrumentation Hook
  *
  * This file is called during Next.js initialization (server-side only).
- * It's used for startup validation and configuration checks.
+ * It's used for startup validation, configuration checks, and error tracking.
  *
  * Requires `experimental.instrumentationHook = true` in next.config.ts
  */
 
 export async function register() {
-    // Only run on Node.js runtime (server-side)
+    // Sentry server-side initialization (Node.js runtime)
     if (process.env.NEXT_RUNTIME === 'nodejs') {
-        // Error tracking (e.g. Sentry) not configured. Errors are logged to console and security_events table.
-        // To enable Sentry: install @sentry/nextjs, configure DSN, and call Sentry.init() here.
+        await import('./sentry.server.config');
+    }
 
+    // Sentry edge runtime initialization
+    if (process.env.NEXT_RUNTIME === 'edge') {
+        await import('./sentry.edge.config');
+    }
+
+    // Only run startup validation on Node.js runtime (server-side)
+    if (process.env.NEXT_RUNTIME === 'nodejs') {
         const { validateConfiguration, logConfigurationStatus } = await import('@/lib/config/env')
 
         console.log('\n🚀 Starting ATO Application...\n')

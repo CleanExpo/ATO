@@ -60,7 +60,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     icon: 'Search',
     matchPaths: ['/dashboard/data-quality'],
     showInMobile: false, // Combined with Audit in mobile
-    showInDesktop: false, // Sub-step of Forensic Audit, confusing as top-level item
+    showInDesktop: true,
   },
   {
     href: '/dashboard/forensic-audit',

@@ -3,10 +3,12 @@
  *
  * Catches errors in the root layout. Only used as a last resort.
  * Must be minimal and not rely on any external dependencies.
+ * Reports errors to Sentry when configured.
  */
 
 'use client'
 
+import * as Sentry from '@sentry/nextjs'
 import { useEffect } from 'react'
 
 export default function GlobalError({
@@ -18,6 +20,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('Global error boundary caught error:', error)
+    Sentry.captureException(error)
   }, [error])
 
   return (

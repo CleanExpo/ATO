@@ -323,4 +323,108 @@ describe('getBASQuarter', () => {
     expect(result.dueDate.getMonth()).toBe(7) // August
     expect(result.dueDate.getDate()).toBe(28)
   })
+
+  // ---- Period date validations (uncovered in 98.47%) ----
+
+  it('Q1 period starts 1 July and ends 30 September', () => {
+    const result = getBASQuarter(new Date(2025, 7, 15)) // August
+    expect(result.periodStart.getMonth()).toBe(6) // July
+    expect(result.periodStart.getDate()).toBe(1)
+    expect(result.periodEnd.getMonth()).toBe(8) // September
+    expect(result.periodEnd.getDate()).toBe(30)
+  })
+
+  it('Q2 period starts 1 October and ends 31 December', () => {
+    const result = getBASQuarter(new Date(2025, 10, 15)) // November
+    expect(result.periodStart.getMonth()).toBe(9) // October
+    expect(result.periodStart.getDate()).toBe(1)
+    expect(result.periodEnd.getMonth()).toBe(11) // December
+    expect(result.periodEnd.getDate()).toBe(31)
+  })
+
+  it('Q3 period starts 1 January and ends 31 March', () => {
+    const result = getBASQuarter(new Date(2026, 1, 15)) // February
+    expect(result.periodStart.getMonth()).toBe(0) // January
+    expect(result.periodStart.getDate()).toBe(1)
+    expect(result.periodEnd.getMonth()).toBe(2) // March
+    expect(result.periodEnd.getDate()).toBe(31)
+  })
+
+  it('Q4 period starts 1 April and ends 30 June', () => {
+    const result = getBASQuarter(new Date(2026, 4, 15)) // May
+    expect(result.periodStart.getMonth()).toBe(3) // April
+    expect(result.periodStart.getDate()).toBe(1)
+    expect(result.periodEnd.getMonth()).toBe(5) // June
+    expect(result.periodEnd.getDate()).toBe(30)
+  })
+
+  it('Q2 due date year rolls over to next calendar year', () => {
+    const result = getBASQuarter(new Date(2025, 9, 15)) // October 2025
+    expect(result.dueDate.getFullYear()).toBe(2026) // 28 Feb 2026
+    expect(result.dueDate.getMonth()).toBe(1) // February
+  })
+})
+
+// ---- Additional coverage for uncovered branches ----
+
+describe('getFYEndDate — 4-digit end year format', () => {
+  it('parses format with 4-digit end year (e.g., 2024-2025)', () => {
+    const date = getFYEndDate('2024-2025')
+    expect(date).not.toBeNull()
+    expect(date!.getFullYear()).toBe(2025)
+    expect(date!.getMonth()).toBe(5) // June
+    expect(date!.getDate()).toBe(30)
+  })
+
+  it('parses FY prefix with 4-digit end year (e.g., FY2020-2021)', () => {
+    const date = getFYEndDate('FY2020-2021')
+    expect(date).not.toBeNull()
+    expect(date!.getFullYear()).toBe(2021)
+    expect(date!.getMonth()).toBe(5)
+    expect(date!.getDate()).toBe(30)
+  })
+})
+
+describe('getCurrentFBTYear — default parameter', () => {
+  it('defaults to current date when no argument', () => {
+    const result = getCurrentFBTYear()
+    expect(result).toMatch(/^FBT\d{4}-\d{2}$/)
+  })
+})
+
+describe('checkAmendmentPeriod — additional branch coverage', () => {
+  it('defaults entityType to unknown (4 years) when not provided', () => {
+    // FY2020-21 ends 30 June 2021. Default = 4 years. Expiry = 30 June 2025.
+    const result = checkAmendmentPeriod('FY2020-21', undefined, new Date(2026, 0, 1))
+    expect(result).toBeDefined()
+    expect(result).toContain('4-year')
+  })
+
+  it('warning message includes the FY string', () => {
+    const result = checkAmendmentPeriod('FY2020-21', 'individual', new Date(2026, 0, 1))
+    expect(result).toContain('FY2020-21')
+  })
+
+  it('warning message includes the amendment year count', () => {
+    const result = checkAmendmentPeriod('FY2022-23', 'individual', new Date(2026, 0, 1))
+    expect(result).toContain('2-year')
+  })
+
+  it('warning message references Taxation Administration Act', () => {
+    const result = checkAmendmentPeriod('FY2022-23', 'individual', new Date(2026, 0, 1))
+    expect(result).toContain('Taxation Administration Act 1953, s 170')
+  })
+
+  it('returns undefined when exactly at amendment expiry date', () => {
+    // FY2022-23 ends 30 June 2023. Individual = 2 years. Expiry = 30 June 2025.
+    // At exactly 30 June 2025, referenceDate = expiryDate, so referenceDate > expiryDate is false
+    const result = checkAmendmentPeriod('FY2022-23', 'individual', new Date(2025, 5, 30))
+    expect(result).toBeUndefined()
+  })
+
+  it('returns warning one day after amendment expiry', () => {
+    // FY2022-23 ends 30 June 2023. Individual = 2 years. Expiry = 30 June 2025.
+    const result = checkAmendmentPeriod('FY2022-23', 'individual', new Date(2025, 6, 1))
+    expect(result).toBeDefined()
+  })
 })

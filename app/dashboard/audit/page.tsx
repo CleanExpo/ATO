@@ -411,7 +411,7 @@ export default function TaxAuditPage() {
 
                 {/* Findings Table */}
                 {hasConnections && filteredFindings.length > 0 && (
-                    <div className="table-container">
+                    <div className="table-container overflow-x-auto">
                         <div className="flex items-center justify-between px-4 py-3 border-b border-white/5">
                             <span className="text-xs text-[var(--text-muted)]">
                                 {sortedFindings.length} result{sortedFindings.length !== 1 ? 's' : ''}

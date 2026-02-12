@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:e2e": "playwright test",
+    "test:e2e:mobile": "MOBILE_TESTS=true npx playwright test",
     "test:e2e:critical": "TEST_PATTERN='critical' playwright test tests/e2e --shard=1/1",
     "test:e2e:full": "playwright test tests/e2e",
     "test:e2e:ui": "playwright test --ui",
@@ -44,6 +45,7 @@
     "@google/generative-ai": "^0.24.1",
     "@linear/sdk": "^72.0.0",
     "@sendgrid/mail": "^8.1.6",
+    "@sentry/nextjs": "^10.38.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
     "@types/bcryptjs": "^2.4.6",
@@ -65,6 +67,7 @@
     "zod": "^3.24.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@eslint/eslintrc": "^3.3.3",
     "@faker-js/faker": "^10.3.0",
     "@next/bundle-analyzer": "^16.1.6",

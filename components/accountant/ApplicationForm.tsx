@@ -223,7 +223,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
             {errors.email && <p className="mt-1 text-sm text-red-600">{errors.email[0]}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">
                 First Name <span className="text-red-500">*</span>
@@ -390,7 +390,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">Expiry Date (Optional)</label>
               <input
@@ -431,7 +431,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
 
           <div>
             <label className="block text-sm font-medium mb-3">Specializations (Optional)</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {SPECIALIZATIONS.map((spec) => (
                 <label key={spec} className="flex items-center space-x-2 cursor-pointer">
                   <input
