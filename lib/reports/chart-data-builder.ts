@@ -5,7 +5,19 @@
  * Creates data structures optimized for AI-generated charts.
  */
 
-import type { ChartData } from '@/lib/ai/chart-generator'
+export interface ChartData {
+    title: string
+    type: 'bar' | 'line' | 'pie' | 'donut' | 'stacked-bar' | 'waterfall'
+    data: {
+        labels: string[]
+        datasets: Array<{
+            label: string
+            data: number[]
+            color?: string
+        }>
+    }
+    description?: string
+}
 
 /**
  * Build R&D Expenditure by Year chart

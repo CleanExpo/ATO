@@ -94,7 +94,7 @@ function buildModelPool(): ModelEntry[] {
             { provider: 'gemini', model: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (~0.9s)' },
             { provider: 'gemini', model: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite (~1.1s)' },
             { provider: 'gemini', model: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (~4.5s)' },
-            { provider: 'gemini', model: 'gemini-3-flash-preview', label: 'Gemini 3 Flash (~6.3s)' },
+            { provider: 'gemini', model: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (~6.3s)' },
         )
     }
 
