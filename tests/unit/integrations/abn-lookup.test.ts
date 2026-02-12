@@ -7,10 +7,13 @@
  * Australian Business Register (ABR) API integration
  *
  * Covers:
- * - lookupABN: format validation, checksum validation, cache hits, API errors
- * - searchABNByName: returns ABNSearchResult structure
- * - batchLookupABN: processes in batches of 10
+ * - lookupABN: format validation, checksum validation, cache hits, cache expiry, API success, API errors
+ * - searchABNByName: returns ABNSearchResult structure, handles errors, state filter
+ * - batchLookupABN: processes in batches of 10, normalises keys
  * - checkSupplierGSTStatus: withholding rules per s 12-190 TAA 1953
+ * - Supabase cache read/write
+ *
+ * Tests: 15 test cases covering success AND error paths
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
@@ -74,11 +77,15 @@ function buildABRXmlResponse(opts: {
   entityTypeCode?: string
   status?: string
   gstRegistered?: boolean
+  state?: string
+  postcode?: string
 } = {}): string {
   const abn = opts.abn || '51824753556'
   const name = opts.entityName || 'Australian Taxation Office'
   const typeCode = opts.entityTypeCode || 'CGE'
   const status = opts.status || 'Active'
+  const state = opts.state || 'ACT'
+  const postcode = opts.postcode || '2600'
   const gstBlock = opts.gstRegistered !== false
     ? '<goodsAndServicesTax><effectiveFrom>2000-07-01</effectiveFrom></goodsAndServicesTax>'
     : ''
@@ -101,8 +108,8 @@ function buildABRXmlResponse(opts: {
         <organisationName>${name}</organisationName>
       </mainName>
       <mainBusinessPhysicalAddress>
-        <stateCode>ACT</stateCode>
-        <postcode>2600</postcode>
+        <stateCode>${state}</stateCode>
+        <postcode>${postcode}</postcode>
       </mainBusinessPhysicalAddress>
       ${gstBlock}
     </businessEntity>
@@ -150,7 +157,6 @@ describe('lookupABN', () => {
 
   it('strips spaces from ABN before validation', async () => {
     // 51 824 753 556 is the ATO's own ABN with spaces -- valid format + checksum
-    // After normalisation it should pass format/checksum and hit the API mock
     mockFetch.mockResolvedValueOnce({
       ok: true,
       text: vi.fn().mockResolvedValue(buildABRXmlResponse({ abn: '51824753556' })),
@@ -158,10 +164,7 @@ describe('lookupABN', () => {
 
     const result = await lookupABN('51 824 753 556')
 
-    // Should pass format and checksum validation
-    // The result ABN should be normalised (spaces removed)
     expect(result.abn).toBe('51824753556')
-    // It should not say "Invalid ABN format"
     expect(result.entityName).not.toContain('Invalid ABN format')
   })
 
@@ -179,7 +182,6 @@ describe('lookupABN', () => {
   })
 
   it('passes checksum validation for known valid ABN (ATO: 51824753556)', async () => {
-    // This ABN passes both format and checksum -- will proceed to API call
     mockFetch.mockResolvedValueOnce({
       ok: true,
       text: vi.fn().mockResolvedValue(buildABRXmlResponse({ abn: '51824753556' })),
@@ -187,10 +189,8 @@ describe('lookupABN', () => {
 
     const result = await lookupABN('51824753556')
 
-    // Should not be flagged as invalid format or bad checksum
     expect(result.entityName).not.toContain('Invalid ABN format')
     expect(result.entityName).not.toContain('checksum')
-    // fetch was called (went past validation to API)
     expect(mockFetch).toHaveBeenCalled()
   })
 
@@ -216,7 +216,7 @@ describe('lookupABN', () => {
       state: 'ACT',
       postcode: '2600',
       lastUpdated: new Date().toISOString(),
-      source: 'abr_api', // Original source was API
+      source: 'abr_api',
     }
 
     const mockSupabase = createMockSupabase({
@@ -230,13 +230,80 @@ describe('lookupABN', () => {
 
     const result = await lookupABN('51824753556')
 
-    // Should return cached data with source overridden to 'cache'
     expect(result.source).toBe('cache')
     expect(result.entityName).toBe('Australian Taxation Office')
     expect(result.isValid).toBe(true)
     expect(result.isGSTRegistered).toBe(true)
-    // Should NOT have called fetch (served from cache)
     expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  // ---------------------------------------------------------------------------
+  // Cache expiry
+  // ---------------------------------------------------------------------------
+
+  it('ignores expired cache entries and calls API', async () => {
+    const cachedResult: ABNLookupResult = {
+      abn: '51824753556',
+      isValid: true,
+      entityName: 'Stale Entity',
+      entityType: 'Unknown',
+      entityTypeCode: '',
+      isGSTRegistered: false,
+      gstRegisteredFrom: null,
+      gstCancelledDate: null,
+      isActive: true,
+      abnStatus: 'Active',
+      abnStatusEffectiveFrom: '',
+      businessNames: [],
+      tradingNames: [],
+      state: null,
+      postcode: null,
+      lastUpdated: new Date().toISOString(),
+      source: 'abr_api',
+    }
+
+    // Cache is 10 days old (TTL is 7 days)
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+    const mockSupabase = createMockSupabase({
+      data: {
+        result: cachedResult,
+        cached_at: tenDaysAgo,
+      },
+      error: null,
+    })
+    vi.mocked(createServiceClient).mockResolvedValue(mockSupabase as never)
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      text: vi.fn().mockResolvedValue(buildABRXmlResponse({ abn: '51824753556' })),
+    })
+
+    const result = await lookupABN('51824753556')
+
+    // Should have called the API (expired cache ignored)
+    expect(mockFetch).toHaveBeenCalled()
+    expect(result.entityName).toBe('Australian Taxation Office')
+    expect(result.source).toBe('abr_api')
+  })
+
+  // ---------------------------------------------------------------------------
+  // API success with entity type mapping
+  // ---------------------------------------------------------------------------
+
+  it('maps entity type codes to human-readable names', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      text: vi.fn().mockResolvedValue(
+        buildABRXmlResponse({
+          abn: '51824753556',
+          entityTypeCode: 'PRV',
+        })
+      ),
+    })
+
+    const result = await lookupABN('51824753556')
+
+    expect(result.entityType).toBe('Australian Private Company')
   })
 
   // ---------------------------------------------------------------------------
@@ -244,13 +311,24 @@ describe('lookupABN', () => {
   // ---------------------------------------------------------------------------
 
   it('returns error_fallback result when ABR API fails', async () => {
-    // No cache, API throws
     mockFetch.mockRejectedValueOnce(new Error('ABR API timeout'))
 
     const result = await lookupABN('51824753556')
 
     expect(result.isValid).toBe(false)
     expect(result.entityName).toContain('ABR API unavailable')
+    expect(result.source).toBe('error_fallback')
+  })
+
+  it('returns error_fallback when ABR API returns non-200 status', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 503,
+    })
+
+    const result = await lookupABN('51824753556')
+
+    expect(result.isValid).toBe(false)
     expect(result.source).toBe('error_fallback')
   })
 })
@@ -306,6 +384,39 @@ describe('searchABNByName', () => {
     expect(result.totalResults).toBe(0)
     expect(result.query).toBe('Test Company')
   })
+
+  it('sorts results by score descending', async () => {
+    const xml = `<?xml version="1.0"?>
+<ABRPayloadSearchResults>
+  <response>
+    <searchResultsRecord>
+      <ABN>11111111111</ABN>
+      <mainName><organisationName>Low Score Entity</organisationName></mainName>
+      <entityTypeDescription>Company</entityTypeDescription>
+      <mainBusinessPhysicalAddress><stateCode>NSW</stateCode><postcode>2000</postcode></mainBusinessPhysicalAddress>
+      <entityStatus><entityStatusCode>Active</entityStatusCode></entityStatus>
+      <score>70</score>
+    </searchResultsRecord>
+    <searchResultsRecord>
+      <ABN>22222222222</ABN>
+      <mainName><organisationName>High Score Entity</organisationName></mainName>
+      <entityTypeDescription>Company</entityTypeDescription>
+      <mainBusinessPhysicalAddress><stateCode>VIC</stateCode><postcode>3000</postcode></mainBusinessPhysicalAddress>
+      <entityStatus><entityStatusCode>Active</entityStatusCode></entityStatus>
+      <score>95</score>
+    </searchResultsRecord>
+  </response>
+</ABRPayloadSearchResults>`
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      text: vi.fn().mockResolvedValue(xml),
+    })
+
+    const result = await searchABNByName('Entity')
+
+    expect(result.results[0].score).toBeGreaterThanOrEqual(result.results[1].score)
+  })
 })
 
 // =============================================================================
@@ -315,14 +426,12 @@ describe('searchABNByName', () => {
 describe('batchLookupABN', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // Default: no cache, API will fail (for simplicity)
     const mockSupabase = createMockSupabase({ data: null, error: null })
     vi.mocked(createServiceClient).mockResolvedValue(mockSupabase as never)
   })
 
   it('processes ABNs in batches of 10', async () => {
     // Create 15 invalid ABNs so they fail fast at format validation
-    // (avoids needing to mock 15 fetch calls)
     const abns = Array.from({ length: 15 }, (_, i) => `${i}`) // single digits = invalid format
 
     const results = await batchLookupABN(abns)
@@ -330,14 +439,13 @@ describe('batchLookupABN', () => {
     expect(results).toBeInstanceOf(Map)
     expect(results.size).toBe(15)
 
-    // All should be invalid (single digit ABNs fail format check)
     for (const [, result] of results) {
       expect(result.isValid).toBe(false)
     }
   })
 
   it('returns Map keyed by normalised ABN', async () => {
-    const abns = ['12345', '67890'] // Both invalid format, but tests key normalisation
+    const abns = ['12345', '67890']
 
     const results = await batchLookupABN(abns)
 
@@ -358,7 +466,6 @@ describe('checkSupplierGSTStatus', () => {
   })
 
   it('returns shouldWithholdGST: true for invalid ABN (47% withholding per s 12-190 TAA 1953)', async () => {
-    // Pass a clearly invalid ABN (too short)
     const result = await checkSupplierGSTStatus('12345')
 
     expect(result.isValid).toBe(false)
@@ -369,7 +476,6 @@ describe('checkSupplierGSTStatus', () => {
   })
 
   it('returns shouldWithholdGST: false with GST note for valid ABN not GST registered', async () => {
-    // Mock ABR API returning a valid, active entity that is NOT GST registered
     mockFetch.mockResolvedValueOnce({
       ok: true,
       text: vi.fn().mockResolvedValue(
@@ -390,7 +496,6 @@ describe('checkSupplierGSTStatus', () => {
   })
 
   it('returns all clear for valid ABN with active GST registration', async () => {
-    // Mock ABR API returning a valid, active, GST-registered entity
     mockFetch.mockResolvedValueOnce({
       ok: true,
       text: vi.fn().mockResolvedValue(
