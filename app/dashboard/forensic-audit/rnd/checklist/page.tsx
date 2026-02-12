@@ -13,6 +13,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { ClaimChecklist } from '@/components/rnd'
 
@@ -46,18 +47,10 @@ export default function RndChecklistPage() {
   if (loading) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center"
+        className="min-h-screen p-8"
         style={{ background: '#050505' }}
       >
-        <div className="text-center">
-          <div
-            className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4"
-            style={{ borderColor: '#8855FF' }}
-          />
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-            Loading...
-          </p>
-        </div>
+        <PageSkeleton variant="form" />
       </div>
     )
   }

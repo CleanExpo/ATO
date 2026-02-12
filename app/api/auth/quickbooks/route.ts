@@ -12,6 +12,7 @@ import { QUICKBOOKS_CONFIG } from '@/lib/integrations/quickbooks-config'
 import { createErrorResponse } from '@/lib/api/errors'
 import { createLogger } from '@/lib/logger'
 import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
+import { sharedConfig } from '@/lib/config/env'
 import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(authUrl.toString())
     response.cookies.set('qb_oauth_nonce', nonce, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: sharedConfig.isProduction,
       sameSite: 'lax',
       maxAge: 60 * 10, // 10 minutes
       path: '/',

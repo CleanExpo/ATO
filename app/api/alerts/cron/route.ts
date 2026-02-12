@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { runScheduledAlertChecks, cleanupOldAlerts } from '@/lib/alerts/scheduled-checker'
 import { sendPendingAlertEmails } from '@/lib/alerts/email-notifier'
 import { createLogger } from '@/lib/logger'
+import { optionalConfig } from '@/lib/config/env'
 
 const log = createLogger('api:alerts:cron')
 
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
   try {
     // Verify cron secret
     const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
+    const cronSecret = optionalConfig.cronSecret
 
     if (!cronSecret) {
       console.error('CRON_SECRET not configured')

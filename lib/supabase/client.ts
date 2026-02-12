@@ -1,9 +1,9 @@
 import { createBrowserClient } from '@supabase/ssr'
+import { clientConfig } from '@/lib/config/env'
 
 export function createClient() {
-  // Access environment variables directly for client-side reliability
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = clientConfig.supabase.url
+  const supabaseAnonKey = clientConfig.supabase.anonKey
 
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error(

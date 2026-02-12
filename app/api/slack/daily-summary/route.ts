@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import slack from '@/lib/slack/slack-notifier'
+import { optionalConfig } from '@/lib/config/env'
 import type Stripe from 'stripe'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +19,7 @@ export async function POST(request: NextRequest) {
   try {
     // Verify cron secret
     const authHeader = request.headers.get('authorization')
-    const cronSecret = process.env.CRON_SECRET
+    const cronSecret = optionalConfig.cronSecret
 
     if (!cronSecret) {
       console.error('CRON_SECRET not configured')
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
 
     // Fetch revenue stats from Stripe (optional -- skipped if STRIPE_SECRET_KEY not configured)
     let revenueStats = { totalRevenue: 0, newSubscriptions: 0, churnedSubscriptions: 0 };
-    if (process.env.STRIPE_SECRET_KEY) {
+    if (optionalConfig.stripeSecretKey) {
       try {
         const { stripe } = await import('@/lib/stripe/client');
         const startTimestamp = Math.floor(startOfDay.getTime() / 1000);

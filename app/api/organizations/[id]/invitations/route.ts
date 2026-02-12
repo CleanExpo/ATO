@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 import { sendOrganizationInvitationEmail } from '@/lib/email/send-invitation'
+import { optionalConfig, sharedConfig } from '@/lib/config/env'
 
 export const dynamic = 'force-dynamic'
 
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     // Generate invitation URL
     const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL
+      optionalConfig.appUrl || sharedConfig.baseUrl
     const invitationUrl = `${baseUrl}/invitations/accept?token=${result.token}`
 
     // Get organization details for email

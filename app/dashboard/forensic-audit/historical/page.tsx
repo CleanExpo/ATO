@@ -9,6 +9,7 @@
 import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 import { TrendsAnalysis } from '@/components/forensic-audit/TrendsAnalysis'
 import { YearComparison } from '@/components/forensic-audit/YearComparison'
 import { BarChart3, GitCompare, Calendar, TrendingUp, AlertCircle } from 'lucide-react'
@@ -17,7 +18,7 @@ type TabType = 'trends' | 'comparison'
 
 export default function HistoricalAnalysisPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>}>
+    <Suspense fallback={<div className="min-h-screen p-8"><PageSkeleton variant="default" /></div>}>
       <HistoricalAnalysisContent />
     </Suspense>
   )
@@ -83,11 +84,8 @@ function HistoricalAnalysisContent() {
 
   if (!tenantId && !tenantError) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="loading-spinner mx-auto mb-4" />
-          <p className="text-white/60">Loading connection...</p>
-        </div>
+      <div className="min-h-screen p-8">
+        <PageSkeleton variant="default" />
       </div>
     )
   }

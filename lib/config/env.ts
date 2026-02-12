@@ -172,6 +172,20 @@ export const optionalConfig = {
   businessName: getOptionalEnv('BUSINESS_NAME', 'Your Business'),
   businessAbn: getOptionalEnv('BUSINESS_ABN', ''),
   yourName: getOptionalEnv('YOUR_NAME', 'User'),
+  sendgridApiKey: getOptionalEnv('SENDGRID_API_KEY', ''),
+  abrGuid: getOptionalEnv('ABR_GUID', ''),
+  tokenEncryptionKey: getOptionalEnv('TOKEN_ENCRYPTION_KEY', ''),
+  singleUserMode: getOptionalEnv('SINGLE_USER_MODE', 'false'),
+  jinaApiKey: getOptionalEnv('JINA_API_KEY', ''),
+  slackWebhookUrl: getOptionalEnv('SLACK_WEBHOOK_URL', ''),
+  stripeSecretKey: getOptionalEnv('STRIPE_SECRET_KEY', ''),
+  stripeWebhookSecret: getOptionalEnv('STRIPE_WEBHOOK_SECRET', ''),
+  cronSecret: getOptionalEnv('CRON_SECRET', ''),
+  appUrl: getOptionalEnv('NEXT_PUBLIC_APP_URL', ''),
+  aiCostLimitUsd: getOptionalEnv('AI_COST_LIMIT_USD', '10'),
+  maxAiCostUsd: getOptionalEnv('MAX_AI_COST_USD', ''),
+  linearWorkspaceSlug: getOptionalEnv('LINEAR_WORKSPACE_SLUG', 'unite-hub'),
+  linearProjectName: getOptionalEnv('LINEAR_PROJECT_NAME', 'ATO'),
 };
 
 /**

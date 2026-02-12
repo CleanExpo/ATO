@@ -15,6 +15,7 @@ import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Beaker, TrendingDown, Building2, AlertCircle, CheckCircle, Clock, Target } from 'lucide-react'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import LiveChart from '@/components/dashboard/LiveChart'
@@ -74,7 +75,7 @@ interface DashboardData {
 
 export default function ForensicAuditDashboardEnhancedPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>}>
+    <Suspense fallback={<div className="min-h-screen p-8"><PageSkeleton variant="default" /></div>}>
       <ForensicAuditDashboardEnhanced />
     </Suspense>
   )
@@ -302,11 +303,8 @@ function ForensicAuditDashboardEnhanced() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="loading-spinner mx-auto mb-4" />
-          <p className="text-[var(--text-secondary)]">Loading dashboard...</p>
-        </div>
+      <div className="min-h-screen p-8">
+        <PageSkeleton variant="default" />
       </div>
     )
   }

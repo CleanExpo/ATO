@@ -13,6 +13,7 @@ import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MobileNav } from '@/components/ui/MobileNav'
+import { Pagination } from '@/components/ui/Pagination'
 import { TransactionDetailRow } from '@/components/forensic-audit/TransactionDetailRow'
 import { ExportModal, ExportOptions } from '@/components/forensic-audit/ExportModal'
 import { exportWithFormat, quickExportExcel, quickExportAccountantPackage } from '@/lib/api/export-client'
@@ -581,7 +582,9 @@ function TransactionsPage() {
             Transaction Explorer
           </h1>
           <p className="text-white/30 mt-3 text-sm tracking-wide">
-            {pagination ? `${pagination.total.toLocaleString()} analysed transactions` : 'Loading...'}
+            {pagination ? `${pagination.total.toLocaleString()} analysed transactions` : (
+              <span className="inline-block w-40 h-4 animate-pulse rounded" style={{ background: 'rgba(255,255,255,0.05)' }} />
+            )}
           </p>
         </motion.div>
 
@@ -952,44 +955,15 @@ function TransactionsPage() {
 
           {/* ── Pagination ── */}
           {pagination && pagination.totalPages > 1 && (
-            <div className="px-4 py-4 border-t border-white/[0.06] flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <span className="text-[10px] uppercase tracking-[0.2em] text-white/30">Page Size</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => { setPageSize(parseInt(e.target.value)); setPage(1) }}
-                  className="px-2 py-1 bg-transparent border-[0.5px] border-white/[0.1] rounded-sm text-sm text-white/70"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
-                >
-                  {[25, 50, 100, 500].map(size => (
-                    <option key={size} value={size} className="bg-[#0a0a0f]">{size}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-3 py-1.5 text-[10px] uppercase tracking-[0.15em] border-[0.5px] border-white/[0.1] rounded-sm text-white/50 hover:text-white/70 hover:border-white/[0.2] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
-                >
-                  Previous
-                </button>
-
-                <span className="px-3 text-sm text-white/40 tabular-nums">
-                  Page {page} of {pagination.totalPages}
-                </span>
-
-                <button
-                  onClick={() => setPage(p => Math.min(pagination.totalPages, p + 1))}
-                  disabled={!pagination.hasMore}
-                  className="px-3 py-1.5 text-[10px] uppercase tracking-[0.15em] border-[0.5px] border-white/[0.1] rounded-sm text-white/50 hover:text-white/70 hover:border-white/[0.2] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}
-                >
-                  Next
-                </button>
-              </div>
+            <div className="px-4 py-4">
+              <Pagination
+                currentPage={page}
+                totalPages={pagination.totalPages}
+                onPageChange={setPage}
+                pageSize={pageSize}
+                onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+                pageSizeOptions={[25, 50, 100, 500]}
+              />
             </div>
           )}
         </motion.div>

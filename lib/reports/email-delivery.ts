@@ -7,10 +7,11 @@
 
 import sgMail from '@sendgrid/mail'
 import { createLogger } from '@/lib/logger'
+import { optionalConfig } from '@/lib/config/env'
 
 const log = createLogger('reports:email-delivery')
 
-const _sgApiKey = process.env.SENDGRID_API_KEY
+const _sgApiKey = optionalConfig.sendgridApiKey
 if (_sgApiKey) {
   sgMail.setApiKey(_sgApiKey)
 }

@@ -6,6 +6,7 @@
  */
 
 import { LinearClient } from '@linear/sdk';
+import { serverConfig, optionalConfig } from '@/lib/config/env';
 
 type IssueCreateInput = Parameters<LinearClient['createIssue']>[0];
 
@@ -62,15 +63,15 @@ export class LinearOrchestrator {
   private projectUuid?: string;
 
   constructor() {
-    const apiKey = process.env.LINEAR_API_KEY;
+    const apiKey = serverConfig.linear.apiKey;
     if (!apiKey) {
       throw new Error('LINEAR_API_KEY environment variable is required');
     }
 
     this.client = new LinearClient({ apiKey });
-    this.teamId = process.env.LINEAR_TEAM_ID || 'unite-hub';
+    this.teamId = serverConfig.linear.teamId || 'unite-hub';
     // Project name
-    this.projectId = process.env.LINEAR_PROJECT_NAME || 'ATO';
+    this.projectId = optionalConfig.linearProjectName;
   }
 
   /**

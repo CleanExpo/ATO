@@ -8,15 +8,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
 import { encryptTokenForStorage } from '@/lib/xero/token-store'
+import { serverConfig, sharedConfig } from '@/lib/config/env'
 
 export const dynamic = 'force-dynamic'
 
 const log = createLogger('api:auth:myob-callback')
 
 const MYOB_TOKEN_URL = 'https://secure.myob.com/oauth2/v1/authorize'
-const MYOB_CLIENT_ID = process.env.MYOB_CLIENT_ID || ''
-const MYOB_CLIENT_SECRET = process.env.MYOB_CLIENT_SECRET || ''
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/myob/callback`
+const MYOB_CLIENT_ID = serverConfig.myob.clientId
+const MYOB_CLIENT_SECRET = serverConfig.myob.clientSecret
+const REDIRECT_URI = `${sharedConfig.baseUrl}/api/auth/myob/callback`
 
 /**
  * GET /api/auth/myob/callback

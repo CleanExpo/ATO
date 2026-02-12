@@ -13,6 +13,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { QUICKBOOKS_CONFIG } from '@/lib/integrations/quickbooks-config'
 import { storeQuickBooksTokens, createQuickBooksClient } from '@/lib/integrations/quickbooks-client'
 import { createLogger } from '@/lib/logger'
+import { sharedConfig } from '@/lib/config/env'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       console.error('QuickBooks OAuth error:', error)
       const errorDescription = searchParams.get('error_description')
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard?quickbooks_error=${encodeURIComponent(errorDescription || error)}`
+        `${sharedConfig.baseUrl}/dashboard?quickbooks_error=${encodeURIComponent(errorDescription || error)}`
       )
     }
 
@@ -118,7 +119,7 @@ export async function GET(request: NextRequest) {
       const errorText = await tokenResponse.text()
       console.error('QuickBooks token exchange failed:', errorText)
       return NextResponse.redirect(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard?quickbooks_error=${encodeURIComponent('Token exchange failed')}`
+        `${sharedConfig.baseUrl}/dashboard?quickbooks_error=${encodeURIComponent('Token exchange failed')}`
       )
     }
 
@@ -230,7 +231,7 @@ export async function GET(request: NextRequest) {
 
     // Redirect to dashboard with success message
     const successResponse = NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard?quickbooks_connected=true&realm_id=${realmId}`
+      `${sharedConfig.baseUrl}/dashboard?quickbooks_connected=true&realm_id=${realmId}`
     )
     successResponse.cookies.delete('qb_oauth_nonce')
     return successResponse
@@ -238,7 +239,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('QuickBooks OAuth callback error:', error)
     return NextResponse.redirect(
-      `${process.env.NEXT_PUBLIC_BASE_URL}/dashboard?quickbooks_error=${encodeURIComponent('Authentication failed')}`
+      `${sharedConfig.baseUrl}/dashboard?quickbooks_error=${encodeURIComponent('Authentication failed')}`
     )
   }
 }

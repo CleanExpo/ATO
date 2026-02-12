@@ -7,13 +7,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
+import { serverConfig, sharedConfig } from '@/lib/config/env'
 import crypto from 'crypto'
 
 export const dynamic = 'force-dynamic'
 
 const MYOB_AUTH_URL = 'https://secure.myob.com/oauth2/account/authorize'
-const MYOB_CLIENT_ID = process.env.MYOB_CLIENT_ID || ''
-const REDIRECT_URI = `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/myob/callback`
+const MYOB_CLIENT_ID = serverConfig.myob.clientId
+const REDIRECT_URI = `${sharedConfig.baseUrl}/api/auth/myob/callback`
 
 /**
  * GET /api/auth/myob/authorize
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(authUrl.toString())
     response.cookies.set('myob_oauth_state', JSON.stringify({ state, userId: user.id }), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: sharedConfig.isProduction,
       sameSite: 'lax',
       maxAge: 60 * 10, // 10 minutes
       path: '/',

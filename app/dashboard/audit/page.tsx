@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import {
     ArrowLeft,
@@ -13,9 +14,8 @@ import {
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
-    ChevronLeft,
-    ChevronRight
 } from 'lucide-react'
+import { NumberedPagination } from '@/components/ui/Pagination'
 
 type Connection = {
     tenant_id: string
@@ -347,12 +347,17 @@ export default function TaxAuditPage() {
                 )}
 
                 {/* Stats */}
-                {hasConnections && (
+                {hasConnections && loading && (
+                    <div className="mb-8">
+                        <PageSkeleton variant="default" />
+                    </div>
+                )}
+                {hasConnections && !loading && (
                     <div className="grid md:grid-cols-4 gap-6 mb-8">
                         <div className="stat-card accent">
                             <div className="text-sm text-[var(--text-secondary)] mb-2">Review Items</div>
                             <div className="text-3xl font-bold text-emerald-400">
-                                {loading ? 'Loading...' : totalReviewItems}
+                                {totalReviewItems}
                             </div>
                             <div className="text-xs text-[var(--text-muted)]">flagged from Xero data</div>
                         </div>
@@ -360,7 +365,7 @@ export default function TaxAuditPage() {
                         <div className="stat-card xero">
                             <div className="text-sm text-[var(--text-secondary)] mb-2">R&D Candidate Spend</div>
                             <div className="text-3xl font-bold text-sky-400">
-                                {loading ? 'Loading...' : formatCurrency(rndCandidateSpend)}
+                                {formatCurrency(rndCandidateSpend)}
                             </div>
                             <div className="text-xs text-[var(--text-muted)]">sum of flagged transactions</div>
                         </div>
@@ -368,7 +373,7 @@ export default function TaxAuditPage() {
                         <div className="stat-card warning">
                             <div className="text-sm text-[var(--text-secondary)] mb-2">Missing Tax Types</div>
                             <div className="text-3xl font-bold text-amber-400">
-                                {loading ? 'Loading...' : missingTaxTypes}
+                                {missingTaxTypes}
                             </div>
                             <div className="text-xs text-[var(--text-muted)]">GST or BAS codes missing</div>
                         </div>
@@ -376,7 +381,7 @@ export default function TaxAuditPage() {
                         <div className="stat-card danger">
                             <div className="text-sm text-[var(--text-secondary)] mb-2">Missing Accounts</div>
                             <div className="text-3xl font-bold text-red-400">
-                                {loading ? 'Loading...' : missingAccounts}
+                                {missingAccounts}
                             </div>
                             <div className="text-xs text-[var(--text-muted)]">account codes not set</div>
                         </div>
@@ -417,18 +422,6 @@ export default function TaxAuditPage() {
                                 {sortedFindings.length} result{sortedFindings.length !== 1 ? 's' : ''}
                                 {sortedFindings.length !== findings.length && ` (filtered from ${findings.length})`}
                             </span>
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs text-[var(--text-muted)]">Per page:</span>
-                                <select
-                                    value={pageSize}
-                                    onChange={(e) => { setPageSize(Number(e.target.value)); setCurrentPage(1) }}
-                                    className="input w-20 text-xs py-1"
-                                >
-                                    <option value={25}>25</option>
-                                    <option value={50}>50</option>
-                                    <option value={100}>100</option>
-                                </select>
-                            </div>
                         </div>
                         <table className="table" role="grid">
                             <thead>
@@ -518,57 +511,21 @@ export default function TaxAuditPage() {
                             </tbody>
                         </table>
                         {/* Pagination Controls */}
-                        {totalPages > 1 && (
-                            <div className="flex items-center justify-between px-4 py-3 border-t border-white/5">
-                                <span className="text-xs text-[var(--text-muted)]">
-                                    Showing {(safePage - 1) * pageSize + 1}–{Math.min(safePage * pageSize, sortedFindings.length)} of {sortedFindings.length}
-                                </span>
-                                <div className="flex items-center gap-1">
-                                    <button
-                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                        disabled={safePage <= 1}
-                                        className="btn btn-ghost p-1.5 disabled:opacity-30"
-                                        aria-label="Previous page"
-                                    >
-                                        <ChevronLeft className="w-4 h-4" />
-                                    </button>
-                                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                                        .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 1)
-                                        .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
-                                            if (idx > 0 && p - (arr[idx - 1]) > 1) acc.push('ellipsis')
-                                            acc.push(p)
-                                            return acc
-                                        }, [])
-                                        .map((item, idx) =>
-                                            item === 'ellipsis' ? (
-                                                <span key={`e${idx}`} className="px-2 text-xs text-[var(--text-muted)]">...</span>
-                                            ) : (
-                                                <button
-                                                    key={item}
-                                                    onClick={() => setCurrentPage(item)}
-                                                    className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
-                                                        safePage === item
-                                                            ? 'bg-sky-500 text-white font-bold'
-                                                            : 'text-[var(--text-secondary)] hover:text-white hover:bg-white/5'
-                                                    }`}
-                                                    aria-label={`Page ${item}`}
-                                                    aria-current={safePage === item ? 'page' : undefined}
-                                                >
-                                                    {item}
-                                                </button>
-                                            )
-                                        )}
-                                    <button
-                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                        disabled={safePage >= totalPages}
-                                        className="btn btn-ghost p-1.5 disabled:opacity-30"
-                                        aria-label="Next page"
-                                    >
-                                        <ChevronRight className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                        <div className="px-4 py-3">
+                            <NumberedPagination
+                                currentPage={safePage}
+                                totalPages={totalPages}
+                                onPageChange={setCurrentPage}
+                                pageSize={pageSize}
+                                onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1) }}
+                                pageSizeOptions={[25, 50, 100]}
+                                showing={{
+                                    from: (safePage - 1) * pageSize + 1,
+                                    to: Math.min(safePage * pageSize, sortedFindings.length),
+                                    total: sortedFindings.length,
+                                }}
+                            />
+                        </div>
                     </div>
                 )}
 

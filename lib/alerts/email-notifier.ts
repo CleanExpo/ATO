@@ -7,10 +7,11 @@
 import sgMail from '@sendgrid/mail'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createLogger } from '@/lib/logger'
+import { optionalConfig } from '@/lib/config/env'
 
 const log = createLogger('alerts:email-notifier')
 
-const _sgApiKey = process.env.SENDGRID_API_KEY
+const _sgApiKey = optionalConfig.sendgridApiKey
 if (_sgApiKey) {
   sgMail.setApiKey(_sgApiKey)
 }
@@ -101,7 +102,7 @@ export async function sendAlertEmail(
     // Build action button
     const actionButton = alert.action_url && alert.action_label
       ? `<div style="margin-top: 24px;">
-          <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://ato-ai.app'}${alert.action_url}"
+          <a href="${optionalConfig.appUrl || 'https://ato-ai.app'}${alert.action_url}"
              style="display: inline-block; padding: 12px 24px; background-color: ${config.color}; color: white; text-decoration: none; border-radius: 6px; font-weight: 600;">
             ${alert.action_label} →
           </a>
@@ -204,11 +205,11 @@ export async function sendAlertEmail(
                 This is an automated tax alert from Australian Tax Optimizer
               </p>
               <p style="margin: 0;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://ato-ai.app'}/dashboard/alerts" style="color: #667eea; text-decoration: none;">
+                <a href="${optionalConfig.appUrl || 'https://ato-ai.app'}/dashboard/alerts" style="color: #667eea; text-decoration: none;">
                   View all alerts
                 </a>
                 •
-                <a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://ato-ai.app'}/dashboard/alerts/preferences" style="color: #667eea; text-decoration: none;">
+                <a href="${optionalConfig.appUrl || 'https://ato-ai.app'}/dashboard/alerts/preferences" style="color: #667eea; text-decoration: none;">
                   Manage preferences
                 </a>
               </p>

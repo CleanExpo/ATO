@@ -16,6 +16,7 @@ import { createServiceClient } from '@/lib/supabase/server';
 import { verifyWebhookSignature } from '@/lib/stripe/client';
 import { sendPurchaseConfirmationEmail, sendPaymentFailureEmail } from '@/lib/email/resend-client';
 import { createLogger } from '@/lib/logger';
+import { optionalConfig } from '@/lib/config/env';
 import Stripe from 'stripe';
 
 const log = createLogger('stripe:webhook');
@@ -29,7 +30,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     // Get webhook secret from environment
-    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = optionalConfig.stripeWebhookSecret;
     if (!webhookSecret) {
       log.error('STRIPE_WEBHOOK_SECRET not configured. Cannot verify webhook.');
       return NextResponse.json(
@@ -171,7 +172,7 @@ async function handleCheckoutCompleted(
     // Send confirmation email
     const { data: userData } = await supabase.auth.admin.getUserById(userId);
     if (userData?.user?.email) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ato-optimizer.com';
+      const baseUrl = optionalConfig.appUrl || 'https://app.ato-optimizer.com';
       const emailResult = await sendPurchaseConfirmationEmail({
         to: userData.user.email,
         productType,
@@ -265,7 +266,7 @@ async function handlePaymentFailed(
       const supabaseForEmail = await createServiceClient();
       const { data: userData } = await supabaseForEmail.auth.admin.getUserById(userId);
       if (userData?.user?.email) {
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.ato-optimizer.com';
+        const baseUrl = optionalConfig.appUrl || 'https://app.ato-optimizer.com';
         const emailResult = await sendPaymentFailureEmail({
           to: userData.user.email,
           pricingUrl: `${baseUrl}/pricing`,

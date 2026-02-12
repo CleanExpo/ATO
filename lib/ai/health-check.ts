@@ -6,7 +6,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import { optionalConfig } from '@/lib/config/env'
+import { optionalConfig, clientConfig, serverConfig } from '@/lib/config/env'
 
 export interface HealthCheckResult {
     valid: boolean
@@ -72,12 +72,16 @@ export async function validateAIConfiguration(): Promise<HealthCheckResult> {
     }
 
     // Check cost budget configuration
-    if (!process.env.MAX_AI_COST_USD) {
+    if (!optionalConfig.maxAiCostUsd) {
         warnings.push('MAX_AI_COST_USD not set - no spending limit configured')
     }
 
     // Check Supabase configuration (needed to store results)
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+        if (!clientConfig.supabase.url || !serverConfig.supabase.serviceRoleKey) {
+            warnings.push('Supabase not configured - analysis results cannot be stored')
+        }
+    } catch {
         warnings.push('Supabase not configured - analysis results cannot be stored')
     }
 
@@ -99,11 +103,19 @@ export function quickHealthCheck(): { valid: boolean; errors: string[] } {
         errors.push('GOOGLE_AI_API_KEY not configured')
     }
 
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    try {
+        if (!clientConfig.supabase.url) {
+            errors.push('NEXT_PUBLIC_SUPABASE_URL not configured')
+        }
+    } catch {
         errors.push('NEXT_PUBLIC_SUPABASE_URL not configured')
     }
 
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+        if (!serverConfig.supabase.serviceRoleKey) {
+            errors.push('SUPABASE_SERVICE_ROLE_KEY not configured')
+        }
+    } catch {
         errors.push('SUPABASE_SERVICE_ROLE_KEY not configured')
     }
 

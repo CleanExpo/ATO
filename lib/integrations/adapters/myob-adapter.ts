@@ -32,6 +32,7 @@ import type {
   MYOBAccount,
 } from './myob-types'
 import { getFinancialYearFromDate } from '@/lib/types'
+import { serverConfig } from '@/lib/config/env'
 
 /**
  * MYOB API Configuration
@@ -102,8 +103,8 @@ export class MYOBAdapter implements PlatformAdapter {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
         body: new URLSearchParams({
-          client_id: process.env.MYOB_CLIENT_ID || '',
-          client_secret: process.env.MYOB_CLIENT_SECRET || '',
+          client_id: serverConfig.myob.clientId,
+          client_secret: serverConfig.myob.clientSecret,
           refresh_token: credentials.refreshToken,
           grant_type: 'refresh_token',
         }),
@@ -806,7 +807,7 @@ export class MYOBAdapter implements PlatformAdapter {
       headers: {
         ...options.headers,
         'Authorization': `Bearer ${this.credentials.accessToken}`,
-        'x-myobapi-key': process.env.MYOB_CLIENT_ID || '',
+        'x-myobapi-key': serverConfig.myob.clientId,
         'x-myobapi-version': 'v2',
         'Accept': 'application/json',
       },

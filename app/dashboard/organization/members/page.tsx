@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useOrganization } from '@/lib/context/OrganizationContext'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 import { hasPermission, getRoleBadgeColor, getRoleDisplayName, type UserRole } from '@/lib/types/multi-tenant'
 import {
   Users,
@@ -209,7 +210,9 @@ export default function OrganizationMembersPage() {
 
           <div className="divide-y divide-white/10">
             {isLoading && members.length === 0 ? (
-              <div className="p-8 text-center text-white/60">Loading...</div>
+              <div className="p-6">
+                <PageSkeleton variant="analysis" />
+              </div>
             ) : members.length === 0 ? (
               <div className="p-8 text-center text-white/60">
                 No members found

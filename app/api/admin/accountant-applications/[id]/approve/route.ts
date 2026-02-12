@@ -21,6 +21,7 @@ import type {
   ApprovalResponse,
   VettedAccountant,
 } from '@/lib/types/accountant';
+import { optionalConfig } from '@/lib/config/env';
 
 export const dynamic = 'force-dynamic'
 
@@ -244,7 +245,7 @@ export async function PATCH(
     });
 
     // Step 6: Generate login URL (prefer magic link for first-time access)
-    const loginUrl = magicLinkUrl || `${process.env.NEXT_PUBLIC_APP_URL}/auth/login`;
+    const loginUrl = magicLinkUrl || `${optionalConfig.appUrl || 'https://ato-ai.app'}/auth/login`;
 
     // Step 7: Send welcome email
     let emailSuccess = false;

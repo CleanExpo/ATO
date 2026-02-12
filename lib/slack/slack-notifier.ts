@@ -9,7 +9,9 @@
  * - Tax alert triggers
  */
 
-const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
+import { optionalConfig } from '@/lib/config/env'
+
+const SLACK_WEBHOOK_URL = optionalConfig.slackWebhookUrl
 
 /** Slack Block Kit element */
 interface SlackBlock {

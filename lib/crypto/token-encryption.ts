@@ -8,6 +8,7 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto'
+import { optionalConfig, serverConfig } from '@/lib/config/env'
 
 /**
  * Production guard (SEC-010): Validated lazily in getEncryptionKey().
@@ -26,7 +27,8 @@ const SALT_LENGTH = 32 // 256 bits
  * Get the encryption key from environment or throw error
  */
 function getEncryptionKey(): Buffer {
-  const keyHex = process.env.TOKEN_ENCRYPTION_KEY
+  // Check process.env directly first — reEncryptToken() temporarily mutates it
+  const keyHex = process.env.TOKEN_ENCRYPTION_KEY || optionalConfig.tokenEncryptionKey
 
   if (!keyHex) {
     // In development, use a derived key (NOT for production)
@@ -34,7 +36,7 @@ function getEncryptionKey(): Buffer {
       console.warn(
         'TOKEN_ENCRYPTION_KEY not set. Using derived key for development only.'
       )
-      const devSecret = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dev-secret-key'
+      const devSecret = serverConfig.supabase.serviceRoleKey || 'dev-secret-key'
       return scryptSync(devSecret, 'ato-dev-salt', 32)
     }
 

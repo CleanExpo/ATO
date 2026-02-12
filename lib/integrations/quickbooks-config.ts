@@ -12,6 +12,8 @@
  * API Documentation: https://developer.intuit.com/app/developer/qbo/docs/api/accounting/all-entities/purchase
  */
 
+import { serverConfig, sharedConfig } from '@/lib/config/env'
+
 export const QUICKBOOKS_CONFIG = {
   // OAuth 2.0 endpoints
   authorizationUrl: 'https://appcenter.intuit.com/connect/oauth2',
@@ -29,11 +31,11 @@ export const QUICKBOOKS_CONFIG = {
   ],
 
   // Client credentials from environment
-  clientId: process.env.QUICKBOOKS_CLIENT_ID,
-  clientSecret: process.env.QUICKBOOKS_CLIENT_SECRET,
+  clientId: serverConfig.quickbooks.clientId,
+  clientSecret: serverConfig.quickbooks.clientSecret,
 
   // Redirect URI (must match Intuit app config)
-  redirectUri: `${process.env.NEXT_PUBLIC_BASE_URL}/api/auth/quickbooks/callback`,
+  redirectUri: `${sharedConfig.baseUrl}/api/auth/quickbooks/callback`,
 
   // Token storage
   tokenTable: 'quickbooks_tokens',
@@ -65,7 +67,7 @@ export function validateQuickBooksConfig(): {
     errors.push('QUICKBOOKS_CLIENT_SECRET is not set in environment variables')
   }
 
-  if (!process.env.NEXT_PUBLIC_BASE_URL) {
+  if (!sharedConfig.baseUrl) {
     errors.push('NEXT_PUBLIC_BASE_URL is not set in environment variables')
   }
 

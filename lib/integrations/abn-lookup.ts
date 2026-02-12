@@ -20,10 +20,11 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { optionalConfig } from '@/lib/config/env'
 
 // ABR API configuration
 const ABR_BASE_URL = 'https://abr.business.gov.au/abrxmlsearch/AbrXmlSearch.asmx'
-const ABR_GUID = process.env.ABR_GUID || ''
+const ABR_GUID = optionalConfig.abrGuid
 const CACHE_TTL_HOURS = 24 * 7 // 7 days cache for ABN data
 
 /**

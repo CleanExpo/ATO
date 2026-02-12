@@ -8,6 +8,7 @@
  */
 
 import Stripe from 'stripe';
+import { optionalConfig } from '@/lib/config/env';
 
 /**
  * Lazy-initialize Stripe client with secret key
@@ -17,7 +18,7 @@ let stripeInstance: Stripe | null = null;
 
 function getStripeInstance(): Stripe {
   if (!stripeInstance) {
-    const apiKey = process.env.STRIPE_SECRET_KEY;
+    const apiKey = optionalConfig.stripeSecretKey;
     if (!apiKey) {
       throw new Error('STRIPE_SECRET_KEY not configured. Payment processing unavailable.');
     }

@@ -12,6 +12,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 import Link from 'next/link'
 import { MobileNav } from '@/components/ui/MobileNav'
 import { EvidenceWizard } from '@/components/rnd'
@@ -66,14 +67,8 @@ function EvidencePageContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div
-            className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4"
-            style={{ borderColor: '#8855FF' }}
-          />
-          <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
-        </div>
+      <div className="min-h-screen p-8">
+        <PageSkeleton variant="form" />
       </div>
     )
   }
@@ -196,14 +191,8 @@ export default function EvidencePage() {
     <>
     <Suspense
       fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <div
-              className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-4"
-              style={{ borderColor: '#8855FF' }}
-            />
-            <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
-          </div>
+        <div className="min-h-screen p-8">
+          <PageSkeleton variant="form" />
         </div>
       }
     >

@@ -17,6 +17,7 @@ import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MobileNav } from '@/components/ui/MobileNav'
+import { Pagination } from '@/components/ui/Pagination'
 import { generateXeroUrl } from '@/lib/xero/url-generator'
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -631,42 +632,6 @@ function usePagination<T>(items: T[], pageSize: number = PAGE_SIZE) {
   return { paginated, page, setPage, totalPages, showing }
 }
 
-function PaginationBar({ page, setPage, totalPages, showing }: {
-  page: number
-  setPage: (p: number) => void
-  totalPages: number
-  showing: { from: number; to: number; total: number }
-}) {
-  if (totalPages <= 1) return null
-  return (
-    <div className="flex flex-col items-center gap-3 mt-6 pt-4 border-t border-white/[0.06]">
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setPage(Math.max(0, page - 1))}
-          disabled={page === 0}
-          className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] border-[0.5px] border-white/[0.06] rounded-sm text-white/40 hover:text-white/70 hover:border-white/[0.1] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-          style={{ background: 'rgba(255,255,255,0.01)' }}
-        >
-          Previous
-        </button>
-        <span className="px-3 py-2 text-sm text-white/30 font-mono tabular-nums">
-          {page + 1} / {totalPages}
-        </span>
-        <button
-          onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
-          disabled={page >= totalPages - 1}
-          className="px-4 py-2 text-[10px] uppercase tracking-[0.2em] border-[0.5px] border-white/[0.06] rounded-sm text-white/40 hover:text-white/70 hover:border-white/[0.1] disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-          style={{ background: 'rgba(255,255,255,0.01)' }}
-        >
-          Next
-        </button>
-      </div>
-      <p className="text-[10px] text-white/20 font-mono tabular-nums tracking-wider">
-        Showing {showing.from}&ndash;{showing.to} of {showing.total.toLocaleString()}
-      </p>
-    </div>
-  )
-}
 
 // ─── Empty State ─────────────────────────────────────────────────────
 
@@ -784,7 +749,12 @@ function UnreconciledTab({ items }: { items: UnreconciledItem[] }) {
           </tbody>
         </table>
       </div>
-      <PaginationBar page={page} setPage={setPage} totalPages={totalPages} showing={showing} />
+      <Pagination
+        currentPage={page + 1}
+        totalPages={totalPages}
+        onPageChange={(p) => setPage(p - 1)}
+        showing={showing}
+      />
     </div>
   )
 }
@@ -901,7 +871,12 @@ function MatchesTab({ matches }: { matches: SuggestedMatch[] }) {
           </motion.div>
         )
       })}
-      <PaginationBar page={page} setPage={setPage} totalPages={totalPages} showing={showing} />
+      <Pagination
+        currentPage={page + 1}
+        totalPages={totalPages}
+        onPageChange={(p) => setPage(p - 1)}
+        showing={showing}
+      />
     </div>
   )
 }
@@ -1055,7 +1030,12 @@ function DuplicatesTab({ duplicates }: { duplicates: DuplicateGroup[] }) {
           )
         })}
       </div>
-      <PaginationBar page={page} setPage={setPage} totalPages={totalPages} showing={showing} />
+      <Pagination
+        currentPage={page + 1}
+        totalPages={totalPages}
+        onPageChange={(p) => setPage(p - 1)}
+        showing={showing}
+      />
     </div>
   )
 }
@@ -1196,7 +1176,12 @@ function MissingTab({ entries }: { entries: MissingEntry[] }) {
           </tbody>
         </table>
       </div>
-      <PaginationBar page={page} setPage={setPage} totalPages={totalPages} showing={showing} />
+      <Pagination
+        currentPage={page + 1}
+        totalPages={totalPages}
+        onPageChange={(p) => setPage(p - 1)}
+        showing={showing}
+      />
     </div>
   )
 }

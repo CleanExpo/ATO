@@ -11,6 +11,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { v4 as uuidv4 } from 'uuid'
+import { optionalConfig, clientConfig } from '@/lib/config/env'
 
 /**
  * Authentication result returned by authMiddleware
@@ -73,7 +74,7 @@ export async function authMiddleware(
   _request: NextRequest
 ): Promise<AuthResult | NextResponse> {
   // Single-user mode: Skip authentication entirely
-  if (process.env.SINGLE_USER_MODE === 'true') {
+  if (optionalConfig.singleUserMode === 'true') {
     const { createServiceClient } = await import('@/lib/supabase/server')
     const supabase = await createServiceClient()
 
@@ -90,8 +91,8 @@ export async function authMiddleware(
   const cookieStore = await cookies()
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    clientConfig.supabase.url,
+    clientConfig.supabase.anonKey,
     {
       cookies: {
         getAll() {

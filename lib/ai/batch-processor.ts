@@ -18,6 +18,7 @@ import { analyzeTransactionBatch, estimateAnalysisCost, type TransactionContext,
 import { invalidateTenantCache } from '@/lib/cache/cache-manager'
 import { triggerAlertGeneration } from '@/lib/alerts/alert-generator'
 import slack from '@/lib/slack/slack-notifier'
+import { optionalConfig } from '@/lib/config/env'
 import type { ForensicAnalysisRow } from '@/lib/types/forensic-analysis'
 
 const log = createLogger('ai:batch-processor')
@@ -214,7 +215,7 @@ export async function analyzeAllTransactions(
             totalCostAccumulated += batchCost
 
             // Check cost limit
-            const costLimitUSD = parseFloat(process.env.AI_COST_LIMIT_USD || '10')
+            const costLimitUSD = parseFloat(optionalConfig.aiCostLimitUsd)
             if (totalCostAccumulated > costLimitUSD) {
                 log.warn('AI cost limit exceeded, stopping analysis', { totalCostUSD: totalCostAccumulated, costLimitUSD })
                 progress.status = 'error'

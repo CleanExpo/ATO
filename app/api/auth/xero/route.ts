@@ -5,6 +5,7 @@ import { createLogger } from '@/lib/logger'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createClient } from '@/lib/supabase/server'
 import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
+import { serverConfig, sharedConfig } from '@/lib/config/env'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,10 +33,10 @@ export async function GET(request: NextRequest) {
 
     try {
         // Check environment variables before creating client
-        if (!process.env.XERO_CLIENT_ID || !process.env.XERO_CLIENT_SECRET) {
+        if (!serverConfig.xero.clientId || !serverConfig.xero.clientSecret) {
             console.error('[CRITICAL] Missing Xero OAuth credentials', {
-                hasClientId: !!process.env.XERO_CLIENT_ID,
-                hasClientSecret: !!process.env.XERO_CLIENT_SECRET,
+                hasClientId: !!serverConfig.xero.clientId,
+                hasClientSecret: !!serverConfig.xero.clientSecret,
             })
             return NextResponse.redirect(
                 `${baseUrl}/dashboard?error=${encodeURIComponent('Xero OAuth not configured. Please contact support.')}`
@@ -68,7 +69,7 @@ export async function GET(request: NextRequest) {
         // Store state in cookie for verification
         response.cookies.set('xero_oauth_state', state, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: sharedConfig.isProduction,
             sameSite: 'lax',
             maxAge: 60 * 10, // 10 minutes
             path: '/'

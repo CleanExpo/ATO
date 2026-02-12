@@ -22,6 +22,7 @@ export interface JinaScraperResult {
 }
 
 import { createLogger } from '@/lib/logger'
+import { optionalConfig } from '@/lib/config/env'
 
 const log = createLogger('scraping:jina')
 
@@ -31,7 +32,7 @@ export class JinaScraper {
 
   constructor(apiKey?: string) {
     // Jina AI token from environment
-    this.apiKey = apiKey || process.env.JINA_API_KEY || ''
+    this.apiKey = apiKey || optionalConfig.jinaApiKey
 
     if (!this.apiKey) {
       console.warn('JINA_API_KEY is not set. Real-time scraping will fail.')

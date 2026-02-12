@@ -12,6 +12,7 @@ import {
   type OrganizationInvitationData,
 } from './templates/organization-invitation'
 import { createLogger } from '@/lib/logger'
+import { optionalConfig } from '@/lib/config/env'
 
 const log = createLogger('email:invitation')
 
@@ -20,7 +21,7 @@ let _sgInitialized = false;
 
 function ensureSendGridInit(): void {
   if (!_sgInitialized) {
-    const apiKey = process.env.SENDGRID_API_KEY;
+    const apiKey = optionalConfig.sendgridApiKey;
     if (!apiKey) {
       throw new Error('SENDGRID_API_KEY not configured. Email delivery unavailable.');
     }
@@ -55,7 +56,7 @@ export async function sendOrganizationInvitationEmail(
 ): Promise<SendInvitationEmailResult> {
   try {
     // Validate required environment variables
-    if (!process.env.SENDGRID_API_KEY) {
+    if (!optionalConfig.sendgridApiKey) {
       console.error('SENDGRID_API_KEY environment variable is not set')
       return {
         success: false,

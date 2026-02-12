@@ -20,6 +20,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getFinancialYears, type FinancialYear } from '@/lib/types'
 import { createLogger } from '@/lib/logger'
+import { serverConfig } from '@/lib/config/env'
 
 const log = createLogger('integrations:myob')
 
@@ -195,7 +196,7 @@ async function fetchMYOBTransactionsByType(
     const top = 100 // Fetch 100 records per request
     const MYOB_RATE_LIMIT_DELAY_MS = 1000 // 1 second between requests (60/min limit)
 
-    const MYOB_CLIENT_ID = process.env.MYOB_CLIENT_ID || ''
+    const MYOB_CLIENT_ID = serverConfig.myob.clientId
 
     while (true) {
         try {

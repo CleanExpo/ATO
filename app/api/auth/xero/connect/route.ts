@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createClient } from '@/lib/supabase/server'
 import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
+import { serverConfig, sharedConfig } from '@/lib/config/env'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,8 +28,8 @@ export async function GET(request: NextRequest) {
 
     try {
         // Check environment variables inline to provide better error messages
-        const xeroClientId = process.env.XERO_CLIENT_ID?.trim()
-        const xeroClientSecret = process.env.XERO_CLIENT_SECRET?.trim()
+        const xeroClientId = serverConfig.xero.clientId
+        const xeroClientSecret = serverConfig.xero.clientSecret
 
         if (!xeroClientId || !xeroClientSecret) {
             console.error('Missing Xero OAuth credentials:', {
@@ -48,15 +49,8 @@ export async function GET(request: NextRequest) {
             )
         }
 
-        // Resolve base URL
-        let baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim()
-        if (!baseUrl && process.env.VERCEL_URL) {
-            baseUrl = `https://${process.env.VERCEL_URL.trim()}`
-        }
-        if (!baseUrl) {
-            console.warn('NEXT_PUBLIC_BASE_URL and VERCEL_URL are both missing — OAuth redirect will use localhost fallback')
-            baseUrl = `http://localhost:${process.env.PORT || '3000'}`
-        }
+        // Resolve base URL from centralised config
+        const baseUrl = sharedConfig.baseUrl
 
         // Generate random state for CSRF protection
         const state = crypto.randomUUID()
