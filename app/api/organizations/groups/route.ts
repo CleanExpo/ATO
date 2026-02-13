@@ -38,9 +38,10 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (groupsError) {
-      // If table or columns don't exist yet, return empty gracefully
+      // Return empty gracefully for expected errors:
       // 42P01 = undefined_table, 42703 = undefined_column
-      if (groupsError.code === '42P01' || groupsError.code === '42703') {
+      // 22P02 = invalid UUID (single-user mode uses non-UUID user ID)
+      if (groupsError.code === '42P01' || groupsError.code === '42703' || groupsError.code === '22P02') {
         return NextResponse.json({ groups: [], total: 0 });
       }
       console.error('Error fetching organization groups:', groupsError);
