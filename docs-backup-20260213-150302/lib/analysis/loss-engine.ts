@@ -1,0 +1,1002 @@
+/**
+ * Loss Carry-Forward Optimization Engine
+ *
+ * Analyzes historical loss positions and optimizes utilization:
+ * - Division 36 ITAA 1997: Company tax losses
+ * - Division 165 ITAA 1997: Company loss recoupment (COT/SBT)
+ * - Division 266 Schedule 2F ITAA 1936: Non-fixed trust losses (family trust election / 50% stake / distributions test)
+ * - Division 267 Schedule 2F ITAA 1936: Fixed trust losses (50% fixed entitlement maintenance)
+ * - Division 270 Schedule 2F ITAA 1936: Income injection test (trusts)
+ * - COT (Continuity of Ownership Test) — companies only
+ * - SBT (Same Business Test) — companies only
+ * - Loss utilization optimization
+ * - Future tax value calculation
+ *
+ * IMPORTANT: Trust entities use Division 266/267, NOT Division 165 (A-9 compliance).
+ */
+
+import { createServiceClient, type SupabaseServiceClient } from '@/lib/supabase/server'
+import { getCurrentTaxRates } from '@/lib/tax-data/cache-manager'
+import { checkAmendmentPeriod, type EntityTypeForAmendment } from '@/lib/utils/financial-year'
+import Decimal from 'decimal.js'
+import { createLogger } from '@/lib/logger'
+
+const log = createLogger('analysis:loss')
+
+// Fallback tax rates - s 23AA and s 23 ITAA 1997
+const FALLBACK_CORPORATE_TAX_RATE_SMALL = 0.25 // 25% base rate entity
+const FALLBACK_CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% standard corporate rate
+
+// Entity types for tax rate determination
+export type EntityType = 'company' | 'trust' | 'partnership' | 'individual' | 'smsf' | 'non_profit' | 'foreign_company' | 'unknown'
+
+/**
+ * Loss type classification.
+ * Capital losses can ONLY offset capital gains (s 102-5 ITAA 1997).
+ * Revenue losses can offset assessable income (Division 36 ITAA 1997).
+ */
+export type LossType = 'revenue' | 'capital'
+
+// COT/SBT thresholds
+const _COT_OWNERSHIP_THRESHOLD = 0.50 // 50% ownership continuity required (reserved for future use)
+const _SBT_LOOKBACK_YEARS = 3 // Look back 3 years to determine "same business" (reserved for future use)
+
+/**
+ * Determine the applicable corporate tax rate based on entity type.
+ * s 23AA ITAA 1997 - Base rate entity (turnover < $50M): 25%
+ * s 23 ITAA 1997 - Standard corporate rate: 30%
+ * Trusts: tax benefit depends on beneficiary marginal rates (no fixed rate)
+ */
+/**
+ * Determine the applicable corporate tax rate based on entity type.
+ */
+async function getApplicableTaxRate(
+  entityType: EntityType = 'unknown',
+  isBaseRateEntity: boolean = false
+): Promise<{ rate: number; note: string; source: string }> {
+  let rateSmall = FALLBACK_CORPORATE_TAX_RATE_SMALL
+  let rateStandard = FALLBACK_CORPORATE_TAX_RATE_STANDARD
+  let source = 'ATO_FALLBACK_DEFAULT'
+
+  try {
+    const liveRates = await getCurrentTaxRates()
+    if (liveRates.corporateTaxRateSmall) rateSmall = liveRates.corporateTaxRateSmall
+    if (liveRates.corporateTaxRateStandard) rateStandard = liveRates.corporateTaxRateStandard
+    if (liveRates.sources.corporateTax) source = liveRates.sources.corporateTax
+  } catch (err) {
+    console.warn('Failed to fetch live corporate rates, using fallbacks', err)
+  }
+
+  switch (entityType) {
+    case 'company':
+      if (isBaseRateEntity) {
+        return {
+          rate: rateSmall,
+          note: 'Base rate entity (turnover < $50M) - 25% rate per s 23AA ITAA 1997',
+          source
+        }
+      }
+      return {
+        rate: rateStandard,
+        note: 'Standard corporate rate - 30% per s 23 ITAA 1997',
+        source
+      }
+    case 'trust':
+      return {
+        rate: rateStandard,
+        note: 'Trust: tax benefit depends on beneficiary marginal rates. 30% used as conservative estimate. Professional review required.',
+        source
+      }
+    case 'partnership':
+      return {
+        rate: rateStandard,
+        note: 'Partnership: tax benefit depends on partner marginal rates. 30% used as conservative estimate.',
+        source
+      }
+    case 'individual':
+      return {
+        rate: rateStandard,
+        note: 'Individual: actual benefit depends on marginal tax rate. 30% used as conservative estimate.',
+        source
+      }
+    case 'unknown':
+    default:
+      return {
+        rate: rateStandard,
+        note: 'Entity type unknown - defaulting to 30% standard corporate rate (conservative). Verify entity type for accurate calculation.',
+        source
+      }
+  }
+}
+
+export interface LossPosition {
+  financialYear: string
+  openingLossBalance: number
+  currentYearLoss: number // Loss incurred this year (if any)
+  currentYearProfit: number // Profit this year (if any)
+  lossesUtilized: number // Losses used to offset profit
+  lossesExpired: number // Losses that expired (failed COT/SBT)
+  closingLossBalance: number // Carried forward to next year
+  taxableIncome: number // After loss utilisation
+  amendmentPeriodWarning?: string // Warning if FY is outside amendment period
+  /**
+   * Loss type classification (s 102-5 ITAA 1997).
+   * - 'revenue': Can offset assessable income (Division 36)
+   * - 'capital': Can ONLY offset capital gains, never assessable income
+   * Defaults to 'revenue' for backward compatibility.
+   */
+  lossType: LossType
+}
+
+export interface CotSbtAnalysis {
+  cotSatisfied: boolean | 'unknown'
+  cotConfidence: number
+  cotNotes: string[]
+  sbtRequired: boolean | 'unknown'
+  sbtSatisfied: boolean | 'unknown'
+  sbtConfidence: number
+  sbtNotes: string[]
+  isEligibleForCarryforward: boolean
+  professionalReviewRequired: boolean
+  riskLevel: 'low' | 'medium' | 'high'
+  /** Transaction-based evidence for Similar Business Test (s 165-13 ITAA 1997) */
+  sbtEvidence?: {
+    currentYearCategories: string[]
+    priorYearCategories: string[]
+    consistentCategories: string[]
+    consistencyRatio: number
+    recurringSuppliers: string[]
+    note: string
+  }
+  /**
+   * Trust-specific loss rule (A-9 compliance).
+   * Companies use Division 165 (COT/SBT).
+   * Trusts use Division 266 (non-fixed) or Division 267 (fixed) of Schedule 2F ITAA 1936.
+   * 'not_applicable' for non-trust entities.
+   */
+  trustLossRule?: 'division_266' | 'division_267' | 'not_applicable'
+  /** Whether a family trust election has been made under s 272-75 Schedule 2F ITAA 1936 */
+  familyTrustElection?: boolean | 'unknown'
+  /** Trust-specific notes on loss recoupment eligibility */
+  trustNotes?: string[]
+}
+
+export interface LossAnalysis {
+  financialYear: string
+  openingLossBalance: number
+  currentYearLoss: number
+  lossesUtilized: number
+  closingLossBalance: number
+  cotSbtAnalysis: CotSbtAnalysis
+  isEligibleForCarryforward: boolean
+  futureTaxValue: number // Value of carried forward losses at corporate rate
+  /**
+   * Loss type classification (s 102-5 ITAA 1997).
+   * Capital losses can ONLY offset capital gains, never assessable income.
+   */
+  lossType: LossType
+  optimization: {
+    currentStrategy: string
+    recommendedStrategy: string
+    additionalBenefit: number
+    reasoning: string
+  }
+  recommendations: string[]
+}
+
+export interface LossSummary {
+  totalAvailableLosses: number
+  totalUtilizedLosses: number
+  totalExpiredLosses: number
+  totalFutureTaxValue: number
+  /** Revenue losses available to offset assessable income (Division 36 ITAA 1997) */
+  revenueLosses: number
+  /** Capital losses available to offset ONLY capital gains (s 102-5 ITAA 1997) */
+  capitalLosses: number
+  lossesByYear: Record<string, number>
+  utilizationRate: number // Percentage of losses utilized
+  averageRiskLevel: string
+  optimizationOpportunities: LossAnalysis[]
+  lossHistory: LossAnalysis[]
+  taxRateSource: string
+  taxRateVerifiedAt: string
+}
+
+/**
+ * Analyze loss position across multiple years
+ */
+export async function analyzeLossPosition(
+  tenantId: string,
+  startYear?: string,
+  endYear?: string,
+  entityType: EntityType = 'unknown',
+  isBaseRateEntity: boolean = false
+): Promise<LossSummary> {
+  const supabase = await createServiceClient()
+
+  // Fetch P&L data from cache (would need to implement P&L fetching in historical-fetcher)
+  // For now, we'll infer from transaction data
+  const lossPositions = await fetchLossPositions(supabase, tenantId, startYear, endYear, entityType)
+
+  if (lossPositions.length === 0) {
+    return createEmptyLossSummary()
+  }
+
+  log.info('Analysing loss positions', { financialYears: lossPositions.length, entityType })
+
+  // Determine applicable tax rate based on entity type
+  const taxRateInfo = await getApplicableTaxRate(entityType, isBaseRateEntity)
+
+  // Analyze each year's loss position
+  const lossAnalyses: LossAnalysis[] = []
+
+  for (let i = 0; i < lossPositions.length; i++) {
+    const currentYear = lossPositions[i]
+    const previousYears = lossPositions.slice(0, i)
+
+    const analysis = analyzeSingleYearLoss(currentYear, previousYears, taxRateInfo, entityType)
+    lossAnalyses.push(analysis)
+  }
+
+  // Enrich SBT analysis with transaction pattern evidence (s 165-13 ITAA 1997)
+  await enrichSbtWithTransactionEvidence(supabase, tenantId, lossAnalyses)
+
+  // Calculate summary
+  const summary = calculateLossSummary(lossAnalyses, taxRateInfo.source)
+
+  return summary
+}
+
+/**
+ * Fetch loss positions from historical data
+ * This would ideally pull from P&L reports stored in cache
+ */
+async function fetchLossPositions(
+  supabase: SupabaseServiceClient,
+  tenantId: string,
+  startYear?: string,
+  endYear?: string,
+  entityType: EntityType = 'unknown'
+): Promise<LossPosition[]> {
+  // Queries historical_transactions_cache and calculates profit/loss per year.
+  // Steps: sum ACCREC (income) and ACCPAY/BANK (expenses) per FY,
+  // compute profit/loss, and track carry-forward across years.
+
+  let query = supabase
+    .from('historical_transactions_cache')
+    .select('financial_year, raw_data')
+    .eq('tenant_id', tenantId)
+
+  if (startYear) {
+    query = query.gte('financial_year', startYear)
+  }
+  if (endYear) {
+    query = query.lte('financial_year', endYear)
+  }
+
+  const { data, error } = await query
+
+  if (error || !data) {
+    console.error('Failed to fetch loss data:', error)
+    return []
+  }
+
+  // Group by year and calculate P&L
+  const yearMap = new Map<string, Record<string, unknown>[]>()
+  data.forEach((record: { financial_year: string; raw_data: Record<string, unknown> }) => {
+    const year = record.financial_year
+    if (!yearMap.has(year)) {
+      yearMap.set(year, [])
+    }
+    yearMap.get(year)!.push(record.raw_data)
+  })
+
+  const lossPositions: LossPosition[] = []
+  let runningLossBalance = 0
+
+  const sortedYears = Array.from(yearMap.keys()).sort()
+
+  sortedYears.forEach((year) => {
+    const transactions = yearMap.get(year) || []
+
+    // Calculate income and expenses by transaction type
+    // s 8-1 ITAA 1997 - General deductions; assessable income vs allowable deductions
+    let income = 0
+    let expenses = 0
+
+    transactions.forEach((tx: Record<string, unknown>) => {
+      const rawAmount = parseFloat(String(tx.Total)) || 0
+      const absAmount = Math.abs(rawAmount)
+      const type = tx.Type
+
+      if (type === 'ACCREC') {
+        // Accounts Receivable invoices → Revenue (positive)
+        income += absAmount
+      } else if (type === 'ACCREC-CREDIT') {
+        // Accounts Receivable credit notes → Revenue reduction (negative)
+        expenses += absAmount // Reduces net income effectively
+      } else if (type === 'ACCPAY') {
+        // Accounts Payable bills → Expenses
+        expenses += absAmount
+      } else if (type === 'ACCPAY-CREDIT') {
+        // Accounts Payable credit notes → Expense reduction
+        income += absAmount // Reduces net expenses effectively
+      } else if (type === 'BANK') {
+        // Bank transactions: classify by amount sign
+        // Positive amounts (money in) → Revenue/income
+        // Negative amounts (money out) → Expenses
+        if (rawAmount > 0) {
+          income += rawAmount
+        } else if (rawAmount < 0) {
+          expenses += Math.abs(rawAmount)
+        }
+      }
+    })
+
+    const netProfitLoss = income - expenses
+    const currentYearProfit = netProfitLoss > 0 ? netProfitLoss : 0
+    const currentYearLoss = netProfitLoss < 0 ? Math.abs(netProfitLoss) : 0
+
+    // Calculate loss utilization
+    const availableLosses = runningLossBalance + currentYearLoss
+    const lossesUtilized = Math.min(availableLosses, currentYearProfit)
+    const closingLossBalance = availableLosses - lossesUtilized
+    const taxableIncome = currentYearProfit - lossesUtilized
+
+    // Division 36 ITAA 1997 - Tax losses carried forward indefinitely if COT/SBT met
+    // However, check amendment period for ability to amend prior returns
+    // Uses shared checkAmendmentPeriod from financial-year utility
+    const amendmentWarning = currentYearLoss > 0
+      ? checkAmendmentPeriod(year, entityType as EntityTypeForAmendment)
+      : undefined
+
+    // Tax losses do not expire in Australia (Division 36 ITAA 1997) provided
+    // COT/SBT tests are satisfied. lossesExpired remains 0 as expiry depends
+    // on COT/SBT analysis which is performed separately.
+    // Default lossType to 'revenue' - capital loss detection requires CGT event analysis
+    lossPositions.push({
+      financialYear: year,
+      openingLossBalance: runningLossBalance,
+      currentYearLoss,
+      currentYearProfit,
+      lossesUtilized,
+      lossesExpired: 0, // Losses don't expire per Division 36; COT/SBT failure handled in analysis
+      closingLossBalance,
+      taxableIncome,
+      amendmentPeriodWarning: amendmentWarning,
+      lossType: 'revenue', // Default to revenue; CGT engine handles capital loss classification
+    })
+
+    runningLossBalance = closingLossBalance
+  })
+
+  return lossPositions
+}
+
+/**
+ * Analyze a single year's loss position
+ */
+function analyzeSingleYearLoss(
+  currentYear: LossPosition,
+  previousYears: LossPosition[],
+  taxRateInfo: { rate: number; note: string; source: string } = {
+    rate: FALLBACK_CORPORATE_TAX_RATE_STANDARD,
+    note: 'Default 30% rate',
+    source: 'ATO_FALLBACK_DEFAULT'
+  },
+  entityType: EntityType = 'unknown'
+): LossAnalysis {
+  // Perform COT/SBT analysis (Division 165 for companies, Division 266/267 for trusts)
+  const cotSbtAnalysis = analyzeCotSbt(currentYear, previousYears, entityType)
+
+  // Calculate future tax value of carried forward losses using Decimal for precision
+  // s 23AA / s 23 ITAA 1997 - Rate depends on entity type
+  const futureTaxValue = new Decimal(currentYear.closingLossBalance)
+    .times(new Decimal(taxRateInfo.rate))
+    .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+    .toNumber()
+
+  // Optimise loss utilisation
+  const optimization = optimizeLossUtilization(currentYear, cotSbtAnalysis, taxRateInfo)
+
+  // Generate recommendations
+  const recommendations = generateLossRecommendations(currentYear, cotSbtAnalysis, optimization, taxRateInfo)
+
+  return {
+    financialYear: currentYear.financialYear,
+    openingLossBalance: currentYear.openingLossBalance,
+    currentYearLoss: currentYear.currentYearLoss,
+    lossesUtilized: currentYear.lossesUtilized,
+    closingLossBalance: currentYear.closingLossBalance,
+    cotSbtAnalysis,
+    isEligibleForCarryforward: cotSbtAnalysis.isEligibleForCarryforward,
+    futureTaxValue,
+    lossType: currentYear.lossType,
+    optimization,
+    recommendations,
+  }
+}
+
+/**
+ * Analyze loss recoupment eligibility based on entity type.
+ *
+ * - Companies: Division 165 ITAA 1997 (COT/SBT)
+ * - Trusts: Division 266/267 Schedule 2F ITAA 1936
+ *   - Division 266: Non-fixed trusts (family trusts) — family trust election (s 272-75)
+ *     or pattern of distributions test (s 269-60)
+ *   - Division 267: Fixed trusts — 50% fixed entitlement maintenance
+ *   - Division 270: Income injection test applies to both
+ *
+ * A-9 compliance: Trusts MUST NOT use Division 165 rules.
+ */
+function analyzeCotSbt(
+  currentYear: LossPosition,
+  _previousYears: LossPosition[],
+  entityType: EntityType = 'unknown'
+): CotSbtAnalysis {
+  const hasLossesToCarryForward = currentYear.closingLossBalance > 0
+
+  if (!hasLossesToCarryForward) {
+    return {
+      cotSatisfied: true,
+      cotConfidence: 100,
+      cotNotes: ['No losses to carry forward - COT not applicable'],
+      sbtRequired: false,
+      sbtSatisfied: true,
+      sbtConfidence: 100,
+      sbtNotes: [],
+      isEligibleForCarryforward: true,
+      professionalReviewRequired: false,
+      riskLevel: 'low',
+      trustLossRule: entityType === 'trust' ? 'division_266' : 'not_applicable',
+    }
+  }
+
+  // Trust entities use different loss recoupment rules (Division 266/267 Schedule 2F ITAA 1936)
+  if (entityType === 'trust') {
+    return analyzeTrustLossRecoupment(currentYear)
+  }
+
+  // Company/other entities: Division 165 ITAA 1997 (COT/SBT)
+  // COT cannot be determined without share register data
+  // s 165-12 ITAA 1997 - Continuity of ownership test requires
+  // verification that majority ownership (50%+) has not changed
+  const cotSatisfied: boolean | 'unknown' = 'unknown'
+  const cotConfidence = 50 // Reflects genuine uncertainty without ownership data
+  const cotNotes = [
+    'Continuity of Ownership Test requires share register verification. Professional review required.',
+    's 165-12 ITAA 1997 - COT requires 50%+ continuity of ownership throughout the ownership test period',
+    'Share register data not available - COT status cannot be determined automatically',
+    'Verify shareholding has not changed since loss was incurred',
+    'Review share register for any transfers, new issues, or redemptions',
+  ]
+
+  // SBT status also unknown without business activity comparison data
+  // s 165-13 ITAA 1997 - SBT applies as fallback if COT fails
+  const sbtRequired: boolean | 'unknown' = 'unknown' // Cannot determine if COT is unknown
+  const sbtSatisfied: boolean | 'unknown' = 'unknown'
+  const sbtConfidence = 50 // No business activity data to compare across years
+  const sbtNotes = [
+    'Same Business Test requires comparison of business activities across financial years. Professional review required.',
+    's 165-13 ITAA 1997 - SBT requires the company to carry on the same business throughout the test period',
+    'No industry code or business activity data available for automated comparison',
+    'New business activities or significant changes may cause SBT failure',
+  ]
+
+  // Without confirmed COT or SBT, eligibility is assumed but flagged for review
+  // Division 36 ITAA 1997 - Tax losses carried forward indefinitely if COT/SBT met
+  const isEligibleForCarryforward = true // Assumed eligible, but must be verified
+
+  // Risk level is always medium or high when COT/SBT is unknown
+  const riskLevel: 'low' | 'medium' | 'high' = 'medium'
+
+  return {
+    cotSatisfied,
+    cotConfidence,
+    cotNotes,
+    sbtRequired,
+    sbtSatisfied,
+    sbtConfidence,
+    sbtNotes,
+    isEligibleForCarryforward,
+    professionalReviewRequired: true, // Always required when losses exist and COT/SBT unknown
+    riskLevel,
+    trustLossRule: 'not_applicable',
+  }
+}
+
+/**
+ * Trust-specific loss recoupment analysis (Division 266/267 Schedule 2F ITAA 1936).
+ *
+ * Trust losses are NOT governed by Division 165 (company COT/SBT).
+ * Instead:
+ * - Division 266: Non-fixed trusts — requires family trust election (s 272-75)
+ *   OR pattern of distributions test (s 269-60) OR 50% stake test
+ * - Division 267: Fixed trusts — requires 50% fixed entitlement maintenance
+ * - Division 270: Income injection test prevents artificial income to absorb losses
+ *
+ * Without trust deed analysis and distribution data, assessment is 'unknown'
+ * but the correct legislative framework is identified.
+ */
+function analyzeTrustLossRecoupment(currentYear: LossPosition): CotSbtAnalysis {
+  const trustNotes: string[] = [
+    'Trust loss recoupment is governed by Division 266/267 of Schedule 2F ITAA 1936 — NOT Division 165.',
+    'Division 165 (COT/SBT) applies to COMPANIES only. Applying company rules to trust losses would produce incorrect results.',
+  ]
+
+  // Division 266 (non-fixed trusts) analysis
+  // Most discretionary/family trusts are non-fixed trusts under Division 266
+  // Key question: has a family trust election been made under s 272-75?
+  const familyTrustElection: boolean | 'unknown' = 'unknown'
+
+  trustNotes.push(
+    'Division 266 (non-fixed trusts): Requires EITHER a family trust election (s 272-75 Schedule 2F ITAA 1936) ' +
+    'OR the 50% stake test OR the pattern of distributions test (s 269-60).'
+  )
+  trustNotes.push(
+    'Family trust election (FTE): If made, allows loss carry-forward provided distributions stay within the ' +
+    'family group. FTE is irrevocable and triggers family trust distribution tax (FTDT) on non-family distributions.'
+  )
+  trustNotes.push(
+    'Division 267 (fixed trusts): Requires 50% or more fixed entitlement to income and capital to be maintained ' +
+    'throughout the income year. Fixed trust status depends on trust deed terms.'
+  )
+  trustNotes.push(
+    'Division 270 (income injection test): Applies to BOTH fixed and non-fixed trusts. Prevents schemes ' +
+    'to inject income into a trust to absorb carried-forward losses. Review any unusual income sources.'
+  )
+  trustNotes.push(
+    'Trust deed analysis and distribution history required to determine eligibility. ' +
+    'Professional review is ESSENTIAL for trust loss recoupment.'
+  )
+
+  // COT/SBT fields are marked as not applicable for trusts
+  return {
+    cotSatisfied: 'unknown',
+    cotConfidence: 0, // COT does not apply to trusts
+    cotNotes: [
+      'Division 165 COT does NOT apply to trust entities.',
+      'Trust losses are governed by Division 266/267 Schedule 2F ITAA 1936.',
+    ],
+    sbtRequired: 'unknown',
+    sbtSatisfied: 'unknown',
+    sbtConfidence: 0, // SBT (Division 165) does not apply to trusts
+    sbtNotes: [
+      'Division 165 SBT does NOT apply to trust entities.',
+      'Trust-specific tests apply instead (family trust election, 50% stake test, pattern of distributions).',
+    ],
+    isEligibleForCarryforward: true, // Assumed eligible pending professional review
+    professionalReviewRequired: true,
+    riskLevel: 'high', // Trust losses always high risk without deed analysis
+    trustLossRule: 'division_266', // Default to non-fixed (most common for discretionary trusts)
+    familyTrustElection,
+    trustNotes,
+  }
+}
+
+/**
+ * Optimize loss utilization strategy
+ */
+function optimizeLossUtilization(
+  currentYear: LossPosition,
+  cotSbtAnalysis: CotSbtAnalysis,
+  taxRateInfo: { rate: number; note: string; source: string } = {
+    rate: FALLBACK_CORPORATE_TAX_RATE_STANDARD,
+    note: 'Default 30% rate',
+    source: 'ATO_FALLBACK_DEFAULT'
+  }
+): {
+  currentStrategy: string
+  recommendedStrategy: string
+  additionalBenefit: number
+  reasoning: string
+} {
+  const hasProfit = currentYear.currentYearProfit > 0
+  const hasLosses = currentYear.openingLossBalance > 0 || currentYear.currentYearLoss > 0
+
+  // Current strategy: automatic utilisation
+  const currentStrategy = hasProfit && hasLosses ? 'Automatic loss offset against current year profit' : 'No loss utilisation (no profit)'
+
+  // Recommended strategy
+  let recommendedStrategy = currentStrategy
+  let additionalBenefit = 0
+  let reasoning = 'Current strategy is optimal'
+
+  if (hasProfit && hasLosses && cotSbtAnalysis.isEligibleForCarryforward) {
+    // Check if deferring loss utilisation would be beneficial
+    // (e.g., if expecting higher tax rate in future, or if R&D offset available)
+
+    // Recommend full utilisation using entity-appropriate tax rate
+    recommendedStrategy = 'Utilise all available losses against current year profit'
+    additionalBenefit = new Decimal(currentYear.lossesUtilized)
+      .times(new Decimal(taxRateInfo.rate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toNumber()
+    reasoning = `Save $${additionalBenefit.toFixed(2)} in tax by offsetting losses against profit (${taxRateInfo.note})`
+  } else if (hasLosses && !cotSbtAnalysis.isEligibleForCarryforward) {
+    recommendedStrategy = 'Losses may not be eligible for carry-forward - verify COT/SBT compliance'
+    additionalBenefit = 0
+    reasoning = 'Risk of losing carry-forward losses due to COT/SBT failure'
+  }
+
+  return {
+    currentStrategy,
+    recommendedStrategy,
+    additionalBenefit,
+    reasoning,
+  }
+}
+
+/**
+ * Generate recommendations for loss management
+ */
+function generateLossRecommendations(
+  currentYear: LossPosition,
+  cotSbtAnalysis: CotSbtAnalysis,
+  optimization: { currentStrategy: string; recommendedStrategy: string; additionalBenefit: number; reasoning: string },
+  taxRateInfo: { rate: number; note: string; source: string } = {
+    rate: FALLBACK_CORPORATE_TAX_RATE_STANDARD,
+    note: 'Default 30% rate',
+    source: 'ATO_FALLBACK_DEFAULT'
+  }
+): string[] {
+  const recommendations: string[] = []
+
+  // Loss carry-forward eligibility
+  if (!cotSbtAnalysis.isEligibleForCarryforward) {
+    recommendations.push('❌ Losses may not be eligible for carry-forward due to COT/SBT failure')
+    recommendations.push('🔴 URGENT: Review ownership changes and business continuity')
+    recommendations.push('Consider whether losses should be written off in tax return')
+  } else if (cotSbtAnalysis.riskLevel === 'high') {
+    recommendations.push('⚠️ HIGH RISK: Loss carry-forward eligibility uncertain')
+    recommendations.push('Obtain professional advice on COT/SBT compliance')
+  } else if (cotSbtAnalysis.riskLevel === 'medium') {
+    recommendations.push('⚠️ MEDIUM RISK: Verify COT/SBT compliance')
+    recommendations.push('Review shareholder register for ownership continuity')
+  }
+
+  // Loss utilisation
+  if (currentYear.closingLossBalance > 0) {
+    const futureValue = new Decimal(currentYear.closingLossBalance)
+      .times(new Decimal(taxRateInfo.rate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toNumber()
+    const ratePercent = Math.round(taxRateInfo.rate * 100)
+    recommendations.push(`Carried forward losses: $${currentYear.closingLossBalance.toFixed(2)}`)
+    recommendations.push(`Future tax value: $${futureValue.toFixed(2)} (at ${ratePercent}% rate - ${taxRateInfo.note})`)
+    recommendations.push('Plan to utilise losses against future profits')
+  }
+
+  if (currentYear.lossesUtilized > 0) {
+    const taxSaved = new Decimal(currentYear.lossesUtilized)
+      .times(new Decimal(taxRateInfo.rate))
+      .toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+      .toNumber()
+    recommendations.push(`Utilised $${currentYear.lossesUtilized.toFixed(2)} in losses this year`)
+    recommendations.push(`Tax saved: $${taxSaved.toFixed(2)}`)
+  }
+
+  // Entity-specific loss recoupment recommendations
+  if (cotSbtAnalysis.trustLossRule && cotSbtAnalysis.trustLossRule !== 'not_applicable') {
+    // Trust-specific recommendations (Division 266/267 Schedule 2F ITAA 1936)
+    recommendations.push(
+      '⚠️ TRUST ENTITY: Loss recoupment governed by Division 266/267 Schedule 2F ITAA 1936 (NOT Division 165)'
+    )
+    if (cotSbtAnalysis.familyTrustElection === 'unknown') {
+      recommendations.push(
+        '⚠️ Family trust election status unknown (s 272-75 Schedule 2F). ' +
+        'If an FTE has been made, losses can be carried forward provided distributions remain within the family group.'
+      )
+      recommendations.push(
+        'If NO family trust election exists, the trust must satisfy the 50% stake test or ' +
+        'pattern of distributions test (s 269-60) to carry forward losses.'
+      )
+    }
+    recommendations.push(
+      'Division 270 income injection test: Verify no schemes exist to inject income into the trust to absorb losses.'
+    )
+    recommendations.push(
+      '🔴 PROFESSIONAL REVIEW ESSENTIAL: Trust loss recoupment requires analysis of the trust deed, ' +
+      'distribution history, and any family trust election. Division 266/267 rules are complex.'
+    )
+  } else {
+    // Company/other entity: Division 165 COT/SBT recommendations
+    if (cotSbtAnalysis.cotSatisfied === 'unknown') {
+      recommendations.push('⚠️ COT status unknown - share register verification required (s 165-12 ITAA 1997)')
+      recommendations.push('Professional review required to confirm continuity of ownership')
+    } else if (cotSbtAnalysis.cotSatisfied) {
+      recommendations.push('✅ COT satisfied - ownership continuity maintained')
+    } else {
+      recommendations.push('❌ COT not satisfied - check SBT compliance')
+    }
+
+    if (cotSbtAnalysis.sbtSatisfied === 'unknown') {
+      recommendations.push('⚠️ SBT status unknown - business activity comparison required (s 165-13 ITAA 1997)')
+    } else if (cotSbtAnalysis.sbtRequired === true) {
+      if (cotSbtAnalysis.sbtSatisfied) {
+        recommendations.push('✅ SBT satisfied - same business maintained')
+      } else {
+        recommendations.push('❌ SBT not satisfied - losses may be forfeited')
+      }
+    }
+
+    // Professional review flag
+    if (cotSbtAnalysis.professionalReviewRequired) {
+      recommendations.push('🔴 PROFESSIONAL REVIEW REQUIRED: Loss carry-forward eligibility must be verified by a qualified tax agent')
+    }
+  }
+
+  // Amendment period warning - Taxation Administration Act 1953, s 170
+  if (currentYear.amendmentPeriodWarning) {
+    recommendations.push(`⚠️ AMENDMENT PERIOD: ${currentYear.amendmentPeriodWarning}`)
+  }
+
+  // Optimisation recommendations
+  if (optimization.additionalBenefit > 0) {
+    recommendations.push(`${optimization.recommendedStrategy}`)
+    recommendations.push(`Potential benefit: $${optimization.additionalBenefit.toFixed(2)}`)
+  }
+
+  // Documentation
+  recommendations.push('Maintain loss schedule in Company Tax Return (Schedule 5)')
+  recommendations.push('Retain shareholder register and share transaction records')
+  recommendations.push('Document business activities year-over-year for SBT compliance')
+
+  return recommendations
+}
+
+/**
+ * Enrich SBT analysis with transaction pattern evidence (s 165-13 ITAA 1997).
+ *
+ * Compares expense categories and supplier patterns across financial years
+ * to provide evidence-based SBT assessment rather than always returning 'unknown'.
+ *
+ * - 70%+ category consistency: suggests SBT satisfied (confidence 75)
+ * - 40-69% consistency: SBT uncertain but with evidence (confidence 65)
+ * - <40% consistency: SBT likely not satisfied (confidence 60)
+ */
+async function enrichSbtWithTransactionEvidence(
+  supabase: SupabaseServiceClient,
+  tenantId: string,
+  lossAnalyses: LossAnalysis[]
+): Promise<void> {
+  // Only enrich analyses that have losses to carry forward and unknown SBT status
+  const analysesToEnrich = lossAnalyses.filter(
+    a => a.closingLossBalance > 0 && a.cotSbtAnalysis.sbtSatisfied === 'unknown'
+  )
+
+  if (analysesToEnrich.length === 0) return
+
+  // Fetch expense categories by financial year from forensic_analysis_results
+  const { data: categoryData, error } = await supabase
+    .from('forensic_analysis_results')
+    .select('financial_year, primary_category, supplier_name')
+    .eq('tenant_id', tenantId)
+    .not('primary_category', 'is', null)
+    .order('financial_year', { ascending: true })
+
+  if (error || !categoryData || categoryData.length === 0) {
+    log.info('No category data available for SBT enrichment', { tenantId })
+    return
+  }
+
+  // Group categories and suppliers by financial year
+  const yearCategories = new Map<string, Set<string>>()
+  const yearSuppliers = new Map<string, Set<string>>()
+
+  for (const row of categoryData) {
+    const fy = row.financial_year as string
+    if (!fy) continue
+
+    if (!yearCategories.has(fy)) {
+      yearCategories.set(fy, new Set())
+    }
+    if (row.primary_category) {
+      yearCategories.get(fy)!.add(row.primary_category as string)
+    }
+
+    if (!yearSuppliers.has(fy)) {
+      yearSuppliers.set(fy, new Set())
+    }
+    if (row.supplier_name) {
+      yearSuppliers.get(fy)!.add(row.supplier_name as string)
+    }
+  }
+
+  const sortedYears = Array.from(yearCategories.keys()).sort()
+  if (sortedYears.length < 2) {
+    log.info('Insufficient year data for SBT comparison', { years: sortedYears.length })
+    return
+  }
+
+  // For each analysis year, compare against prior year(s)
+  for (const analysis of analysesToEnrich) {
+    const currentFY = analysis.financialYear
+    const currentCategories = yearCategories.get(currentFY)
+
+    // Find the prior year with data
+    const currentIndex = sortedYears.indexOf(currentFY)
+    if (currentIndex <= 0 || !currentCategories) continue
+
+    const priorFY = sortedYears[currentIndex - 1]
+    const priorCategories = yearCategories.get(priorFY)
+
+    if (!priorCategories) continue
+
+    // Calculate category consistency
+    const currentArr = Array.from(currentCategories)
+    const priorArr = Array.from(priorCategories)
+    const consistentCategories = currentArr.filter(cat => priorCategories.has(cat))
+    const allCategories = new Set([...currentArr, ...priorArr])
+    const consistencyRatio = allCategories.size > 0
+      ? consistentCategories.length / allCategories.size
+      : 0
+
+    // Find recurring suppliers (present in both years)
+    const currentSuppliers = yearSuppliers.get(currentFY)
+    const priorSuppliers = yearSuppliers.get(priorFY)
+    const recurringSuppliers = currentSuppliers && priorSuppliers
+      ? Array.from(currentSuppliers).filter(s => priorSuppliers.has(s)).slice(0, 10)
+      : []
+
+    // Build evidence
+    const evidence = {
+      currentYearCategories: currentArr.slice(0, 20),
+      priorYearCategories: priorArr.slice(0, 20),
+      consistentCategories: consistentCategories.slice(0, 20),
+      consistencyRatio: Math.round(consistencyRatio * 100) / 100,
+      recurringSuppliers,
+      note: '',
+    }
+
+    // Update SBT assessment based on evidence
+    if (consistencyRatio >= 0.7) {
+      analysis.cotSbtAnalysis.sbtSatisfied = true
+      analysis.cotSbtAnalysis.sbtConfidence = 75
+      evidence.note =
+        `${(consistencyRatio * 100).toFixed(0)}% expense category consistency between ${priorFY} and ${currentFY} ` +
+        `(${consistentCategories.length} of ${allCategories.size} categories). ` +
+        `${recurringSuppliers.length} recurring supplier(s). ` +
+        'Strong evidence that the same business is being carried on (s 165-13 ITAA 1997). ' +
+        'Professional review still recommended to confirm SBT compliance.'
+      analysis.cotSbtAnalysis.sbtNotes.push(
+        `Transaction evidence: ${(consistencyRatio * 100).toFixed(0)}% category consistency suggests SBT satisfied`
+      )
+    } else if (consistencyRatio >= 0.4) {
+      // Keep unknown but increase confidence
+      analysis.cotSbtAnalysis.sbtConfidence = 65
+      evidence.note =
+        `${(consistencyRatio * 100).toFixed(0)}% expense category consistency between ${priorFY} and ${currentFY}. ` +
+        'Moderate evidence of business continuity but insufficient to confirm SBT satisfaction. ' +
+        'Professional review required (s 165-13 ITAA 1997).'
+      analysis.cotSbtAnalysis.sbtNotes.push(
+        `Transaction evidence: ${(consistencyRatio * 100).toFixed(0)}% category consistency - inconclusive for SBT`
+      )
+    } else {
+      analysis.cotSbtAnalysis.sbtConfidence = 60
+      evidence.note =
+        `Only ${(consistencyRatio * 100).toFixed(0)}% expense category consistency between ${priorFY} and ${currentFY}. ` +
+        'Low similarity suggests the business may have changed significantly. ' +
+        'SBT may not be satisfied (s 165-13 ITAA 1997). Urgent professional review required.'
+      analysis.cotSbtAnalysis.sbtNotes.push(
+        `Transaction evidence: ${(consistencyRatio * 100).toFixed(0)}% category consistency - SBT may not be satisfied`
+      )
+      analysis.cotSbtAnalysis.riskLevel = 'high'
+    }
+
+    analysis.cotSbtAnalysis.sbtEvidence = evidence
+  }
+}
+
+/**
+ * Calculate overall loss summary
+ */
+/**
+ * Calculate overall loss summary
+ */
+function calculateLossSummary(
+  lossAnalyses: LossAnalysis[],
+  taxRateSource: string = 'none'
+): LossSummary {
+  let totalAvailableLosses = 0
+  let totalUtilizedLosses = 0
+  let totalExpiredLosses = 0
+  let totalFutureTaxValue = 0
+  let revenueLosses = 0
+  let capitalLosses = 0
+
+  const lossesByYear: Record<string, number> = {}
+  const riskLevels: string[] = []
+
+  lossAnalyses.forEach((analysis) => {
+    totalAvailableLosses += analysis.openingLossBalance + analysis.currentYearLoss
+    totalUtilizedLosses += analysis.lossesUtilized
+    totalFutureTaxValue += analysis.futureTaxValue
+
+    lossesByYear[analysis.financialYear] = analysis.closingLossBalance
+
+    if (!analysis.isEligibleForCarryforward) {
+      totalExpiredLosses += analysis.closingLossBalance
+    }
+
+    // Separate capital vs revenue losses (s 102-5 ITAA 1997)
+    if (analysis.lossType === 'capital') {
+      capitalLosses += analysis.closingLossBalance
+    } else {
+      revenueLosses += analysis.closingLossBalance
+    }
+
+    riskLevels.push(analysis.cotSbtAnalysis.riskLevel)
+  })
+
+  const utilizationRate = totalAvailableLosses > 0 ? (totalUtilizedLosses / totalAvailableLosses) * 100 : 0
+
+  // Calculate average risk level
+  const highRiskCount = riskLevels.filter((r) => r === 'high').length
+  const mediumRiskCount = riskLevels.filter((r) => r === 'medium').length
+  let averageRiskLevel = 'low'
+  if (highRiskCount > 0) {
+    averageRiskLevel = 'high'
+  } else if (mediumRiskCount > riskLevels.length * 0.3) {
+    averageRiskLevel = 'medium'
+  }
+
+  // Identify optimization opportunities (unused losses with low risk)
+  const optimizationOpportunities = lossAnalyses.filter((analysis) => {
+    return (
+      analysis.closingLossBalance > 0 &&
+      analysis.isEligibleForCarryforward &&
+      analysis.cotSbtAnalysis.riskLevel === 'low' &&
+      analysis.optimization.additionalBenefit > 0
+    )
+  })
+
+  return {
+    totalAvailableLosses,
+    totalUtilizedLosses,
+    totalExpiredLosses,
+    totalFutureTaxValue,
+    revenueLosses,
+    capitalLosses,
+    lossesByYear,
+    utilizationRate: Math.round(utilizationRate * 10) / 10,
+    averageRiskLevel,
+    optimizationOpportunities,
+    lossHistory: lossAnalyses,
+    taxRateSource,
+    taxRateVerifiedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Create empty summary when no data available
+ */
+function createEmptyLossSummary(): LossSummary {
+  return {
+    totalAvailableLosses: 0,
+    totalUtilizedLosses: 0,
+    totalExpiredLosses: 0,
+    totalFutureTaxValue: 0,
+    revenueLosses: 0,
+    capitalLosses: 0,
+    lossesByYear: {},
+    utilizationRate: 0,
+    averageRiskLevel: 'low',
+    optimizationOpportunities: [],
+    lossHistory: [],
+    taxRateSource: 'none',
+    taxRateVerifiedAt: new Date().toISOString(),
+  }
+}
+
+/**
+ * Calculate tax value of unutilized losses
+ */
+export async function calculateUnutilizedLossValue(
+  tenantId: string,
+  entityType: EntityType = 'unknown',
+  isBaseRateEntity: boolean = false
+): Promise<number> {
+  const summary = await analyzeLossPosition(tenantId, undefined, undefined, entityType, isBaseRateEntity)
+  return summary.totalFutureTaxValue
+}

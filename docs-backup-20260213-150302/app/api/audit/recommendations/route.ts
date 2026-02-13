@@ -1,0 +1,133 @@
+/**
+ * GET /api/audit/recommendations
+ *
+ * Get all actionable recommendations with filtering and prioritization.
+ *
+ * Query Parameters:
+ * - tenantId: string (required)
+ * - priority?: 'critical' | 'high' | 'medium' | 'low'
+ * - taxArea?: 'rnd' | 'deductions' | 'losses' | 'div7a'
+ * - startYear?: string (e.g., 'FY2020-21')
+ * - endYear?: string (e.g., 'FY2024-25')
+ *
+ * Response:
+ * - summary: Overall statistics and breakdown
+ * - recommendations: Array of prioritized recommendations
+ */
+
+import { NextRequest, NextResponse } from 'next/server'
+import { createErrorResponse, createValidationError } from '@/lib/api/errors'
+import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth'
+import {
+  generateRecommendations,
+  getRecommendationsByPriority,
+  getRecommendationsByTaxArea,
+  type Priority,
+  type TaxArea,
+} from '@/lib/recommendations/recommendation-engine'
+import cacheManager, { CacheKeys, CacheTTL } from '@/lib/cache/cache-manager'
+import { isSingleUserMode } from '@/lib/auth/single-user-check'
+import { createLogger } from '@/lib/logger'
+
+export const dynamic = 'force-dynamic'
+
+const log = createLogger('api:audit:recommendations')
+
+export async function GET(request: NextRequest) {
+  try {
+    let tenantId: string
+
+    if (isSingleUserMode()) {
+      // Single-user mode: Get tenantId from query
+      tenantId = request.nextUrl.searchParams.get('tenantId') || ''
+      if (!tenantId) {
+        return createValidationError('tenantId is required')
+      }
+    } else {
+      // Multi-user mode: Authenticate and validate tenant access
+      const auth = await requireAuth(request)
+      if (isErrorResponse(auth)) return auth
+      tenantId = auth.tenantId
+    }
+    const priority = request.nextUrl.searchParams.get('priority') as Priority | null
+    const taxArea = request.nextUrl.searchParams.get('taxArea') as TaxArea | null
+    const startYear = request.nextUrl.searchParams.get('startYear') || undefined
+    const endYear = request.nextUrl.searchParams.get('endYear') || undefined
+
+    log.info('Getting recommendations', { tenantId })
+
+    // If filtering by priority
+    if (priority) {
+      const validPriorities: Priority[] = ['critical', 'high', 'medium', 'low']
+      if (!validPriorities.includes(priority)) {
+        return createValidationError(`Invalid priority. Must be one of: ${validPriorities.join(', ')}`)
+      }
+
+      const cacheKey = CacheKeys.recommendations(tenantId, priority)
+      const recommendations = await cacheManager.getOrCompute(
+        cacheKey,
+        async () => await getRecommendationsByPriority(tenantId, priority),
+        CacheTTL.recommendations
+      )
+
+      const priorityResponse = NextResponse.json({
+        filter: { priority },
+        count: recommendations.length,
+        recommendations,
+      })
+      priorityResponse.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+      return priorityResponse
+    }
+
+    // If filtering by tax area
+    if (taxArea) {
+      const validTaxAreas: TaxArea[] = ['rnd', 'deductions', 'losses', 'div7a']
+      if (!validTaxAreas.includes(taxArea)) {
+        return createValidationError(`Invalid taxArea. Must be one of: ${validTaxAreas.join(', ')}`)
+      }
+
+      const cacheKey = CacheKeys.recommendations(tenantId, undefined, taxArea)
+      const recommendations = await cacheManager.getOrCompute(
+        cacheKey,
+        async () => await getRecommendationsByTaxArea(tenantId, taxArea),
+        CacheTTL.recommendations
+      )
+
+      const taxAreaResponse = NextResponse.json({
+        filter: { taxArea },
+        count: recommendations.length,
+        recommendations,
+      })
+      taxAreaResponse.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+      return taxAreaResponse
+    }
+
+    // Get all recommendations with full summary (cache for 30 minutes)
+    const cacheKey = CacheKeys.recommendations(tenantId)
+    const summary = await cacheManager.getOrCompute(
+      cacheKey,
+      async () => await generateRecommendations(tenantId, startYear, endYear),
+      CacheTTL.recommendations
+    )
+
+    const fullResponse = NextResponse.json({
+      summary: {
+        totalRecommendations: summary.totalRecommendations,
+        totalEstimatedBenefit: summary.totalEstimatedBenefit,
+        totalAdjustedBenefit: summary.totalAdjustedBenefit,
+        totalNetBenefit: summary.totalNetBenefit,
+        byTaxArea: summary.byTaxArea,
+        byPriority: summary.byPriority,
+        byYear: summary.byYear,
+        byAmendmentWindow: summary.byAmendmentWindow,
+      },
+      criticalRecommendations: summary.criticalRecommendations,
+      recommendations: summary.recommendations,
+    })
+    fullResponse.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+    return fullResponse
+  } catch (error) {
+    console.error('Failed to get recommendations:', error)
+    return createErrorResponse(error, { operation: 'getRecommendations' }, 500)
+  }
+}

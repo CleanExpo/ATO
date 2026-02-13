@@ -1,0 +1,2969 @@
+openapi: 3.0.3
+info:
+  title: ATO Tax Optimizer API
+  version: 0.1.0
+  description: >
+    API for the Australian Tax Optimizer platform. Integrates with Xero for
+    financial data, uses Gemini AI for forensic analysis, and provides tax
+    optimisation recommendations for Australian businesses.
+  contact:
+    name: ATO Tax Optimizer
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+  - url: https://ato-app.vercel.app
+    description: Production (Vercel)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: health
+    description: Health and status checks
+  - name: auth
+    description: OAuth authentication flows (Xero, QuickBooks, MYOB)
+  - name: xero
+    description: Xero accounting data (read-only)
+  - name: audit
+    description: Forensic audit, sync, analysis, and recommendations
+  - name: analysis
+    description: Specialised tax analysis engines
+  - name: reports
+    description: Report generation and downloads
+  - name: share
+    description: Secure report sharing with external parties
+  - name: rnd
+    description: R&D Tax Incentive management
+  - name: organizations
+    description: Organisation and tenant management
+  - name: admin
+    description: Admin controls, migrations, and system stats
+  - name: accountant
+    description: Accountant workflow and wholesale pricing
+  - name: alerts
+    description: Tax deadline alerts and notifications
+  - name: notifications
+    description: In-app notifications
+  - name: data-quality
+    description: Ledger data quality scanning and corrections
+  - name: strategies
+    description: Tax strategy scenarios and tools
+  - name: council
+    description: AI council decisions and metrics
+  - name: integrations
+    description: Third-party integrations (ABN Lookup, etc.)
+  - name: checkout
+    description: Stripe checkout and billing
+  - name: myob
+    description: MYOB accounting integration
+  - name: quickbooks
+    description: QuickBooks accounting integration
+  - name: recommendations
+    description: Recommendation status and document management
+  - name: agents
+    description: AI agent reports
+  - name: questionnaires
+    description: Client questionnaires
+  - name: tax-data
+    description: Tax rate data and cache management
+  - name: webhooks
+    description: Incoming webhooks from third parties
+  - name: slack
+    description: Slack integration
+  - name: activity
+    description: Activity feed
+  - name: license
+    description: License compliance
+
+paths:
+  # ── Health ──
+  /api/health:
+    get:
+      tags: [health]
+      summary: Health check
+      description: Returns API health status and connectivity checks.
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  # ── Auth - Xero ──
+  /api/auth/xero:
+    get:
+      tags: [auth]
+      summary: Initiate Xero OAuth flow
+      description: Redirects user to Xero OAuth consent page.
+      responses:
+        '302':
+          description: Redirect to Xero
+
+  /api/auth/xero/callback:
+    get:
+      tags: [auth]
+      summary: Xero OAuth callback
+      description: Handles OAuth callback from Xero and stores tokens.
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to dashboard
+
+  /api/auth/xero/connect:
+    get:
+      tags: [auth]
+      summary: Connect additional Xero organisation
+      description: Initiates OAuth flow for connecting another Xero tenant.
+      responses:
+        '302':
+          description: Redirect to Xero
+
+  /api/auth/xero/logout-and-connect:
+    get:
+      tags: [auth]
+      summary: Disconnect and reconnect Xero
+      description: Logs out of current Xero session and initiates fresh OAuth.
+      responses:
+        '302':
+          description: Redirect to Xero
+
+  # ── Auth - QuickBooks ──
+  /api/auth/quickbooks:
+    get:
+      tags: [auth]
+      summary: Initiate QuickBooks OAuth flow
+      description: Redirects user to QuickBooks OAuth consent page.
+      responses:
+        '302':
+          description: Redirect to QuickBooks
+
+  /api/auth/quickbooks/callback:
+    get:
+      tags: [auth]
+      summary: QuickBooks OAuth callback
+      description: Handles OAuth callback from QuickBooks.
+      responses:
+        '302':
+          description: Redirect to dashboard
+
+  /api/auth/quickbooks/disconnect:
+    post:
+      tags: [auth]
+      summary: Disconnect QuickBooks
+      description: Revokes QuickBooks OAuth tokens.
+      responses:
+        '200':
+          description: Disconnected
+
+  # ── Auth - MYOB ──
+  /api/auth/myob/authorize:
+    get:
+      tags: [auth]
+      summary: Initiate MYOB OAuth flow
+      description: Redirects user to MYOB OAuth consent page.
+      responses:
+        '302':
+          description: Redirect to MYOB
+
+  /api/auth/myob/callback:
+    get:
+      tags: [auth]
+      summary: MYOB OAuth callback
+      description: Handles OAuth callback from MYOB.
+      responses:
+        '302':
+          description: Redirect to dashboard
+
+  # ── Xero Data ──
+  /api/xero/organizations:
+    get:
+      tags: [xero]
+      summary: List connected Xero organisations
+      description: Returns all Xero tenants connected to the current user.
+      responses:
+        '200':
+          description: List of connections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connections:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/XeroConnection'
+
+  /api/xero/transactions:
+    get:
+      tags: [xero]
+      summary: Get transactions for a tenant
+      description: Retrieves transactions with analysis metadata from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Transaction list with summary
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/xero/contacts:
+    get:
+      tags: [xero]
+      summary: Get contacts
+      description: Retrieves contacts from a Xero organisation.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Contact list
+
+  /api/xero/accounts:
+    get:
+      tags: [xero]
+      summary: Get chart of accounts
+      description: Retrieves the chart of accounts from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Accounts list
+
+  /api/xero/bas:
+    get:
+      tags: [xero]
+      summary: Get BAS reports
+      description: Retrieves Business Activity Statement data from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: BAS data
+
+  /api/xero/employees:
+    get:
+      tags: [xero]
+      summary: Get employees
+      description: Retrieves employee records from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Employee list
+
+  /api/xero/assets:
+    get:
+      tags: [xero]
+      summary: Get fixed assets
+      description: Retrieves fixed asset register from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Asset list
+
+  /api/xero/super-funds:
+    get:
+      tags: [xero]
+      summary: Get superannuation funds
+      description: Retrieves super fund data from Xero payroll.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Super fund list
+
+  /api/xero/payroll:
+    get:
+      tags: [xero]
+      summary: Get payroll data
+      description: Retrieves payroll information from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Payroll data
+
+  /api/xero/inventory:
+    get:
+      tags: [xero]
+      summary: Get inventory items
+      description: Retrieves inventory/stock items from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Inventory items
+
+  /api/xero/reports:
+    get:
+      tags: [xero]
+      summary: Get financial reports
+      description: Retrieves Profit & Loss, Balance Sheet, etc. from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Report data
+
+  /api/xero/tax-rates:
+    get:
+      tags: [xero]
+      summary: Get Xero tax rates
+      description: Retrieves tax rate configuration from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Tax rates
+
+  /api/xero/tracking-categories:
+    get:
+      tags: [xero]
+      summary: Get tracking categories
+      description: Retrieves tracking categories and options from Xero.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Tracking categories
+
+  /api/xero/invoices-search:
+    get:
+      tags: [xero]
+      summary: Search invoices
+      description: Searches Xero invoices with filters.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Search results
+
+  /api/xero/attachments:
+    post:
+      tags: [xero]
+      summary: Upload attachment to Xero
+      description: Attaches a file to a Xero transaction or invoice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Attachment uploaded
+
+  /api/xero/files:
+    get:
+      tags: [xero]
+      summary: List Xero files
+      description: Lists files stored in Xero Files.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: File list
+    post:
+      tags: [xero]
+      summary: Upload file to Xero
+      description: Uploads a file to Xero Files storage.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: File uploaded
+
+  # ── Audit ──
+  /api/audit/sync-historical:
+    post:
+      tags: [audit]
+      summary: Sync historical transactions
+      description: Fetches and caches up to 5 years of Xero transactions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+                years:
+                  type: integer
+                  default: 5
+      responses:
+        '200':
+          description: Sync started
+    get:
+      tags: [audit]
+      summary: Get sync history status
+      description: Returns sync status for historical data.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Sync status
+
+  /api/audit/sync-chunk:
+    post:
+      tags: [audit]
+      summary: Sync a chunk of transactions
+      description: Syncs a batch of transactions for incremental processing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Chunk synced
+    get:
+      tags: [audit]
+      summary: Get sync chunk status
+      description: Returns status of current sync chunk operation.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Chunk status
+
+  /api/audit/sync-status/{tenantId}:
+    get:
+      tags: [audit]
+      summary: Get sync status for a tenant
+      description: Returns detailed sync progress for a specific tenant.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdPath'
+      responses:
+        '200':
+          description: Sync status
+
+  /api/audit/analyze:
+    post:
+      tags: [audit]
+      summary: Start AI forensic analysis
+      description: Initiates Gemini AI analysis of cached transactions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Analysis started
+    get:
+      tags: [audit]
+      summary: Get analysis progress
+      description: Returns current analysis progress and status.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Analysis progress
+
+  /api/audit/analyze-chunk:
+    post:
+      tags: [audit]
+      summary: Analyse a batch of transactions
+      description: Runs AI analysis on a specific batch of cached transactions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Chunk analysed
+    get:
+      tags: [audit]
+      summary: Get chunk analysis status
+      description: Returns status of chunk analysis operation.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Chunk analysis status
+
+  /api/audit/analysis-status/{tenantId}:
+    get:
+      tags: [audit]
+      summary: Get analysis status for a tenant
+      description: Returns analysis completion status for a specific tenant.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdPath'
+      responses:
+        '200':
+          description: Analysis status
+
+  /api/audit/analysis-results:
+    get:
+      tags: [audit]
+      summary: Get analysis results
+      description: Returns AI analysis results including classifications and recommendations.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Analysis results
+
+  /api/audit/cached-transactions:
+    get:
+      tags: [audit]
+      summary: Get cached transactions
+      description: Returns locally cached historical transactions.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Cached transactions
+
+  /api/audit/recommendations:
+    get:
+      tags: [audit]
+      summary: List recommendations
+      description: Returns all tax optimisation recommendations for a tenant.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Recommendation list
+
+  /api/audit/recommendations/{id}:
+    get:
+      tags: [audit]
+      summary: Get a recommendation
+      description: Returns details of a specific recommendation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recommendation details
+    patch:
+      tags: [audit]
+      summary: Update a recommendation
+      description: Updates status or notes on a recommendation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Updated
+
+  /api/audit/recommendations/{id}/transactions:
+    get:
+      tags: [audit]
+      summary: Get transactions for a recommendation
+      description: Returns the source transactions backing a recommendation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transaction list
+
+  /api/audit/reconciliation:
+    get:
+      tags: [audit]
+      summary: Run reconciliation check
+      description: Compares cached data against Xero for consistency.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Reconciliation results
+
+  /api/audit/trends:
+    get:
+      tags: [audit]
+      summary: Get audit trends
+      description: Returns trend data across multiple financial years.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Trend data
+
+  /api/audit/year-comparison:
+    get:
+      tags: [audit]
+      summary: Year-on-year comparison
+      description: Compares key metrics across financial years.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Year comparison data
+
+  /api/audit/opportunities-by-year:
+    get:
+      tags: [audit]
+      summary: Get opportunities by financial year
+      description: Groups tax savings opportunities by financial year.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Opportunities grouped by year
+
+  /api/audit/rnd-summary:
+    get:
+      tags: [audit]
+      summary: Get R&D summary
+      description: Returns a summary of R&D eligible expenditure.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: R&D summary
+
+  /api/audit/search-contacts:
+    get:
+      tags: [audit]
+      summary: Search contacts in cached data
+      description: Searches supplier/contact names across cached transactions.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Contact search results
+
+  /api/audit/backfill-amounts:
+    post:
+      tags: [audit]
+      summary: Backfill missing amounts
+      description: Recalculates and fills missing transaction amounts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Amounts backfilled
+
+  /api/audit/reset-analysis:
+    post:
+      tags: [audit]
+      summary: Reset analysis data
+      description: Clears all analysis results for a tenant, allowing re-analysis.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Analysis reset
+
+  /api/audit/check-config:
+    get:
+      tags: [audit]
+      summary: Check audit configuration
+      description: Validates that required API keys and config are present.
+      responses:
+        '200':
+          description: Configuration status
+
+  /api/audit/list-models:
+    get:
+      tags: [audit]
+      summary: List available AI models
+      description: Returns available Gemini models for analysis.
+      responses:
+        '200':
+          description: Model list
+
+  /api/audit/cost-monitoring:
+    get:
+      tags: [audit]
+      summary: Get AI cost monitoring data
+      description: Returns token usage and cost estimates for AI analysis.
+      responses:
+        '200':
+          description: Cost data
+
+  /api/audit/cost-stats:
+    get:
+      tags: [audit]
+      summary: Get cost statistics
+      description: Returns aggregate cost statistics for AI usage.
+      responses:
+        '200':
+          description: Cost statistics
+
+  /api/audit/performance-metrics:
+    get:
+      tags: [audit]
+      summary: Get performance metrics
+      description: Returns analysis performance metrics (latency, throughput).
+      responses:
+        '200':
+          description: Performance metrics
+
+  # ── Audit Reports ──
+  /api/audit/reports/generate:
+    post:
+      tags: [reports]
+      summary: Generate audit report
+      description: Generates a comprehensive audit report (PDF/Excel).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+                reportType:
+                  type: string
+                  enum: [pdf, excel]
+      responses:
+        '200':
+          description: Report generated
+
+  /api/audit/reports/list:
+    get:
+      tags: [reports]
+      summary: List generated reports
+      description: Returns a list of previously generated reports.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Report list
+
+  /api/audit/reports/download:
+    post:
+      tags: [reports]
+      summary: Download a report
+      description: Downloads a generated report file.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Report file
+
+  /api/audit/reports/download/{reportId}:
+    get:
+      tags: [reports]
+      summary: Download report by ID
+      description: Downloads a specific report by its ID.
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report file
+    delete:
+      tags: [reports]
+      summary: Delete a report
+      description: Deletes a generated report.
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report deleted
+
+  # ── Analysis Engines ──
+  /api/analysis/cgt:
+    post:
+      tags: [analysis]
+      summary: Run CGT analysis
+      description: Analyses capital gains tax events including Division 152 concessions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: CGT analysis results
+
+  /api/analysis/fbt:
+    post:
+      tags: [analysis]
+      summary: Run FBT analysis
+      description: Analyses fringe benefits tax liability and gross-up calculations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: FBT analysis results
+
+  /api/analysis/psi:
+    post:
+      tags: [analysis]
+      summary: Run PSI analysis
+      description: Analyses personal services income under Subdivision 87-A.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: PSI analysis results
+
+  /api/analysis/audit-risk:
+    post:
+      tags: [analysis]
+      summary: Run audit risk analysis
+      description: Compares expense ratios against ATO industry benchmarks.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Audit risk analysis results
+
+  /api/analysis/payroll-tax:
+    post:
+      tags: [analysis]
+      summary: Run payroll tax analysis
+      description: Analyses multi-state payroll tax obligations and grouping.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Payroll tax analysis results
+
+  /api/analysis/cashflow-forecast:
+    post:
+      tags: [analysis]
+      summary: Run cashflow forecast
+      description: Projects cash flow including tax obligations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Cashflow forecast results
+
+  /api/analysis/payg-instalments:
+    post:
+      tags: [analysis]
+      summary: Run PAYG instalment analysis
+      description: Analyses PAYG instalment obligations and variation opportunities.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: PAYG instalment analysis results
+
+  /api/analysis/fuel-tax-credits:
+    post:
+      tags: [analysis]
+      summary: Run fuel tax credits analysis
+      description: Calculates fuel tax credit entitlements with quarterly rates.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Fuel tax credits analysis results
+
+  /api/analysis/superannuation-caps:
+    post:
+      tags: [analysis]
+      summary: Run superannuation cap analysis
+      description: Analyses concessional and non-concessional cap usage with carry-forward.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Superannuation cap analysis results
+
+  /api/analysis/trust-distributions:
+    post:
+      tags: [analysis]
+      summary: Run trust distribution analysis
+      description: Analyses trust distributions for s 100A and UPE compliance.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Trust distribution analysis results
+
+  /api/analysis/queue/process:
+    post:
+      tags: [analysis]
+      summary: Process analysis queue
+      description: Triggers processing of queued analysis jobs.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Queue processing started
+
+  /api/analysis/queue/status:
+    get:
+      tags: [analysis]
+      summary: Get analysis queue status
+      description: Returns the current state of the analysis processing queue.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Queue status
+
+  # ── Reports ──
+  /api/reports/generate:
+    post:
+      tags: [reports]
+      summary: Generate client report
+      description: Generates a client-facing tax report (PDF).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+                reportType:
+                  type: string
+      responses:
+        '200':
+          description: Report generated
+
+  /api/reports/download:
+    get:
+      tags: [reports]
+      summary: Download report
+      description: Downloads a generated report file.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Report file
+
+  /api/reports/download-pdf:
+    get:
+      tags: [reports]
+      summary: Download report as PDF
+      description: Downloads report in PDF format.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: PDF file
+
+  /api/reports/download-excel:
+    get:
+      tags: [reports]
+      summary: Download report as Excel
+      description: Downloads report in Excel format.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Excel file
+
+  /api/reports/amendment-schedules:
+    get:
+      tags: [reports]
+      summary: Get amendment schedules
+      description: Returns amendment schedule recommendations by financial year.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Amendment schedules
+
+  /api/reports/consolidated/generate:
+    post:
+      tags: [reports]
+      summary: Generate consolidated report
+      description: Generates a report spanning multiple organisations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Consolidated report generated
+
+  /api/reports/consolidated/download:
+    post:
+      tags: [reports]
+      summary: Download consolidated report
+      description: Downloads a consolidated multi-org report.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Report file
+
+  # ── Share ──
+  /api/share/create:
+    post:
+      tags: [share]
+      summary: Create a shared report link
+      description: Generates a secure, optionally password-protected share token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+                password:
+                  type: string
+                expiresIn:
+                  type: integer
+                  description: Expiry in hours
+      responses:
+        '200':
+          description: Share token created
+
+  /api/share/list:
+    get:
+      tags: [share]
+      summary: List shared links
+      description: Returns all active shared links for the current user.
+      responses:
+        '200':
+          description: Share link list
+
+  /api/share/revoke:
+    post:
+      tags: [share]
+      summary: Revoke a shared link
+      description: Deactivates a shared report link.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Share link revoked
+
+  /api/share/{token}:
+    get:
+      tags: [share]
+      summary: Access shared report
+      description: Returns the shared report data (public endpoint).
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report data
+        '401':
+          description: Password required
+    post:
+      tags: [share]
+      summary: Authenticate shared report
+      description: Submits password to access a password-protected shared report.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Authenticated, report data returned
+
+  /api/share/{token}/status:
+    get:
+      tags: [share]
+      summary: Get share link status
+      description: Returns metadata about a shared link (expiry, views).
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Share status
+    post:
+      tags: [share]
+      summary: Update share link status
+      description: Updates the status of a shared link.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status updated
+
+  /api/share/{token}/feedback:
+    get:
+      tags: [share]
+      summary: Get feedback on shared report
+      description: Returns feedback/comments from report recipients.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Feedback list
+    post:
+      tags: [share]
+      summary: Submit feedback on shared report
+      description: Allows a report recipient to leave feedback.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Feedback submitted
+
+  /api/share/{token}/documents:
+    get:
+      tags: [share]
+      summary: List shared report documents
+      description: Returns documents attached to a shared report.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document list
+    post:
+      tags: [share]
+      summary: Upload document to shared report
+      description: Uploads a supporting document to a shared report.
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document uploaded
+
+  /api/share/feedback/{id}/read:
+    post:
+      tags: [share]
+      summary: Mark feedback as read
+      description: Marks a feedback item as read.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Marked as read
+
+  /api/share/feedback/unread:
+    get:
+      tags: [share]
+      summary: Get unread feedback count
+      description: Returns the count of unread feedback items.
+      responses:
+        '200':
+          description: Unread count
+
+  # ── R&D ──
+  /api/rnd/checklist:
+    get:
+      tags: [rnd]
+      summary: Get R&D compliance checklist
+      description: Returns the Division 355 eligibility checklist for a tenant.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Checklist items
+
+  /api/rnd/checklist/{itemKey}:
+    patch:
+      tags: [rnd]
+      summary: Update checklist item
+      description: Updates the completion status of a checklist item.
+      parameters:
+        - name: itemKey
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Item updated
+
+  /api/rnd/checklist/export:
+    get:
+      tags: [rnd]
+      summary: Export R&D checklist
+      description: Exports the R&D checklist as a downloadable file.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Checklist export
+
+  /api/rnd/registrations:
+    get:
+      tags: [rnd]
+      summary: List R&D registrations
+      description: Returns R&D activity registrations for a tenant.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Registration list
+    post:
+      tags: [rnd]
+      summary: Create R&D registration
+      description: Creates a new R&D activity registration record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '201':
+          description: Registration created
+
+  /api/rnd/registrations/{id}:
+    get:
+      tags: [rnd]
+      summary: Get R&D registration
+      description: Returns details of a specific R&D registration.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Registration details
+    patch:
+      tags: [rnd]
+      summary: Update R&D registration
+      description: Updates an R&D registration record.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Registration updated
+    delete:
+      tags: [rnd]
+      summary: Delete R&D registration
+      description: Deletes an R&D registration record.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Registration deleted
+
+  /api/rnd/evidence:
+    get:
+      tags: [rnd]
+      summary: List R&D evidence
+      description: Returns evidence items supporting R&D claims.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Evidence list
+    post:
+      tags: [rnd]
+      summary: Upload R&D evidence
+      description: Uploads an evidence file for an R&D registration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Evidence uploaded
+
+  /api/rnd/evidence/{id}:
+    get:
+      tags: [rnd]
+      summary: Get R&D evidence item
+      description: Returns a specific evidence item.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Evidence details
+    patch:
+      tags: [rnd]
+      summary: Update R&D evidence item
+      description: Updates metadata on an evidence item.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Evidence updated
+    delete:
+      tags: [rnd]
+      summary: Delete R&D evidence item
+      description: Deletes an evidence item.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Evidence deleted
+
+  /api/rnd/evidence/score:
+    get:
+      tags: [rnd]
+      summary: Get R&D evidence strength score
+      description: Returns a composite evidence strength score for R&D claims.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Evidence score
+
+  /api/rnd/deadlines:
+    get:
+      tags: [rnd]
+      summary: Get R&D deadlines
+      description: Returns upcoming R&D registration and filing deadlines.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Deadline list
+
+  # ── Organisations ──
+  /api/organizations:
+    get:
+      tags: [organizations]
+      summary: List organisations
+      description: Returns all organisations accessible to the current user.
+      responses:
+        '200':
+          description: Organisation list
+    post:
+      tags: [organizations]
+      summary: Create organisation
+      description: Creates a new organisation record.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Organisation created
+
+  /api/organizations/{id}:
+    get:
+      tags: [organizations]
+      summary: Get organisation details
+      description: Returns details of a specific organisation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organisation details
+    patch:
+      tags: [organizations]
+      summary: Update organisation
+      description: Updates organisation settings.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organisation updated
+    delete:
+      tags: [organizations]
+      summary: Delete organisation
+      description: Removes an organisation and associated data.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organisation deleted
+
+  /api/organizations/{id}/members:
+    get:
+      tags: [organizations]
+      summary: List organisation members
+      description: Returns members and their roles for an organisation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Member list
+    patch:
+      tags: [organizations]
+      summary: Update member role
+      description: Changes a member's role within the organisation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role updated
+    delete:
+      tags: [organizations]
+      summary: Remove member
+      description: Removes a member from the organisation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Member removed
+
+  /api/organizations/{id}/invitations:
+    get:
+      tags: [organizations]
+      summary: List pending invitations
+      description: Returns pending invitations for an organisation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invitation list
+    post:
+      tags: [organizations]
+      summary: Send invitation
+      description: Invites a user to join the organisation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+      responses:
+        '201':
+          description: Invitation sent
+    delete:
+      tags: [organizations]
+      summary: Cancel invitation
+      description: Cancels a pending invitation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invitation cancelled
+
+  /api/organizations/{id}/activity:
+    get:
+      tags: [organizations]
+      summary: Get organisation activity
+      description: Returns the activity log for an organisation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Activity log
+
+  /api/organizations/{id}/role:
+    get:
+      tags: [organizations]
+      summary: Get current user's role
+      description: Returns the role of the current user in the organisation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Role info
+
+  /api/organizations/{id}/link-group:
+    post:
+      tags: [organizations]
+      summary: Link organisation to group
+      description: Links an organisation to an organisation group.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Linked
+    delete:
+      tags: [organizations]
+      summary: Unlink from group
+      description: Removes an organisation from an organisation group.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Unlinked
+
+  /api/organizations/groups:
+    get:
+      tags: [organizations]
+      summary: List organisation groups
+      description: Returns all organisation groups for the current user.
+      responses:
+        '200':
+          description: Group list
+    post:
+      tags: [organizations]
+      summary: Create organisation group
+      description: Creates a new group for consolidating organisations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Group created
+
+  /api/organizations/consolidated/stats:
+    get:
+      tags: [organizations]
+      summary: Get consolidated statistics
+      description: Returns aggregate stats across all organisations.
+      responses:
+        '200':
+          description: Consolidated stats
+
+  /api/invitations/accept:
+    post:
+      tags: [organizations]
+      summary: Accept an invitation
+      description: Accepts a pending organisation invitation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Invitation accepted
+    get:
+      tags: [organizations]
+      summary: Get invitation details
+      description: Returns details of an invitation by token.
+      parameters:
+        - name: token
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invitation details
+
+  # ── Admin ──
+  /api/admin/system-stats:
+    get:
+      tags: [admin]
+      summary: Get system statistics
+      description: Returns platform-wide usage statistics.
+      responses:
+        '200':
+          description: System stats
+
+  /api/admin/reset-dashboard:
+    post:
+      tags: [admin]
+      summary: Reset dashboard data
+      description: Resets all dashboard data for a tenant.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Dashboard reset
+
+  /api/admin/export-audit:
+    get:
+      tags: [admin]
+      summary: Export audit logs
+      description: Exports system audit logs for compliance review.
+      responses:
+        '200':
+          description: Audit log export
+
+  /api/admin/migrate:
+    post:
+      tags: [admin]
+      summary: Run database migrations
+      description: Executes pending database migrations.
+      responses:
+        '200':
+          description: Migrations applied
+    get:
+      tags: [admin]
+      summary: Get migration status
+      description: Returns the current database migration status.
+      responses:
+        '200':
+          description: Migration status
+
+  /api/admin/data-retention:
+    get:
+      tags: [admin]
+      summary: Get data retention policy status
+      description: Returns current data retention policy and statistics.
+      responses:
+        '200':
+          description: Retention policy status
+    post:
+      tags: [admin]
+      summary: Apply data retention
+      description: Runs data retention cleanup based on policy.
+      responses:
+        '200':
+          description: Retention applied
+
+  /api/admin/accountant-applications:
+    get:
+      tags: [admin]
+      summary: List accountant applications
+      description: Returns all pending accountant wholesale pricing applications.
+      responses:
+        '200':
+          description: Application list
+
+  /api/admin/accountant-applications/{id}/approve:
+    patch:
+      tags: [admin]
+      summary: Approve accountant application
+      description: Approves an accountant's wholesale pricing application.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Application approved
+
+  /api/admin/accountant-applications/{id}/reject:
+    patch:
+      tags: [admin]
+      summary: Reject accountant application
+      description: Rejects an accountant's wholesale pricing application.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Application rejected
+
+  # ── Accountant ──
+  /api/accountant/apply:
+    post:
+      tags: [accountant]
+      summary: Submit accountant application
+      description: Submits an application for accountant wholesale pricing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Application submitted
+
+  /api/accountant/application/{id}:
+    get:
+      tags: [accountant]
+      summary: Get application status
+      description: Returns the status of an accountant application.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Application status
+
+  /api/accountant/verify:
+    get:
+      tags: [accountant]
+      summary: Verify accountant credentials
+      description: Verifies professional credentials with issuing body.
+      parameters:
+        - name: credentialNumber
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Verification result
+
+  /api/accountant/pricing:
+    get:
+      tags: [accountant]
+      summary: Get accountant pricing
+      description: Returns current wholesale pricing tiers for verified accountants.
+      responses:
+        '200':
+          description: Pricing tiers
+
+  /api/accountant/confidence-score:
+    post:
+      tags: [accountant]
+      summary: Calculate confidence score
+      description: Calculates an evidence-weighted confidence score for recommendations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Confidence score
+
+  /api/accountant/findings:
+    get:
+      tags: [accountant]
+      summary: List accountant findings
+      description: Returns findings for accountant review workflow.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Findings list
+    post:
+      tags: [accountant]
+      summary: Create finding
+      description: Creates a manual finding from accountant review.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Finding created
+
+  /api/accountant/findings/{id}/status:
+    patch:
+      tags: [accountant]
+      summary: Update finding status
+      description: Updates the review status of an accountant finding.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+      responses:
+        '200':
+          description: Status updated
+
+  /api/accountant/findings/generate:
+    post:
+      tags: [accountant]
+      summary: Generate findings from analysis
+      description: Auto-generates accountant findings from AI analysis results.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Findings generated
+
+  /api/accountant/reports/generate:
+    post:
+      tags: [accountant]
+      summary: Generate accountant report
+      description: Generates a professional report for accountant distribution.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Report generated
+
+  # ── Alerts ──
+  /api/alerts:
+    get:
+      tags: [alerts]
+      summary: List alerts
+      description: Returns active tax deadline and compliance alerts.
+      responses:
+        '200':
+          description: Alert list
+
+  /api/alerts/{id}:
+    patch:
+      tags: [alerts]
+      summary: Update alert
+      description: Updates alert status (dismiss, snooze, etc.).
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Alert updated
+    delete:
+      tags: [alerts]
+      summary: Delete alert
+      description: Permanently deletes an alert.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Alert deleted
+
+  /api/alerts/preferences:
+    get:
+      tags: [alerts]
+      summary: Get alert preferences
+      description: Returns the user's alert notification preferences.
+      responses:
+        '200':
+          description: Preferences
+    post:
+      tags: [alerts]
+      summary: Update alert preferences
+      description: Updates alert notification preferences.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Preferences updated
+
+  /api/alerts/cron:
+    post:
+      tags: [alerts]
+      summary: Trigger alert cron job
+      description: Checks for upcoming deadlines and creates alerts.
+      responses:
+        '200':
+          description: Cron executed
+    get:
+      tags: [alerts]
+      summary: Get cron job status
+      description: Returns the status of the last alert cron run.
+      responses:
+        '200':
+          description: Cron status
+
+  # ── Notifications ──
+  /api/notifications:
+    get:
+      tags: [notifications]
+      summary: List notifications
+      description: Returns in-app notifications for the current user.
+      responses:
+        '200':
+          description: Notification list
+    post:
+      tags: [notifications]
+      summary: Create notification
+      description: Creates a system notification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          description: Notification created
+
+  /api/notifications/{id}:
+    patch:
+      tags: [notifications]
+      summary: Update notification
+      description: Marks a notification as read or dismissed.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification updated
+    delete:
+      tags: [notifications]
+      summary: Delete notification
+      description: Deletes a notification.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notification deleted
+
+  # ── Data Quality ──
+  /api/data-quality/scan:
+    get:
+      tags: [data-quality]
+      summary: Get data quality scan results
+      description: Returns results of the last data quality scan.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Scan results
+    post:
+      tags: [data-quality]
+      summary: Run data quality scan
+      description: Initiates a new data quality scan on cached transactions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Scan completed
+
+  /api/data-quality/issues:
+    get:
+      tags: [data-quality]
+      summary: List data quality issues
+      description: Returns identified data quality issues.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Issue list
+    patch:
+      tags: [data-quality]
+      summary: Update issue status
+      description: Updates the status of a data quality issue (resolved, ignored, etc.).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Issue updated
+
+  /api/data-quality/corrections:
+    get:
+      tags: [data-quality]
+      summary: List corrections
+      description: Returns auto-applied corrections from data quality scans.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Correction list
+    post:
+      tags: [data-quality]
+      summary: Apply correction
+      description: Manually applies a suggested correction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Correction applied
+
+  # ── Strategies ──
+  /api/strategies/scenario:
+    post:
+      tags: [strategies]
+      summary: Run tax scenario analysis
+      description: Runs a what-if tax scenario simulation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tenantId]
+              properties:
+                tenantId:
+                  type: string
+      responses:
+        '200':
+          description: Scenario results
+
+  /api/strategies/division7a:
+    post:
+      tags: [strategies]
+      summary: Division 7A calculator
+      description: Calculates Division 7A loan repayment schedules and deemed dividends.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Division 7A calculation results
+
+  /api/strategies/sbe-checker:
+    post:
+      tags: [strategies]
+      summary: Small Business Entity eligibility check
+      description: Checks SBE eligibility including turnover and passive income tests.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: SBE eligibility result
+
+  # ── Recommendations ──
+  /api/recommendations/{id}/status:
+    get:
+      tags: [recommendations]
+      summary: Get recommendation status
+      description: Returns the implementation status of a recommendation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Status
+    post:
+      tags: [recommendations]
+      summary: Update recommendation status
+      description: Updates the implementation status of a recommendation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Status updated
+
+  /api/recommendations/{id}/documents:
+    get:
+      tags: [recommendations]
+      summary: List recommendation documents
+      description: Returns documents attached to a recommendation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document list
+    post:
+      tags: [recommendations]
+      summary: Upload document to recommendation
+      description: Uploads a supporting document for a recommendation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document uploaded
+    delete:
+      tags: [recommendations]
+      summary: Delete recommendation document
+      description: Deletes a document from a recommendation.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document deleted
+
+  /api/recommendations/status-summary:
+    get:
+      tags: [recommendations]
+      summary: Get recommendation status summary
+      description: Returns aggregate counts of recommendations by status.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Status summary
+
+  # ── Council ──
+  /api/council/decisions:
+    post:
+      tags: [council]
+      summary: Submit AI council decision
+      description: Submits a decision from the AI advisory council.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Decision recorded
+    get:
+      tags: [council]
+      summary: List council decisions
+      description: Returns historical AI council decisions.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Decision list
+
+  /api/council/metrics:
+    get:
+      tags: [council]
+      summary: Get council metrics
+      description: Returns AI council performance metrics.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Council metrics
+
+  /api/council/conversion:
+    post:
+      tags: [council]
+      summary: Record conversion event
+      description: Records a recommendation-to-action conversion event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Conversion recorded
+    get:
+      tags: [council]
+      summary: Get conversion metrics
+      description: Returns conversion rate metrics.
+      responses:
+        '200':
+          description: Conversion metrics
+
+  # ── Integrations ──
+  /api/integrations/abn-lookup:
+    post:
+      tags: [integrations]
+      summary: Look up ABN
+      description: Looks up an Australian Business Number via the ABR.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [abn]
+              properties:
+                abn:
+                  type: string
+      responses:
+        '200':
+          description: ABN details
+    get:
+      tags: [integrations]
+      summary: Get cached ABN details
+      description: Returns cached ABN lookup results.
+      parameters:
+        - name: abn
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ABN details
+
+  # ── Tax Data ──
+  /api/tax-data/rates:
+    get:
+      tags: [tax-data]
+      summary: Get current tax rates
+      description: Returns current ATO tax rates with provenance.
+      responses:
+        '200':
+          description: Tax rates
+
+  /api/tax-data/refresh:
+    post:
+      tags: [tax-data]
+      summary: Force refresh tax rates
+      description: Forces a refresh of cached tax rates from ATO sources.
+      responses:
+        '200':
+          description: Rates refreshed
+
+  /api/tax-data/cache-stats:
+    get:
+      tags: [tax-data]
+      summary: Get tax data cache statistics
+      description: Returns cache hit/miss statistics for tax rate data.
+      responses:
+        '200':
+          description: Cache stats
+
+  /api/tax-obligations:
+    get:
+      tags: [tax-data]
+      summary: Get tax obligations
+      description: Returns upcoming tax obligations and deadlines.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Tax obligations
+
+  # ── Checkout ──
+  /api/checkout/create:
+    post:
+      tags: [checkout]
+      summary: Create Stripe checkout session
+      description: Creates a Stripe checkout session for subscription purchase.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Checkout session URL
+
+  /api/checkout/additional-organization:
+    post:
+      tags: [checkout]
+      summary: Purchase additional organisation slot
+      description: Creates a checkout session for adding another organisation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Checkout session URL
+
+  # ── MYOB ──
+  /api/myob/connections:
+    get:
+      tags: [myob]
+      summary: List MYOB connections
+      description: Returns connected MYOB company files.
+      responses:
+        '200':
+          description: Connection list
+    delete:
+      tags: [myob]
+      summary: Disconnect MYOB
+      description: Disconnects a MYOB company file.
+      responses:
+        '200':
+          description: Disconnected
+
+  /api/myob/sync:
+    post:
+      tags: [myob]
+      summary: Sync MYOB data
+      description: Synchronises transaction data from a MYOB company file.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Sync started
+
+  /api/myob/sync-status/{companyFileId}:
+    get:
+      tags: [myob]
+      summary: Get MYOB sync status
+      description: Returns sync progress for a MYOB company file.
+      parameters:
+        - name: companyFileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync status
+
+  # ── QuickBooks ──
+  /api/quickbooks/sync:
+    post:
+      tags: [quickbooks]
+      summary: Sync QuickBooks data
+      description: Synchronises transaction data from QuickBooks.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Sync started
+
+  # ── Questionnaires ──
+  /api/questionnaires:
+    get:
+      tags: [questionnaires]
+      summary: List questionnaires
+      description: Returns available client questionnaires.
+      responses:
+        '200':
+          description: Questionnaire list
+
+  /api/questionnaires/generate:
+    post:
+      tags: [questionnaires]
+      summary: Generate questionnaire
+      description: AI-generates a tax questionnaire based on analysis findings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Questionnaire generated
+
+  /api/questionnaires/{questionnaireId}/responses:
+    post:
+      tags: [questionnaires]
+      summary: Submit questionnaire responses
+      description: Submits client responses to a questionnaire.
+      parameters:
+        - name: questionnaireId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Responses saved
+
+  # ── Agents ──
+  /api/agents/reports:
+    get:
+      tags: [agents]
+      summary: List agent reports
+      description: Returns reports generated by AI agents.
+      responses:
+        '200':
+          description: Agent report list
+    post:
+      tags: [agents]
+      summary: Generate agent report
+      description: Triggers an AI agent to generate a specialised report.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Report generated
+
+  # ── Activity ──
+  /api/activity:
+    get:
+      tags: [activity]
+      summary: Get activity feed
+      description: Returns the global activity feed.
+      parameters:
+        - $ref: '#/components/parameters/tenantIdQuery'
+      responses:
+        '200':
+          description: Activity feed
+    post:
+      tags: [activity]
+      summary: Log activity
+      description: Logs a new activity event.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Activity logged
+
+  # ── License ──
+  /api/license/check-compliance:
+    get:
+      tags: [license]
+      summary: Check license compliance
+      description: Validates the current subscription against usage limits.
+      responses:
+        '200':
+          description: Compliance status
+
+  # ── Slack ──
+  /api/slack/daily-summary:
+    post:
+      tags: [slack]
+      summary: Send daily summary to Slack
+      description: Sends a daily tax summary notification to configured Slack channel.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Summary sent
+    get:
+      tags: [slack]
+      summary: Get daily summary preview
+      description: Returns a preview of the daily summary message.
+      responses:
+        '200':
+          description: Summary preview
+
+  /api/slack/test:
+    post:
+      tags: [slack]
+      summary: Send test Slack message
+      description: Sends a test message to verify Slack integration.
+      responses:
+        '200':
+          description: Test message sent
+    get:
+      tags: [slack]
+      summary: Get Slack integration status
+      description: Returns the current Slack integration configuration status.
+      responses:
+        '200':
+          description: Integration status
+
+  # ── Misc ──
+  /api/log-error:
+    post:
+      tags: [health]
+      summary: Log client-side error
+      description: Receives and logs client-side errors for monitoring.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Error logged
+
+  /api/webhooks/stripe:
+    post:
+      tags: [webhooks]
+      summary: Stripe webhook handler
+      description: Receives and processes Stripe webhook events.
+      security: []
+      responses:
+        '200':
+          description: Webhook processed
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase JWT token from authentication
+
+  parameters:
+    tenantIdQuery:
+      name: tenantId
+      in: query
+      required: true
+      description: Xero tenant ID
+      schema:
+        type: string
+
+    tenantIdPath:
+      name: tenantId
+      in: path
+      required: true
+      description: Xero tenant ID
+      schema:
+        type: string
+
+  schemas:
+    XeroConnection:
+      type: object
+      properties:
+        tenant_id:
+          type: string
+        tenant_name:
+          type: string
+        organisation_name:
+          type: string
+        organisation_type:
+          type: string
+        country_code:
+          type: string
+        base_currency:
+          type: string
+        is_demo_company:
+          type: boolean
+        connected_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: object
+          description: Additional error details
+
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Validation failed
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    AuthError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Authentication required
+        code:
+          type: string
+          example: AUTH_REQUIRED
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+    AuthError:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AuthError'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

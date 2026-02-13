@@ -1,0 +1,1744 @@
+openapi: 3.0.3
+info:
+  title: Accountant Workflow API
+  description: |
+    API for the Accountant Workflow Enhancement system that provides intelligent tax analysis
+    recommendations across 6 workflow areas.
+
+    **Version 1.1.0** — Updated 2026-02-11 to reflect actual implementation per commit 927de1a.
+
+    **Core Principle**: This API provides intelligence and recommendations, NOT binding tax advice.
+    Accountants retain 100% decision-making authority over all recommendations.
+
+    **Workflow Areas**:
+    - Sundries: Miscellaneous transaction analysis for R&D potential
+    - Deductions: Section 8-1 deduction scanning and optimisation
+    - FBT: Fringe Benefits Tax calculator and trigger detection
+    - Division 7A: Shareholder loan tracking and compliance monitoring
+    - Documents: Source document validation and missing document detection
+    - Reconciliation: Forensic anomaly detection and multi-year consistency checks
+
+    **Authentication**: All endpoints require valid Supabase JWT token with appropriate RLS policies.
+
+    **Scoping**: Findings are scoped by `organization_id` (UUID FK to `organizations` table),
+    not by `tenant_id`. The `tenant_id` (Xero org ID) is resolved to `organization_id` via
+    the `xero_connections` table at generation time.
+
+  version: 1.1.0
+  contact:
+    name: ATO Platform Team
+    email: support@ato-platform.com
+  license:
+    name: Proprietary
+    url: https://ato-platform.com/license
+
+servers:
+  - url: https://ato-platform.vercel.app/api
+    description: Production
+  - url: http://localhost:3000/api
+    description: Local development
+
+tags:
+  - name: Findings
+    description: Tax opportunity and compliance findings across all workflow areas
+  - name: Vetting
+    description: Accountant partner application, verification, and pricing
+  - name: Confidence
+    description: Confidence scoring for tax recommendations
+  - name: Notifications
+    description: |
+      Smart notifications for high-value findings and compliance risks.
+      **Status: Planned (Phase 2)** — Not yet implemented.
+  - name: Reports
+    description: |
+      Client report generation with approval workflow.
+      **Status: Planned (Phase 3)** — Not yet implemented.
+
+paths:
+  # ============================================================
+  # FINDINGS — Implemented
+  # ============================================================
+
+  /accountant/findings:
+    get:
+      tags:
+        - Findings
+      summary: List findings with filters
+      description: |
+        Retrieve all accountant findings with optional filtering.
+        Findings are sorted by `created_at` DESC (newest first).
+        Results are scoped by RLS to the authenticated user's organisation(s).
+      operationId: listFindings
+      parameters:
+        - name: workflowArea
+          in: query
+          required: false
+          description: Filter by specific workflow area
+          schema:
+            type: string
+            enum:
+              - sundries
+              - deductions
+              - fbt
+              - div7a
+              - documents
+              - reconciliation
+        - name: status
+          in: query
+          required: false
+          description: Filter by finding status
+          schema:
+            type: string
+            enum:
+              - pending
+              - approved
+              - rejected
+              - deferred
+        - name: confidenceLevel
+          in: query
+          required: false
+          description: Filter by confidence level
+          schema:
+            type: string
+            enum:
+              - High
+              - Medium
+              - Low
+        - name: minBenefit
+          in: query
+          required: false
+          description: Minimum estimated benefit in dollars (for high-value filtering)
+          schema:
+            type: number
+            format: decimal
+            example: 50000
+        - name: financialYear
+          in: query
+          required: false
+          description: Filter by financial year
+          schema:
+            type: string
+            example: "FY2024-25"
+      responses:
+        '200':
+          description: Successfully retrieved findings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  findings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Finding'
+                  total:
+                    type: integer
+                    description: Total count of findings matching filters
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Findings
+      summary: Create a new finding
+      description: |
+        Insert a single accountant finding. Used by the forensic audit system
+        or for manual finding creation. The finding defaults to `status: 'pending'`.
+      operationId: createFinding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FindingCreateRequest'
+      responses:
+        '201':
+          description: Finding created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  message:
+                    type: string
+                    example: "Finding created successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accountant/findings/generate:
+    post:
+      tags:
+        - Findings
+      summary: Run forensic-to-findings mapper
+      description: |
+        Triggers the forensic-to-findings mapper for a given Xero tenant.
+        Transforms rows from `forensic_analysis_results` into actionable
+        `accountant_findings` records across 6 workflow areas.
+
+        **Pipeline**:
+        1. Resolves `tenant_id` → `organization_id` via `xero_connections`
+        2. Fetches forensic analysis results for the tenant and financial year
+        3. Routes each result to a workflow area using priority-based routing (7 levels)
+        4. Calculates confidence score (weighted multi-factor)
+        5. Estimates financial benefit per workflow area
+        6. Deduplicates against existing findings (`transaction_id + organization_id + workflow_area`)
+        7. Inserts new findings with `status: 'pending'`
+
+        **Idempotent**: Safe to call multiple times. Duplicates are skipped, not upserted.
+      operationId: generateFindings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenantId
+              properties:
+                tenantId:
+                  type: string
+                  description: Xero tenant/organisation ID
+                  example: "abc-def-123"
+                financialYear:
+                  type: string
+                  description: Financial year to analyse (defaults to current FY if omitted)
+                  example: "FY2024-25"
+      responses:
+        '200':
+          description: Findings generation complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accountant/findings/{id}/status:
+    patch:
+      tags:
+        - Findings
+      summary: Update finding status
+      description: |
+        Update the status of a finding (approve, reject, defer, or reset to pending).
+        Sends an email notification when a finding is approved (if email preferences are configured).
+        Records `approved_at` timestamp on approval.
+      operationId: updateFindingStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Finding UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  description: New status for the finding
+                  enum:
+                    - approved
+                    - rejected
+                    - deferred
+                    - pending
+                reason:
+                  type: string
+                  description: Reason for rejection or deferral (recommended for rejected/deferred)
+                  maxLength: 5000
+                  example: "Activity does not meet systematic progression requirement for R&D."
+                accountantNotes:
+                  type: string
+                  description: Optional professional notes from the accountant
+                  maxLength: 5000
+      responses:
+        '200':
+          description: Finding status updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                      - approved
+                      - rejected
+                      - deferred
+                      - pending
+                  message:
+                    type: string
+                    example: "Finding approved successfully"
+                  updatedAt:
+                    type: string
+                    format: date-time
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ============================================================
+  # CONFIDENCE SCORING — Implemented
+  # ============================================================
+
+  /accountant/confidence-score:
+    post:
+      tags:
+        - Confidence
+      summary: Calculate confidence score
+      description: |
+        Calculate a confidence score (0-100) for a tax recommendation using the
+        CONF-001 formula:
+
+        `Confidence = (L x 0.4) + (P x 0.25) + (D x 0.2) + (C x 0.15) + regularity modifier`
+
+        Where:
+        - L = Legislation Score (0-100, based on number of references)
+        - P = Precedent Score (0-100, based on case outcomes)
+        - D = Documentation Quality Score (0-100)
+        - C = Data Completeness Score (0-100)
+        - Regularity modifier: 0 (regular), -5 (irregular), -10 (unusual)
+      operationId: calculateConfidence
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - legislationRefs
+                - documentationQuality
+                - dataCompleteness
+              properties:
+                legislationRefs:
+                  type: array
+                  description: Applicable legislation references
+                  items:
+                    type: object
+                    required:
+                      - section
+                      - title
+                      - url
+                    properties:
+                      section:
+                        type: string
+                        example: "Section 8-1"
+                      title:
+                        type: string
+                        example: "General deductions"
+                      url:
+                        type: string
+                        format: uri
+                precedentCases:
+                  type: array
+                  description: ATO rulings or case law (optional)
+                  items:
+                    type: object
+                    required:
+                      - citation
+                      - outcome
+                    properties:
+                      citation:
+                        type: string
+                        example: "TR 2013/3"
+                      outcome:
+                        type: string
+                        enum:
+                          - favorable
+                          - unfavorable
+                          - neutral
+                documentationQuality:
+                  type: string
+                  description: Quality of supporting documentation
+                  enum:
+                    - excellent
+                    - good
+                    - adequate
+                    - poor
+                dataCompleteness:
+                  type: number
+                  description: Percentage of required data available (0-100)
+                  minimum: 0
+                  maximum: 100
+                  example: 85
+                transactionRegularity:
+                  type: string
+                  description: Transaction pattern regularity (optional, defaults to regular)
+                  enum:
+                    - regular
+                    - irregular
+                    - unusual
+                  default: regular
+      responses:
+        '200':
+          description: Confidence score calculated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfidenceScore'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ============================================================
+  # ACCOUNTANT VETTING PIPELINE — Implemented
+  # ============================================================
+
+  /accountant/apply:
+    post:
+      tags:
+        - Vetting
+      summary: Submit partner application
+      description: |
+        Submit an accountant partner application for vetting. Zod-validated.
+        Duplicate detection by email (rejects if non-rejected application exists).
+        Activity logged to `accountant_activity_log`.
+
+        **Application lifecycle**: `pending → under_review → approved/rejected/suspended`
+      operationId: submitApplication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccountantApplicationRequest'
+      responses:
+        '201':
+          description: Application submitted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  application_id:
+                    type: string
+                    format: uuid
+                  message:
+                    type: string
+                    example: "Application submitted successfully. You will receive an email once your application has been reviewed."
+                  estimated_review_time:
+                    type: string
+                    example: "24-48 hours"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Duplicate application exists for this email
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: "duplicate_application"
+                  message:
+                    type: string
+                  application_id:
+                    type: string
+                    format: uuid
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accountant/verify:
+    get:
+      tags:
+        - Vetting
+      summary: Check vetted accountant status
+      description: |
+        Check if an email belongs to a vetted (approved and active) accountant.
+        Returns accountant details if vetted.
+      operationId: verifyAccountant
+      parameters:
+        - name: email
+          in: query
+          required: true
+          description: Email address to check
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  is_vetted:
+                    type: boolean
+                  accountant:
+                    $ref: '#/components/schemas/VettedAccountantSummary'
+                  message:
+                    type: string
+              examples:
+                vetted:
+                  summary: Vetted accountant
+                  value:
+                    success: true
+                    is_vetted: true
+                    accountant:
+                      id: "abc-123"
+                      email: "jane@firm.com.au"
+                      full_name: "Jane Smith"
+                      firm_name: "Smith & Co"
+                      credential_type: "CPA"
+                      wholesale_discount_rate: 0.50
+                      lifetime_discount: true
+                      is_active: true
+                    message: "Email is verified as a vetted accountant"
+                not_vetted:
+                  summary: Not a vetted accountant
+                  value:
+                    success: true
+                    is_vetted: false
+                    message: "Email is not registered as a vetted accountant"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accountant/pricing:
+    get:
+      tags:
+        - Vetting
+      summary: Get accountant pricing
+      description: |
+        Returns wholesale vs standard pricing for a given email.
+        Vetted accountants receive a wholesale discount (default 50%, i.e. $495 vs $995).
+        Uses `get_accountant_pricing()` database function with direct table fallback.
+      operationId: getAccountantPricing
+      parameters:
+        - name: email
+          in: query
+          required: true
+          description: Email address to check pricing for
+          schema:
+            type: string
+            format: email
+      responses:
+        '200':
+          description: Pricing information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountantPricingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accountant/application/{id}:
+    get:
+      tags:
+        - Vetting
+      summary: Check application status
+      description: |
+        Retrieve the current status and details of an accountant application by UUID.
+        Returns sanitised application data (sensitive fields excluded) with a
+        human-readable status message and next steps.
+      operationId: getApplicationStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Application UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Application status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationStatusResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ============================================================
+  # NOTIFICATIONS — Planned (Phase 2)
+  # ============================================================
+
+  /accountant/notifications:
+    get:
+      tags:
+        - Notifications
+      summary: List notifications
+      description: |
+        Retrieve notifications for the authenticated user/tenant.
+
+        **Planned Notification Triggers**:
+        - High Value: Opportunity > $50,000
+        - Compliance Risk: Non-compliant Division 7A loans, FBT exposure
+        - Deadline Approaching: R&D registration due within 30 days
+        - Critical Anomaly: Forensic analysis detects significant discrepancy
+      operationId: listNotifications
+      x-status: planned
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: priority
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - critical
+              - high
+              - medium
+              - info
+        - name: unreadOnly
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        '200':
+          description: Successfully retrieved notifications
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  unreadCount:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /accountant/notifications/{id}/read:
+    post:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      operationId: markNotificationRead
+      x-status: planned
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  readAt:
+                    type: string
+                    format: date-time
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /accountant/notifications/{id}/dismiss:
+    post:
+      tags:
+        - Notifications
+      summary: Dismiss notification
+      operationId: dismissNotification
+      x-status: planned
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification dismissed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  dismissedAt:
+                    type: string
+                    format: date-time
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /accountant/notifications/unread-count:
+    get:
+      tags:
+        - Notifications
+      summary: Get unread notification count
+      operationId: getUnreadCount
+      x-status: planned
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  unreadCount:
+                    type: integer
+                  byPriority:
+                    type: object
+                    properties:
+                      critical:
+                        type: integer
+                      high:
+                        type: integer
+                      medium:
+                        type: integer
+                      info:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================================================
+  # REPORTS — Planned (Phase 3)
+  # ============================================================
+
+  /accountant/reports:
+    get:
+      tags:
+        - Reports
+      summary: List client reports
+      operationId: listReports
+      x-status: planned
+      parameters:
+        - name: tenantId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - draft
+              - reviewed
+              - approved
+              - sent
+      responses:
+        '200':
+          description: Successfully retrieved reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ClientReport'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags:
+        - Reports
+      summary: Create draft report
+      operationId: createReport
+      x-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tenantId
+                - title
+                - findingIds
+              properties:
+                tenantId:
+                  type: string
+                  format: uuid
+                title:
+                  type: string
+                  minLength: 5
+                  maxLength: 200
+                findingIds:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+                    format: uuid
+                reportType:
+                  type: string
+                  default: tax_opportunities
+                  enum:
+                    - tax_opportunities
+                    - compliance_review
+                    - forensic_findings
+                customization:
+                  type: object
+                accountantCommentary:
+                  type: string
+                  maxLength: 10000
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /accountant/reports/{id}:
+    get:
+      tags:
+        - Reports
+      summary: Get client report
+      operationId: getReport
+      x-status: planned
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientReport'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags:
+        - Reports
+      summary: Update draft report
+      operationId: updateReport
+      x-status: planned
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                findingIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+                customization:
+                  type: object
+                accountantCommentary:
+                  type: string
+                  maxLength: 10000
+      responses:
+        '200':
+          description: Report updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientReport'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Conflict - Report not in draft status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /accountant/reports/{id}/approve:
+    post:
+      tags:
+        - Reports
+      summary: Approve report for sending
+      operationId: approveReport
+      x-status: planned
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Report approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                      - approved
+                  generatedPdfUrl:
+                    type: string
+                    format: uri
+                    nullable: true
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /accountant/reports/{id}/send:
+    post:
+      tags:
+        - Reports
+      summary: Send report to client
+      operationId: sendReport
+      x-status: planned
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - recipients
+              properties:
+                recipients:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: string
+                    format: email
+                emailSubject:
+                  type: string
+                  maxLength: 200
+                emailBody:
+                  type: string
+                  maxLength: 5000
+      responses:
+        '200':
+          description: Report sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                      - sent
+                  sentAt:
+                    type: string
+                    format: date-time
+                  sentTo:
+                    type: array
+                    items:
+                      type: string
+                      format: email
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Conflict - Report not approved or PDF not generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  schemas:
+    # ===========================================================
+    # FINDINGS SCHEMAS
+    # ===========================================================
+
+    Finding:
+      type: object
+      description: |
+        An accountant finding representing an AI-identified tax opportunity or compliance issue.
+        Scoped by `organization_id` (resolved from Xero `tenant_id` via `xero_connections`).
+      required:
+        - id
+        - transactionId
+        - description
+        - amount
+        - confidence
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        transactionId:
+          type: string
+          description: Source transaction identifier from Xero
+        date:
+          type: string
+          format: date
+          nullable: true
+          description: Transaction date
+        description:
+          type: string
+          description: AI-generated finding description
+          example: "R&D eligible software development: Systematic investigation into novel caching algorithm"
+        amount:
+          type: number
+          format: decimal
+          nullable: true
+          description: Transaction amount
+          example: 87500.00
+        currentClassification:
+          type: string
+          nullable: true
+          description: Current Xero account classification
+          example: "Software Development"
+        suggestedClassification:
+          type: string
+          nullable: true
+          description: Recommended classification
+          example: "R&D Eligible Expenditure"
+        suggestedAction:
+          type: string
+          nullable: true
+          description: Recommended action for the accountant
+          example: "Review for Division 355 R&D Tax Incentive eligibility"
+        confidence:
+          type: object
+          description: Confidence scoring breakdown
+          properties:
+            score:
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: Weighted confidence score
+              example: 85
+            level:
+              type: string
+              enum:
+                - High
+                - Medium
+                - Low
+            factors:
+              type: array
+              description: Individual factors contributing to the score
+              items:
+                $ref: '#/components/schemas/ConfidenceFactor'
+        legislationRefs:
+          type: array
+          description: Applicable tax legislation references
+          items:
+            type: object
+            properties:
+              section:
+                type: string
+                example: "Division 355"
+              act:
+                type: string
+                example: "ITAA 1997"
+              relevance:
+                type: string
+                example: "R&D Tax Incentive eligibility and offset calculation"
+        reasoning:
+          type: string
+          nullable: true
+          description: AI-generated explanation of the finding
+        financialYear:
+          type: string
+          description: Financial year the finding applies to
+          example: "FY2024-25"
+        estimatedBenefit:
+          type: number
+          format: decimal
+          nullable: true
+          description: Estimated financial benefit (labelled "Est." in UI)
+          example: 38062.50
+        status:
+          type: string
+          enum:
+            - pending
+            - approved
+            - rejected
+            - deferred
+          default: pending
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    FindingCreateRequest:
+      type: object
+      description: Request body for creating a new finding
+      required:
+        - workflowArea
+        - transactionId
+        - transactionDate
+        - description
+        - amount
+        - confidenceScore
+        - confidenceLevel
+        - reasoning
+        - financialYear
+      properties:
+        workflowArea:
+          type: string
+          enum:
+            - sundries
+            - deductions
+            - fbt
+            - div7a
+            - documents
+            - reconciliation
+        transactionId:
+          type: string
+        transactionDate:
+          type: string
+          format: date
+        description:
+          type: string
+        amount:
+          type: number
+          format: decimal
+        currentClassification:
+          type: string
+        suggestedClassification:
+          type: string
+        suggestedAction:
+          type: string
+        confidenceScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        confidenceLevel:
+          type: string
+          enum:
+            - High
+            - Medium
+            - Low
+        confidenceFactors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConfidenceFactor'
+        legislationRefs:
+          type: array
+          items:
+            type: object
+            properties:
+              section:
+                type: string
+              act:
+                type: string
+              relevance:
+                type: string
+        reasoning:
+          type: string
+        financialYear:
+          type: string
+          example: "FY2024-25"
+        estimatedBenefit:
+          type: number
+          format: decimal
+
+    GenerateResult:
+      type: object
+      description: Response from the forensic-to-findings mapper
+      required:
+        - status
+        - created
+        - skipped
+        - byArea
+        - message
+      properties:
+        status:
+          type: string
+          enum:
+            - complete
+          example: "complete"
+        created:
+          type: integer
+          description: Number of new findings created
+          example: 12
+        skipped:
+          type: integer
+          description: Number of duplicates skipped
+          example: 3
+        byArea:
+          type: object
+          description: Count of findings created per workflow area
+          properties:
+            sundries:
+              type: integer
+            deductions:
+              type: integer
+            fbt:
+              type: integer
+            div7a:
+              type: integer
+            documents:
+              type: integer
+            reconciliation:
+              type: integer
+          example:
+            sundries: 2
+            deductions: 4
+            fbt: 1
+            div7a: 1
+            documents: 3
+            reconciliation: 1
+        message:
+          type: string
+          example: "Generated 12 findings from 15 forensic analysis results"
+
+    ConfidenceFactor:
+      type: object
+      description: Individual factor contributing to a confidence score
+      properties:
+        factor:
+          type: string
+          description: Description of the factor
+          example: "Category classification confidence: 85%"
+        impact:
+          type: string
+          enum:
+            - positive
+            - negative
+          description: Whether this factor increases or decreases confidence
+        weight:
+          type: number
+          description: Weight of this factor in the overall score (0-1)
+          example: 0.4
+
+    # ===========================================================
+    # CONFIDENCE SCORING SCHEMAS
+    # ===========================================================
+
+    ConfidenceScore:
+      type: object
+      required:
+        - score
+        - level
+        - factors
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Overall confidence score
+          example: 85
+        level:
+          type: string
+          enum:
+            - High
+            - Medium
+            - Low
+          description: |
+            Thresholds:
+            - High: score >= 80
+            - Medium: score >= 60
+            - Low: score < 60
+        factors:
+          type: array
+          description: Individual factors contributing to score
+          items:
+            $ref: '#/components/schemas/ConfidenceFactor'
+
+    # ===========================================================
+    # VETTING SCHEMAS
+    # ===========================================================
+
+    AccountantApplicationRequest:
+      type: object
+      description: Accountant partner application form (Zod-validated)
+      required:
+        - email
+        - first_name
+        - last_name
+        - phone
+        - firm_name
+        - firm_abn
+        - credential_type
+        - credential_number
+        - credential_issuing_body
+        - credential_expiry
+        - years_experience
+        - agreed_to_terms
+        - agreed_to_privacy
+      properties:
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        phone:
+          type: string
+        firm_name:
+          type: string
+        firm_abn:
+          type: string
+          description: Australian Business Number
+        firm_website:
+          type: string
+          format: uri
+        firm_address:
+          type: string
+        credential_type:
+          type: string
+          enum:
+            - CPA
+            - CA
+            - RTA
+            - BAS_AGENT
+            - FTA
+            - OTHER
+        credential_number:
+          type: string
+        credential_issuing_body:
+          type: string
+        credential_expiry:
+          type: string
+          format: date
+        years_experience:
+          type: integer
+          minimum: 0
+        specializations:
+          type: array
+          items:
+            type: string
+        client_count:
+          type: integer
+        referral_source:
+          type: string
+        agreed_to_terms:
+          type: boolean
+        agreed_to_privacy:
+          type: boolean
+
+    VettedAccountantSummary:
+      type: object
+      description: Sanitised vetted accountant details returned by the verify endpoint
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+        firm_name:
+          type: string
+        credential_type:
+          type: string
+        wholesale_discount_rate:
+          type: number
+          description: Discount rate (0-1, e.g. 0.50 = 50% off)
+          example: 0.50
+        lifetime_discount:
+          type: boolean
+        is_active:
+          type: boolean
+
+    AccountantPricingResponse:
+      type: object
+      required:
+        - is_vetted
+        - discount_rate
+        - final_price
+        - standard_price
+        - message
+      properties:
+        is_vetted:
+          type: boolean
+        discount_rate:
+          type: number
+          description: Discount rate (0-1)
+          example: 0.50
+        final_price:
+          type: number
+          format: decimal
+          description: Price after discount
+          example: 497.50
+        standard_price:
+          type: number
+          format: decimal
+          description: Standard (non-discounted) price
+          example: 995.00
+        message:
+          type: string
+          example: "Wholesale pricing: 50% discount"
+
+    ApplicationStatusResponse:
+      type: object
+      properties:
+        application:
+          type: object
+          description: Sanitised application data
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+              format: email
+            first_name:
+              type: string
+            last_name:
+              type: string
+            firm_name:
+              type: string
+            credential_type:
+              type: string
+            status:
+              type: string
+              enum:
+                - pending
+                - under_review
+                - approved
+                - rejected
+                - suspended
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+            reviewed_at:
+              type: string
+              format: date-time
+              nullable: true
+            rejection_reason:
+              type: string
+              nullable: true
+              description: Only present when status is 'rejected'
+        status_message:
+          type: string
+          description: Human-readable status message
+          example: "Your application is pending review. Our team will review it within 24-48 hours."
+        next_steps:
+          type: string
+          description: Guidance on what happens next
+          example: "You will receive an email notification once your application has been reviewed."
+
+    # ===========================================================
+    # NOTIFICATION SCHEMAS (Planned — Phase 2)
+    # ===========================================================
+
+    Notification:
+      type: object
+      x-status: planned
+      required:
+        - id
+        - tenantId
+        - priority
+        - category
+        - title
+        - message
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+        priority:
+          type: string
+          enum:
+            - critical
+            - high
+            - medium
+            - info
+        category:
+          type: string
+          example: "high_value_opportunity"
+        title:
+          type: string
+          example: "High-Value R&D Opportunity Detected"
+        message:
+          type: string
+        findingId:
+          type: string
+          format: uuid
+          nullable: true
+        actionUrl:
+          type: string
+          nullable: true
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        dismissedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # ===========================================================
+    # REPORT SCHEMAS (Planned — Phase 3)
+    # ===========================================================
+
+    ClientReport:
+      type: object
+      x-status: planned
+      required:
+        - id
+        - tenantId
+        - reportType
+        - title
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        tenantId:
+          type: string
+        reportType:
+          type: string
+          enum:
+            - tax_opportunities
+            - compliance_review
+            - forensic_findings
+        title:
+          type: string
+        findings:
+          type: array
+          items:
+            type: string
+            format: uuid
+        customization:
+          type: object
+        accountantCommentary:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - draft
+            - reviewed
+            - approved
+            - sent
+        generatedPdfUrl:
+          type: string
+          format: uri
+          nullable: true
+        sentAt:
+          type: string
+          format: date-time
+          nullable: true
+        sentTo:
+          type: array
+          nullable: true
+          items:
+            type: string
+            format: email
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ===========================================================
+    # COMMON SCHEMAS
+    # ===========================================================
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error type
+          example: "ValidationError"
+        message:
+          type: string
+          description: Human-readable error message
+          example: "tenantId is required and must be a string"
+        details:
+          type: object
+          description: Additional error context
+        timestamp:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid input parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "ValidationError"
+            message: "tenantId is required and must be a string"
+            timestamp: "2026-02-11T04:30:00Z"
+
+    Unauthorized:
+      description: Unauthorized - invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "AuthenticationError"
+            message: "Invalid or expired JWT token"
+            timestamp: "2026-02-11T04:30:00Z"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "NotFoundError"
+            message: "Finding not found"
+            timestamp: "2026-02-11T04:30:00Z"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "InternalServerError"
+            message: "An unexpected error occurred. Please try again later."
+            timestamp: "2026-02-11T04:30:00Z"
+
+  securitySchemes:
+    SupabaseAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Supabase JWT token obtained via authentication.
+        Include in Authorization header as: `Bearer <token>`
+
+security:
+  - SupabaseAuth: []

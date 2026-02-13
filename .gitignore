@@ -1,0 +1,63 @@
+# Dependencies
+node_modules/
+
+# Environment files (contain secrets)
+.env*
+.env*.local
+.env.production.vercel
+
+# Vercel
+.vercel/
+
+# Claude local config
+.claude/
+
+# Temp files and artifacts
+nul
+temp-openapi.json
+*.crx
+*.zip
+
+# Screenshots and images (not source code)
+*.png
+
+# Build artifacts
+.next/
+out/
+build/
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.vscode/
+.idea/
+
+# The ATO/ subdirectory is a separate older copy of the repo
+ATO/
+
+# Chrome extension artifacts (built files)
+claude-extension/
+
+# Temp scripts at root level
+live-schema-report.txt
+get-linear-backlog.mjs
+get-schema-details.js
+parse-openapi.js
+
+# ato-app is managed by its own git repo — do not double-track
+ato-app/
+
+# Playwright
+.playwright-mcp/
+
+# pnpm
+pnpm-lock.yaml
