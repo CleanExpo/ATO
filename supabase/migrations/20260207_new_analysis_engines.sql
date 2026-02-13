@@ -196,7 +196,7 @@ SECURITY DEFINER
 AS $$
   SELECT EXISTS (
     SELECT 1 FROM user_tenant_access
-    WHERE user_id = auth.uid()::TEXT
+    WHERE user_id = auth.uid()
     AND tenant_id = p_tenant_id
   );
 $$;
