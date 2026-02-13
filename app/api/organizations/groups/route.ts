@@ -38,8 +38,9 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: false });
 
     if (groupsError) {
-      // If columns don't exist yet, return empty gracefully
-      if (groupsError.code === '42703') {
+      // If table or columns don't exist yet, return empty gracefully
+      // 42P01 = undefined_table, 42703 = undefined_column
+      if (groupsError.code === '42P01' || groupsError.code === '42703') {
         return NextResponse.json({ groups: [], total: 0 });
       }
       console.error('Error fetching organization groups:', groupsError);
