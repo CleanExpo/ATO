@@ -23,6 +23,8 @@ import {
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton';
 
 interface AdminStats {
     totalOrganizations: number;
@@ -77,30 +79,14 @@ export default function AdminDashboard() {
         fetchData();
     }, []);
 
-    if (loading) return (
-        <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center">
-            <div className="loading-spinner" />
-        </div>
-    );
+    if (loading) return <PageSkeleton />;
 
     if (error || !stats) return (
-        <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center px-4">
-            <div className="text-center max-w-md">
-                <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-6">
-                    <Lock className="w-8 h-8 text-amber-400" />
-                </div>
-                <h2 className="text-2xl font-black text-white mb-3">Admin Access Required</h2>
-                <p className="text-sm text-white/40 mb-8 leading-relaxed">
-                    {error || 'System stats are not available. This page requires administrator privileges to view global platform metrics.'}
-                </p>
-                <button
-                    onClick={() => window.location.reload()}
-                    className="px-6 py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold text-white hover:bg-white/10 transition-colors"
-                >
-                    Retry
-                </button>
-            </div>
-        </div>
+        <ErrorState
+            title="Admin Access Required"
+            message={error || 'System stats are not available. This page requires administrator privileges to view global platform metrics.'}
+            onRetry={() => window.location.reload()}
+        />
     );
 
     return (

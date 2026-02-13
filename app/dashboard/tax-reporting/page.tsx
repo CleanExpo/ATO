@@ -39,6 +39,9 @@ import {
 import AnimatedCounter from '@/components/dashboard/AnimatedCounter';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton';
 
 // --- Interfaces ---
 
@@ -155,19 +158,35 @@ export default function TaxReportingDashboard() {
     }));
   }, [data]);
 
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="loading-spinner" />
-    </div>
-  );
+  if (loading) return <PageSkeleton />;
 
-  if (error || !data) return (
-    <div className="p-12 text-center">
-      <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-      <h2 className="text-2xl font-bold mb-2">Analysis Failed</h2>
-      <p className="text-[var(--text-secondary)] mb-6">{error || 'No data available'}</p>
-      <button onClick={() => window.location.reload()} className="btn btn-primary">Retry Analysis</button>
-    </div>
+  if (error) {
+    const isNoConnection = error.includes('No Xero connections');
+    if (isNoConnection) {
+      return (
+        <EmptyState
+          title="No Accounting Platform Connected"
+          message="Connect your Xero account to view tax reporting data and compliance obligations."
+          actionLabel="Connect Xero"
+          actionHref="/dashboard/connect"
+        />
+      );
+    }
+    return (
+      <ErrorState
+        message={error}
+        onRetry={() => window.location.reload()}
+      />
+    );
+  }
+
+  if (!data) return (
+    <EmptyState
+      title="No Tax Reporting Data"
+      message="Run a forensic audit on your synced transactions to generate tax reporting data."
+      actionLabel="Go to Dashboard"
+      actionHref="/dashboard"
+    />
   );
 
   return (
