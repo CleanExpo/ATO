@@ -23,7 +23,7 @@ export interface DeveloperRequest {
 
 export interface OrchestratorTask {
   id: string;
-  specialist: 'A' | 'B' | 'C' | 'D' | 'tax-agent';
+  specialist: 'A' | 'B' | 'C' | 'D' | 'tax-agent' | string;
   title: string;
   objective: string;
   context: string;

@@ -201,6 +201,130 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 - **Fuel Cost**: 100-500 PTS
 - **Trigger**: `/system-overhaul` workflow
 
+### 18. Amendment Period Tracker ⏰
+- **Path**: `.agent/agents/amendment_period_tracker/AGENT.md`
+- **Description**: Tracks amendment period windows for each entity and financial year under s 170 TAA 1953, generates countdown alerts before expiry, and identifies amendment opportunities
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `historical_trend_analysis`
+- **Fuel Cost**: 20-60 PTS
+- **Trigger**: `/compliance-monitoring` workflow
+
+### 19. Client Onboarding Agent 🚀
+- **Path**: `.agent/agents/client_onboarding_agent/AGENT.md`
+- **Description**: Guides new users through Xero connection, data sync, quality check, first forensic scan, and results walkthrough
+- **Priority**: CRITICAL
+- **Bound Skills**: `xero_connection_management`, `xero_api_integration`
+- **Fuel Cost**: 20-80 PTS
+- **Trigger**: `/new-client-setup` workflow
+
+### 20. Compliance Calendar Agent 📅
+- **Path**: `.agent/agents/compliance_calendar_agent/AGENT.md`
+- **Description**: Tracks entity-type-aware tax compliance deadlines, generates automated alerts for BAS, PAYG, SG, lodgement, and amendment period expiry
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `ato_rate_scraping`
+- **Fuel Cost**: 15-60 PTS
+- **Trigger**: `/compliance-monitoring` workflow
+
+### 21. Data Quality Agent 🔍
+- **Path**: `.agent/agents/data_quality_agent/AGENT.md`
+- **Description**: Detects Xero data quality issues including GL misclassifications, duplicate transactions, reconciliation gaps, and missing data affecting tax analysis accuracy
+- **Priority**: HIGH
+- **Bound Skills**: `xero_api_integration`, `australian_tax_law_research`, `abn_entity_lookup`
+- **Fuel Cost**: 30-100 PTS
+- **Trigger**: `/tax-audit` workflow (pre-step)
+
+### 22. Foreign Entity Tax Specialist 🌏
+- **Path**: `.agent/agents/foreign_entity_tax_specialist/AGENT.md`
+- **Description**: International entity tax rules including CFC, transfer pricing (Division 815), foreign income tax offsets, and thin capitalisation
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 40-150 PTS
+- **Trigger**: `/multi-entity-analysis` workflow
+
+### 23. Multi-Entity Consolidator 🏢
+- **Path**: `.agent/agents/multi_entity_consolidator/AGENT.md`
+- **Description**: Consolidates tax analysis across multiple Xero organisations, handles intercompany eliminations, and produces group-level compliance reports
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`, `abn_entity_lookup`
+- **Fuel Cost**: 60-200 PTS
+- **Trigger**: `/multi-entity-analysis` workflow
+
+### 24. Non-Profit Tax Specialist 🏛️
+- **Path**: `.agent/agents/non_profit_tax_specialist/AGENT.md`
+- **Description**: Charitable and non-profit organisation tax rules including DGR status, income tax exemptions, FBT rebates, and GST concessions
+- **Priority**: MEDIUM
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 30-100 PTS
+
+### 25. PAYG Instalment Advisor 💰
+- **Path**: `.agent/agents/payg_instalment_advisor/AGENT.md`
+- **Description**: PAYG instalment strategy optimisation — amount vs rate method, variation penalty risk (85% safe harbour), GDP-adjusted calculation
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `payg_instalment_optimization`
+- **Fuel Cost**: 30-90 PTS
+- **Trigger**: `/payg-review` workflow
+- **Engine**: `lib/analysis/payg-instalment-engine.ts`
+
+### 26. Payroll Tax Optimizer 👥
+- **Path**: `.agent/agents/payroll_tax_optimizer/AGENT.md`
+- **Description**: Multi-state payroll tax compliance across all 8 Australian jurisdictions — thresholds, grouping provisions, contractor deeming, mental health levies
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `payroll_tax_analysis`, `abn_entity_lookup`, `xero_api_integration`
+- **Fuel Cost**: 50-150 PTS
+- **Trigger**: `/payroll-tax` workflow
+- **Engine**: `lib/analysis/payroll-tax-engine.ts`
+
+### 27. PSI Classifier 📋
+- **Path**: `.agent/agents/psi_classifier/AGENT.md`
+- **Description**: Personal services income determination under Division 84-87 ITAA 1997 — 80% rule, four PSB tests, attribution rules, deduction restrictions
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `psi_classification`, `xero_api_integration`, `abn_entity_lookup`
+- **Fuel Cost**: 30-100 PTS
+- **Trigger**: `/psi-check` workflow
+- **Engine**: `lib/analysis/psi-engine.ts`
+
+### 28. Rate Change Monitor 📡
+- **Path**: `.agent/agents/rate_change_monitor/AGENT.md`
+- **Description**: Monitors ATO rate publications for changes to corporate tax, Division 7A benchmark, SG, FBT, instant asset write-off, and other rates. Triggers reanalysis when rates change.
+- **Priority**: CRITICAL
+- **Bound Skills**: `ato_rate_scraping`, `australian_tax_law_research`, `legislative_change_monitoring`
+- **Fuel Cost**: 20-80 PTS
+- **Trigger**: `/compliance-monitoring` workflow
+
+### 29. Superannuation Specialist 🏦
+- **Path**: `.agent/agents/superannuation_specialist/AGENT.md`
+- **Description**: Superannuation cap management — concessional/non-concessional limits, Division 293, carry-forward unused caps (5-year window), SG quarterly compliance
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `xero_api_integration`
+- **Fuel Cost**: 40-120 PTS
+- **Engine**: `lib/analysis/superannuation-cap-analyzer.ts`
+
+### 31. Audit Risk Assessor 🎯
+- **Path**: `.agent/agents/audit_risk_assessor/AGENT.md`
+- **Description**: Evaluates ATO audit likelihood using industry benchmarks, transaction patterns, and compliance focus areas. Benchmarks are descriptive only.
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `audit_risk_benchmarking`, `xero_api_integration`
+- **Fuel Cost**: 30-100 PTS
+- **Trigger**: `/audit-risk` workflow
+- **Engine**: `lib/analysis/audit-risk-engine.ts`
+
+### 32. Cash Flow Forecast Agent 📊
+- **Path**: `.agent/agents/cashflow_forecast_agent/AGENT.md`
+- **Description**: Projects future tax obligations and cash flow requirements, identifies negative cash position risks, recommends cash reserves
+- **Priority**: HIGH
+- **Bound Skills**: `australian_tax_law_research`, `cashflow_forecasting`, `xero_api_integration`, `historical_trend_analysis`
+- **Fuel Cost**: 30-100 PTS
+- **Trigger**: `/cashflow-forecast` workflow
+- **Engine**: `lib/analysis/cashflow-forecast-engine.ts`
+
+### 30. Senior Project Manager (Enhanced) 🎯
+- **Path**: `.agent/agents/senior_project_manager_enhanced/AGENT.md`
+- **Description**: Validates incoming ideas from work queue, assesses feasibility and complexity, detects Linear duplicates, assigns priority, and routes to domain agents
+- **Priority**: CRITICAL
+- **Bound Skills**: `australian_tax_law_research`, `tax_compliance_verification`
+- **Fuel Cost**: 50-150 PTS
+- **Trigger**: Idea intake pipeline (`/validate-queue`)
+
 ## Available Skills
 
 | Skill | Path | Purpose |
@@ -216,6 +340,22 @@ Deeply analyze Australian Business Taxation Laws, Regulations, and Incentives to
 | `video_generation` | `.agent/skills/video_generation/SKILL.md` | Motion graphics creation |
 | `tax_compliance_verification` | `.agent/skills/tax_compliance_verification/SKILL.md` | Tax calculation and rate verification |
 | `tax_fraud_detection` | `.agent/skills/tax_fraud_detection/SKILL.md` | Part IVA anti-avoidance and fraud detection |
+| `abn_entity_lookup` | `.agent/skills/abn_entity_lookup/SKILL.md` | ABR API entity validation and GST status check |
+| `ato_rate_scraping` | `.agent/skills/ato_rate_scraping/SKILL.md` | Scrape ATO website for current tax rates via Jina AI |
+| `historical_trend_analysis` | `.agent/skills/historical_trend_analysis/SKILL.md` | Multi-year transaction trend analysis for forecasting |
+| `rnd_eligibility_assessment` | `.agent/skills/rnd_eligibility_assessment/SKILL.md` | R&D Tax Incentive four-element test evaluation |
+| `pdf_report_generation` | `.agent/skills/pdf_report_generation/SKILL.md` | Generate PDF reports from analysis results |
+| `email_delivery` | `.agent/skills/email_delivery/SKILL.md` | Send reports and alerts via email/Gmail |
+| `legislative_change_monitoring` | `.agent/skills/legislative_change_monitoring/SKILL.md` | Monitor ATO legislative updates and budget announcements |
+| `idea_intake_workflow` | `.agent/skills/idea-intake-workflow/SKILL.md` | Unified idea intake pipeline management |
+| `idea_queue_capture` | `.agent/skills/idea-queue-capture/SKILL.md` | Capture ideas into the work queue |
+| `work_queue_processor` | `.agent/skills/work-queue-processor/SKILL.md` | Process validated queue items for execution |
+| `audit_risk_benchmarking` | `.agent/skills/audit_risk_benchmarking/SKILL.md` | ATO industry benchmark comparison and risk scoring |
+| `cashflow_forecasting` | `.agent/skills/cashflow_forecasting/SKILL.md` | Tax obligation projection and cash reserve planning |
+| `payroll_tax_analysis` | `.agent/skills/payroll_tax_analysis/SKILL.md` | Multi-state payroll tax compliance (8 jurisdictions) |
+| `psi_classification` | `.agent/skills/psi_classification/SKILL.md` | PSI determination and PSB test evaluation (Div 84-87) |
+| `payg_instalment_optimization` | `.agent/skills/payg_instalment_optimization/SKILL.md` | PAYG instalment strategy and variation risk analysis |
+| `myob_api_integration` | `.agent/skills/myob_api_integration/SKILL.md` | Read-only MYOB API data extraction and normalisation |
 
 ## Agent Modes
 
@@ -253,6 +393,18 @@ All agents operate using the three-mode discipline:
 | `/send-to-accountant` | Generate reports and email directly to accountant |
 | `/content-orchestrator` | Generate reports and presentations |
 | `/system-overhaul` | Complete tax system integrity overhaul and verification |
+| `/compliance-monitoring` | Deadline tracking, rate change monitoring, amendment period alerts |
+| `/new-client-setup` | End-to-end onboarding: Xero connect, data sync, first scan |
+| `/multi-entity-analysis` | Group consolidation, intercompany elimination, cross-entity compliance |
+| `/xero-setup` | Xero OAuth 2.0 connection setup and troubleshooting |
+| `/grant-accelerator` | Federal, state, and local government grant discovery and application |
+| `/idea-intake` | Capture, validate, prioritise, and route ideas to domain agents |
+| `/audit-risk` | ATO audit risk benchmarking and compliance focus area assessment |
+| `/cashflow-forecast` | Tax obligation cash flow projection and reserve planning |
+| `/payroll-tax` | Multi-state payroll tax analysis across 8 jurisdictions |
+| `/psi-check` | Personal services income determination (Division 84-87) |
+| `/payg-review` | PAYG instalment optimisation — amount vs rate method analysis |
+| `/abn-lookup` | Entity validation via Australian Business Register API |
 
 ## Key Deliverables
 

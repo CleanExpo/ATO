@@ -10,9 +10,9 @@ capabilities:
   - division_293_assessment
   - total_super_balance_tracking
 bound_skills:
-  - australian-tax-law-research
-  - ato-rate-scraping
-  - xero-api-integration
+  - australian_tax_law_research
+  - ato_rate_scraping
+  - xero_api_integration
 default_mode: PLANNING
 fuel_cost: 40-120 PTS
 max_iterations: 5

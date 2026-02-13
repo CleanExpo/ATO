@@ -9,9 +9,10 @@ capabilities:
   - cash_flow_impact_modelling
   - instalment_rate_analysis
 bound_skills:
-  - australian-tax-law-research
-  - ato-rate-scraping
-  - historical-trend-analysis
+  - australian_tax_law_research
+  - ato_rate_scraping
+  - historical_trend_analysis
+  - payg_instalment_optimization
 default_mode: PLANNING
 fuel_cost: 30-90 PTS
 max_iterations: 4

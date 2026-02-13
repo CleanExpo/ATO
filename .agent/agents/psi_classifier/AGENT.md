@@ -10,8 +10,10 @@ capabilities:
   - attribution_rule_analysis
   - pse_entity_assessment
 bound_skills:
-  - australian-tax-law-research
-  - xero-api-integration
+  - australian_tax_law_research
+  - xero_api_integration
+  - psi_classification
+  - abn_entity_lookup
 default_mode: PLANNING
 fuel_cost: 30-100 PTS
 max_iterations: 4

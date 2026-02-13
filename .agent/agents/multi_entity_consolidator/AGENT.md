@@ -10,8 +10,9 @@ capabilities:
   - connected_entity_detection
   - group_payroll_tax_assessment
 bound_skills:
-  - australian-tax-law-research
-  - xero-api-integration
+  - australian_tax_law_research
+  - xero_api_integration
+  - abn_entity_lookup
 default_mode: PLANNING
 fuel_cost: 60-200 PTS
 max_iterations: 6

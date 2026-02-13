@@ -39,7 +39,7 @@ export interface DeveloperRequest {
 // Orchestrator task decomposition
 export interface OrchestratorTask {
   id: string; // e.g., "ORCH-001"
-  specialist: 'A' | 'B' | 'C' | 'D' | 'tax-agent';
+  specialist: 'A' | 'B' | 'C' | 'D' | 'tax-agent' | string;
   title: string;
   objective: string;
   context: string;

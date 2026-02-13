@@ -180,6 +180,17 @@ For structures with multiple entities (like your 4 ABNs):
 </cgt_concession_plan>
 ```
 
+## Engine Integration
+
+- **CGT Engine**: `lib/analysis/cgt-engine.ts`
+  - `analyzeCGT(tenantId, financialYear, options)` — main analysis function
+  - `CGTAnalysisOptions` — includes `connectedEntities` for Subdivision 152-15 net asset aggregation
+  - `CGTSummary` — output with loss quarantining (s 108-10 collectables, s 108-20 personal use)
+  - `Div152Analysis` — Division 152 concession assessment per asset
+  - Supports: asset category classification, prior event cost base adjustment warnings (s 112-30)
+- **API Route**: `POST /api/analysis/cgt`
+- **Database Table**: `cgt_events` — stores CGT event records with RLS
+
 ## Legislation References
 
 - **Division 152 ITAA 1997** - Small business CGT concessions

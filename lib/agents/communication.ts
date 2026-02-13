@@ -10,6 +10,41 @@ import { createLogger } from '@/lib/logger';
 
 const log = createLogger('agents:communication');
 
+// Tax domain agent role identifiers (30 agents + 2 new)
+export type TaxAgentRole =
+  | 'tax-law-analyst'
+  | 'xero-auditor'
+  | 'rnd-tax-specialist'
+  | 'deduction-optimizer'
+  | 'loss-recovery-agent'
+  | 'content-orchestrator'
+  | 'sbito-optimizer'
+  | 'cgt-concession-planner'
+  | 'fbt-optimizer'
+  | 'trust-distribution-analyzer'
+  | 'government-grants-finder'
+  | 'agent-scout'
+  | 'bad-debt-recovery-agent'
+  | 'business-transition-agent'
+  | 'accountant-report-generator'
+  | 'xero-connector'
+  | 'senior-product-manager'
+  | 'amendment-period-tracker'
+  | 'client-onboarding-agent'
+  | 'compliance-calendar-agent'
+  | 'data-quality-agent'
+  | 'foreign-entity-tax-specialist'
+  | 'multi-entity-consolidator'
+  | 'non-profit-tax-specialist'
+  | 'payg-instalment-advisor'
+  | 'payroll-tax-optimizer'
+  | 'psi-classifier'
+  | 'rate-change-monitor'
+  | 'superannuation-specialist'
+  | 'senior-project-manager-enhanced'
+  | 'audit-risk-assessor'
+  | 'cashflow-forecast-agent';
+
 // Agent role definitions
 export type AgentRole =
   | 'developer'
@@ -19,7 +54,26 @@ export type AgentRole =
   | 'specialist-b-developer'
   | 'specialist-c-tester'
   | 'specialist-d-reviewer'
-  | 'tax-agent'; // Any of the 18 tax domain agents
+  | 'tax-agent' // Backward-compatible alias for any tax domain agent
+  | TaxAgentRole;
+
+// Maps tax agent roles to their bound analysis engines
+export const TAX_AGENT_ENGINE_MAP: Partial<Record<TaxAgentRole, string[]>> = {
+  'cgt-concession-planner': ['cgt-engine'],
+  'fbt-optimizer': ['fbt-engine'],
+  'psi-classifier': ['psi-engine'],
+  'payg-instalment-advisor': ['payg-instalment-engine'],
+  'payroll-tax-optimizer': ['payroll-tax-engine'],
+  'audit-risk-assessor': ['audit-risk-engine'],
+  'cashflow-forecast-agent': ['cashflow-forecast-engine'],
+  'deduction-optimizer': ['deduction-engine'],
+  'loss-recovery-agent': ['loss-engine'],
+  'rnd-tax-specialist': ['rnd-engine'],
+  'trust-distribution-analyzer': ['trust-distribution-analyzer'],
+  'superannuation-specialist': ['superannuation-cap-analyzer'],
+  'business-transition-agent': ['div7a-engine', 'loss-engine'],
+  'xero-auditor': ['reconciliation-engine'],
+};
 
 // Message priority levels with SLA implications
 export type MessagePriority = 'CRITICAL' | 'URGENT' | 'STANDARD' | 'INFO';

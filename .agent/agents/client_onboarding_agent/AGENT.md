@@ -9,8 +9,8 @@ capabilities:
   - results_walkthrough
   - progress_tracking
 bound_skills:
-  - xero-api-integration
-  - xero-connection-management
+  - xero_api_integration
+  - xero_connection_management
 default_mode: EXECUTION
 fuel_cost: 20-80 PTS
 max_iterations: 5

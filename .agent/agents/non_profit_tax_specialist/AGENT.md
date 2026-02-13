@@ -10,9 +10,9 @@ capabilities:
   - mutuality_principle_analysis
   - reporting_obligation_check
 bound_skills:
-  - australian-tax-law-research
-  - ato-rate-scraping
-  - xero-api-integration
+  - australian_tax_law_research
+  - ato_rate_scraping
+  - xero_api_integration
 default_mode: PLANNING
 fuel_cost: 30-100 PTS
 max_iterations: 3

@@ -4,6 +4,9 @@ import { DataQualityAgent } from './monitors/data-quality'
 import { APIHealthAgent } from './monitors/api-health'
 import { SchemaValidationAgent } from './monitors/schema-validation'
 import { TaxDataFreshnessAgent } from './monitors/tax-data-freshness'
+import { EngineHealthAgent } from './monitors/engine-health'
+import { ComplianceCalendarAgent } from './monitors/compliance-calendar'
+import { RateChangeDetectionAgent } from './monitors/rate-change-detection'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 export class OrchestratorAgent {
@@ -30,7 +33,10 @@ export class OrchestratorAgent {
       new DataQualityAgent(tenantId),
       new APIHealthAgent(tenantId),
       new SchemaValidationAgent(tenantId),
-      new TaxDataFreshnessAgent(tenantId)
+      new TaxDataFreshnessAgent(tenantId),
+      new EngineHealthAgent(tenantId),
+      new ComplianceCalendarAgent(tenantId),
+      new RateChangeDetectionAgent(tenantId)
     ]
   }
 

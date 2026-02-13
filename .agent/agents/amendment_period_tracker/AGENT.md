@@ -9,8 +9,8 @@ capabilities:
   - assessment_date_tracking
   - fraud_exception_flagging
 bound_skills:
-  - australian-tax-law-research
-  - historical-trend-analysis
+  - australian_tax_law_research
+  - historical_trend_analysis
 default_mode: EXECUTION
 fuel_cost: 20-60 PTS
 max_iterations: 3

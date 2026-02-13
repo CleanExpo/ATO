@@ -10,8 +10,8 @@ capabilities:
   - amendment_period_monitoring
   - multi_entity_scheduling
 bound_skills:
-  - australian-tax-law-research
-  - ato-rate-scraping
+  - australian_tax_law_research
+  - ato_rate_scraping
 default_mode: EXECUTION
 fuel_cost: 15-60 PTS
 max_iterations: 3

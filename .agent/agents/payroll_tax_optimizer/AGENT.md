@@ -10,9 +10,10 @@ capabilities:
   - exemption_identification
   - mental_health_levy_calculation
 bound_skills:
-  - australian-tax-law-research
-  - abn-entity-lookup
-  - xero-api-integration
+  - australian_tax_law_research
+  - abn_entity_lookup
+  - xero_api_integration
+  - payroll_tax_analysis
 default_mode: PLANNING
 fuel_cost: 50-150 PTS
 max_iterations: 5

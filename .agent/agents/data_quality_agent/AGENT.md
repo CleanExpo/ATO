@@ -10,8 +10,9 @@ capabilities:
   - data_completeness_scoring
   - auto_correction_suggestion
 bound_skills:
-  - xero-api-integration
-  - australian-tax-law-research
+  - xero_api_integration
+  - australian_tax_law_research
+  - abn_entity_lookup
 default_mode: EXECUTION
 fuel_cost: 30-100 PTS
 max_iterations: 4

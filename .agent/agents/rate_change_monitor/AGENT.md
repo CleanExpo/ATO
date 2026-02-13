@@ -9,8 +9,9 @@ capabilities:
   - annual_rate_tracking
   - rate_provenance_verification
 bound_skills:
-  - ato-rate-scraping
-  - australian-tax-law-research
+  - ato_rate_scraping
+  - australian_tax_law_research
+  - legislative_change_monitoring
 default_mode: EXECUTION
 fuel_cost: 20-80 PTS
 max_iterations: 3

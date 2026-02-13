@@ -165,6 +165,18 @@ Scan Xero for transactions indicating employee benefits:
 </fbt_assessment>
 ```
 
+## Engine Integration
+
+- **FBT Engine**: `lib/analysis/fbt-engine.ts`
+  - `analyzeFBT(tenantId, financialYear, options)` — main analysis function
+  - FBT year: April-March (not July-June) — e.g. "FBT2024-25" = 1 Apr 2024 to 31 Mar 2025
+  - Gross-up Type 1 rate: 2.0802 (GST-inclusive benefits)
+  - Gross-up Type 2 rate: 1.8868 (GST-free benefits)
+  - Minor benefit exemption threshold: $300 per benefit
+  - 8 benefit categories: car, loan, expense, housing, LAFHA, meal/entertainment, property, residual
+- **API Route**: `POST /api/analysis/fbt`
+- **Database Table**: `fbt_items` — stores FBT items with RLS
+
 ## Legislation References
 
 - **FBTAA 1986** - Fringe Benefits Tax Assessment Act
