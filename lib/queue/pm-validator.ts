@@ -10,6 +10,7 @@
 import type { QueueItem, ValidationResult, Priority, Complexity } from './work-queue-manager';
 import { searchIssues } from '@/lib/linear/api-client';
 import { extractSearchKeywords, findPotentialDuplicates } from '@/lib/linear/graphql-queries';
+import { getPMEnrichmentForValidation, recordValidationActivity } from '@/lib/senior-pm/client-pm-manager';
 
 // =====================================================
 // Feasibility Assessment
@@ -335,12 +336,26 @@ export async function checkForDuplicates(item: QueueItem): Promise<{
 /**
  * Run complete validation pipeline for a queue item
  *
- * This is the main entry point for validation
+ * This is the main entry point for validation.
+ * When an organizationId is available in the queue item payload,
+ * the validation is enriched with client-specific PM context.
  *
  * @param item - Queue item to validate
  * @returns Complete validation result
  */
 export async function validateQueueItem(item: QueueItem): Promise<ValidationResult> {
+  // 0. Get client PM enrichment if organization context available
+  const organizationId = (item.payload?.organizationId || item.payload?.organisation_id) as string | undefined;
+  let pmEnrichment: Awaited<ReturnType<typeof getPMEnrichmentForValidation>> | null = null;
+
+  if (organizationId) {
+    try {
+      pmEnrichment = await getPMEnrichmentForValidation(organizationId);
+    } catch {
+      // PM enrichment is optional - continue without it
+    }
+  }
+
   // 1. Assess feasibility
   const feasibility = await assessFeasibility(item);
 
@@ -350,11 +365,18 @@ export async function validateQueueItem(item: QueueItem): Promise<ValidationResu
   // 3. Check for duplicates
   const duplicateCheck = await checkForDuplicates(item);
 
-  // 4. Assign priority
-  const priority = assignPriority(item);
+  // 4. Assign priority (with PM boost if applicable)
+  let priority = assignPriority(item);
+  if (pmEnrichment && pmEnrichment.priority_boost > 0) {
+    priority = boostPriority(priority, pmEnrichment.priority_boost);
+  }
 
-  // 5. Route to domain agent
-  const assignedAgent = determineAssignedAgent(item);
+  // 5. Route to domain agent (prefer client's preferred agents)
+  let assignedAgent = determineAssignedAgent(item);
+  if (assignedAgent === 'general' && pmEnrichment && pmEnrichment.preferred_agents.length > 0) {
+    // If no specialist detected by keywords but client has preferred agents, use the first match
+    assignedAgent = pmEnrichment.preferred_agents[0];
+  }
 
   // 6. Determine execution strategy
   const executionStrategy = determineExecutionStrategy(complexity, assignedAgent, priority);
@@ -362,14 +384,28 @@ export async function validateQueueItem(item: QueueItem): Promise<ValidationResu
   // 7. Calculate overall confidence
   const confidence = calculateConfidence(feasibility.score, complexity, duplicateCheck.isDuplicate);
 
-  // 8. Build notes
+  // 8. Build notes (include PM context)
+  const pmNotes = pmEnrichment ? pmEnrichment.notes : [];
   const notes = buildValidationNotes(
     feasibility.notes,
     complexity,
     assignedAgent,
     executionStrategy,
-    duplicateCheck
+    duplicateCheck,
+    pmNotes
   );
+
+  // 9. Record validation activity for the client PM
+  if (organizationId) {
+    try {
+      await recordValidationActivity(organizationId, {
+        items_validated: 1,
+        confidence_score: confidence,
+      });
+    } catch {
+      // Recording activity is non-critical
+    }
+  }
 
   return {
     feasible: feasibility.score >= 50,
@@ -383,6 +419,16 @@ export async function validateQueueItem(item: QueueItem): Promise<ValidationResu
     confidence,
     notes,
   };
+}
+
+/**
+ * Boost priority level by N levels (P3 → P2 → P1 → P0)
+ */
+function boostPriority(current: Priority, boost: number): Priority {
+  const levels: Priority[] = ['P3', 'P2', 'P1', 'P0'];
+  const currentIdx = levels.indexOf(current);
+  const boostedIdx = Math.min(currentIdx + boost, levels.length - 1);
+  return levels[boostedIdx];
 }
 
 /**
@@ -430,9 +476,15 @@ function buildValidationNotes(
   complexity: Complexity,
   assignedAgent: string,
   executionStrategy: string,
-  duplicateCheck: ReturnType<typeof checkForDuplicates> extends Promise<infer U> ? U : never
+  duplicateCheck: ReturnType<typeof checkForDuplicates> extends Promise<infer U> ? U : never,
+  pmNotes: string[] = []
 ): string {
   const parts: string[] = [];
+
+  // PM context (placed first for visibility)
+  if (pmNotes.length > 0) {
+    parts.push(`Client PM: ${pmNotes.join('. ')}`);
+  }
 
   // Feasibility
   parts.push(`Feasibility: ${feasibilityNotes}`);

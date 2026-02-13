@@ -214,3 +214,8 @@ export function sortRolesByPermission(roles: UserRole[]): UserRole[] {
   const order: UserRole[] = ['owner', 'admin', 'accountant', 'read_only']
   return roles.sort((a, b) => order.indexOf(a) - order.indexOf(b))
 }
+
+/**
+ * PM Assignment status for per-client Senior PM tracking
+ */
+export type PMAssignmentStatus = 'active' | 'paused' | 'archived'
