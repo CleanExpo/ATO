@@ -56,8 +56,10 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Protect dashboard routes — redirect to login if not authenticated
+  // Single-user mode bypasses auth (local development / self-hosted)
   const pathname = request.nextUrl.pathname
-  if (pathname.startsWith('/dashboard') && !user) {
+  const isSingleUser = process.env.SINGLE_USER_MODE === 'true'
+  if (pathname.startsWith('/dashboard') && !user && !isSingleUser) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     url.searchParams.set('redirectTo', pathname)

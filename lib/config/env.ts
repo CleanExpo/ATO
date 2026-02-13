@@ -112,10 +112,29 @@ function validateServerConfig() {
  * Validate all client-side configuration
  */
 function validateClientConfig() {
+  // IMPORTANT: NEXT_PUBLIC_ vars must be accessed as static strings for Next.js
+  // client-side inlining. Dynamic access via process.env[key] won't be replaced
+  // at build time by Turbopack/webpack.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || supabaseUrl.trim() === '') {
+    throw new ConfigurationError(
+      'Missing required environment variable: NEXT_PUBLIC_SUPABASE_URL\n' +
+      'Please set this variable in your Vercel dashboard or .env.local file.'
+    );
+  }
+  if (!supabaseAnonKey || supabaseAnonKey.trim() === '') {
+    throw new ConfigurationError(
+      'Missing required environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY\n' +
+      'Please set this variable in your Vercel dashboard or .env.local file.'
+    );
+  }
+
   return {
     supabase: {
-      url: validateUrl(getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL'), 'NEXT_PUBLIC_SUPABASE_URL'),
-      anonKey: getRequiredEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY'),
+      url: validateUrl(supabaseUrl.trim(), 'NEXT_PUBLIC_SUPABASE_URL'),
+      anonKey: supabaseAnonKey.trim(),
     },
   };
 }
