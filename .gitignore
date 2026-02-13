@@ -61,3 +61,4 @@ ato-app/
 
 # pnpm
 pnpm-lock.yaml
+.vercel
