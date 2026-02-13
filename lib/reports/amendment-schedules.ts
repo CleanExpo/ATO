@@ -157,28 +157,32 @@ function generateScheduleForYear(
     totalAdjustment,
   }
 
-  // Create original tax position (placeholder - would pull from actual returns)
+  // Original tax position — values set to 0 as actual figures must come from
+  // the client's lodged tax return (NAT 0656 / online services).
+  // Accountant fills these in during review.
   const originalTaxReturn: TaxPosition = {
-    income: 500000, // Placeholder
-    deductions: 300000, // Placeholder
-    taxableIncome: 200000,
-    taxPayable: 200000 * taxRate,
+    income: 0,
+    deductions: 0,
+    taxableIncome: 0,
+    taxPayable: 0,
     rndOffset: 0,
     lossesUtilized: 0,
   }
 
-  // Calculate revised tax position
+  // Revised position shows only the *amendment impact* until the accountant
+  // populates the original return figures. The adjustments are real
+  // (derived from AI-identified recommendations), the baseline is unknown.
   const revisedTaxPosition: TaxPosition = {
-    income: originalTaxReturn.income,
-    deductions: originalTaxReturn.deductions + additionalDeductions,
-    taxableIncome: originalTaxReturn.taxableIncome - additionalDeductions - (lossAdjustments / taxRate),
-    taxPayable: (originalTaxReturn.taxableIncome - additionalDeductions - (lossAdjustments / taxRate)) * taxRate - additionalRndOffset,
-    rndOffset: originalTaxReturn.rndOffset + additionalRndOffset,
-    lossesUtilized: originalTaxReturn.lossesUtilized + (lossAdjustments / taxRate),
+    income: 0,
+    deductions: additionalDeductions,
+    taxableIncome: -(additionalDeductions + (lossAdjustments / taxRate)),
+    taxPayable: -(additionalDeductions * taxRate + additionalRndOffset + lossAdjustments),
+    rndOffset: additionalRndOffset,
+    lossesUtilized: lossAdjustments / taxRate,
   }
 
-  // Calculate refund expected
-  const refundExpected = originalTaxReturn.taxPayable - revisedTaxPosition.taxPayable
+  // Estimated refund is the total tax-effect adjustment (estimate only)
+  const refundExpected = totalAdjustment
 
   // Determine priority level
   const priorityLevel = determinePriorityLevel(recommendations)

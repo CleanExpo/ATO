@@ -28,7 +28,7 @@ const FALLBACK_CORPORATE_TAX_RATE_SMALL = 0.25 // 25% base rate entity
 const FALLBACK_CORPORATE_TAX_RATE_STANDARD = 0.30 // 30% standard corporate rate
 
 // Entity types for tax rate determination
-export type EntityType = 'company' | 'trust' | 'partnership' | 'individual' | 'unknown'
+export type EntityType = 'company' | 'trust' | 'partnership' | 'individual' | 'smsf' | 'non_profit' | 'foreign_company' | 'unknown'
 
 /**
  * Loss type classification.
@@ -258,16 +258,9 @@ async function fetchLossPositions(
   endYear?: string,
   entityType: EntityType = 'unknown'
 ): Promise<LossPosition[]> {
-  // In a complete implementation, this would query historical_transactions_cache
-  // and calculate profit/loss per year from transaction totals
-
-  // For now, return placeholder structure
-  // Real implementation would:
-  // 1. Query all transactions per year
-  // 2. Sum income transactions (ACCREC)
-  // 3. Sum expense transactions (ACCPAY, BANK with negative amounts)
-  // 4. Calculate profit/loss = income - expenses
-  // 5. Track carry-forward from previous years
+  // Queries historical_transactions_cache and calculates profit/loss per year.
+  // Steps: sum ACCREC (income) and ACCPAY/BANK (expenses) per FY,
+  // compute profit/loss, and track carry-forward across years.
 
   let query = supabase
     .from('historical_transactions_cache')

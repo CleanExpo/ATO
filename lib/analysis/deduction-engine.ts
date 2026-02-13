@@ -198,7 +198,7 @@ export function classifyEntertainment(
  * - 'trust': Tax saving depends on beneficiary marginal rates
  * - 'unknown': Defaults to 30% (conservative)
  */
-export type EntityType = 'base_rate_entity' | 'standard_company' | 'trust' | 'unknown'
+export type EntityType = 'base_rate_entity' | 'standard_company' | 'trust' | 'smsf' | 'non_profit' | 'foreign_company' | 'unknown'
 
 /**
  * Deduction status - all identified deductions are 'potential' until verified

@@ -25,6 +25,7 @@ import { analyzeDeductionOpportunities, type DeductionSummary, type DeductionOpp
 import { analyzeLossPosition, type LossSummary } from '@/lib/analysis/loss-engine'
 import { analyzeDiv7aCompliance, type Div7aSummary } from '@/lib/analysis/div7a-engine'
 import { getCostSummary } from '@/lib/ai/batch-processor'
+import { createRateStamp } from '@/lib/tax-data/rate-stamp'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('reports:pdf')
@@ -52,6 +53,10 @@ export interface ExecutiveSummary {
   topRecommendations: string[]
   criticalDeadlines: Array<{ action: string; deadline: Date }>
   overallConfidence: number
+  /** Rate version hash used for this analysis — enables stale-analysis detection */
+  rateVersion?: string
+  /** When the tax rates were originally fetched from ATO */
+  ratesFetchedAt?: string
 }
 
 export interface PDFReport {
@@ -148,6 +153,15 @@ export async function generatePDFReportData(
         80 + // Loss analysis confidence (hardcoded)
         90) / // Div7A compliance confidence
       4,
+  }
+
+  // Stamp rate version on the executive summary
+  try {
+    const stamp = await createRateStamp()
+    executiveSummary.rateVersion = stamp.taxRateVersion ?? undefined
+    executiveSummary.ratesFetchedAt = stamp.taxRatesFetchedAt ?? undefined
+  } catch {
+    log.warn('Could not stamp rate version on report')
   }
 
   // Create methodology section
@@ -366,6 +380,7 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
     $${report.executiveSummary.adjustedOpportunity.toLocaleString('en-AU', { minimumFractionDigits: 2 })}
   </div>
   <p style="font-size: 18px; color: #666; font-weight: 600;">Candidate Tax Benefits Identified</p>
+  <p style="margin-top: 8px; font-size: 11px; color: #d97706; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;">ESTIMATE ONLY — REQUIRES PROFESSIONAL VERIFICATION</p>
   
   <div style="margin-top: 60px; padding: 20px; border: 1px dashed #6366f1; border-radius: 12px; max-width: 80% text-align: left;">
     <p style="font-size: 12px; color: #4338ca; line-height: 1.5;">
@@ -381,10 +396,13 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
   <h2>Executive Summary</h2>
 
   <div class="summary-box">
-    <p><strong>Total Opportunity Identified:</strong> $${report.executiveSummary.totalOpportunity.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</p>
-    <p><strong>Proposed Recovery (Risk-Adjusted):</strong> $${report.executiveSummary.adjustedOpportunity.toLocaleString('en-AU', { minimumFractionDigits: 2 })}</p>
+    <p><strong>Total Opportunity Identified:</strong> $${report.executiveSummary.totalOpportunity.toLocaleString('en-AU', { minimumFractionDigits: 2 })} <span style="font-size: 10px; color: #d97706; font-weight: 700; letter-spacing: 0.08em;">(ESTIMATE ONLY)</span></p>
+    <p><strong>Proposed Recovery (Risk-Adjusted):</strong> $${report.executiveSummary.adjustedOpportunity.toLocaleString('en-AU', { minimumFractionDigits: 2 })} <span style="font-size: 10px; color: #d97706; font-weight: 700; letter-spacing: 0.08em;">(ESTIMATE ONLY)</span></p>
     <p><strong>Overall Confidence:</strong> ${report.executiveSummary.overallConfidence.toFixed(0)}%</p>
   </div>
+  <p style="font-size: 10px; color: #92400e; margin-top: 8px; line-height: 1.4;">
+    All dollar amounts are AI-generated estimates based on automated ledger analysis and are indicative only. They must be verified by a qualified Tax Agent or Accountant before implementation.
+  </p>
 
   <h3>Breakdown by Tax Area</h3>
   <div class="breakdown-grid">
@@ -405,6 +423,12 @@ export async function generatePDFReportHTML(report: PDFReport): Promise<string> 
       <div class="breakdown-value">$${report.executiveSummary.breakdown.div7a.toLocaleString('en-AU')}</div>
     </div>
   </div>
+
+  ${report.executiveSummary.rateVersion ? `
+  <div style="margin-top: 16px; padding: 8px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 10px; color: #64748b;">
+    <strong>Tax Rate Version:</strong> ${report.executiveSummary.rateVersion}${report.executiveSummary.ratesFetchedAt ? ` | <strong>Rates fetched:</strong> ${new Date(report.executiveSummary.ratesFetchedAt).toLocaleDateString('en-AU')}` : ''}
+  </div>
+  ` : ''}
 
   <h3>Top 10 Recommendations</h3>
   <ol>
@@ -832,6 +856,7 @@ export async function generateClientPDF(
   <div class="summary-box">
     <h2>Total Tax Opportunity Identified</h2>
     <div class="opportunity">$${reportData.executiveSummary.totalOpportunity.toLocaleString()}</div>
+    <p style="font-size: 10px; color: #fbbf24; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px;">ESTIMATE ONLY</p>
     <p style="font-size: 14px; opacity: 0.95;">
       After conservative adjustments: $${reportData.executiveSummary.adjustedOpportunity.toLocaleString()}
     </p>

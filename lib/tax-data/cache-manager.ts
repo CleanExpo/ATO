@@ -16,6 +16,8 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
 export interface CachedTaxRates extends TaxRates {
   cacheHit: boolean
   cacheAge?: number // milliseconds
+  /** ISO timestamp of when the rates were originally fetched (not when they were read from cache) */
+  ratesFetchedAt: string
 }
 
 export class TaxDataCacheManager {
@@ -72,6 +74,7 @@ export class TaxDataCacheManager {
         ...data.rates,
         cacheHit: true,
         cacheAge,
+        ratesFetchedAt: data.rates.fetchedAt ? new Date(data.rates.fetchedAt).toISOString() : data.created_at,
       }
     } catch (error: unknown) {
       console.error('Failed to get cached rates:', error instanceof Error ? error.message : String(error))
@@ -92,6 +95,7 @@ export class TaxDataCacheManager {
     return {
       ...rates,
       cacheHit: false,
+      ratesFetchedAt: rates.fetchedAt.toISOString(),
     }
   }
 

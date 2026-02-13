@@ -42,6 +42,7 @@ export interface TaxRates {
 
   // Metadata
   fetchedAt: Date
+  rateVersion: string // Hash of rate values for change detection
   sources: {
     instantWriteOff?: string
     homeOffice?: string
@@ -93,8 +94,8 @@ export class TaxRatesFetcher {
 
     log.info('Fetched tax rates', { durationMs: duration })
 
-    return {
-      // Extract values from settled promises
+    // Build rate values for version hashing
+    const rateValues = {
       instantWriteOffThreshold:
         instantWriteOff.status === 'fulfilled' ? instantWriteOff.value.amount : null,
       homeOfficeRatePerHour:
@@ -109,28 +110,26 @@ export class TaxRatesFetcher {
         corporateTax.status === 'fulfilled' ? corporateTax.value.standard : null,
       division7ABenchmarkRate:
         division7A.status === 'fulfilled' ? division7A.value.rate : null,
-
-      // FBT rates
       fbtRate:
         fbt.status === 'fulfilled' ? fbt.value.fbtRate : null,
       fbtType1GrossUpRate:
         fbt.status === 'fulfilled' ? fbt.value.type1GrossUp : null,
       fbtType2GrossUpRate:
         fbt.status === 'fulfilled' ? fbt.value.type2GrossUp : null,
-
-      // Super guarantee
       superGuaranteeRate:
         superGuarantee.status === 'fulfilled' ? superGuarantee.value.rate : null,
-
-      // Fuel tax credits
       fuelTaxCreditOnRoad:
         fuelTaxCredits.status === 'fulfilled' ? fuelTaxCredits.value.onRoad : null,
       fuelTaxCreditOffRoad:
         fuelTaxCredits.status === 'fulfilled' ? fuelTaxCredits.value.offRoad : null,
       fuelTaxCreditQuarter:
         fuelTaxCredits.status === 'fulfilled' ? fuelTaxCredits.value.quarter : null,
+    }
 
+    return {
+      ...rateValues,
       fetchedAt: new Date(),
+      rateVersion: computeRateVersion(rateValues),
       sources: {
         instantWriteOff:
           instantWriteOff.status === 'fulfilled' ? instantWriteOff.value.source ?? undefined : undefined,
@@ -377,6 +376,25 @@ export class TaxRatesFetcher {
       return { onRoad: null, offRoad: null, quarter: null, source: null }
     }
   }
+}
+
+/**
+ * Compute a short deterministic version string from rate values.
+ * Changes when any rate value changes, enabling stale-analysis detection.
+ */
+function computeRateVersion(values: Record<string, unknown>): string {
+  const sorted = Object.entries(values)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v ?? 'null'}`)
+    .join('|')
+  // Simple hash - not cryptographic, just for change detection
+  let hash = 0
+  for (let i = 0; i < sorted.length; i++) {
+    const char = sorted.charCodeAt(i)
+    hash = ((hash << 5) - hash + char) | 0
+  }
+  const dateStr = new Date().toISOString().slice(0, 10)
+  return `${dateStr}-${Math.abs(hash).toString(36)}`
 }
 
 // Singleton instance

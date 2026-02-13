@@ -81,8 +81,19 @@ async function createExecutiveSummarySheet(
   sheet.addRow(['Years Analyzed', report.metadata.yearsAnalyzed.join(', ')])
   sheet.addRow([''])
 
+  // Estimate disclaimer
+  const disclaimerRow = sheet.addRow(['⚠ ESTIMATE ONLY — All dollar amounts are AI-generated estimates and must be verified by a qualified Tax Agent or Accountant.', '', ''])
+  disclaimerRow.font = { size: 10, bold: true, color: { argb: 'FFD97706' } }
+  disclaimerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFFFFBEB' },
+  }
+  sheet.mergeCells(`A${disclaimerRow.number}:C${disclaimerRow.number}`)
+  sheet.addRow([''])
+
   // Summary section
-  const summaryHeaderRow = sheet.addRow(['Opportunity Summary', '', ''])
+  const summaryHeaderRow = sheet.addRow(['Opportunity Summary (ESTIMATE ONLY)', '', ''])
   summaryHeaderRow.font = { size: 14, bold: true }
   summaryHeaderRow.fill = {
     type: 'pattern',
@@ -92,12 +103,12 @@ async function createExecutiveSummarySheet(
   sheet.mergeCells(`A${summaryHeaderRow.number}:C${summaryHeaderRow.number}`)
 
   sheet.addRow([
-    'Total Opportunity',
+    'Total Opportunity (Est.)',
     report.executiveSummary.totalOpportunity,
     { formula: `B${sheet.lastRow!.number}*0.25`, result: report.executiveSummary.totalOpportunity * 0.25 },
   ])
   sheet.addRow([
-    'Confidence-Adjusted Benefit',
+    'Confidence-Adjusted Benefit (Est.)',
     report.executiveSummary.adjustedOpportunity,
     '',
   ])
@@ -113,7 +124,7 @@ async function createExecutiveSummarySheet(
 
   // Breakdown section
   sheet.addRow([''])
-  const breakdownHeaderRow = sheet.addRow(['Breakdown by Tax Area', 'Amount', 'Percentage'])
+  const breakdownHeaderRow = sheet.addRow(['Breakdown by Tax Area', 'Amount (Est.)', 'Percentage'])
   breakdownHeaderRow.font = { bold: true }
   breakdownHeaderRow.fill = {
     type: 'pattern',
@@ -525,19 +536,19 @@ async function createRecommendationsSheet(
  */
 async function createTransactionDetailSheet(
   workbook: ExcelJS.Workbook,
-  _report: PDFReport
+  report: PDFReport
 ): Promise<void> {
   const sheet = workbook.addWorksheet('Transaction Details', {
     views: [{ state: 'frozen', xSplit: 0, ySplit: 1 }],
   })
 
   sheet.columns = [
-    { header: 'Date', key: 'date', width: 12 },
-    { header: 'Description', key: 'description', width: 40 },
-    { header: 'Amount', key: 'amount', width: 15 },
     { header: 'Category', key: 'category', width: 25 },
-    { header: 'R&D Candidate', key: 'rnd', width: 15 },
+    { header: 'Description', key: 'description', width: 40 },
+    { header: 'Amount (Est.)', key: 'amount', width: 15 },
+    { header: 'Tax Area', key: 'taxArea', width: 18 },
     { header: 'Confidence', key: 'confidence', width: 12 },
+    { header: 'Financial Year', key: 'year', width: 15 },
   ]
 
   // Style header
@@ -549,18 +560,49 @@ async function createTransactionDetailSheet(
     fgColor: { argb: 'FF64748B' },
   }
 
-  // Note: Actual transaction data would be fetched separately
-  // This is a placeholder structure
+  // Populate from deduction opportunities
+  if (report.deductionAnalysis?.opportunities) {
+    for (const opp of report.deductionAnalysis.opportunities) {
+      sheet.addRow({
+        category: opp.category,
+        description: opp.description,
+        amount: opp.estimatedAmount,
+        taxArea: 'Deductions',
+        confidence: (opp.confidence ?? 0) / 100,
+        year: opp.financialYear ?? '',
+      })
+    }
+  }
+
+  // Populate from R&D projects
+  if (report.rndAnalysis?.projects) {
+    for (const project of report.rndAnalysis.projects) {
+      sheet.addRow({
+        category: 'R&D - ' + (project.activityType ?? 'Unknown'),
+        description: project.description,
+        amount: project.estimatedExpenditure,
+        taxArea: 'R&D Tax Incentive',
+        confidence: (project.confidence ?? 0) / 100,
+        year: project.financialYear ?? '',
+      })
+    }
+  }
 
   // Format columns
-  sheet.getColumn('date').numFmt = 'dd/mm/yyyy'
   sheet.getColumn('amount').numFmt = '$#,##0.00'
   sheet.getColumn('confidence').numFmt = '0%'
 
   // Add auto-filter
-  sheet.autoFilter = {
-    from: 'A1',
-    to: 'F1',
+  if (sheet.lastRow && sheet.lastRow.number > 1) {
+    sheet.autoFilter = {
+      from: 'A1',
+      to: `F${sheet.lastRow.number}`,
+    }
+  } else {
+    sheet.autoFilter = {
+      from: 'A1',
+      to: 'F1',
+    }
   }
 }
 

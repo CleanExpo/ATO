@@ -12,7 +12,7 @@
  *
  * Key Requirements:
  * - Shareholder loans must have written agreement (s 109N)
- * - Interest charged at benchmark rate (8.77% for FY2024-25, per s 109N)
+ * - Interest charged at benchmark rate (dynamically resolved per FY, per s 109N)
  * - Minimum yearly repayment required
  * - Non-compliance = deemed dividend (taxed at shareholder's marginal rate, s 109D)
  */
@@ -51,6 +51,21 @@ const HISTORICAL_DIV7A_RATES: Record<string, number> = {
   'FY2022-23': 0.0452, // 4.52%
   'FY2021-22': 0.0445, // 4.45%
   'FY2020-21': 0.0480, // 4.80%
+}
+
+/**
+ * Get the latest (most recent FY) rate from the historical table.
+ * Prevents stale hardcoded fallbacks: as new FYs are added to
+ * HISTORICAL_DIV7A_RATES the fallback automatically advances.
+ */
+function getLatestHistoricalDiv7ARate(): number {
+  const years = Object.keys(HISTORICAL_DIV7A_RATES).sort()
+  const latest = years[years.length - 1]
+  if (!latest) {
+    log.warn('No historical Div7A rates available — using 0 as safety fallback')
+    return 0
+  }
+  return HISTORICAL_DIV7A_RATES[latest]
 }
 
 // Loan term maximums (s 109N ITAA 1936)
@@ -1269,7 +1284,7 @@ function createDefaultLoanAnalysis(loan: ShareholderLoan): Division7aAnalysis {
     repaymentsThisYear: 0,
     closingBalance: 0,
     interestCharged: 0,
-    benchmarkInterestRate: 0.0877,
+    benchmarkInterestRate: getLatestHistoricalDiv7ARate(),
     benchmarkInterestRequired: 0,
     interestShortfall: 0,
     minimumRepaymentRequired: 0,
@@ -1341,5 +1356,5 @@ export async function getBenchmarkRate(financialYear: string): Promise<number> {
     }
   }
 
-  return HISTORICAL_DIV7A_RATES[financialYear] || 0.0877 // Default to current year rate
+  return HISTORICAL_DIV7A_RATES[financialYear] || getLatestHistoricalDiv7ARate()
 }

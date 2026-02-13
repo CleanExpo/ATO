@@ -128,6 +128,16 @@ export function AccountantReportView({
         </div>
       </div>
 
+      {/* Estimate Notice Banner */}
+      <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg px-4 py-3 flex items-center gap-3 print:bg-amber-50 print:border-amber-300">
+        <span className="px-2 py-0.5 bg-amber-500/20 border border-amber-500/30 rounded text-[10px] font-bold text-amber-300 uppercase tracking-widest whitespace-nowrap print:bg-amber-100 print:text-amber-800 print:border-amber-400">
+          Estimate Only
+        </span>
+        <span className="text-xs text-amber-200/70 print:text-amber-800">
+          All dollar amounts in this report are AI-generated estimates based on automated ledger analysis. They are indicative only and must be verified by a qualified Tax Agent or Accountant before any action is taken.
+        </span>
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-2 print:hidden">
         {(['summary', 'findings', 'recommendations', 'feedback'] as const).map((tab) => (
@@ -386,6 +396,9 @@ function FindingCard({
             <span className="text-white/40 print:text-gray-400">Potential Benefit</span>
             <div className="text-green-400 font-medium">
               {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(finding.potentialBenefit)}
+              <span className="ml-1.5 text-[10px] font-semibold text-amber-400/80 uppercase tracking-wider print:text-amber-700">
+                Est. Only
+              </span>
             </div>
           </div>
           <div>
@@ -506,6 +519,9 @@ function RecommendationCard({
         </div>
         <div className="text-green-400 font-medium whitespace-nowrap">
           {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(recommendation.estimatedBenefit)}
+          <span className="ml-1.5 text-[10px] font-semibold text-amber-400/80 uppercase tracking-wider print:text-amber-700">
+            Est. Only
+          </span>
         </div>
       </div>
       <p className="text-sm text-white/70 print:text-gray-600 mb-4">{recommendation.description}</p>

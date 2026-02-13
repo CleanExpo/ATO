@@ -640,11 +640,106 @@ export class MYOBAdapter implements PlatformAdapter {
    * Fetch report data
    */
   async fetchReport(
-    _reportType: 'profit_loss' | 'balance_sheet' | 'trial_balance',
-    _startDate: string,
-    _endDate: string
+    reportType: 'profit_loss' | 'balance_sheet' | 'trial_balance',
+    startDate: string,
+    endDate: string
   ): Promise<CanonicalReportData> {
-    throw new Error('MYOB report fetching not yet implemented')
+    if (!this.credentials) throw new Error('Adapter not initialized')
+
+    // MYOB AccountRight API report endpoints
+    const endpointMap = {
+      profit_loss: '/Report/ProfitAndLossSummary',
+      balance_sheet: '/Report/BalanceSheetSummary',
+      trial_balance: '/Report/TrialBalance',
+    } as const
+
+    const endpoint = `${endpointMap[reportType]}?StartDate=${startDate}&EndDate=${endDate}`
+
+    try {
+      const response = await this.makeRequest(endpoint)
+
+      if (!response.ok) {
+        return {
+          type: reportType,
+          startDate,
+          endDate,
+          financialYear: this.getFinancialYearFromDate(startDate),
+          sections: [],
+          totals: {},
+          metadata: { error: `MYOB returned status ${response.status}` },
+        }
+      }
+
+      const data = await response.json()
+      const lines = data?.Lines ?? data?.Items ?? []
+
+      // Parse MYOB report rows
+      const sectionMap = new Map<string, Array<{ accountName: string; amount: number }>>()
+      const totals: CanonicalReportData['totals'] = {}
+
+      for (const line of lines) {
+        const sectionTitle = line.Type || line.Classification || 'Other'
+        const accountName = line.AccountName || line.Name || ''
+        const amount = line.Amount ?? line.Total ?? 0
+
+        if (!sectionMap.has(sectionTitle)) {
+          sectionMap.set(sectionTitle, [])
+        }
+        sectionMap.get(sectionTitle)!.push({ accountName, amount })
+
+        const titleLower = sectionTitle.toLowerCase()
+        if (titleLower.includes('income') || titleLower.includes('revenue')) {
+          totals.revenue = (totals.revenue ?? 0) + amount
+        } else if (titleLower.includes('expense') || titleLower.includes('cost')) {
+          totals.expenses = (totals.expenses ?? 0) + amount
+        } else if (titleLower.includes('asset')) {
+          totals.assets = (totals.assets ?? 0) + amount
+        } else if (titleLower.includes('liabilit')) {
+          totals.liabilities = (totals.liabilities ?? 0) + amount
+        } else if (titleLower.includes('equity')) {
+          totals.equity = (totals.equity ?? 0) + amount
+        }
+      }
+
+      if (totals.revenue !== undefined && totals.expenses !== undefined) {
+        totals.netProfit = totals.revenue - Math.abs(totals.expenses)
+      }
+
+      const sections = Array.from(sectionMap.entries()).map(([title, rows]) => ({
+        title,
+        rows,
+        subtotal: rows.reduce((sum, r) => sum + r.amount, 0),
+      }))
+
+      return {
+        type: reportType,
+        startDate,
+        endDate,
+        financialYear: this.getFinancialYearFromDate(startDate),
+        sections,
+        totals,
+        metadata: { source: 'MYOB AccountRight API' },
+      }
+    } catch (error) {
+      return {
+        type: reportType,
+        startDate,
+        endDate,
+        financialYear: this.getFinancialYearFromDate(startDate),
+        sections: [],
+        totals: {},
+        metadata: { error: error instanceof Error ? error.message : 'Unknown error fetching MYOB report' },
+      }
+    }
+  }
+
+  private getFinancialYearFromDate(dateStr: string): string {
+    const d = new Date(dateStr)
+    const year = d.getFullYear()
+    const month = d.getMonth() + 1
+    // AU FY runs Jul-Jun
+    if (month >= 7) return `FY${year}-${(year + 1).toString().slice(-2)}`
+    return `FY${year - 1}-${year.toString().slice(-2)}`
   }
 
   /**

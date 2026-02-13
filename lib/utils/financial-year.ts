@@ -15,7 +15,15 @@
  *   - Companies/trusts/other: 4 years from date of assessment
  */
 
-export type EntityTypeForAmendment = 'company' | 'trust' | 'partnership' | 'individual' | 'unknown'
+export type EntityTypeForAmendment =
+  | 'company'
+  | 'trust'
+  | 'partnership'
+  | 'individual'
+  | 'smsf'
+  | 'non_profit'
+  | 'foreign_company'
+  | 'unknown'
 
 /**
  * Determine the current Australian Financial Year from the system date.
@@ -200,6 +208,9 @@ export function checkAmendmentPeriod(
   if (!fyEndDate) return undefined
 
   // Determine amendment period length based on entity type
+  // Individuals/small business: 2 years (s 170(2) TAA 1953)
+  // Companies/trusts/partnerships/SMSF/foreign: 4 years (s 170(1) TAA 1953)
+  // Non-profits: 4 years (same as companies)
   let amendmentYears: number
   switch (entityType) {
     case 'individual':
@@ -208,6 +219,9 @@ export function checkAmendmentPeriod(
     case 'company':
     case 'trust':
     case 'partnership':
+    case 'smsf':
+    case 'non_profit':
+    case 'foreign_company':
       amendmentYears = 4
       break
     case 'unknown':

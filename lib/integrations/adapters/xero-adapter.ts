@@ -522,12 +522,99 @@ export class XeroAdapter implements PlatformAdapter {
    * Fetch report data
    */
   async fetchReport(
-    _reportType: 'profit_loss' | 'balance_sheet' | 'trial_balance',
-    _startDate: string,
-    _endDate: string
+    reportType: 'profit_loss' | 'balance_sheet' | 'trial_balance',
+    startDate: string,
+    endDate: string
   ): Promise<CanonicalReportData> {
-    // Implementation placeholder
-    throw new Error('Report fetching not yet implemented')
+    if (!this.xero || !this.credentials) throw new Error('Adapter not initialized')
+
+    const tenantId = this.credentials.tenantId
+
+    const reportMap = {
+      profit_loss: 'ProfitAndLoss',
+      balance_sheet: 'BalanceSheet',
+      trial_balance: 'TrialBalance',
+    } as const
+
+    const xeroReportId = reportMap[reportType]
+
+    const response = await withRetry(() =>
+      this.xero!.accountingApi.getReportProfitAndLoss(
+        tenantId,
+        startDate,
+        endDate,
+        undefined, // periods
+        undefined, // timeframe
+        undefined, // trackingCategoryID
+        undefined, // trackingCategoryID2
+        undefined, // trackingOptionID
+        undefined, // trackingOptionID2
+        undefined, // standardLayout
+        undefined, // paymentsOnly
+      )
+    )
+
+    const reports = response?.body?.reports
+    const report = reports?.[0]
+
+    if (!report?.rows) {
+      return {
+        type: reportType,
+        startDate,
+        endDate,
+        financialYear: getFinancialYearFromDate(startDate),
+        sections: [],
+        totals: {},
+        metadata: { xeroReportId, note: 'No data returned from Xero' },
+      }
+    }
+
+    // Parse Xero report rows into canonical sections
+    const sections: CanonicalReportData['sections'] = []
+    const totals: CanonicalReportData['totals'] = {}
+
+    for (const row of report.rows) {
+      if (row.rowType === 'Section' && row.title) {
+        const sectionRows = (row.rows ?? [])
+          .filter((r: Record<string, unknown>) => r.rowType === 'Row')
+          .map((r: Record<string, unknown>) => {
+            const cells = (r.cells as Array<{ value?: string }>) ?? []
+            return {
+              accountName: cells[0]?.value ?? '',
+              amount: parseFloat(cells[1]?.value ?? '0') || 0,
+            }
+          })
+
+        sections.push({
+          title: row.title,
+          rows: sectionRows,
+          subtotal: sectionRows.reduce((sum: number, r: { amount: number }) => sum + r.amount, 0),
+        })
+
+        // Populate totals based on section titles
+        const titleLower = row.title.toLowerCase()
+        const sectionTotal = sectionRows.reduce((sum: number, r: { amount: number }) => sum + r.amount, 0)
+        if (titleLower.includes('revenue') || titleLower.includes('income')) totals.revenue = sectionTotal
+        else if (titleLower.includes('expense')) totals.expenses = sectionTotal
+        else if (titleLower.includes('asset')) totals.assets = sectionTotal
+        else if (titleLower.includes('liabilit')) totals.liabilities = sectionTotal
+        else if (titleLower.includes('equity')) totals.equity = sectionTotal
+      }
+    }
+
+    if (totals.revenue !== undefined && totals.expenses !== undefined) {
+      totals.netProfit = totals.revenue - Math.abs(totals.expenses)
+    }
+
+    return {
+      type: reportType,
+      startDate,
+      endDate,
+      financialYear: getFinancialYearFromDate(startDate),
+      sections,
+      totals,
+      metadata: { xeroReportId, reportTitle: report.reportName },
+    }
   }
 
   /**

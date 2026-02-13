@@ -29,7 +29,7 @@ export interface TrustDistribution {
   trust_entity_name: string;
   beneficiary_id: string;
   beneficiary_name: string;
-  beneficiary_entity_type: 'individual' | 'company' | 'trust' | 'partnership' | 'unknown';
+  beneficiary_entity_type: 'individual' | 'company' | 'trust' | 'partnership' | 'smsf' | 'non_profit' | 'foreign_company' | 'unknown';
   distribution_amount: number;
   distribution_type: 'cash' | 'asset' | 'upe'; // Cash paid, Asset transferred, Unpaid Present Entitlement
   financial_year: string;

@@ -218,7 +218,7 @@ export interface ConnectedEntity {
 }
 
 export interface CGTAnalysisOptions {
-  entityType?: 'individual' | 'company' | 'trust' | 'super_fund' | 'unknown'
+  entityType?: 'individual' | 'company' | 'trust' | 'super_fund' | 'smsf' | 'non_profit' | 'foreign_company' | 'unknown'
   aggregatedTurnover?: number
   netAssetValue?: number
   activeAssetPercentage?: number
@@ -292,8 +292,13 @@ export async function analyzeCGT(
 
   const entityType = options?.entityType ?? 'unknown'
 
-  // Companies do NOT get the 50% CGT discount (s 115-10 ITAA 1997)
-  const eligibleForDiscount = entityType !== 'company'
+  // CGT discount rules (s 115-10, s 115-100 ITAA 1997):
+  // - Companies and foreign companies: NO CGT discount
+  // - SMSFs: 1/3 discount (33.33%) instead of 50%
+  // - Individuals, trusts: 50% discount
+  // - Non-profits: treated as trusts (50% discount if eligible)
+  const eligibleForDiscount = entityType !== 'company' && entityType !== 'foreign_company'
+  const cgtDiscountRate = entityType === 'smsf' || entityType === 'super_fund' ? (1 / 3) : 0.5
 
   // Build CGT events
   const events: CGTEvent[] = assetTransactions.map((tx: CGTForensicRow) => {
@@ -311,7 +316,12 @@ export async function analyzeCGT(
       ? new Decimal(capitalGain).times(1 - cgtDiscountRate).toDecimalPlaces(2).toNumber()
       : capitalGain
 
-    const amendmentWarning = checkAmendmentPeriod(targetFY, entityType === 'individual' ? 'individual' : 'company')
+    const amendmentEntityType = entityType === 'individual' ? 'individual' as const
+      : entityType === 'smsf' || entityType === 'super_fund' ? 'smsf' as const
+      : entityType === 'non_profit' ? 'non_profit' as const
+      : entityType === 'foreign_company' ? 'foreign_company' as const
+      : 'company' as const
+    const amendmentWarning = checkAmendmentPeriod(targetFY, amendmentEntityType)
 
     // Classify asset category for loss quarantining (s 108-10, s 108-20)
     const { category: assetCategory, note: assetCategoryNote } = classifyAssetCategory(tx)

@@ -14,12 +14,37 @@ export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'revoked'
 
 export type BusinessSize = 'micro' | 'small' | 'medium' | 'large'
 
+/**
+ * Tax entity classification for organizations.
+ *
+ * - individual: sole trader / personal taxpayer
+ * - company: Australian resident company (s 23 ITAA 1997)
+ * - small_business: base rate entity (turnover < $50M, s 23AA ITAA 1997)
+ * - trust: discretionary, unit, or fixed trust
+ * - partnership: partnership under ITAA 1936
+ * - smsf: Self-Managed Super Fund (SISA 1993)
+ * - non_profit: DGR/TCC exempt entity (Division 50 ITAA 1997)
+ * - foreign_company: non-resident company (s 6-5 ITAA 1997)
+ * - unknown: not yet classified
+ */
+export type OrganizationEntityType =
+  | 'individual'
+  | 'company'
+  | 'small_business'
+  | 'trust'
+  | 'partnership'
+  | 'smsf'
+  | 'non_profit'
+  | 'foreign_company'
+  | 'unknown'
+
 export interface Organization {
   id: string
   name: string
   abn?: string
   industry?: string
   businessSize?: BusinessSize
+  entityType?: OrganizationEntityType
 
   // Xero connection
   xeroTenantId?: string
