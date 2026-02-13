@@ -9,24 +9,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
+import { authMiddleware } from '@/lib/auth/middleware';
 
 export const dynamic = 'force-dynamic'
 
 // GET - List organization groups
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const auth = await authMiddleware(request);
+    if (auth instanceof NextResponse) return auth;
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    const { user, supabase } = auth;
 
     // Get all groups owned by user
     const { data: groups, error: groupsError } = await supabase
@@ -54,7 +48,7 @@ export async function GET() {
 
     // Get organization counts for each group
     const groupsWithCounts = await Promise.all(
-      (groups || []).map(async (group) => {
+      (groups || []).map(async (group: Record<string, unknown>) => {
         const { data: orgs, error: orgErr } = await supabase
           .from('organizations')
           .select('id, name, xero_tenant_id, is_primary_in_group')
@@ -86,16 +80,10 @@ export async function GET() {
 // POST - Create new organization group
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const auth = await authMiddleware(request);
+    if (auth instanceof NextResponse) return auth;
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
-      );
-    }
+    const { user, supabase } = auth;
 
     const body = await request.json();
 
