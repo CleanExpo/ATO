@@ -8,7 +8,7 @@
  */
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'crypto'
-import { optionalConfig, serverConfig } from '@/lib/config/env'
+import { optionalConfig } from '@/lib/config/env'
 
 /**
  * Production guard (SEC-010): Validated lazily in getEncryptionKey().
@@ -36,8 +36,10 @@ function getEncryptionKey(): Buffer {
       console.warn(
         'TOKEN_ENCRYPTION_KEY not set. Using derived key for development only.'
       )
-      const devSecret = serverConfig.supabase.serviceRoleKey || 'dev-secret-key'
-      return scryptSync(devSecret, 'ato-dev-salt', 32)
+      // VULN-5 fix: Use a fixed dev-only constant instead of SUPABASE_SERVICE_ROLE_KEY.
+      // Tokens encrypted with this key are NOT portable to production.
+      const DEV_ONLY_SECRET = 'ato-dev-encryption-key-not-for-production'
+      return scryptSync(DEV_ONLY_SECRET, 'ato-dev-salt', 32)
     }
 
     throw new Error(

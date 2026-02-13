@@ -143,7 +143,8 @@ export interface FBTSummary {
     fbtLiability: number
   }>
   items: FBTItem[]
-  lodgmentDeadline: string // 21 May after FBT year end
+  lodgerType: 'self' | 'tax_agent' // M-3: Deadline varies by lodger type
+  lodgmentDeadline: string // Self-lodger: 21 May; Tax agent: 25 June
   lodgmentStatus: 'upcoming' | 'due_soon' | 'overdue'
 
   // Car benefit valuation (Change 1: FBT P1-3)
@@ -369,7 +370,8 @@ export function applyOtherwiseDeductibleRule(
  */
 export async function analyzeFBT(
   tenantId: string,
-  fbtYear?: string
+  fbtYear?: string,
+  options?: { lodgerType?: 'self' | 'tax_agent' }
 ): Promise<FBTSummary> {
   const supabase = await createServiceClient()
   const targetFBTYear = fbtYear || getCurrentFBTYear()
@@ -451,9 +453,14 @@ export async function analyzeFBT(
     byCategory[item.category].fbtLiability += item.fbtLiability
   })
 
-  // Lodgment deadline: 21 May after FBT year ends
+  // M-3: Lodgment deadline varies by lodger type
+  // Self-lodger: 21 May after FBT year ends
+  // Tax agent: 25 June after FBT year ends (standard ATO extension)
+  const lodgerType = options?.lodgerType ?? 'self'
   const fbtEndYear = fbtEnd.getFullYear()
-  const lodgmentDeadline = new Date(fbtEndYear, 4, 21) // May 21
+  const lodgmentDeadline = lodgerType === 'tax_agent'
+    ? new Date(fbtEndYear, 5, 25) // June 25
+    : new Date(fbtEndYear, 4, 21) // May 21
   const now = new Date()
   const daysUntilDeadline = Math.ceil((lodgmentDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 
@@ -490,6 +497,7 @@ export async function analyzeFBT(
     exemptBenefitsValue: exemptItems.reduce((sum, i) => sum + i.amount, 0),
     byCategory,
     items,
+    lodgerType,
     lodgmentDeadline: lodgmentDeadline.toISOString().split('T')[0],
     lodgmentStatus,
     carBenefitCount: carBenefitItems.length,
@@ -893,6 +901,7 @@ function createEmptyFBTSummary(fbtYear: string): FBTSummary {
     exemptBenefitsValue: 0,
     byCategory: {},
     items: [],
+    lodgerType: 'self',
     lodgmentDeadline: '',
     lodgmentStatus: 'upcoming',
     carBenefitCount: 0,
