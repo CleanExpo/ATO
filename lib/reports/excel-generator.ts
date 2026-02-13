@@ -565,10 +565,10 @@ async function createTransactionDetailSheet(
     for (const opp of report.deductionAnalysis.opportunities) {
       sheet.addRow({
         category: opp.category,
-        description: opp.description,
-        amount: opp.estimatedAmount,
+        description: opp.category,
+        amount: opp.unclaimedAmount,
         taxArea: 'Deductions',
-        confidence: (opp.confidence ?? 0) / 100,
+        confidence: 0,
         year: opp.financialYear ?? '',
       })
     }
@@ -578,12 +578,12 @@ async function createTransactionDetailSheet(
   if (report.rndAnalysis?.projects) {
     for (const project of report.rndAnalysis.projects) {
       sheet.addRow({
-        category: 'R&D - ' + (project.activityType ?? 'Unknown'),
-        description: project.description,
-        amount: project.estimatedExpenditure,
+        category: 'R&D - ' + (project.projectName ?? 'Unknown'),
+        description: project.projectDescription,
+        amount: project.eligibleExpenditure,
         taxArea: 'R&D Tax Incentive',
-        confidence: (project.confidence ?? 0) / 100,
-        year: project.financialYear ?? '',
+        confidence: (project.overallConfidence ?? 0) / 100,
+        year: project.financialYears?.[0] ?? '',
       })
     }
   }

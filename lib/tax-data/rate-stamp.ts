@@ -37,7 +37,7 @@ export async function createRateStamp(
       taxRatesFetchedAt: rates.ratesFetchedAt ?? null,
     }
   } catch (err) {
-    log.warn('Failed to create rate stamp — rates unavailable', err)
+    log.warn('Failed to create rate stamp — rates unavailable', { error: String(err) })
     return {
       taxRateSource: sourceOverride || 'ATO_FALLBACK',
       taxRateVerifiedAt: new Date().toISOString(),

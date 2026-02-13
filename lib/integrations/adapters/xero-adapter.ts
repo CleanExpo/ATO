@@ -562,7 +562,7 @@ export class XeroAdapter implements PlatformAdapter {
         type: reportType,
         startDate,
         endDate,
-        financialYear: getFinancialYearFromDate(startDate),
+        financialYear: getFinancialYearFromDate(new Date(startDate)),
         sections: [],
         totals: {},
         metadata: { xeroReportId, note: 'No data returned from Xero' },
@@ -574,10 +574,10 @@ export class XeroAdapter implements PlatformAdapter {
     const totals: CanonicalReportData['totals'] = {}
 
     for (const row of report.rows) {
-      if (row.rowType === 'Section' && row.title) {
+      if (String(row.rowType) === 'Section' && row.title) {
         const sectionRows = (row.rows ?? [])
-          .filter((r: Record<string, unknown>) => r.rowType === 'Row')
-          .map((r: Record<string, unknown>) => {
+          .filter((r) => String(r.rowType) === 'Row')
+          .map((r) => {
             const cells = (r.cells as Array<{ value?: string }>) ?? []
             return {
               accountName: cells[0]?.value ?? '',
@@ -610,7 +610,7 @@ export class XeroAdapter implements PlatformAdapter {
       type: reportType,
       startDate,
       endDate,
-      financialYear: getFinancialYearFromDate(startDate),
+      financialYear: getFinancialYearFromDate(new Date(startDate)),
       sections,
       totals,
       metadata: { xeroReportId, reportTitle: report.reportName },

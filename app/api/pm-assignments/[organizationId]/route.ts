@@ -5,7 +5,7 @@
  * PATCH /api/pm-assignments/[organizationId]  - Update PM context (preferences, deadlines)
  */
 
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/require-auth';
 import {
   getOrCreatePMAssignment,
@@ -27,12 +27,10 @@ interface RouteParams {
  * Returns the PM assignment for a specific organization.
  * Auto-creates if one doesn't exist yet.
  */
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const auth = await requireAuth(request);
-    if (!auth.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (auth instanceof NextResponse) return auth;
 
     const { organizationId } = await params;
 
@@ -57,12 +55,10 @@ export async function GET(request: Request, { params }: RouteParams) {
  * - action: 'update_context' | 'update_deadlines' | 'record_activity' | 'pause' | 'reactivate'
  * - data: Action-specific payload
  */
-export async function PATCH(request: Request, { params }: RouteParams) {
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const auth = await requireAuth(request);
-    if (!auth.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (auth instanceof NextResponse) return auth;
 
     const { organizationId } = await params;
 

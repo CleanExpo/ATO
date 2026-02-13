@@ -5,7 +5,7 @@
  * POST /api/pm-assignments          - Ensure all orgs have PM assignments (admin backfill)
  */
 
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/require-auth';
 import {
   getAllActivePMAssignments,
@@ -18,12 +18,10 @@ import { createErrorResponse } from '@/lib/api/errors';
  *
  * Returns all active PM assignments with summary data.
  */
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth(request);
-    if (!auth.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (auth instanceof NextResponse) return auth;
 
     const assignments = await getAllActivePMAssignments();
 
@@ -41,12 +39,10 @@ export async function GET(request: Request) {
  *
  * Backfill PM assignments for all organizations that don't have one.
  */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(request);
-    if (!auth.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    if (auth instanceof NextResponse) return auth;
 
     const result = await ensureAllOrganizationsHavePM();
 
