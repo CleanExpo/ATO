@@ -104,39 +104,91 @@ This platform deeply analyses Australian Business Taxation Laws, Regulations, an
 ```
 D:\ATO\
 ├── app/                    # Next.js App Router pages and API routes
-│   ├── api/               # 40 API endpoints (audit, xero, reports)
+│   ├── api/               # 49 API endpoints (audit, xero, analysis, reports)
 │   │   ├── audit/        # Tax analysis endpoints
 │   │   ├── auth/         # Xero OAuth endpoints
 │   │   └── xero/         # Xero data endpoints
 │   └── dashboard/         # Dashboard pages
 ├── lib/                   # Core business logic
 │   ├── ai/               # Gemini AI integration
-│   ├── analysis/         # Tax analysis engines (R&D, deductions, losses)
+│   ├── analysis/         # 16 tax analysis engines (R&D, deductions, losses, CGT, FBT, etc.)
 │   ├── api/              # API utilities and error handling
 │   ├── xero/             # Xero client and data fetching
 │   └── config/           # Environment configuration
 ├── .agent/               # AI agent definitions
-│   ├── agents/          # 16 specialised tax agents
-│   ├── skills/          # Reusable agent skills
-│   └── workflows/       # Agent orchestration workflows
+│   ├── agents/          # 29 specialised agents (19 tax + 10 operations)
+│   ├── skills/          # 22 reusable agent skills
+│   └── workflows/       # 16 agent orchestration workflows
 └── .claude/              # Claude-specific configuration
     ├── hooks/           # Validation hooks
     │   └── validators/  # 10 specialised validators
     └── docs/            # Internal documentation
 ```
 
-### Agent Fleet (16 Specialised Agents)
+### Agent Fleet (29 Specialised Agents)
+
+#### Core Tax Analysis Agents (11)
 
 | Agent | Priority | Purpose |
 |-------|----------|---------|
-| tax-law-analyst | CRITICAL | Australian tax law research |
-| xero-auditor | CRITICAL | Xero data extraction and analysis |
-| rnd-tax-specialist | CRITICAL | R&D Tax Incentive (Division 355) |
-| deduction-optimizer | HIGH | Maximise allowable deductions |
-| loss-recovery-agent | HIGH | Tax losses and Division 7A |
-| trust-distribution-analyzer | HIGH | Section 100A and UPE compliance |
+| tax-law-analyst | CRITICAL | Australian tax law research, ATO rulings, case law |
+| xero-auditor | CRITICAL | Read-only Xero data extraction and classification |
+| rnd-tax-specialist | CRITICAL | R&D Tax Incentive (Division 355, 43.5% offset) |
+| deduction-optimizer | HIGH | Section 8-1 general deductions, IAWO |
+| loss-recovery-agent | HIGH | Tax losses, Division 7A, carry-forward |
+| trust-distribution-analyzer | HIGH | Section 100A, UPE compliance |
 | bad-debt-recovery-agent | HIGH | Section 25-35 bad debt deductions |
-| business-transition-agent | CRITICAL | Business cessation and pivots |
+| business-transition-agent | CRITICAL | Business cessation, loss preservation |
+| cgt-concession-planner | HIGH | Division 152 small business CGT concessions |
+| fbt-optimizer | HIGH | FBT exemptions, minor benefits, Type 1/2 |
+| sbito-optimizer | MEDIUM | Small Business Income Tax Offset (s 328-355) |
+
+#### New Domain Agents (10) — Added 2026-02-13
+
+| Agent | Priority | Purpose | Engine Covered |
+|-------|----------|---------|----------------|
+| rate-change-monitor | CRITICAL | ATO rate change detection, cache invalidation | All rate-dependent engines |
+| superannuation-specialist | HIGH | Div 291 caps, carry-forward, SG compliance, SMSF | superannuation-cap-analyzer |
+| compliance-calendar-agent | HIGH | Entity-type-aware deadline tracking and alerts | Tax calendar utility |
+| payroll-tax-optimizer | HIGH | 8 state regimes, contractor deeming, grouping | payroll-tax-engine |
+| psi-classifier | MEDIUM | Divisions 85-87, three-part results test | psi-engine |
+| amendment-period-tracker | MEDIUM | s 170 TAA 1953 countdown, opportunity detection | Financial year utility |
+| data-quality-agent | MEDIUM | Misclassification, duplicates, reconciliation | reconciliation-engine |
+| multi-entity-consolidator | MEDIUM | Cross-entity Div 7A, payroll tax grouping, CGT | Organisation groups |
+| client-onboarding-agent | LOW | End-to-end new user setup orchestration | All engines (first scan) |
+| payg-instalment-advisor | MEDIUM | Variation penalty risk, cash flow optimisation | payg-instalment-engine |
+
+#### Integration & Operations Agents (8)
+
+| Agent | Purpose |
+|-------|---------|
+| xero-connector | OAuth 2.0 setup, token management |
+| accountant-report-generator | Professional report generation (Google Workspace) |
+| agent-scout | Proactive opportunity discovery, legislative monitoring |
+| government-grants-finder | Federal, state, local grants and incentives |
+| senior-project-manager-enhanced | Queue validation, task routing |
+| senior-product-manager | Idea intake orchestration |
+
+### Skills Registry (22 Skills)
+
+| Category | Skills | Count |
+|----------|--------|-------|
+| Tax Research | australian-tax-law-research, rnd-eligibility-assessment, tax-compliance-verification, tax-fraud-detection | 4 |
+| Data Integration | xero-api-integration, xero-connection-management, abn-entity-lookup | 3 |
+| Rate & Legislative | ato-rate-scraping, legislative-change-monitoring | 2 |
+| Analysis | historical-trend-analysis | 1 |
+| Content & Output | google-workspace-integration, google-slides-storyboard, image-generation, video-generation, simple-report-export, notebook-lm-research, pdf-report-generation, email-delivery | 8 |
+| Workflow Management | idea-queue-capture, work-queue-processor, idea-intake-workflow | 3 |
+| **Total** | | **22** |
+
+### Workflow Registry (16 Workflows)
+
+| Category | Workflows |
+|----------|-----------|
+| Tax Analysis | tax-audit, rnd-assessment, deduction-scan, bad-debt-scan, loss-analysis, business-transition |
+| Operations | scout, send-to-accountant, xero-setup, content-orchestrator, grant-accelerator |
+| Infrastructure | idea-intake, system-overhaul |
+| New (2026-02-13) | compliance-monitoring, new-client-setup, multi-entity-analysis |
 
 ### Idea Intake Workflow (Two-Claude Pattern)
 
@@ -247,9 +299,12 @@ Use the Orchestrator and specialist agents for **development process tasks**:
 - Code review, refactoring, performance optimization
 - CI/CD setup, deployment automation
 
-Use the existing 18 **tax agents** for **domain-specific work**:
+Use the existing 29 **domain agents** for **tax-specific work**:
 - R&D analysis, deduction optimization, tax compliance
 - Forensic auditing, loss recovery, bad debt analysis
+- Superannuation caps, payroll tax, PSI classification
+- Rate monitoring, compliance calendar, amendment tracking
+- Multi-entity consolidation, data quality, client onboarding
 
 ### Communication Protocol
 
@@ -677,6 +732,11 @@ import type { ForensicAnalysis, RndTransaction } from '@/lib/types';
 /deduction-scan              # Find unclaimed deductions
 /bad-debt-scan               # Bad debt recovery
 /loss-analysis               # Review carry-forward loss position
+
+# Compliance & Monitoring Workflows
+/compliance-monitoring        # Continuous deadline + rate + amendment monitoring
+/new-client-setup             # End-to-end onboarding (Xero → scan → results)
+/multi-entity-analysis        # Group consolidation with intercompany elimination
 
 # Idea Intake Workflow (Two-Claude Pattern)
 # Use in Capture Claude instance:
