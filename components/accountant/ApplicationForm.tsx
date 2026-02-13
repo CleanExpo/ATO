@@ -215,6 +215,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
             </label>
             <input
               type="email"
+              required
               value={formData.email}
               onChange={(e) => updateFormData('email', e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -230,6 +231,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
               </label>
               <input
                 type="text"
+                required
                 value={formData.first_name}
                 onChange={(e) => updateFormData('first_name', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -245,6 +247,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
               </label>
               <input
                 type="text"
+                required
                 value={formData.last_name}
                 onChange={(e) => updateFormData('last_name', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -280,6 +283,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
             </label>
             <input
               type="text"
+              required
               value={formData.firm_name}
               onChange={(e) => updateFormData('firm_name', e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -362,6 +366,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
             </label>
             <input
               type="text"
+              required
               value={formData.credential_number}
               onChange={(e) => updateFormData('credential_number', e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -379,6 +384,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
               </label>
               <input
                 type="text"
+                required
                 value={formData.credential_issuing_body}
                 onChange={(e) => updateFormData('credential_issuing_body', e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -486,6 +492,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
             <label className="flex items-start space-x-3 cursor-pointer">
               <input
                 type="checkbox"
+                required
                 checked={formData.agreed_to_terms}
                 onChange={(e) => updateFormData('agreed_to_terms', e.target.checked)}
                 className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
@@ -505,6 +512,7 @@ export default function ApplicationForm({ onSuccess, onCancel }: ApplicationForm
             <label className="flex items-start space-x-3 cursor-pointer">
               <input
                 type="checkbox"
+                required
                 checked={formData.agreed_to_privacy}
                 onChange={(e) => updateFormData('agreed_to_privacy', e.target.checked)}
                 className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"

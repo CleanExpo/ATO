@@ -20,6 +20,7 @@ import { GlassCard } from '@/components/ui/GlassCard'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { ErrorState } from '@/components/ui/ErrorState'
 
 interface StrategyItemProps {
   title: string
@@ -46,10 +47,13 @@ const StrategyItem = ({ title, status, impact, category, deadline, action, descr
     <div className="flex justify-between items-start mb-4">
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${status === 'critical' ? 'bg-red-500 animate-pulse' : 'bg-sky-400'}`} aria-hidden="true" />
-          <span className="text-[10px] font-black uppercase tracking-widest text-sky-400">
-            {status === 'critical' && <span className="sr-only">Critical - </span>}
-            {category}
+          {status === 'critical' ? (
+            <AlertTriangle className="w-3 h-3 text-red-500" aria-hidden="true" />
+          ) : (
+            <CheckCircle2 className="w-3 h-3 text-sky-400" aria-hidden="true" />
+          )}
+          <span className={`text-[10px] font-black uppercase tracking-widest ${status === 'critical' ? 'text-red-400' : 'text-sky-400'}`}>
+            {status === 'critical' ? 'COMPLIANCE' : category}
           </span>
         </div>
         <h3 className="text-xl font-bold text-white tracking-tight">{title}</h3>
@@ -89,26 +93,27 @@ export default function StrategiesPage() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [summary, setSummary] = useState<{ totalEstimatedBenefit?: number } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [_error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [tenantId, setTenantId] = useState<string | null>(null)
 
-  useEffect(() => {
-    const fetchTenant = async () => {
-      try {
-        const res = await fetch('/api/xero/organizations')
-        const data = await res.json()
-        if (data.connections?.length > 0) {
-          setTenantId(data.connections[0].tenant_id)
-        } else {
-          setLoading(false)
-        }
-      } catch (err) {
-        console.error('Failed to fetch tenant:', err)
+  const fetchTenant = useCallback(async () => {
+    setError(null)
+    try {
+      const res = await fetch('/api/xero/organizations')
+      const data = await res.json()
+      if (data.connections?.length > 0) {
+        setTenantId(data.connections[0].tenant_id)
+      } else {
         setLoading(false)
       }
+    } catch (err) {
+      console.error('Failed to fetch tenant:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load data')
+      setLoading(false)
     }
-    fetchTenant()
   }, [])
+
+  useEffect(() => { fetchTenant() }, [fetchTenant])
 
   const fetchRecommendations = useCallback(async (id: string) => {
     try {
@@ -136,6 +141,14 @@ export default function StrategiesPage() {
   }, [recommendations])
 
   if (loading) return <PageSkeleton variant="analysis" />
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-dashboard)] flex items-center justify-center p-8">
+        <ErrorState message={error} onRetry={fetchTenant} />
+      </div>
+    )
+  }
 
   if (!tenantId) {
     return (

@@ -77,7 +77,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Accountant',
     icon: 'Briefcase',
     matchPaths: ['/dashboard/accountant'],
-    showInMobile: false, // Desktop-oriented workflow
+    showInMobile: true,
     showInDesktop: true,
   },
   {
@@ -95,7 +95,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'R&D',
     icon: 'Beaker',
     matchPaths: ['/dashboard/rnd', '/dashboard/forensic-audit/rnd'],
-    showInMobile: false, // Keep mobile nav focused
+    showInMobile: true,
     showInDesktop: true,
   },
   {
@@ -122,7 +122,7 @@ export const NAV_ITEMS: NavItemConfig[] = [
     shortLabel: 'Losses',
     icon: 'TrendingDown',
     matchPaths: ['/dashboard/losses'],
-    showInMobile: false, // Keep mobile nav focused
+    showInMobile: true,
     showInDesktop: true,
   },
   {
@@ -137,10 +137,10 @@ export const NAV_ITEMS: NavItemConfig[] = [
   {
     href: '/dashboard/strategies',
     label: 'Strategies',
-    shortLabel: 'Strtgy',
+    shortLabel: 'Strategies',
     icon: 'BrainCircuit',
     matchPaths: ['/dashboard/strategies'],
-    showInMobile: false,
+    showInMobile: true,
     showInDesktop: true,
   },
   {

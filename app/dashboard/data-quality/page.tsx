@@ -24,12 +24,17 @@ import { GlassCard } from '@/components/ui/GlassCard'
 import LiveProgressCard from '@/components/dashboard/LiveProgressCard'
 import { ActivityItem } from '@/components/dashboard/ActivityFeed'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
+import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
+import { ErrorState } from '@/components/ui/ErrorState'
+import { EmptyState } from '@/components/ui/EmptyState'
 
 export default function DataQualityPage() {
   const [isScanning, setIsScanning] = useState(false)
   const [progress, setProgress] = useState(0)
   const [tenantId, setTenantId] = useState('')
   const [_activities, _setActivities] = useState<ActivityItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const [stats, setStats] = useState({
     totalScanned: 0,
@@ -40,16 +45,22 @@ export default function DataQualityPage() {
   })
   const [hasScanned, setHasScanned] = useState(false)
 
-  useEffect(() => {
-    const fetchTenant = async () => {
-      try {
-        const res = await fetch('/api/xero/organizations')
-        const data = await res.json()
-        if (data.connections?.[0]) setTenantId(data.connections[0].tenant_id)
-      } catch (err) { console.error(err) }
+  const loadData = async () => {
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await fetch('/api/xero/organizations')
+      if (!res.ok) throw new Error('Failed to load connections')
+      const data = await res.json()
+      if (data.connections?.[0]) setTenantId(data.connections[0].tenant_id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load data')
+    } finally {
+      setLoading(false)
     }
-    fetchTenant()
-  }, [])
+  }
+
+  useEffect(() => { loadData() }, [])
 
   useEffect(() => {
     if (!tenantId) return
@@ -100,6 +111,25 @@ export default function DataQualityPage() {
       setIsScanning(false)
     }
   }
+
+  if (loading) return <div className="px-4 sm:px-6 lg:px-8 py-6"><PageSkeleton /></div>
+
+  if (error) return (
+    <div className="px-4 sm:px-6 lg:px-8 py-6">
+      <ErrorState message={error} onRetry={loadData} />
+    </div>
+  )
+
+  if (!tenantId) return (
+    <div className="px-4 sm:px-6 lg:px-8 py-6">
+      <EmptyState
+        title="No Xero Connection"
+        message="Connect a Xero organisation to run data quality scans."
+        actionLabel="Connect Xero"
+        actionHref="/dashboard/connect"
+      />
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">

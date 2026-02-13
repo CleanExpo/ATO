@@ -21,6 +21,8 @@ import AnimatedCounter from '@/components/dashboard/AnimatedCounter'
 import { GlassCard } from '@/components/ui/GlassCard'
 import { TaxDisclaimer } from '@/components/dashboard/TaxDisclaimer'
 import { PageSkeleton } from '@/components/skeletons/PageSkeleton'
+import { ErrorState } from '@/components/ui/ErrorState'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { getCurrentFinancialYear, getPriorFinancialYear } from '@/lib/utils/financial-year'
 
 function generateFYOptions(count: number): string[] {
@@ -40,6 +42,7 @@ export default function LossAnalysisPage() {
     const [activeTenantId, setActiveTenantId] = useState<string>('')
     const [selectedFY, setSelectedFY] = useState(currentFY)
     const [loading, setLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
 
     const [metrics, setMetrics] = useState({
         netProfit: 0,
@@ -49,20 +52,24 @@ export default function LossAnalysisPage() {
     })
     const [hasData, setHasData] = useState(false)
 
-    useEffect(() => {
-        async function loadData() {
-            try {
-                const res = await fetch('/api/xero/organizations')
-                const data = await res.json()
-                const loaded = data.connections || []
-                setConnections(loaded)
-                if (loaded.length > 0) setActiveTenantId(loaded[0].tenant_id)
-            } finally {
-                setLoading(false)
-            }
+    const loadConnections = async () => {
+        setError(null)
+        setLoading(true)
+        try {
+            const res = await fetch('/api/xero/organizations')
+            if (!res.ok) throw new Error('Failed to load connections')
+            const data = await res.json()
+            const loaded = data.connections || []
+            setConnections(loaded)
+            if (loaded.length > 0) setActiveTenantId(loaded[0].tenant_id)
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load data')
+        } finally {
+            setLoading(false)
         }
-        loadData()
-    }, [])
+    }
+
+    useEffect(() => { loadConnections() }, [])
 
     useEffect(() => {
         if (!activeTenantId) return
@@ -92,6 +99,23 @@ export default function LossAnalysisPage() {
     }, [activeTenantId])
 
     if (loading) return <PageSkeleton variant="analysis" />
+
+    if (error) return (
+        <div className="px-4 sm:px-6 lg:px-8 py-6">
+            <ErrorState message={error} onRetry={loadConnections} />
+        </div>
+    )
+
+    if (connections.length === 0) return (
+        <div className="px-4 sm:px-6 lg:px-8 py-6">
+            <EmptyState
+                title="No Xero Connection"
+                message="Connect a Xero organisation to analyse tax losses and shareholder loan compliance."
+                actionLabel="Connect Xero"
+                actionHref="/dashboard/connect"
+            />
+        </div>
+    )
 
     return (
         <div className="min-h-screen bg-[var(--bg-dashboard)] px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
