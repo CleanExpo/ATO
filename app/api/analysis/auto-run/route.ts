@@ -12,7 +12,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { optionalConfig } from '@/lib/config/env'
 import { createLogger } from '@/lib/logger'
 
@@ -40,13 +40,13 @@ export async function POST(request: NextRequest) {
 
     log.info('Auto-analysis cron triggered')
 
-    const supabase = await createClient()
+    const supabase = await createServiceClient()
 
-    // Check analysis queue for pending jobs
+    // Check analysis queue for validated jobs ready to process
     const { data: queuedJobs, error: queueError } = await supabase
       .from('analysis_queue')
       .select('*')
-      .eq('status', 'pending')
+      .in('status', ['pending', 'validated'])
       .order('created_at', { ascending: true })
       .limit(MAX_BATCHES)
 
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 
           await supabase
             .from('analysis_queue')
-            .update({ status: 'failed', error: String(err) })
+            .update({ status: 'failed', error_message: String(err) })
             .eq('id', job.id)
 
           failed++
