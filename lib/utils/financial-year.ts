@@ -1,19 +1,27 @@
 /**
  * Financial Year Utilities
  *
- * Shared utilities for Australian Financial Year and FBT year calculations.
+ * Multi-jurisdiction financial year calculations for AU, NZ, and UK.
  * Used across all tax engines to avoid hardcoded FY strings.
  *
  * Australian Financial Year: 1 July - 30 June
  *   Format: 'FY2024-25' = 1 July 2024 to 30 June 2025
  *
- * FBT Year: 1 April - 31 March
+ * New Zealand Financial Year (Standard Balance Date): 1 April - 31 March
+ *   Format: 'NZ2024-25' = 1 April 2024 to 31 March 2025
+ *
+ * UK Tax Year: 6 April - 5 April
+ *   Format: 'UK2025-26' = 6 April 2025 to 5 April 2026
+ *
+ * FBT Year (AU): 1 April - 31 March
  *   Format: 'FBT2024-25' = 1 April 2024 to 31 March 2025
  *
  * Amendment Periods (Taxation Administration Act 1953, s 170):
  *   - Individuals/small businesses: 2 years from date of assessment
  *   - Companies/trusts/other: 4 years from date of assessment
  */
+
+import type { Jurisdiction } from '@/lib/types/jurisdiction'
 
 export type EntityTypeForAmendment =
   | 'company'
@@ -301,4 +309,235 @@ export function getBASQuarter(date: Date): {
   const financialYear = getCurrentFinancialYear(date)
 
   return { quarter, periodStart, periodEnd, financialYear, dueDate }
+}
+
+// ─── Multi-Jurisdiction Financial Year Support ──────────────────────
+
+/**
+ * Get the current financial year for any supported jurisdiction.
+ *
+ * AU: 1 July - 30 June → 'FY2025-26' (1 July 2025 to 30 June 2026)
+ * NZ: 1 April - 31 March → 'NZ2025-26' (1 April 2025 to 31 March 2026)
+ * UK: 6 April - 5 April → 'UK2025-26' (6 April 2025 to 5 April 2026)
+ *
+ * @param referenceDate - Date to calculate FY for (defaults to now)
+ * @param jurisdiction - 'AU' | 'NZ' | 'UK' (defaults to 'AU')
+ * @returns Financial year string with jurisdiction prefix
+ */
+export function getFinancialYearForJurisdiction(
+  referenceDate: Date = new Date(),
+  jurisdiction: Jurisdiction = 'AU'
+): string {
+  const month = referenceDate.getMonth() // 0-indexed
+  const day = referenceDate.getDate()
+  const year = referenceDate.getFullYear()
+
+  let fyStartYear: number
+  let prefix: string
+
+  switch (jurisdiction) {
+    case 'AU':
+      // AU: FY starts 1 July (month 6)
+      fyStartYear = month >= 6 ? year : year - 1
+      prefix = 'FY'
+      break
+
+    case 'NZ':
+      // NZ: Standard balance date starts 1 April (month 3)
+      fyStartYear = month >= 3 ? year : year - 1
+      prefix = 'NZ'
+      break
+
+    case 'UK':
+      // UK: Tax year starts 6 April (month 3, day 6)
+      if (month > 3 || (month === 3 && day >= 6)) {
+        fyStartYear = year
+      } else {
+        fyStartYear = year - 1
+      }
+      prefix = 'UK'
+      break
+
+    default:
+      fyStartYear = month >= 6 ? year : year - 1
+      prefix = 'FY'
+  }
+
+  const fyEndYear = fyStartYear + 1
+  const fyEndShort = String(fyEndYear).slice(-2)
+  return `${prefix}${fyStartYear}-${fyEndShort}`
+}
+
+/**
+ * Get the financial year start date for any jurisdiction.
+ *
+ * @param fyString - Financial year string (e.g. 'FY2025-26', 'NZ2025-26', 'UK2025-26')
+ * @param jurisdiction - Jurisdiction to determine start date rules
+ * @returns Start date or null if format invalid
+ */
+export function getJurisdictionFYStartDate(
+  fyString: string,
+  jurisdiction: Jurisdiction = 'AU'
+): Date | null {
+  const match = fyString.match(/^[A-Z]{2}(\d{4})-\d{2}$/)
+  if (!match) return null
+
+  const startYear = parseInt(match[1], 10)
+
+  switch (jurisdiction) {
+    case 'AU':
+      return new Date(startYear, 6, 1) // 1 July
+    case 'NZ':
+      return new Date(startYear, 3, 1) // 1 April
+    case 'UK':
+      return new Date(startYear, 3, 6) // 6 April
+    default:
+      return new Date(startYear, 6, 1) // Default to AU
+  }
+}
+
+/**
+ * Get the financial year end date for any jurisdiction.
+ *
+ * @param fyString - Financial year string
+ * @param jurisdiction - Jurisdiction to determine end date rules
+ * @returns End date or null if format invalid
+ */
+export function getJurisdictionFYEndDate(
+  fyString: string,
+  jurisdiction: Jurisdiction = 'AU'
+): Date | null {
+  const match = fyString.match(/^[A-Z]{2}(\d{4})-(\d{2})$/)
+  if (!match) return null
+
+  const century = match[1].substring(0, 2)
+  const endYear = parseInt(`${century}${match[2]}`, 10)
+
+  switch (jurisdiction) {
+    case 'AU':
+      return new Date(endYear, 5, 30) // 30 June
+    case 'NZ':
+      return new Date(endYear, 2, 31) // 31 March
+    case 'UK':
+      return new Date(endYear, 3, 5) // 5 April
+    default:
+      return new Date(endYear, 5, 30) // Default to AU
+  }
+}
+
+/**
+ * Get the NZ GST return period dates.
+ *
+ * NZ GST returns can be: monthly, two-monthly, or six-monthly.
+ * Two-monthly is the default for most businesses.
+ *
+ * Two-monthly periods:
+ *   Jan-Feb, Mar-Apr, May-Jun, Jul-Aug, Sep-Oct, Nov-Dec
+ *   Due: 28th of the month following the period end
+ *
+ * @param date - Date to determine the period for
+ * @param frequency - 'monthly' | 'two-monthly' | 'six-monthly'
+ */
+export function getNZGSTPeriod(
+  date: Date,
+  frequency: 'monthly' | 'two-monthly' | 'six-monthly' = 'two-monthly'
+): { periodStart: Date; periodEnd: Date; dueDate: Date; label: string } {
+  const month = date.getMonth()
+  const year = date.getFullYear()
+
+  if (frequency === 'monthly') {
+    const periodStart = new Date(year, month, 1)
+    const periodEnd = new Date(year, month + 1, 0) // Last day of month
+    const dueDate = new Date(year, month + 1, 28) // 28th of next month
+    return {
+      periodStart,
+      periodEnd,
+      dueDate,
+      label: `${periodStart.toLocaleDateString('en-NZ', { month: 'short', year: 'numeric' })}`,
+    }
+  }
+
+  if (frequency === 'six-monthly') {
+    const halfStart = month < 6 ? 0 : 6
+    const periodStart = new Date(year, halfStart, 1)
+    const periodEnd = new Date(year, halfStart + 6, 0)
+    const dueDate = new Date(year, halfStart + 6, 28)
+    return {
+      periodStart,
+      periodEnd,
+      dueDate,
+      label: halfStart === 0 ? `Jan-Jun ${year}` : `Jul-Dec ${year}`,
+    }
+  }
+
+  // Two-monthly (default)
+  const biMonthStart = Math.floor(month / 2) * 2
+  const periodStart = new Date(year, biMonthStart, 1)
+  const periodEnd = new Date(year, biMonthStart + 2, 0)
+  const dueDate = new Date(year, biMonthStart + 2, 28)
+  const startLabel = periodStart.toLocaleDateString('en-NZ', { month: 'short' })
+  const endLabel = periodEnd.toLocaleDateString('en-NZ', { month: 'short' })
+  return {
+    periodStart,
+    periodEnd,
+    dueDate,
+    label: `${startLabel}-${endLabel} ${year}`,
+  }
+}
+
+/**
+ * Get UK VAT quarter dates.
+ *
+ * Standard VAT quarters:
+ *   Q1: Jan-Mar, due 7 May
+ *   Q2: Apr-Jun, due 7 Aug
+ *   Q3: Jul-Sep, due 7 Nov
+ *   Q4: Oct-Dec, due 7 Feb
+ *
+ * Making Tax Digital: returns due 1 month + 7 days after period end
+ */
+export function getUKVATQuarter(date: Date): {
+  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4'
+  periodStart: Date
+  periodEnd: Date
+  dueDate: Date
+  label: string
+} {
+  const month = date.getMonth()
+  const year = date.getFullYear()
+
+  let quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4'
+  let periodStart: Date
+  let periodEnd: Date
+  let dueDate: Date
+
+  if (month >= 0 && month <= 2) {
+    quarter = 'Q1'
+    periodStart = new Date(year, 0, 1)
+    periodEnd = new Date(year, 2, 31)
+    dueDate = new Date(year, 4, 7)
+  } else if (month >= 3 && month <= 5) {
+    quarter = 'Q2'
+    periodStart = new Date(year, 3, 1)
+    periodEnd = new Date(year, 5, 30)
+    dueDate = new Date(year, 7, 7)
+  } else if (month >= 6 && month <= 8) {
+    quarter = 'Q3'
+    periodStart = new Date(year, 6, 1)
+    periodEnd = new Date(year, 8, 30)
+    dueDate = new Date(year, 10, 7)
+  } else {
+    quarter = 'Q4'
+    periodStart = new Date(year, 9, 1)
+    periodEnd = new Date(year, 11, 31)
+    dueDate = new Date(year + 1, 1, 7)
+  }
+
+  return {
+    quarter,
+    periodStart,
+    periodEnd,
+    dueDate,
+    label: `VAT ${quarter} ${year}`,
+  }
 }

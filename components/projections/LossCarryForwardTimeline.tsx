@@ -111,7 +111,7 @@ export function LossCarryForwardTimeline({
                     color: 'var(--text-primary)',
                     fontSize: '0.75rem',
                   }}
-                  formatter={(value: number | undefined) => [`$${(value ?? 0).toLocaleString('en-AU')}`, '']}
+                  formatter={(value) => [`$${(typeof value === 'number' ? value : 0).toLocaleString('en-AU')}`, '']}
                 />
                 <Line
                   type="monotone"

@@ -1,0 +1,12 @@
+node_modules
+.next
+dist
+build
+coverage
+.turbo
+pnpm-lock.yaml
+package-lock.json
+
+# Shell and Python scripts - prettier corrupts quotes in these files
+*.ps1
+*.py

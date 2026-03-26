@@ -117,6 +117,7 @@ function validateClientConfig() {
   // at build time by Turbopack/webpack.
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
   if (!supabaseUrl || supabaseUrl.trim() === '') {
     throw new ConfigurationError(
@@ -135,6 +136,9 @@ function validateClientConfig() {
     supabase: {
       url: validateUrl(supabaseUrl.trim(), 'NEXT_PUBLIC_SUPABASE_URL'),
       anonKey: supabaseAnonKey.trim(),
+    },
+    stripe: {
+      publishableKey: stripePublishableKey?.trim() ?? '',
     },
   };
 }
@@ -185,7 +189,7 @@ export const sharedConfig = new Proxy({} as ReturnType<typeof validateSharedConf
 // Optional configuration (with defaults)
 export const optionalConfig = {
   googleAiApiKey: getOptionalEnv('GOOGLE_AI_API_KEY', ''),
-  googleAiModel: getOptionalEnv('GOOGLE_AI_MODEL', 'gemini-2.0-flash'),
+  googleAiModel: getOptionalEnv('GOOGLE_AI_MODEL', 'gemini-3-flash-preview'),
   openRouterApiKey: getOptionalEnv('OPENROUTER_API_KEY', ''),
   braveApiKey: getOptionalEnv('BRAVE_API_KEY', ''),
   businessName: getOptionalEnv('BUSINESS_NAME', 'Your Business'),

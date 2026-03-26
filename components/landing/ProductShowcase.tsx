@@ -163,8 +163,8 @@ function OverviewPanel() {
                   fontSize: '9px',
                   color: 'rgba(255,255,255,0.7)',
                 }}
-                formatter={(value: number | undefined) => {
-                  const v = value ?? 0
+                formatter={(value) => {
+                  const v = typeof value === 'number' ? value : 0
                   return [`$${v.toLocaleString()}`, '']
                 }}
               />
@@ -233,8 +233,8 @@ function RnDPanel() {
                   fontSize: '9px',
                   color: 'rgba(255,255,255,0.7)',
                 }}
-                formatter={(value: number | undefined) => {
-                  const v = value ?? 0
+                formatter={(value) => {
+                  const v = typeof value === 'number' ? value : 0
                   return [`$${v.toLocaleString()}`, '']
                 }}
               />
@@ -329,8 +329,8 @@ function ForensicPanel() {
                   fontSize: '9px',
                   color: 'rgba(255,255,255,0.7)',
                 }}
-                formatter={(value: number | undefined) => {
-                  const v = value ?? 0
+                formatter={(value) => {
+                  const v = typeof value === 'number' ? value : 0
                   return [`$${v.toLocaleString()}`, 'Amount']
                 }}
               />

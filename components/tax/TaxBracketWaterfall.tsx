@@ -102,8 +102,8 @@ export function TaxBracketWaterfall({
                 color: 'var(--text-primary)',
                 fontSize: '0.75rem',
               }}
-              formatter={(value: number | undefined, name?: string) => {
-                const v = value ?? 0
+              formatter={(value, name) => {
+                const v = typeof value === 'number' ? value : 0
                 if (name === 'rate') return [`${v}%`, 'Marginal Rate']
                 return [v, name ?? '']
               }}

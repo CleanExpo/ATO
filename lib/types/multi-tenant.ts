@@ -46,6 +46,9 @@ export interface Organization {
   businessSize?: BusinessSize
   entityType?: OrganizationEntityType
 
+  // Jurisdiction (AU/NZ/UK) — defaults to 'AU' in database
+  jurisdiction?: 'AU' | 'NZ' | 'UK'
+
   // Xero connection
   xeroTenantId?: string
   xeroConnectedAt?: string
