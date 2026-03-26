@@ -225,7 +225,7 @@ export function DeductionImpactCalculator({
                 color: 'var(--text-primary)',
                 fontSize: '0.75rem',
               }}
-              formatter={(value: number | undefined) => [formatAUD(value ?? 0), 'Tax payable']}
+              formatter={(value) => [formatAUD(typeof value === 'number' ? value : 0), 'Tax payable']}
               labelFormatter={(v) => `Income: $${(Number(v) / 1000).toFixed(0)}K`}
             />
             <defs>

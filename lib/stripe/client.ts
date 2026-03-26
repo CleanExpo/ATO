@@ -23,7 +23,7 @@ function getStripeInstance(): Stripe {
       throw new Error('STRIPE_SECRET_KEY not configured. Payment processing unavailable.');
     }
     stripeInstance = new Stripe(apiKey, {
-      apiVersion: '2026-01-28.clover',
+      apiVersion: '2026-02-25.clover',
       typescript: true,
       appInfo: {
         name: 'ATO Tax Optimizer',
