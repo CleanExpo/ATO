@@ -62,8 +62,8 @@ export async function validateAIConfiguration(): Promise<HealthCheckResult> {
 
         if (errorMessage.includes('404') || errorMessage.includes('not found')) {
             errors.push(`AI model '${details.modelName}' does not exist or is not accessible`)
-            errors.push('Available free models: gemini-2.0-flash (experimental)')
-            errors.push('Gemini 3 models require Vertex AI (paid)')
+            errors.push('Available models: gemini-3-flash-preview (primary), gemini-2.5-flash (fallback)')
+            errors.push('Ensure your API key has access to the Gemini 3 Flash preview')
         } else if (errorMessage.includes('API key') || errorMessage.includes('401') || errorMessage.includes('403')) {
             errors.push('GOOGLE_AI_API_KEY is invalid or lacks permissions')
         } else {
