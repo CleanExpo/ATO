@@ -57,7 +57,7 @@ export abstract class BaseTaxEngine {
   /**
    * Get the current financial year for this engine's jurisdiction
    */
-  protected getCurrentFinancialYear(referenceDate?: Date): string {
+  public getCurrentFinancialYear(referenceDate?: Date): string {
     return getFinancialYearForJurisdiction(referenceDate || new Date(), this.jurisdiction)
   }
 
@@ -68,7 +68,7 @@ export abstract class BaseTaxEngine {
    * @param rateKey - Specific rate identifier (e.g. 'basic_rate', 'standard_rate')
    * @returns Rate value or null if not found
    */
-  protected async getTaxRate(rateType: string, rateKey: string): Promise<number | null> {
+  public async getTaxRate(rateType: string, rateKey: string): Promise<number | null> {
     const cacheKey = `${this.jurisdiction}:${rateType}:${rateKey}`
     if (this.cachedRates.has(cacheKey)) {
       return this.cachedRates.get(cacheKey)!
@@ -100,7 +100,7 @@ export abstract class BaseTaxEngine {
   /**
    * Get a tax rate with fallback value if not found in database
    */
-  protected async getTaxRateWithFallback(
+  public async getTaxRateWithFallback(
     rateType: string,
     rateKey: string,
     fallback: number
@@ -112,7 +112,7 @@ export abstract class BaseTaxEngine {
   /**
    * Get all rates of a given type (e.g. all income tax brackets)
    */
-  protected async getTaxRatesByType(rateType: string): Promise<JurisdictionTaxRate[]> {
+  public async getTaxRatesByType(rateType: string): Promise<JurisdictionTaxRate[]> {
     try {
       const supabase = await createClient()
       const { data, error } = await supabase
@@ -145,49 +145,49 @@ export abstract class BaseTaxEngine {
   /**
    * Decimal.js helper for precise financial calculations
    */
-  protected decimal(value: number | string): Decimal {
+  public decimal(value: number | string): Decimal {
     return new Decimal(value)
   }
 
   /**
    * Round to 2 decimal places (standard currency rounding)
    */
-  protected roundCurrency(value: Decimal): number {
+  public roundCurrency(value: Decimal): number {
     return value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toNumber()
   }
 
   /**
    * Calculate percentage of an amount
    */
-  protected percentage(amount: number, rate: number): number {
+  public percentage(amount: number, rate: number): number {
     return this.roundCurrency(this.decimal(amount).mul(this.decimal(rate).div(100)))
   }
 
   /**
    * Get the currency symbol for this jurisdiction
    */
-  protected get currencySymbol(): string {
+  public get currencySymbol(): string {
     return this.config.currencySymbol
   }
 
   /**
    * Get the currency code for this jurisdiction
    */
-  protected get currencyCode(): string {
+  public get currencyCode(): string {
     return this.config.currency
   }
 
   /**
    * Get the tax authority abbreviation for this jurisdiction
    */
-  protected get taxAuthority(): string {
+  public get taxAuthority(): string {
     return this.config.taxAuthorityAbbrev
   }
 
   /**
    * Create a timed engine result wrapper
    */
-  protected createResult<T>(
+  public createResult<T>(
     engineName: string,
     startTime: number,
     data: T,
@@ -211,7 +211,7 @@ export abstract class BaseTaxEngine {
   /**
    * Create an error result
    */
-  protected createErrorResult<T>(
+  public createErrorResult<T>(
     engineName: string,
     startTime: number,
     error: string

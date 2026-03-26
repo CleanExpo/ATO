@@ -20,6 +20,18 @@
     {
       "path": "/api/slack/daily-summary",
       "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/compliance/cron",
+      "schedule": "0 3 * * 1"
+    },
+    {
+      "path": "/api/email/weekly-digest",
+      "schedule": "0 9 * * 1"
+    },
+    {
+      "path": "/api/analysis/auto-run",
+      "schedule": "0 2 * * *"
     }
   ],
   "headers": [
