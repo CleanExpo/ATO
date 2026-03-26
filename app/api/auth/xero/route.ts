@@ -4,7 +4,7 @@ import crypto from 'crypto'
 import { createLogger } from '@/lib/logger'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createClient } from '@/lib/supabase/server'
-import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
+import { applyDistributedRateLimit, DISTRIBUTED_RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import { serverConfig, sharedConfig } from '@/lib/config/env'
 
 export const dynamic = 'force-dynamic'
@@ -15,8 +15,8 @@ const log = createLogger('api:auth:xero')
 // Single-user mode: No authentication required
 // Supports ?prompt=login to force account selection for connecting different Xero accounts
 export async function GET(request: NextRequest) {
-    // Rate limit OAuth initiation (SEC-003)
-    const rateLimitResult = applyRateLimit(request, RATE_LIMITS.auth, 'oauth:xero')
+    // Rate limit OAuth initiation (SEC-003) — distributed for cross-instance enforcement
+    const rateLimitResult = await applyDistributedRateLimit(request, DISTRIBUTED_RATE_LIMITS.oauth, 'oauth:xero')
     if (rateLimitResult) return rateLimitResult
 
     const baseUrl = request.nextUrl.origin

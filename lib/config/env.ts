@@ -250,6 +250,10 @@ export function validateConfiguration(): {
       warnings.push('LINEAR_PROJECT_ID not set - issues will be created without project assignment');
     }
 
+    if (optionalConfig.singleUserMode === 'true') {
+      warnings.push('SINGLE_USER_MODE is enabled — authentication is bypassed for all routes. Disable before production launch.');
+    }
+
     return { valid: true, errors, warnings };
   } catch (error) {
     if (error instanceof ConfigurationError) {

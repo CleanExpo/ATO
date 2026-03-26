@@ -7,14 +7,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isSingleUserMode } from '@/lib/auth/single-user-check'
 import { createClient } from '@/lib/supabase/server'
-import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
+import { applyDistributedRateLimit, DISTRIBUTED_RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import { serverConfig, sharedConfig } from '@/lib/config/env'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-    // Rate limit OAuth initiation (SEC-003)
-    const rateLimitResult = applyRateLimit(request, RATE_LIMITS.auth, 'oauth:xero:connect')
+    // Rate limit OAuth initiation (SEC-003) — distributed for cross-instance enforcement
+    const rateLimitResult = await applyDistributedRateLimit(request, DISTRIBUTED_RATE_LIMITS.oauth, 'oauth:xero:connect')
     if (rateLimitResult) return rateLimitResult
 
     // Require authentication (skip in single-user mode)

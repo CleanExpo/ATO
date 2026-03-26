@@ -111,6 +111,23 @@ export async function analyzeAllTransactions(
 
         log.info('Analysis plan', { platform, totalTransactions, totalBatches, estimatedCostUSD: costEstimate.estimatedCostUSD })
 
+        // Pre-flight cost estimation guard — reject before any AI calls if estimated cost exceeds limit
+        const costLimitUSD = parseFloat(optionalConfig.aiCostLimitUsd || '10')
+        if (costEstimate.estimatedCostUSD > costLimitUSD) {
+            const msg = `Estimated analysis cost ($${costEstimate.estimatedCostUSD.toFixed(2)}) exceeds limit ($${costLimitUSD.toFixed(2)}). ` +
+                `Reduce the batch size or increase AI_COST_LIMIT_USD.`
+            log.warn('Pre-flight cost check failed', {
+                estimatedCostUSD: costEstimate.estimatedCostUSD,
+                costLimitUSD,
+                totalTransactions,
+                platform,
+            })
+            progress.status = 'error'
+            progress.errorMessage = msg
+            await updateAnalysisProgress(tenantId, progress, platform)
+            throw new Error(msg)
+        }
+
         // Notify Slack: Analysis started
         try {
             await slack.notifyAnalysisStarted(tenantId, userEmail, platform, totalTransactions)
@@ -214,8 +231,7 @@ export async function analyzeAllTransactions(
             const batchCost = estimateAnalysisCost(analyses.length).estimatedCostUSD
             totalCostAccumulated += batchCost
 
-            // Check cost limit
-            const costLimitUSD = parseFloat(optionalConfig.aiCostLimitUsd)
+            // Mid-flight cost limit check — stop processing if accumulated cost exceeds limit
             if (totalCostAccumulated > costLimitUSD) {
                 log.warn('AI cost limit exceeded, stopping analysis', { totalCostUSD: totalCostAccumulated, costLimitUSD })
                 progress.status = 'error'

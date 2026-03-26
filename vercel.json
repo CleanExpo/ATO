@@ -32,6 +32,10 @@
     {
       "path": "/api/analysis/auto-run",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/admin/refresh-views",
+      "schedule": "0 4 * * *"
     }
   ],
   "headers": [

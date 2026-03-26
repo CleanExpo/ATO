@@ -17,9 +17,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createErrorResponse, createValidationError } from '@/lib/api/errors';
 import { requireAuth, isErrorResponse } from '@/lib/auth/require-auth';
 import { processAnalysisQueue } from '@/lib/analysis/reanalysis-worker';
+import { distributedRateLimit, createDistributedRateLimitResponse } from '@/lib/middleware/distributed-rate-limit';
 import { createLogger } from '@/lib/logger';
 
 const log = createLogger('api:analysis:queue:process');
+
+/** Per-user concurrency cap for analysis queue processing — prevents a single user overwhelming the Gemini API */
+const ANALYSIS_CONCURRENCY_LIMIT = 2;
+const ANALYSIS_CONCURRENCY_WINDOW_SECONDS = 300; // 5-minute window
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +32,23 @@ export async function POST(request: NextRequest) {
   try {
     const auth = await requireAuth(request.clone() as NextRequest, { skipTenantValidation: true });
     if (isErrorResponse(auth)) return auth;
+
+    // Per-user concurrency guard — cap concurrent analysis runs per user
+    const userId = auth.user.id;
+    const concurrencyCheck = await distributedRateLimit({
+      identifier: `analysis-queue:${userId}`,
+      limit: ANALYSIS_CONCURRENCY_LIMIT,
+      windowSeconds: ANALYSIS_CONCURRENCY_WINDOW_SECONDS,
+    });
+
+    if (!concurrencyCheck.success) {
+      log.warn('Analysis concurrency limit exceeded', {
+        userId,
+        limit: ANALYSIS_CONCURRENCY_LIMIT,
+        windowSeconds: ANALYSIS_CONCURRENCY_WINDOW_SECONDS,
+      });
+      return createDistributedRateLimitResponse(concurrencyCheck);
+    }
 
     const body = await request.json().catch(() => ({}));
     const { maxJobs = 10 } = body;

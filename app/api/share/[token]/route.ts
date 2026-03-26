@@ -27,7 +27,7 @@ import { createErrorResponse } from '@/lib/api/errors';
 import { isValidTokenFormat, isExpired } from '@/lib/share/token-generator';
 import { compare } from 'bcryptjs';
 import { logShareBruteForce } from '@/lib/security/security-event-logger';
-import { applyDistributedRateLimit, applyRateLimit, DISTRIBUTED_RATE_LIMITS, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit';
+import { applyDistributedRateLimit, DISTRIBUTED_RATE_LIMITS, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit';
 import type {
   AccessShareLinkResponse,
   ShareLinkError,
@@ -186,8 +186,8 @@ export async function GET(
   { params }: { params: Promise<{ token: string }> }
 ) {
   try {
-    // Rate limit share access (SEC-003)
-    const rateLimitResult = applyRateLimit(request, RATE_LIMITS.api, 'share-get');
+    // Rate limit share access (SEC-003) — distributed for cross-instance enforcement
+    const rateLimitResult = await applyDistributedRateLimit(request, RATE_LIMITS.api, 'share-get');
     if (rateLimitResult) return rateLimitResult;
 
     const { token } = await params;

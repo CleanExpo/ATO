@@ -64,6 +64,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Idempotency check — prevent duplicate event processing
+    const supabaseService = await createServiceClient();
+    const { data: existingEvent } = await supabaseService
+      .from('stripe_processed_events')
+      .select('event_id')
+      .eq('event_id', event.id)
+      .maybeSingle();
+
+    if (existingEvent) {
+      log.info('Duplicate webhook event — already processed', { eventId: event.id, type: event.type });
+      return NextResponse.json({ received: true, status: 'already_processed' });
+    }
+
+    // Record event before processing (insert-before-process pattern)
+    await supabaseService
+      .from('stripe_processed_events')
+      .insert({ event_id: event.id, event_type: event.type });
+
     // Process event
     log.info('Processing webhook event', { type: event.type, eventId: event.id });
 

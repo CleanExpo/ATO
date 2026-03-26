@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { QUICKBOOKS_CONFIG } from '@/lib/integrations/quickbooks-config'
 import { createErrorResponse } from '@/lib/api/errors'
 import { createLogger } from '@/lib/logger'
-import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
+import { applyDistributedRateLimit, DISTRIBUTED_RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import { sharedConfig } from '@/lib/config/env'
 import crypto from 'crypto'
 
@@ -20,8 +20,8 @@ export const dynamic = 'force-dynamic'
 const log = createLogger('api:auth:quickbooks')
 
 export async function GET(request: NextRequest) {
-  // Rate limit OAuth initiation (SEC-003)
-  const rateLimitResult = applyRateLimit(request, RATE_LIMITS.auth, 'oauth:quickbooks')
+  // Rate limit OAuth initiation (SEC-003) — distributed for cross-instance enforcement
+  const rateLimitResult = await applyDistributedRateLimit(request, DISTRIBUTED_RATE_LIMITS.oauth, 'oauth:quickbooks')
   if (rateLimitResult) return rateLimitResult
 
   try {

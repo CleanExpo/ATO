@@ -773,6 +773,20 @@ export default function Home() {
               not financial or tax advice.
             </p>
             <div className="flex items-center gap-8">
+              <Link
+                href="/privacy"
+                className="text-[11px] text-white/30 tracking-wider hover:text-white/50 transition-colors duration-300"
+              >
+                Privacy Policy
+              </Link>
+              <div className="h-4 w-px bg-white/[0.06]" />
+              <Link
+                href="/terms"
+                className="text-[11px] text-white/30 tracking-wider hover:text-white/50 transition-colors duration-300"
+              >
+                Terms of Service
+              </Link>
+              <div className="h-4 w-px bg-white/[0.06]" />
               <span className="text-[11px] text-white/20 tracking-wider">
                 Division 355 ITAA 1997
               </span>
