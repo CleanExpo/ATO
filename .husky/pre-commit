@@ -1,0 +1,5 @@
+#!/bin/sh
+# Pre-commit hook for ATO (Australian Tax Optimizer)
+# Runs lint-staged for formatting and linting checks
+
+npx lint-staged

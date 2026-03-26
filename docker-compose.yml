@@ -1,0 +1,54 @@
+# Docker Compose for ATO local development
+# Provides PostgreSQL (with pgvector) and Redis for local dev
+# ATO app itself runs via npm (not containerised)
+#
+# Usage:
+#   docker compose up -d        # Start services
+#   docker compose down          # Stop services
+#   docker compose down -v       # Stop and remove volumes (destructive)
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: ato-postgres
+    environment:
+      POSTGRES_USER: ato_dev
+      POSTGRES_PASSWORD: ato_dev_password
+      POSTGRES_DB: ato_development
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ato_dev -d ato_development']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ato-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: ato-redis
+    ports:
+      - '6380:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ato-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ato-network:
+    driver: bridge
