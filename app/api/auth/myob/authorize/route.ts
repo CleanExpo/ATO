@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { applyRateLimit, RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
+import { applyDistributedRateLimit, DISTRIBUTED_RATE_LIMITS } from '@/lib/middleware/apply-rate-limit'
 import { serverConfig, sharedConfig } from '@/lib/config/env'
 import crypto from 'crypto'
 
@@ -22,8 +22,8 @@ const REDIRECT_URI = `${sharedConfig.baseUrl}/api/auth/myob/callback`
  * Redirects to MYOB OAuth authorization page
  */
 export async function GET(request: NextRequest) {
-  // Rate limit OAuth initiation (SEC-003)
-  const rateLimitResult = applyRateLimit(request, RATE_LIMITS.auth, 'oauth:myob')
+  // Rate limit OAuth initiation (SEC-003) — distributed for cross-instance enforcement
+  const rateLimitResult = await applyDistributedRateLimit(request, DISTRIBUTED_RATE_LIMITS.oauth, 'oauth:myob')
   if (rateLimitResult) return rateLimitResult
 
   try {

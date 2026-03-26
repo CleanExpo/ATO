@@ -9,6 +9,9 @@
 
 import Stripe from 'stripe';
 import { optionalConfig } from '@/lib/config/env';
+import { createLogger } from '@/lib/logger';
+
+const log = createLogger('stripe:client');
 
 /**
  * Lazy-initialize Stripe client with secret key
@@ -21,6 +24,9 @@ function getStripeInstance(): Stripe {
     const apiKey = optionalConfig.stripeSecretKey;
     if (!apiKey) {
       throw new Error('STRIPE_SECRET_KEY not configured. Payment processing unavailable.');
+    }
+    if (apiKey.startsWith('sk_test_') && process.env.NODE_ENV === 'production') {
+      log.warn('Stripe initialised with TEST key in PRODUCTION — payments will not be real');
     }
     stripeInstance = new Stripe(apiKey, {
       apiVersion: '2026-02-25.clover',

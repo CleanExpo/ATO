@@ -27,6 +27,14 @@ export async function register() {
         // Validate configuration at startup
         const validation = validateConfiguration()
 
+        // CRITICAL: Fail fast if SINGLE_USER_MODE is enabled in production
+        if (process.env.SINGLE_USER_MODE === 'true' && process.env.NODE_ENV === 'production') {
+            console.error('\n🔴 FATAL: SINGLE_USER_MODE=true detected in PRODUCTION')
+            console.error('This setting bypasses ALL authentication and is a critical security vulnerability.')
+            console.error('Set SINGLE_USER_MODE=false in your Vercel dashboard immediately.\n')
+            process.exit(1)
+        }
+
         // Log configuration status
         logConfigurationStatus()
 

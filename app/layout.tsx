@@ -3,6 +3,7 @@ import { Geist, JetBrains_Mono } from "next/font/google"
 import "./globals.css"
 import { OperationProviderWrapper } from "@/components/providers/OperationProvider"
 import { SkipLink } from "@/components/ui/SkipLink"
+import { CookieConsentBanner } from "@/components/ui/CookieConsentBanner"
 import { logConfigurationStatus } from "@/lib/config/env"
 
 // Validate environment variables at startup
@@ -82,6 +83,7 @@ export default function RootLayout({
         <OperationProviderWrapper>
           {children}
         </OperationProviderWrapper>
+        <CookieConsentBanner />
       </body>
     </html>
   )
