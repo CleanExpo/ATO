@@ -153,11 +153,11 @@ export const NAV_ITEMS: NavItemConfig[] = [
     showInDesktop: false, // Internal metrics, not client-facing
   },
   {
-    href: '/dashboard/pricing',
-    label: 'Pricing & Licenses',
-    shortLabel: 'Pricing',
+    href: '/dashboard/billing',
+    label: 'Billing',
+    shortLabel: 'Billing',
     icon: 'CreditCard',
-    matchPaths: ['/dashboard/pricing'],
+    matchPaths: ['/dashboard/billing', '/dashboard/pricing'],
     showInMobile: false, // Keep mobile nav focused
     showInDesktop: true,
   },

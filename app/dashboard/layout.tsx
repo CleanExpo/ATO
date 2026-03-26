@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { OrganizationProvider } from '@/lib/context/OrganizationContext'
 import { VerticalNav, DynamicIsland } from '@/components/ui/DynamicIsland'
 import { Breadcrumb } from '@/components/ui/Breadcrumb'
@@ -35,6 +36,23 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
               {children}
             </div>
           </main>
+
+          {/* Legal footer */}
+          <footer className="flex items-center justify-center gap-4 py-4 px-6 border-t-[0.5px] border-white/[0.04]">
+            <Link
+              href="/privacy"
+              className="text-[11px] text-white/20 hover:text-white/40 transition-colors"
+            >
+              Privacy Policy
+            </Link>
+            <span className="text-white/10 text-[11px]">·</span>
+            <Link
+              href="/terms"
+              className="text-[11px] text-white/20 hover:text-white/40 transition-colors"
+            >
+              Terms of Service
+            </Link>
+          </footer>
         </div>
       </div>
     </OrganizationProvider>
