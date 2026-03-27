@@ -70,6 +70,16 @@ export default function Home() {
       <BreadcrumbSchema />
 
       <main>
+        {/* ── Brand Nav ── */}
+        <nav className="px-4 sm:px-6 lg:px-8 pt-6 pb-2">
+          <div className="max-w-4xl mx-auto w-full flex items-center gap-2">
+            <Shield className="w-3.5 h-3.5" style={{ color: SPECTRAL.cyan }} />
+            <span className="text-[11px] uppercase tracking-[0.4em] font-medium text-white/70">
+              ATO Tax Optimizer
+            </span>
+          </div>
+        </nav>
+
         {/* ── Hero ── */}
         <header className="min-h-screen flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-16">
           <div className="max-w-4xl mx-auto w-full text-center">
