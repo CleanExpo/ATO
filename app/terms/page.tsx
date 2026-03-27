@@ -65,7 +65,7 @@ const sections = [
       'Core Analysis \u2014 $495 AUD: Includes standard tax analysis covering deduction recovery and compliance checks across connected financial data.',
       'Comprehensive Audit \u2014 $995 AUD: Includes full forensic audit covering R&D tax offsets (Division 355), Division 7A compliance, misclassified deductions, and 5-year historical analysis with detailed PDF/Excel reports.',
       'All payments are processed securely via Stripe. We do not store your payment card details.',
-      'Refund Policy \u2014 No refunds are available after an analysis report has been generated. If the Service fails to produce any analysis due to a technical error, you are entitled to a full refund. Contact support@carsi.com.au within 14 days of purchase.',
+      'Refund Policy \u2014 No refunds are available after an analysis report has been generated. If the Service fails to produce any analysis due to a technical error, you are entitled to a full refund. Contact support@ato-ai.app within 14 days of purchase.',
     ],
   },
   {
@@ -105,7 +105,7 @@ const sections = [
     id: 'termination',
     title: '8. Termination',
     content: [
-      'You may terminate your account at any time by contacting support@carsi.com.au or through your account settings.',
+      'You may terminate your account at any time by contacting support@ato-ai.app or through your account settings.',
       'We may terminate or suspend your access to the Service at any time, with or without cause, including for breach of these Terms.',
       'Upon termination, your right to use the Service ceases immediately. Your financial data will be deleted within 30 days of your request, subject to any legal retention requirements.',
       'Sections relating to intellectual property, limitation of liability, and governing law survive termination.',
@@ -125,7 +125,7 @@ const sections = [
     title: '10. Contact',
     content: [
       'For questions about these Terms of Service, please contact us:',
-      'Email: support@carsi.com.au',
+      'Email: support@ato-ai.app',
       'Operator: Disaster Recovery Qld (ABN 42 633 062 307)',
       'Location: Queensland, Australia',
     ],

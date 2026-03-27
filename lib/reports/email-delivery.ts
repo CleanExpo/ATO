@@ -52,11 +52,11 @@ export async function sendReportEmail(
 ): Promise<{ id: string; success: boolean }> {
   try {
     const msg: sgMail.MailDataRequired = {
-      from: config.from || 'ATO Tax Optimizer <support@carsi.com.au>',
+      from: config.from || 'ATO Tax Optimizer <support@ato-ai.app>',
       to: Array.isArray(config.to) ? config.to : [config.to],
       subject: config.subject,
       html: htmlContent,
-      replyTo: config.replyTo || 'phill.m@carsi.com.au',
+      replyTo: config.replyTo || 'support@ato-ai.app',
       cc: config.cc ? (Array.isArray(config.cc) ? config.cc : [config.cc]) : undefined,
       bcc: config.bcc ? (Array.isArray(config.bcc) ? config.bcc : [config.bcc]) : undefined,
       attachments: attachments.map((att) => ({
