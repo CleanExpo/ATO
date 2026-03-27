@@ -31,8 +31,8 @@ function ensureSendGridInit(): void {
 }
 
 // Sender (must be verified in SendGrid)
-const FROM_EMAIL = 'ATO Tax Optimizer <support@carsi.com.au>'
-const REPLY_TO = 'phill.m@carsi.com.au'
+const FROM_EMAIL = 'ATO Tax Optimizer <support@ato-ai.app>'
+const REPLY_TO = 'support@ato-ai.app'
 
 export interface SendInvitationEmailParams {
   to: string // Invitee email address

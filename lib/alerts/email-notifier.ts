@@ -139,9 +139,9 @@ export async function sendAlertEmail(
 
     // Send email
     const [response] = await sgMail.send({
-      from: 'ATO Tax Optimizer <support@carsi.com.au>',
+      from: 'ATO Tax Optimizer <support@ato-ai.app>',
       to: recipientEmail,
-      replyTo: 'phill.m@carsi.com.au',
+      replyTo: 'support@ato-ai.app',
       subject: `${config.icon} ${alert.title}`,
       html: `
         <!DOCTYPE html>

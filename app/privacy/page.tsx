@@ -94,7 +94,7 @@ const sections = [
       'Correction — Request correction of any inaccurate or incomplete personal information.',
       'Deletion — Request deletion of your personal information and all associated financial data. We will comply within 30 days unless we are legally required to retain certain records.',
       'Complaint — Lodge a complaint with the Office of the Australian Information Commissioner (OAIC) if you believe your privacy has been breached.',
-      'To exercise any of these rights, contact us at support@carsi.com.au with the subject line "Privacy Request".',
+      'To exercise any of these rights, contact us at support@ato-ai.app with the subject line "Privacy Request".',
     ],
   },
   {
@@ -119,7 +119,7 @@ const sections = [
     title: '10. Contact',
     content: [
       'If you have questions about this Privacy Policy or how we handle your data, please contact us:',
-      'Email: support@carsi.com.au',
+      'Email: support@ato-ai.app',
       'Operator: Disaster Recovery Qld (ABN 42 633 062 307)',
       'Location: Queensland, Australia',
     ],
