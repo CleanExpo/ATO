@@ -21,8 +21,33 @@
 | 10. R&D Registration Workflow | COMPLETED | 100% |
 
 ## Last Activity
-- **Date**: 27 January 2026
-- **Action**: Completed Plan 10-03: Claim Preparation Checklist (Phase 10 complete)
+- **Date**: 27 March 2026
+- **Action**: Full production finalisation complete — PR #7 merged, SendGrid SPF/DKIM verified, GCP branding verified & published
+
+## Production Status (27 March 2026) — FULLY PRODUCTION READY
+| Item | Status | Notes |
+|------|--------|-------|
+| Live site (ato-ai.app) | ✅ UP (200 OK) | Vercel production |
+| Auth enforcement | ✅ ACTIVE | /dashboard → /auth/login (307) |
+| SINGLE_USER_MODE | ✅ false | Set, enforced |
+| PRs merged to main | ✅ #3–#7 | All hardening + branding code live |
+| Stripe idempotency table | ✅ EXISTS | stripe_processed_events (0 rows) |
+| Phase 10 DB migrations | ✅ ALL APPLIED | All 11 tables confirmed |
+| GCP OAuth scopes | ✅ CLEAN | Non-sensitive only (email, profile, openid) |
+| GCP audience | ✅ Production | 100-user cap N/A |
+| Google Search Console | ✅ VERIFIED | ato-ai.app DNS TXT ownership verified |
+| GCP branding verification | ✅ VERIFIED & PUBLISHED | "ATO Tax Optimizer" nav live, branding shown to users |
+| Gemini API billing | ✅ ACTIVE | Firebase Payment billing account linked |
+| SendGrid domain auth (ato-ai.app) | ✅ VERIFIED | 3 CNAME + DMARC TXT added to Vercel DNS |
+| Stripe keys | ⚠️ TEST MODE | Deferred: switch to sk_live_ when ready for real payments |
+
+## Remaining Items (Deferred — Not Blocking)
+1. **Stripe live keys** — Switch `STRIPE_SECRET_KEY` + `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` to live mode in Vercel when ready to accept real payments
+2. **Stripe webhook** — Verify webhook health + switch to live-mode webhook endpoint in Stripe dashboard
+3. **Sentry DSN** — Configure `SENTRY_DSN` in Vercel env vars when Sentry project is created
+4. **GCP developer contact email** — Update from `support@synthex.social` to `support@ato-ai.app` in GCP Auth Platform (cosmetic only)
+
+## Previous Activity
 - **Commits**: `1519160`, `b4dda48`, `43b60fe`, `184c11c`, `f9a7642`, `da07e84`, `a0e63fc`
 - **Files Created**:
   - `lib/supabase/migrations/20260127_rnd_checklist.sql`
@@ -109,7 +134,14 @@
 - Suggested document types per tax area
 
 ## Next Actions
-1. Apply Phase 10 database migrations to Supabase (3 SQL files)
-2. Test Phase 10 features (R&D registration, evidence wizard, checklist)
-3. Consider beginning Milestone 3: Scale & Automation
-4. Consider email notifications for collaboration events
+1. ~~Apply Phase 10 database migrations to Supabase~~ — DONE (27/03/2026)
+2. ~~Verify GCP OAuth consent screen before 50+ users~~ — DONE (27/03/2026)
+3. ~~SINGLE_USER_MODE=false~~ — DONE
+4. ~~PRs #3-6 merged~~ — DONE (production hardening live)
+5. ~~Add "ATO Tax Optimizer" to homepage nav~~ — DONE (PR #7, 27/03/2026)
+6. ~~SendGrid SPF/DKIM for ato-ai.app~~ — DONE (domain auth verified, 27/03/2026)
+7. ~~GCP branding verification~~ — DONE (verified & published, 27/03/2026)
+8. ~~Gemini API billing~~ — DONE (Firebase Payment account confirmed active)
+9. Test Phase 10 features (R&D registration, evidence wizard, checklist)
+10. Begin Milestone 3: Scale & Automation
+11. Switch Stripe to live keys when ready for real payments

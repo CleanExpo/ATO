@@ -62,3 +62,9 @@ ato-app/
 # pnpm
 pnpm-lock.yaml
 .vercel
+
+# Linear API scripts (contain hardcoded keys)
+check-linear.js
+get-issue.js
+get-issue-details.js
+update-issue.js
