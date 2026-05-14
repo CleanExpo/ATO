@@ -1,0 +1,27 @@
+name: Deepsec weekly security scan
+on:
+  schedule:
+    - cron: '0 13 * * 1'   # 23:00 UTC Monday = 09:00 AEST Tuesday
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  deepsec:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Deepsec
+        run: npx -y deepsec scan
+      - name: Open issue on findings
+        if: failure()
+        run: |
+          gh issue create \
+            --title "[deepsec] Weekly scan findings $(date +%Y-%m-%d)" \
+            --label "security,deepsec,weekly-scan" \
+            --body "Deepsec found new issues. See run logs for details."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
