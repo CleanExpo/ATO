@@ -38,8 +38,6 @@ export default function SignupPage() {
   const [error, setError] = useState('')
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
-  const supabase = createClient()
-
   // Validation
   const validateForm = () => {
     const errors: Record<string, string> = {}
@@ -82,6 +80,7 @@ export default function SignupPage() {
       setLoading(true)
       setError('')
 
+      const supabase = createClient()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -108,6 +107,7 @@ export default function SignupPage() {
       setLoading(true)
       setError('')
 
+      const supabase = createClient()
       const { error } = await supabase.auth.signUp({
         email,
         password,

@@ -34,8 +34,6 @@ function VerifyEmailContent() {
   const [error, setError] = useState('')
   const [resent, setResent] = useState(false)
 
-  const supabase = createClient()
-
   const handleResendEmail = async () => {
     if (!email) {
       setError('Email address not found')
@@ -47,6 +45,7 @@ function VerifyEmailContent() {
       setError('')
       setResent(false)
 
+      const supabase = createClient()
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email,

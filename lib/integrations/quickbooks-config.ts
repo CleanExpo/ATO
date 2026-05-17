@@ -30,12 +30,19 @@ export const QUICKBOOKS_CONFIG = {
     'com.intuit.quickbooks.accounting',  // Read/write access to accounting data
   ],
 
-  // Client credentials from environment
-  clientId: serverConfig.quickbooks.clientId,
-  clientSecret: serverConfig.quickbooks.clientSecret,
+  // Client credentials from environment. Keep these lazy so importing the route
+  // during a preview build does not require production secrets.
+  get clientId() {
+    return serverConfig.quickbooks.clientId
+  },
+  get clientSecret() {
+    return serverConfig.quickbooks.clientSecret
+  },
 
   // Redirect URI (must match Intuit app config)
-  redirectUri: `${sharedConfig.baseUrl}/api/auth/quickbooks/callback`,
+  get redirectUri() {
+    return `${sharedConfig.baseUrl}/api/auth/quickbooks/callback`
+  },
 
   // Token storage
   tokenTable: 'quickbooks_tokens',
@@ -59,16 +66,20 @@ export function validateQuickBooksConfig(): {
 } {
   const errors: string[] = []
 
-  if (!QUICKBOOKS_CONFIG.clientId) {
-    errors.push('QUICKBOOKS_CLIENT_ID is not set in environment variables')
-  }
+  try {
+    if (!QUICKBOOKS_CONFIG.clientId) {
+      errors.push('QUICKBOOKS_CLIENT_ID is not set in environment variables')
+    }
 
-  if (!QUICKBOOKS_CONFIG.clientSecret) {
-    errors.push('QUICKBOOKS_CLIENT_SECRET is not set in environment variables')
-  }
+    if (!QUICKBOOKS_CONFIG.clientSecret) {
+      errors.push('QUICKBOOKS_CLIENT_SECRET is not set in environment variables')
+    }
 
-  if (!sharedConfig.baseUrl) {
-    errors.push('NEXT_PUBLIC_BASE_URL is not set in environment variables')
+    if (!sharedConfig.baseUrl) {
+      errors.push('NEXT_PUBLIC_BASE_URL is not set in environment variables')
+    }
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error))
   }
 
   return {

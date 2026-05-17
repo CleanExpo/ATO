@@ -13,8 +13,6 @@ import crypto from 'crypto'
 export const dynamic = 'force-dynamic'
 
 const MYOB_AUTH_URL = 'https://secure.myob.com/oauth2/account/authorize'
-const MYOB_CLIENT_ID = serverConfig.myob.clientId
-const REDIRECT_URI = `${sharedConfig.baseUrl}/api/auth/myob/callback`
 
 /**
  * GET /api/auth/myob/authorize
@@ -42,11 +40,13 @@ export async function GET(request: NextRequest) {
 
     // Generate cryptographic random state for CSRF protection (B-2 fix)
     const state = crypto.randomUUID()
+    const myobClientId = serverConfig.myob.clientId
+    const redirectUri = `${sharedConfig.baseUrl}/api/auth/myob/callback`
 
     // Build authorization URL
     const authUrl = new URL(MYOB_AUTH_URL)
-    authUrl.searchParams.set('client_id', MYOB_CLIENT_ID)
-    authUrl.searchParams.set('redirect_uri', REDIRECT_URI)
+    authUrl.searchParams.set('client_id', myobClientId)
+    authUrl.searchParams.set('redirect_uri', redirectUri)
     authUrl.searchParams.set('response_type', 'code')
     authUrl.searchParams.set('scope', 'CompanyFile')
     authUrl.searchParams.set('state', state)

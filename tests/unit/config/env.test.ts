@@ -424,3 +424,33 @@ describe('validateConfiguration', () => {
     if (savedKey !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = savedKey
   })
 })
+
+describe('logConfigurationStatus', () => {
+  it('does not throw when required env vars are missing', async () => {
+    const saved = {
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    }
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    vi.resetModules()
+    vi.mock('@/lib/logger', () => ({
+      createLogger: () => ({
+        debug: vi.fn(),
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+      }),
+    }))
+    const { logConfigurationStatus } = await import('@/lib/config/env')
+
+    expect(() => logConfigurationStatus()).not.toThrow()
+
+    for (const [key, val] of Object.entries(saved)) {
+      if (val !== undefined) process.env[key] = val
+    }
+  })
+})

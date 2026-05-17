@@ -269,16 +269,44 @@ export function validateConfiguration(): {
  * Log configuration status (safe for production - no secrets)
  */
 export function logConfigurationStatus(): void {
-  log.info('Configuration status', {
-    environment: sharedConfig.isProduction ? 'Production' : 'Development',
-    platform: sharedConfig.isVercel ? 'Vercel' : 'Local',
-    baseUrl: sharedConfig.baseUrl,
-    supabaseUrl: clientConfig.supabase.url,
-    xeroClientId: serverConfig.xero.clientId ? serverConfig.xero.clientId.substring(0, 8) + '...' : 'Not configured',
-    linearTeamId: serverConfig.linear.teamId,
-  });
-
   const validation = validateConfiguration();
+
+  let environment = process.env.NODE_ENV === 'production' ? 'Production' : 'Development';
+  let platform = process.env.VERCEL ? 'Vercel' : 'Local';
+  let baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'Unavailable';
+  let supabaseUrl = 'Not configured';
+  let xeroClientId = 'Not configured';
+  let linearTeamId = '';
+
+  try {
+    environment = sharedConfig.isProduction ? 'Production' : 'Development';
+    platform = sharedConfig.isVercel ? 'Vercel' : 'Local';
+    baseUrl = sharedConfig.baseUrl;
+  } catch {
+    // Keep startup logging non-fatal; validateConfiguration() reports the error below.
+  }
+
+  try {
+    supabaseUrl = clientConfig.supabase.url;
+  } catch {
+    // Missing client env should not crash build-time status logging.
+  }
+
+  try {
+    xeroClientId = serverConfig.xero.clientId ? serverConfig.xero.clientId.substring(0, 8) + '...' : 'Not configured';
+    linearTeamId = serverConfig.linear.teamId;
+  } catch {
+    // Missing server env should not crash build-time status logging.
+  }
+
+  log.info('Configuration status', {
+    environment,
+    platform,
+    baseUrl,
+    supabaseUrl,
+    xeroClientId,
+    linearTeamId,
+  });
 
   if (validation.warnings.length > 0) {
     console.warn('\nWarnings:');

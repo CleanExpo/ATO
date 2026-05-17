@@ -33,13 +33,12 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const supabase = createClient()
-
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true)
       setError('')
 
+      const supabase = createClient()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -61,6 +60,7 @@ export default function LoginPage() {
       setLoading(true)
       setError('')
 
+      const supabase = createClient()
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,

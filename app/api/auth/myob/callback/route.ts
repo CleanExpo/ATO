@@ -15,9 +15,6 @@ export const dynamic = 'force-dynamic'
 const log = createLogger('api:auth:myob-callback')
 
 const MYOB_TOKEN_URL = 'https://secure.myob.com/oauth2/v1/authorize'
-const MYOB_CLIENT_ID = serverConfig.myob.clientId
-const MYOB_CLIENT_SECRET = serverConfig.myob.clientSecret
-const REDIRECT_URI = `${sharedConfig.baseUrl}/api/auth/myob/callback`
 
 /**
  * GET /api/auth/myob/callback
@@ -58,6 +55,9 @@ export async function GET(request: NextRequest) {
 
     // Use userId from the verified cookie, not from the URL parameter
     const state = storedState.userId
+    const myobClientId = serverConfig.myob.clientId
+    const myobClientSecret = serverConfig.myob.clientSecret
+    const redirectUri = `${sharedConfig.baseUrl}/api/auth/myob/callback`
 
     // Exchange code for tokens
     const tokenResponse = await fetch(MYOB_TOKEN_URL, {
@@ -66,11 +66,11 @@ export async function GET(request: NextRequest) {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        client_id: MYOB_CLIENT_ID,
-        client_secret: MYOB_CLIENT_SECRET,
+        client_id: myobClientId,
+        client_secret: myobClientSecret,
         grant_type: 'authorization_code',
         code,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: redirectUri,
       }),
     })
 
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       {
         headers: {
           Authorization: `Bearer ${tokens.access_token}`,
-          'x-myobapi-key': MYOB_CLIENT_ID,
+          'x-myobapi-key': myobClientId,
           'x-myobapi-version': 'v2',
         },
       }

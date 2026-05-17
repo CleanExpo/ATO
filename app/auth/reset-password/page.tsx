@@ -35,16 +35,15 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false)
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
 
-  const supabase = createClient()
-
   useEffect(() => {
     // Check if user has valid recovery session
+    const supabase = createClient()
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         setError('Invalid or expired reset link. Please request a new password reset.')
       }
     })
-  }, [supabase.auth])
+  }, [])
 
   const validateForm = () => {
     const errors: Record<string, string> = {}
@@ -81,6 +80,7 @@ export default function ResetPasswordPage() {
       setLoading(true)
       setError('')
 
+      const supabase = createClient()
       const { error } = await supabase.auth.updateUser({
         password,
       })
