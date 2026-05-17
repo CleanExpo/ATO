@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -23,7 +23,6 @@ const mockRateLimit = vi.fn((_opts?: any) => ({
 }))
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockCreateRateLimitResponse = vi.fn((_result?: any) => {
-  const { NextResponse } = require('next/server')
   return NextResponse.json(
     { error: 'Too Many Requests', message: 'Rate limit exceeded.' },
     { status: 429 }

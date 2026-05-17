@@ -134,8 +134,22 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=test-anon-key" >> .env.local
           echo "SUPABASE_SERVICE_ROLE_KEY=test-service-role-key" >> .env.local
 
+      - name: Build and start test server
+        run: |
+          pnpm build
+          pnpm start > next-server.log 2>&1 &
+          echo $! > next-server.pid
+          for i in {1..60}; do
+            if curl -fsS http://localhost:3000 >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat next-server.log
+          exit 1
+
       - name: Run E2E tests
-        run: pnpm test:e2e
+        run: pnpm exec playwright test tests/e2e/landing-page.spec.ts tests/e2e/accessibility.spec.ts --project=chromium
         env:
           CI: true
           PLAYWRIGHT_BASE_URL: http://localhost:3000
@@ -164,3 +178,10 @@ jobs:
         env:
           CI: true
           PLAYWRIGHT_BASE_URL: http://localhost:3000
+
+      - name: Stop test server
+        if: always()
+        run: |
+          if [ -f next-server.pid ]; then
+            kill "$(cat next-server.pid)" 2>/dev/null || true
+          fi

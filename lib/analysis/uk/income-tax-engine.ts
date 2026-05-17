@@ -213,7 +213,7 @@ export class UKIncomeTaxEngine extends BaseTaxEngine {
   ): { breakdown: BracketBreakdown[]; total: number } {
     const breakdown: BracketBreakdown[] = []
     let totalTax = new Decimal(0)
-    let remainingIncome = this.decimal(taxableIncome).add(personalAllowance)
+    const remainingIncome = this.decimal(taxableIncome).add(personalAllowance)
 
     for (const bracket of brackets) {
       const bracketMin = this.decimal(bracket.min)

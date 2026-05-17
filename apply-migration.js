@@ -5,6 +5,7 @@
  *
  * If no password provided, reads from SUPABASE_DB_PASSWORD env var
  */
+/* eslint-disable @typescript-eslint/no-require-imports -- This is a standalone CommonJS Node script. */
 const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');

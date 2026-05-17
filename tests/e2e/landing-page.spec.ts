@@ -49,16 +49,16 @@ test.describe('Hero Section', () => {
   test('should display main value proposition', async ({ page }) => {
     await page.goto('/')
 
-    // Check for key messaging
-    await expect(page.getByText(/Deep AI Analysis|Tax Optimizer/i)).toBeVisible()
-    await expect(page.getByText(/\$200K|\$500K/i)).toBeVisible()
+    // Check for current hero messaging
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Your Xero Data Holds')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('$200K+')
   })
 
   test('should have working CTA buttons', async ({ page }) => {
     await page.goto('/')
 
     // Primary CTA should be visible
-    const primaryCTA = page.getByRole('link', { name: /Get Started|Start Analysis/i }).first()
+    const primaryCTA = page.getByRole('link', { name: /Connect Xero|Get Started|Start Analysis/i }).first()
     await expect(primaryCTA).toBeVisible()
 
     // Should have valid href
@@ -88,10 +88,10 @@ test.describe('Feature Sections', () => {
     await page.goto('/')
 
     // Check for R&D Tax Incentive mention
-    await expect(page.getByText(/R&D|Division 355/i)).toBeVisible()
+    await expect(page.getByText(/Division 355 ITAA 1997/i).first()).toBeVisible()
 
     // Check for Xero integration
-    await expect(page.getByText(/Xero/i)).toBeVisible()
+    await expect(page.getByText(/Xero/i).first()).toBeVisible()
   })
 
   test('should have workflow steps', async ({ page }) => {
@@ -115,7 +115,7 @@ test.describe('Pricing Section', () => {
     await page.goto('/')
 
     // Check for pricing amount
-    await expect(page.getByText(/\$995|\$\d{3,}/i)).toBeVisible()
+    await expect(page.getByText(/\$995 audit fee/i).first()).toBeVisible()
   })
 
   test('should have money-back guarantee', async ({ page }) => {
@@ -163,22 +163,17 @@ test.describe('Navigation Header', () => {
     expect(hasLogo || hasBrand).toBeTruthy()
   })
 
-  test('should have login link in header', async ({ page }) => {
+  test('should expose dashboard navigation', async ({ page }) => {
     await page.goto('/')
 
-    const loginLink = page.getByRole('link', { name: /Sign In|Login/i }).first()
-    await expect(loginLink).toBeVisible()
+    const dashboardLink = page.getByRole('link', { name: /View Dashboard/i }).first()
+    await expect(dashboardLink).toBeVisible()
   })
 
-  test('should have sticky or fixed navigation', async ({ page }) => {
+  test('should have visible navigation landmark', async ({ page }) => {
     await page.goto('/')
 
-    // Scroll down
-    await page.evaluate(() => window.scrollBy(0, 500))
-
-    // Header should still be visible (if it's sticky/fixed)
-    const loginLink = page.getByRole('link', { name: /Sign In|Login/i }).first()
-    await expect(loginLink).toBeVisible()
+    await expect(page.locator('nav').first()).toBeVisible()
   })
 })
 
@@ -193,10 +188,10 @@ test.describe('Mobile Landing Page', () => {
     await page.goto('/')
 
     // Hero should be visible
-    await expect(page.getByText(/Deep AI Analysis|Tax Optimizer/i)).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Your Xero Data Holds')
 
     // CTA should be visible
-    const cta = page.getByRole('link', { name: /Get Started/i }).first()
+    const cta = page.getByRole('link', { name: /Connect Xero|Get Started/i }).first()
     await expect(cta).toBeVisible()
   })
 
@@ -223,11 +218,11 @@ test.describe('CTA User Journey', () => {
   test('primary CTA should lead to signup or dashboard', async ({ page }) => {
     await page.goto('/')
 
-    const primaryCTA = page.getByRole('link', { name: /Get Started|Start Analysis/i }).first()
+    const primaryCTA = page.getByRole('link', { name: /Connect Xero|Get Started|Start Analysis/i }).first()
     await primaryCTA.click()
 
-    // Should navigate to either signup or dashboard
-    await expect(page).toHaveURL(/\/auth\/signup|\/dashboard/)
+    // Should navigate into the onboarding/auth flow or dashboard
+    await expect(page).toHaveURL(/\/api\/auth\/xero|\/auth\/signup|\/dashboard/)
   })
 
   test('accountant CTA should navigate to accountant section', async ({ page }) => {

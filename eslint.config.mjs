@@ -13,6 +13,8 @@ export default [
       "dist/**",
       "build/**",
       ".vercel/**",
+      "playwright-report/**",
+      "test-results/**",
       "*.config.js",
       "*.config.mjs",
       "*.config.ts",

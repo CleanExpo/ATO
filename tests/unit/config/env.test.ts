@@ -84,7 +84,7 @@ describe('optionalConfig', () => {
     }))
     const { optionalConfig } = await import('@/lib/config/env')
 
-    expect(optionalConfig.googleAiModel).toBe('gemini-2.0-flash')
+    expect(optionalConfig.googleAiModel).toBe('gemini-3-flash-preview')
 
     if (saved !== undefined) process.env.GOOGLE_AI_MODEL = saved
   })
