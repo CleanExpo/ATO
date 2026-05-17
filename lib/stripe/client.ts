@@ -29,7 +29,7 @@ function getStripeInstance(): Stripe {
       log.warn('Stripe initialised with TEST key in PRODUCTION — payments will not be real');
     }
     stripeInstance = new Stripe(apiKey, {
-      apiVersion: '2026-01-28.clover',
+      apiVersion: '2026-02-25.clover',
       typescript: true,
       appInfo: {
         name: 'ATO Tax Optimizer',
