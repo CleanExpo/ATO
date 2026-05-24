@@ -29,7 +29,13 @@ function getStripeInstance(): Stripe {
       log.warn('Stripe initialised with TEST key in PRODUCTION — payments will not be real');
     }
     stripeInstance = new Stripe(apiKey, {
-      apiVersion: '2026-02-25.clover',
+      // Pinned to what stripe@20.3.0 types declare. Bumping the string to
+      // a newer API date (e.g. '2026-02-25.clover') without first upgrading
+      // the SDK version produces TS2322 — the typed `apiVersion` union only
+      // contains the date the installed SDK knows about. Coordinate any
+      // bump here with a `pnpm up stripe` (and a re-test of the webhook
+      // signature path, which is API-version-sensitive).
+      apiVersion: '2026-01-28.clover',
       typescript: true,
       appInfo: {
         name: 'ATO Tax Optimizer',
