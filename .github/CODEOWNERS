@@ -1,0 +1,3 @@
+# CODEOWNERS — sole owner is the CleanExpo account (solo founder workflow)
+# Self-review is acceptable for this single-owner setup.
+* @CleanExpo
