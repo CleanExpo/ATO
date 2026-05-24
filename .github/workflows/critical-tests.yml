@@ -9,8 +9,6 @@ on:
 
 env:
   NODE_VERSION: "20"
-  PNPM_VERSION: "9"
-
 jobs:
   critical-tests:
     name: Run Critical Tests (500-1,000)
@@ -23,8 +21,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # version is read from package.json#packageManager (pnpm@9.15.9) — single SSOT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

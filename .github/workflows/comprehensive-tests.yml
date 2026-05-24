@@ -28,8 +28,6 @@ on:
 
 env:
   NODE_VERSION: "20"
-  PNPM_VERSION: "9"
-
 jobs:
   unit-tests:
     if: inputs.test_type == 'all' || inputs.test_type == 'unit' || github.event_name == 'schedule'
@@ -43,8 +41,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # version is read from package.json#packageManager (pnpm@9.15.9) — single SSOT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -88,8 +85,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # version is read from package.json#packageManager (pnpm@9.15.9) — single SSOT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -138,8 +134,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # version is read from package.json#packageManager (pnpm@9.15.9) — single SSOT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -201,8 +196,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # version is read from package.json#packageManager (pnpm@9.15.9) — single SSOT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -246,8 +240,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # version is read from package.json#packageManager (pnpm@9.15.9) — single SSOT
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
