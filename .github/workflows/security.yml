@@ -60,14 +60,17 @@ jobs:
           fail-on-severity: moderate
           deny-licenses: GPL-3.0, LGPL-3.0
 
-  # Renamed from `npm-audit` → `dependency-audit` because the project's actual
-  # package manager is pnpm (pnpm-lock.yaml is committed; package.json is the
-  # SSOT for dep versions). The previous `npm ci` step was failing on every
-  # run with EUSAGE because the stale tracked package-lock.json was never
-  # regenerated when pnpm bumped deps, so npm refused to install. Switching
-  # to `pnpm install --frozen-lockfile` + `pnpm audit` uses the lockfile we
-  # actually keep up to date and gives us a working audit again.
-  dependency-audit:
+  # The project's actual package manager is pnpm (pnpm-lock.yaml is committed;
+  # package.json is the SSOT for dep versions). The previous `npm ci` step was
+  # failing on every run with EUSAGE because the stale tracked
+  # package-lock.json was never regenerated when pnpm bumped deps, so npm
+  # refused to install. Switched to `pnpm install --frozen-lockfile` +
+  # `pnpm audit` against the lockfile we actually keep up to date.
+  #
+  # YAML key stays `npm-audit` so `security-summary` job's `needs:` array
+  # still resolves; display name also stays "NPM Audit" so branch protection
+  # rules referring to that check name continue to match.
+  npm-audit:
     name: NPM Audit
     runs-on: ubuntu-latest
     timeout-minutes: 15
