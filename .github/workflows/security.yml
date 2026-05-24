@@ -60,6 +60,16 @@ jobs:
           fail-on-severity: moderate
           deny-licenses: GPL-3.0, LGPL-3.0
 
+  # The project's actual package manager is pnpm (pnpm-lock.yaml is committed;
+  # package.json is the SSOT for dep versions). The previous `npm ci` step was
+  # failing on every run with EUSAGE because the stale tracked
+  # package-lock.json was never regenerated when pnpm bumped deps, so npm
+  # refused to install. Switched to `pnpm install --frozen-lockfile` +
+  # `pnpm audit` against the lockfile we actually keep up to date.
+  #
+  # YAML key stays `npm-audit` so `security-summary` job's `needs:` array
+  # still resolves; display name also stays "NPM Audit" so branch protection
+  # rules referring to that check name continue to match.
   npm-audit:
     name: NPM Audit
     runs-on: ubuntu-latest
@@ -68,29 +78,33 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        # version is read from package.json#packageManager (or repo default)
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: Run npm audit
-        run: npm audit --audit-level=critical
+      - name: Run pnpm audit
+        run: pnpm audit --audit-level=critical --prod
 
       - name: Generate audit report
         if: always()
-        run: npm audit --json > npm-audit-report.json
+        run: pnpm audit --json --prod > pnpm-audit-report.json
         continue-on-error: true
 
       - name: Upload audit report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: npm-audit-report
-          path: npm-audit-report.json
+          name: pnpm-audit-report
+          path: pnpm-audit-report.json
           retention-days: 30
 
   trivy-scan:
