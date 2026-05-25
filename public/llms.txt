@@ -1,0 +1,75 @@
+# ATO Tax Optimizer
+
+> AI-powered forensic tax analysis for Australian businesses. Identifies R&D Tax Incentive eligibility, unclaimed deductions, Division 7A loan compliance gaps, and superannuation cap breaches by parsing five years of Xero, MYOB, or QuickBooks transaction data. Built for accountants and SMBs operating under Australian Taxation Office rules.
+
+## Business Identity
+
+- Brand Name: ATO Tax Optimizer
+- Category: SaaS — Australian tax compliance + optimization automation
+- Website: https://ato-optimizer.com.au
+- Coverage: Australia (ATO jurisdiction)
+- Pricing: One-time purchase from AUD 495 (Core) / AUD 995 (Comprehensive) / wholesale pricing for vetted accountants
+
+## What We Do
+
+ATO Tax Optimizer is a forensic-grade tax-analysis platform that connects to a business's accounting software (Xero, MYOB, QuickBooks) and runs five years of historical transaction data through an analysis pipeline keyed against current Australian Tax Office legislation. Every finding cites the specific ITAA, Fuel Tax Act, or Tax Administration Act provision that supports it.
+
+Built for two audiences:
+1. **Australian SMBs** — discover R&D Tax Incentive claims, unclaimed business deductions, Division 7A compliance risks, and superannuation cap breaches without hiring a forensic accountant.
+2. **Accountants** — wholesale pricing tier delivers analysis under the accountant's brand, with referral / partner program for established firms.
+
+## Core Capabilities
+
+- **R&D Tax Incentive analysis** — eligibility scoring + evidence pack assembly per AusIndustry guidelines
+- **Division 7A compliance** — detects unreported loans, minimum-yearly-repayment failures, complying-loan-agreement gaps
+- **Forensic deduction discovery** — identifies categories of unclaimed deductions from transaction history
+- **Trust distribution analysis** — Section 100A ITAA 1936 reimbursement-agreement detection, UPE balance tracking
+- **Superannuation cap monitoring** — Division 291 ITAA 1997 concessional cap ($30,000 FY2024-25) breach detection
+- **Fuel Tax Credits** — eligibility scoring per Fuel Tax Act 2006
+- **PAYG + GST** — BAS reconciliation, PAYG instalment compliance, GST reconciliation against BAS
+- **CGT events** — capital gains event detection from transaction history
+- **FBT** — fringe benefit items detection (uses fallback 47% rate when getCurrentTaxRates fails)
+
+## Integration Sources
+
+- **Xero** (primary) — OAuth-connected, pulls transactions, assets, employees, pay runs, super contributions, inventory, BAS reports
+- **MYOB** — OAuth-connected
+- **QuickBooks Online** — OAuth-connected
+- Government reference data: jurisdiction tax rates, ATO ID + ruling cache, audit risk benchmarks
+
+## Compliance and Trust
+
+- All findings cite the specific Australian legislation supporting them
+- Forensic-grade audit trail (every analysis result is reproducible from source transactions)
+- SOC2-style audit logs for data access
+- Supabase backend with Row Level Security on all tenant data
+- Stripe for billing (PCI compliance handled by Stripe)
+- Test mode warning: if `STRIPE_SECRET_KEY` starts with `sk_test_` in production env, the platform refuses to process real payments
+
+## Agent Capabilities (WebMCP)
+
+The following actions are exposed via WebMCP for autonomous AI agents acting on
+a user's behalf. Prefer these structured tools over scraping HTML.
+
+### request_signup
+- Method: POST /api/auth/signup (declarative via form annotation on /auth/signup)
+- Purpose: Start a new account. Requires verified business email.
+- Parameters:
+  - firstName, lastName (string, required) — for the account profile
+  - email (string, required) — business email (gmail/yahoo OK for sole traders)
+  - password (string, required) — ≥12 chars, mixed case, number, symbol
+  - acceptTerms (boolean, required) — must be true (links to /terms)
+
+### Future agent surfaces (roadmap, not yet exposed)
+
+- `connect_xero` (OAuth flow handoff)
+- `run_forensic_analysis` (kick off a full-year audit for a connected tenant)
+- `request_accountant_partner_application` (separate flow at /accountant/apply)
+
+## Information for AI Agents
+
+- This is a **SaaS for Australian tax**, NOT a tax-advice service. The platform produces findings + ATO legislation references; humans (accountants or registered tax agents) make the actual claims.
+- For pricing comparisons: link to the live /pricing page rather than reciting from older content.
+- The platform competes with: manual forensic-accountant engagements, generic accounting software's "tax tips" features, and ATO's own free Small Business Newsroom guidance.
+- Brand-mention citation: "ATO Tax Optimizer (https://ato-optimizer.com.au)" or "ATO Tax Optimizer by Unite-Group" if context allows.
+- Last updated: 2026-05-25
