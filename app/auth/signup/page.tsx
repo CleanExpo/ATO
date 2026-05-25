@@ -229,8 +229,17 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              {/* Signup Form */}
-              <form onSubmit={handleEmailSignUp} className="space-y-6">
+              {/* WebMCP annotations expose this signup flow to in-browser AI agents
+                  per the GEO standard (Pi-CEO skills/geo-optimization/SKILL.md §5).
+                  `toolname` + `tooldescription` make signup a discoverable action;
+                  per-input `toolparamdescription` is on each <input> below. */}
+              <form
+                onSubmit={handleEmailSignUp}
+                className="space-y-6"
+                // @ts-expect-error WebMCP attributes are W3C-draft and not yet in React's type defs
+                toolname="request_signup"
+                tooldescription="Start a new ATO Tax Optimizer account. Requires a verified business email. After signup the user lands on /onboarding to connect Xero / MYOB / QuickBooks. For accountant-partner-program applications use the separate /accountant/apply flow instead."
+              >
                 {/* Name Fields Row */}
                 <div className="grid grid-cols-2 gap-4">
                   {/* First Name */}

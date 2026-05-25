@@ -1,0 +1,113 @@
+name: Lighthouse Agentic Browsing
+
+# Audits the production deploy against the GEO-optimization standard
+# (Pi-CEO skills/geo-optimization/SKILL.md §6).
+# Phase 2 GEO rollout — pattern mirrors Disaster-Recovery + Synthex.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'components/**'
+      - 'public/llms.txt'
+      - 'next.config.*'
+      - '.github/workflows/lighthouse-agentic.yml'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: lighthouse-agentic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  agentic-audit:
+    name: Agentic Browsing audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: write
+      deployments: read
+      statuses: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine target URL
+        id: target
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            URL=""
+            for i in {1..15}; do
+              URL=$(gh api "repos/${{ github.repository }}/deployments?ref=${{ github.head_ref }}&per_page=5" \
+                --jq '.[0].payload.web_url // empty' 2>/dev/null || true)
+              if [ -n "$URL" ]; then
+                echo "Found Vercel deployment URL: $URL"
+                break
+              fi
+              echo "Attempt $i/15: no deployment URL yet — waiting 20s"
+              sleep 20
+            done
+            if [ -z "$URL" ]; then
+              echo "::warning::Could not resolve Vercel preview URL — skipping audit"
+              echo "url=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          else
+            URL="https://ato-optimizer.com.au"
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Auditing: $URL"
+
+      - name: Wait for preview to be reachable
+        if: steps.target.outputs.url != ''
+        continue-on-error: true
+        run: |
+          set +e
+          for i in {1..15}; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ steps.target.outputs.url }}" 2>/dev/null || echo "000")
+            [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ] && echo "Preview reachable (HTTP $STATUS)" && exit 0
+            echo "Attempt $i/15: HTTP $STATUS — waiting"
+            sleep 20
+          done
+          echo "::warning::Preview did not become reachable in 5min — proceeding anyway"
+
+      - name: Lighthouse CI
+        if: steps.target.outputs.url != ''
+        continue-on-error: true
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          urls: |
+            ${{ steps.target.outputs.url }}/
+            ${{ steps.target.outputs.url }}/auth/signup
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          configPath: ./.lighthouseagenticrc.json
+
+      - name: Probe llms.txt + WebMCP presence
+        if: steps.target.outputs.url != ''
+        run: |
+          URL="${{ steps.target.outputs.url }}"
+          echo "## Agentic Browsing pre-checks" >> $GITHUB_STEP_SUMMARY
+          LLMS_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/llms.txt")
+          LLMS_SIZE=$(curl -sI "$URL/llms.txt" | awk '/[Cc]ontent-[Ll]ength:/ {print $2}' | tr -d '\r')
+          if [ "$LLMS_STATUS" = "200" ] && [ "${LLMS_SIZE:-0}" -gt 1000 ]; then
+            echo "- ✅ \`llms.txt\` present, ${LLMS_SIZE} bytes" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ \`llms.txt\` HTTP $LLMS_STATUS, size=${LLMS_SIZE:-0}" >> $GITHUB_STEP_SUMMARY
+          fi
+          SIGNUP_HTML=$(curl -s "$URL/auth/signup")
+          if echo "$SIGNUP_HTML" | grep -q 'toolname='; then
+            echo "- ✅ WebMCP annotations on /auth/signup" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ❌ No WebMCP toolname on /auth/signup" >> $GITHUB_STEP_SUMMARY
+          fi
+          ROOT_HTML=$(curl -s "$URL/")
+          JSONLD_COUNT=$(echo "$ROOT_HTML" | grep -c 'application/ld+json')
+          echo "- ${JSONLD_COUNT:+✅}${JSONLD_COUNT:-❌} JSON-LD blocks on /: ${JSONLD_COUNT:-0}" >> $GITHUB_STEP_SUMMARY
