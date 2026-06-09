@@ -27,7 +27,7 @@
 - Historical transaction cache: **12,236 records**
 - AI analysis results storage
 
-**Production URL:** https://ato-blush.vercel.app
+**Production URL:** https://ato-ai.app
 **Status:** Live and fully operational
 
 **Recent Update (Jan 28, 2026):**
@@ -143,14 +143,14 @@ Build comprehensive tax reporting dashboard with:
 | Organizations Connected | 2 |
 | Transactions Imported | 12,236 |
 | AI Analysis Progress | 100 / 12,236 (0.8%) |
-| Deployment URL | https://ato-blush.vercel.app |
+| Deployment URL | https://ato-ai.app |
 
 ---
 
 ## 🚀 Production Deployment
 
 **Environment:** Vercel
-**URL:** https://ato-blush.vercel.app
+**URL:** https://ato-ai.app
 **Status:** ✅ Healthy
 
 **Recent Deployments:**
@@ -212,7 +212,7 @@ To complete the ATO project to 100%, the remaining task is to implement the Tax 
 ## 🔗 Resources
 
 - **Linear Project:** https://linear.app/unite-hub/project/ato-3f31f766c467/overview
-- **Production Site:** https://ato-blush.vercel.app
+- **Production Site:** https://ato-ai.app
 - **GitHub Repository:** https://github.com/CleanExpo/ATO
 - **Vercel Dashboard:** https://vercel.com/unite-group/ato/deployments
 

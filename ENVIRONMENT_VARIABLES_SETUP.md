@@ -52,7 +52,7 @@ Environment: ✅ Production only
 
 For Preview/Development:
 ```
-https://ato-blush.vercel.app
+https://ato-ai.app
 ```
 Environments: ✅ Preview + Development
 
@@ -132,7 +132,7 @@ Environment: ✅ Production only
 
 For Preview/Development:
 ```
-https://ato-blush.vercel.app/api/auth/google/callback
+https://ato-ai.app/api/auth/google/callback
 ```
 Environments: ✅ Preview + Development
 
