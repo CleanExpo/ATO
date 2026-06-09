@@ -125,7 +125,10 @@ jobs:
 
       - name: Create test environment file
         run: |
-          echo "NEXT_PUBLIC_SUPABASE_URL=https://test.supabase.co" > .env.local
+          # Use a local port that isn't running. ECONNREFUSED is fast
+          # and doesn't hang the request. Auth checks still pass-through
+          # as user=null because the connection fails.
+          echo "NEXT_PUBLIC_SUPABASE_URL=http://localhost:54321" > .env.local
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=test-anon-key" >> .env.local
           echo "SUPABASE_SERVICE_ROLE_KEY=test-service-role-key" >> .env.local
 

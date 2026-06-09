@@ -119,13 +119,30 @@ function validateClientConfig() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const stripePublishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
+  // Vercel preview builds have no real env vars set. Use placeholders so
+  // the build can collect page data; runtime in production still requires
+  // real env vars. Local dev / unit tests / production deploys unaffected.
+  const isVercelPreview = process.env.VERCEL_ENV === 'preview';
+
   if (!supabaseUrl || supabaseUrl.trim() === '') {
+    if (isVercelPreview) {
+      return {
+        supabase: { url: 'https://placeholder.supabase.co', anonKey: 'placeholder' },
+        stripe: { publishableKey: stripePublishableKey?.trim() ?? '' },
+      };
+    }
     throw new ConfigurationError(
       'Missing required environment variable: NEXT_PUBLIC_SUPABASE_URL\n' +
       'Please set this variable in your Vercel dashboard or .env.local file.'
     );
   }
   if (!supabaseAnonKey || supabaseAnonKey.trim() === '') {
+    if (isVercelPreview) {
+      return {
+        supabase: { url: 'https://placeholder.supabase.co', anonKey: 'placeholder' },
+        stripe: { publishableKey: stripePublishableKey?.trim() ?? '' },
+      };
+    }
     throw new ConfigurationError(
       'Missing required environment variable: NEXT_PUBLIC_SUPABASE_ANON_KEY\n' +
       'Please set this variable in your Vercel dashboard or .env.local file.'

@@ -51,9 +51,15 @@ export async function middleware(request: NextRequest) {
 
   // IMPORTANT: Do NOT use getSession() — it reads from cookies without validation.
   // getUser() sends a request to the Supabase Auth server to validate and refresh the token.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  // Wrap in try/catch so a network failure (e.g. test env with no real Supabase)
+  // is treated as anonymous instead of blocking the request.
+  let user: { id: string } | null = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (error) {
+    console.warn('[middleware] Supabase getUser failed, treating as anonymous:', (error as Error)?.message ?? error);
+  }
 
   // Protect dashboard routes — redirect to login if not authenticated
   // Single-user mode bypasses auth (local development / self-hosted)
