@@ -101,9 +101,11 @@ export default defineConfig({
     ] : []),
   ],
 
-  // Run your local dev server before starting the tests (disabled in CI)
-  webServer: process.env.CI ? undefined : {
-    command: 'npm run dev',
+  // Run your local dev server before starting the tests.
+  // The `process.env.PLAYWRIGHT_BASE_URL` guard lets CI use a real external
+  // URL (e.g. Vercel preview via VERCEL_URL) without spinning up a dev server.
+  webServer: process.env.PLAYWRIGHT_BASE_URL && process.env.PLAYWRIGHT_BASE_URL !== 'http://localhost:3000' ? undefined : {
+    command: 'pnpm dev',
     url: 'http://localhost:3000',
     reuseExistingServer: true,
     timeout: 120 * 1000,
