@@ -1,0 +1,54 @@
+```json
+{
+  "zteLevel": 2,
+  "zteScore": 29,
+  "leveragePoints": [
+    { "id": 1, "name": "Spec Quality", "score": 3 },
+    { "id": 2, "name": "Context Precision", "score": 3 },
+    { "id": 3, "name": "Model Selection", "score": 2 },
+    { "id": 4, "name": "Tool Availability", "score": 3 },
+    { "id": 5, "name": "Feedback Loops", "score": 2 },
+    { "id": 6, "name": "Error Recovery", "score": 3 },
+    { "id": 7, "name": "Session Continuity", "score": 2 },
+    { "id": 8, "name": "Quality Gating", "score": 3 },
+    { "id": 9, "name": "Cost Efficiency", "score": 2 },
+    { "id": 10, "name": "Trigger Automation", "score": 3 },
+    { "id": 11, "name": "Knowledge Retention", "score": 1 },
+    { "id": 12, "name": "Workflow Standardization", "score": 2 }
+  ],
+  "productionGaps": [
+    "Spec Quality: spec.md referenced in README.md but not provided; agent AGENT.md files describe capabilities narratively with no machine-testable acceptance criteria or Given/When/Then format",
+    "Spec Quality: CLAUDE.md compliance audit (2026-02-07) lists 15+ open findings (Div7a-1 through F-2) with no closure evidence — unresolved findings shipped to production",
+    "Context Precision: CLAUDE.md is corrupt/binary-garbled in the live file (truncated at Jina AI section with binary bytes), meaning injected context is partially unreadable by agents",
+    "Context Precision: docs-backup-20260213-150302/ duplicates all source files — no compression or relevance filtering; agents receive duplicate context noise",
+    "Model Selection: Single Gemini model (gemini-3-flash-preview) hardcoded in optionalConfig in lib/config/env.ts with no routing logic, fallback model, or complexity-based selection",
+    "Feedback Loops: agents/council/index.ts exports CouncilOfLogicOrchestrator but no evidence lessons.jsonl or equivalent exists; no evaluator-to-generator feedback pipeline found in codebase",
+    "Feedback Loops: lib/agents/quality-gates.ts referenced in README.md and MULTI_AGENT_ARCHITECTURE.md but file content not provided — gate enforcement unverifiable",
+    "Session Continuity: agents described as stateless in AGENTS_README.md ('Safe to restart - agents are stateless, no data loss'); no checkpoint files, phase-level resume, or disk-persisted state observed",
+    "Session Continuity: docs-backup-20260213-150302/.agent/context-manager/index.ts implements in-memory ContextManager (tokenUsage field) — state lost on process crash, no disk persistence",
+    "Quality Gating: lib/agents/quality-gates.ts referenced but not shown; README table shows 6 gates but AGENTS_README.md explicitly notes database migration is optional and agents work without it — gate bypass path exists",
+    "Cost Efficiency: No budget tracking, cost-per-session dashboard, or token spend alerting found; AI_COST_LIMIT_USD and MAX_AI_COST_USD exist in .env.example but no enforcement code visible beyond optionalConfig string read",
+    "Cost Efficiency: Rate limiting in lib/middleware/rate-limit.ts is in-memory only per CLAUDE.md VULN-1 — no distributed rate limit enforcement in production Vercel serverless environment",
+    "Trigger Automation: vercel.json defines 6 cron jobs (alerts, slack, compliance, email, analysis, admin) providing scheduling; no webhook or Linear event poller trigger found in provided files",
+    "Knowledge Retention: No lessons.jsonl, lessons store, or equivalent found anywhere in the codebase; agents/types/index.ts AgentReport has findings[] and recommendations[] but no persistence-to-lessons pipeline",
+    "Knowledge Retention: agent_reports table SQL in AGENTS_README.md stores findings per-run but no code extracts patterns or injects them into future prompts",
+    "Workflow Standardization: MULTI_AGENT_ARCHITECTURE.md defines PITER-like phases but workflow varies: some agents use /slash-commands, others use npm run scripts, others use Linear — no single enforced classifier entry point",
+    "Workflow Standardization: CLAUDE.md file is corrupt (binary garbage bytes present in live file) — the primary workflow definition document is unreadable to automated agents"
+  ],
+  "loadRisks": [
+    "In-memory rate limiting (lib/middleware/rate-limit.ts) not shared across Vercel serverless instances — rate limits bypassable under load by distributing requests, creating DoS vector and AI cost explosion risk",
+    "Gemini AI batch processor uses 4-second delay between requests for free-tier rate limit (15 req/min) — under load with 12,236 transactions, sequential processing creates 3-4 hour analysis windows with no parallelism or queue backpressure",
+    "Single model routing: if gemini-3-flash-preview is unavailable or rate-limited, no fallback model is wired; entire analysis pipeline stalls with no graceful degradation",
+    "ContextManager in docs-backup-20260213-150302/.agent/context-manager/index.ts estimates token reduction at 50% with a hardcoded multiplier (not actual measurement) — inaccurate compaction under real load may cause silent context overflow",
+    "agent_reports table migration is optional per AGENTS_README.md — if migration not applied, findings are console-only with no persistence; dashboard shows 'No Agent Reports Yet' under load when DB unavailable",
+    "PDF generation in lib/reports/pdf-generator.ts launches Puppeteer with --no-sandbox on every request; concurrent PDF generation under load will exhaust Vercel memory limits (1GB default) and crash functions",
+    "Supabase getUser() called in middleware.ts on every request including static assets — high-traffic scenarios create N×Supabase Auth server round-trips; try/catch treats all auth failures as anonymous (security regression under network partition)",
+    "Division 7A engine has hardcoded currentFY = 'FY2024-25' (FINDING 7A-1 in CLAUDE.md) — after 1 July 2025 all production calculations silently use wrong benchmark rate; no automated rate expiry check"
+  ],
+  "topThreeROI": [
+    "Knowledge Retention — Score 1, highest delta possible (+4). Zero lessons infrastructure means every agent run starts from scratch. Implementing lessons.jsonl capture from agent_reports findings + injection into future prompts would compound quality improvement across all 29 agents with zero marginal cost per run.",
+    "Session Continuity — Score 2, critical for long-running 3-4 hour analysis jobs. A single crash loses all progress on 12,236-transaction analysis. Phase-level checkpointing to Supabase (reusing existing DB infrastructure) would eliminate restarts and directly unblock the core value proposition.",
+    "Workflow Standardization — Score 2, currently three parallel entry paths (npm scripts, Linear, slash-commands) with corrupt CLAUDE.md. Fixing the binary-corrupted CLAUDE.md and enforcing a single classifier that routes all work through one pipeline would immediately improve agent output consistency across all 29 agents and 16 workflows."
+  ]
+}
+```
