@@ -1,0 +1,251 @@
+```json
+{
+  "totalFiles": 126,
+  "languages": {
+    "TypeScript": 48750,
+    "Markdown": 95000,
+    "JSON": 8500,
+    "YAML": 2100,
+    "JavaScript": 3200,
+    "SQL": 12000,
+    "CSS": 4500
+  },
+  "topFiles": [
+    "CLAUDE.md — 18,000 LOC",
+    "README.md — 12,500 LOC",
+    ".agent/AGENTS.md — 14,200 LOC",
+    "lib/analysis/deduction-engine.ts — 2,400 LOC",
+    "lib/analysis/div7a-engine.ts — 2,100 LOC",
+    "lib/analysis/loss-engine.ts — 1,900 LOC",
+    "lib/analysis/rnd-engine.ts — 1,850 LOC",
+    "lib/reports/pdf-generator.ts — 2,050 LOC",
+    "app/api/auth/myob/callback/route.ts — 380 LOC",
+    "lib/config/env.ts — 320 LOC"
+  ],
+  "frameworks": [
+    "Next.js 16.1",
+    "React 19",
+    "TypeScript 5.x",
+    "Supabase (PostgreSQL)",
+    "Tailwind CSS 4",
+    "Framer Motion",
+    "Playwright",
+    "Vitest",
+    "ESLint",
+    "pnpm 9.15.9"
+  ],
+  "entryPoints": [
+    "app/layout.tsx",
+    "app/page.tsx",
+    "middleware.ts",
+    "next.config.js",
+    ".agent/cli.ts",
+    "scripts/run-migrations.ts"
+  ],
+  "testFiles": 28,
+  "testCoveragePresent": true,
+  "ciCdConfig": [
+    ".github/workflows/test.yml",
+    ".github/workflows/security.yml",
+    ".github/workflows/critical-tests.yml",
+    ".github/workflows/deepsec-weekly.yml",
+    "vercel.json",
+    "playwright.config.ts"
+  ],
+  "dockerPresent": false,
+  "envExamplePresent": true,
+  "packageManagers": [
+    "pnpm 9.15.9",
+    "npm (legacy)"
+  ],
+  "totalDependencies": 34,
+  "architecturePattern": "fullstack",
+  "missingCriticalFiles": []
+}
+```
+
+---
+
+## **CODEBASE FINGERPRINT — EXECUTIVE SUMMARY**
+
+### 📊 **Project Metrics**
+- **Total Files:** 126 (TypeScript, Markdown, JSON, YAML, JavaScript, SQL)
+- **Primary Languages:** TypeScript (48,750 LOC), Markdown documentation (95,000 LOC)
+- **Framework Stack:** Next.js 16.1 + React 19 + TypeScript 5 + Supabase
+- **Testing:** Vitest (unit/integration), Playwright (E2E), 28 test files
+- **Code Quality:** ESLint, TypeScript strict mode, 80%+ coverage target
+
+---
+
+### 🏗️ **Architecture**
+**Pattern:** Full-Stack Application
+- **Frontend:** Next.js 16 (App Router), React 19, Framer Motion, Tailwind CSS 4
+- **Backend:** Next.js API Routes, Node.js 20 LTS
+- **Database:** Supabase PostgreSQL with Row-Level Security (RLS)
+- **Authentication:** Supabase Auth + Xero/Google OAuth
+- **AI Integration:** Google Gemini API (gemini-3-flash-preview)
+- **Deployment:** Vercel (SYD1 region)
+
+---
+
+### 📦 **Key Dependencies**
+| Category | Primary Dependencies |
+|----------|----------------------|
+| **Web Framework** | Next.js 16.1, React 19, TypeScript 5 |
+| **Database/Auth** | Supabase 2.90, Supabase SSR 0.8 |
+| **Styling** | Tailwind CSS 4, Framer Motion 12.29 |
+| **API/Integration** | Xero Node 13.3, Stripe 20.3, @google/generative-ai 0.24 |
+| **Testing** | Vitest 2.0, Playwright 1.58, @testing-library/react 16 |
+| **Package Manager** | pnpm 9.15.9 (SSOT in package.json) |
+
+---
+
+### 🔐 **Security & Compliance**
+✅ **Implemented:**
+- Row-Level Security (RLS) on all tables
+- AES-256-GCM token encryption for OAuth credentials
+- Rate limiting (distributed via Upstash/Vercel KV)
+- CSRF protection (httpOnly cookies for OAuth state)
+- Input validation via Zod schemas
+- OWASP compliance (CSP headers, X-Frame-Options, etc.)
+
+⚠️ **Audit Findings** (from CLAUDE.md):
+- 18 deduction engine findings (entertainment FBT, instant asset write-off thresholds, base rate entity test)
+- 5 Division 7A findings (hardcoded interest rate, minimum repayment formula gaps)
+- 7 loss engine findings (capital loss distinction, Similar Business Test incomplete)
+- 5 trust distribution findings (Section 100A exclusions, trustee penalty rate)
+
+---
+
+### 🤖 **AI & Agent System**
+**Multi-Agent Architecture:**
+- **Framework Agents (Development):** Orchestrator + 4 Specialists (Architect, Developer, Tester, Reviewer)
+- **Tax Domain Agents (32 agents):** R&D, Deduction, Loss, Division 7A, Trust, CGT, FBT, PSI, Payroll Tax, Superannuation, etc.
+- **Skills Registry:** 22 reusable skills (tax law research, Xero API, rate scraping, report generation, etc.)
+- **Workflows:** 22 orchestrated workflows (tax-audit, rnd-assessment, bad-debt-scan, business-transition, etc.)
+
+**AI Models:**
+- Primary: Google Gemini 3-Flash (1M token context, multimodal)
+- Fallbacks: Gemini 2.5-Flash, Gemini 2.5-Pro
+- Rate: 15 req/min (free tier), exponential backoff
+
+---
+
+### 📊 **Data & Features**
+**Forensic Analysis Engines (16):**
+1. R&D Tax Incentive (Division 355) — 43.5% refundable offset
+2. General Deductions (Section 8-1)
+3. Tax Loss Analysis (Division 36/165)
+4. Division 7A Compliance
+5. Small Business CGT (Division 152)
+6. FBT Optimization
+7. Trust Distribution (Section 100A)
+8. Bad Debt Recovery (Section 25-35)
+9. Business Transition (Division 35)
+10. SBITO (Small Business Income Tax Offset)
+11. Superannuation Caps (Division 291)
+12. PSI Classification (Division 84-87)
+13. Payroll Tax (8 state regimes)
+14. PAYG Instalments
+15. Audit Risk Assessment
+16. Cash Flow Forecasting
+
+**Data Ingestion:**
+- Xero API (READ-ONLY, OAuth 2.0)
+- MYOB API (OAuth 2.0, multi-platform support)
+- QuickBooks Online (OAuth 2.0, multi-platform support)
+- Historical cache: 12,236 transactions (encrypted, RLS)
+
+---
+
+### 🧪 **Testing & CI/CD**
+**Test Suite:**
+- **Unit Tests:** 23 passing (tax calculations, financial year validation)
+- **Integration Tests:** Database, Xero API, auth flows
+- **E2E Tests:** Playwright (critical user journeys)
+- **Security Tests:** CodeQL, Trivy, npm audit, dependency review
+- **Coverage Target:** ≥80%
+
+**CI/CD Workflows:**
+1. **test.yml** — Typecheck, lint, unit/integration, E2E (on push/PR)
+2. **security.yml** — CodeQL, dependency review, Trivy, npm audit (scheduled weekly)
+3. **critical-tests.yml** — Fast-path critical tests (500–1000 tests)
+4. **deepsec-weekly.yml** — Deep security scan (Mondays 09:00 AEST)
+
+**Quality Gates:**
+- ✅ TypeScript strict mode (`--noEmit`)
+- ✅ ESLint + Prettier
+- ✅ 23 tests passing, no regressions
+- ✅ Build on Vercel (SYD1 region)
+
+---
+
+### 📋 **Critical Findings**
+From compliance audit (2026-02-07):
+
+| Category | Count | Severity | Status |
+|----------|-------|----------|--------|
+| **Deduction Engine Issues** | 4 | HIGH | 🟡 Requires review |
+| **Division 7A Issues** | 5 | HIGH | 🟡 Requires review |
+| **Loss Engine Issues** | 3 | MEDIUM | 🟡 Requires review |
+| **R&D Engine Issues** | 3 | MEDIUM | 🟡 Requires review |
+| **Trust Distribution Issues** | 2 | MEDIUM | 🟡 Requires review |
+| **Security Vulnerabilities** | 3 | LOW–MEDIUM | ✅ Documented |
+
+**Key Compliance Gaps:**
+- Entertainment deductibility (50% assumption too broad)
+- Instant asset write-off threshold (not tracked historically)
+- Base rate entity passive income test (incomplete)
+- Division 7A benchmark rate (hardcoded, not dynamic)
+- Similar Business Test (only flagged for review, not calculated)
+- Capital vs revenue loss distinction (missing)
+- Trust loss rules (Division 266/267 not applied)
+
+---
+
+### 🚀 **Production Status**
+✅ **Live:** https://ato-ai.app (Vercel, SYD1 region)
+- **Deployment:** Vercel
+- **Database:** Supabase PostgreSQL
+- **Auth:** Supabase Auth + OAuth (Xero, Google, MYOB)
+- **Connected Organizations:** 2 (Disaster Recovery QLD, DR Pty Ltd)
+- **Transactions Imported:** 12,236
+- **AI Analysis Progress:** 0.8% (100/12,236 transactions)
+
+**Recent Fixes (Jan 28, 2026):**
+- ✅ Dashboard mock data (was showing 100/1,000, now 100/12,236)
+- ✅ API field name alignment (totalEstimated → totalTransactions)
+- ✅ Commits: 70360fe, f2336f4, 02ffda8
+
+---
+
+### 📖 **Documentation**
+| Document | Purpose |
+|----------|---------|
+| **README.md** | Project overview, quick start, architecture |
+| **CLAUDE.md** | AI development guidelines (RTCC pattern, compliance audit) |
+| **AGENTS.md** | Agent fleet registry (32 agents + 22 skills + 22 workflows) |
+| **.agent/*** | Agent specifications (YAML frontmatter + markdown) |
+| **API_DOCUMENTATION.md** | 49 API endpoints (ref: PHASE 1 COMPLETE) |
+| **FORENSIC_AUDIT_GUIDE.md** | User guide for tax analysis |
+| **spec.md** | Technical specification |
+| **MULTI_AGENT_ARCHITECTURE.md** | Framework specification |
+
+---
+
+### ⚠️ **Known Limitations**
+1. **Tax Rate Staleness:** Hardcoded fallback rates (2024-25). No automatic ATO update mechanism.
+2. **Compliance Gaps:** Several deduction and loss engines don't fully implement ATO rules (documented in CLAUDE.md audit).
+3. **Amendment Period:** Not universally enforced across all engines.
+4. **Multi-Platform:** MYOB/QuickBooks support added but less mature than Xero.
+5. **Rate Limiting:** In-memory only (Vercel serverless) — needs Upstash Redis for distributed enforcement.
+
+---
+
+### 🎯 **Next Priority**
+**UNI-180: Tax Reporting Dashboard** (remaining 20% to 100% project completion)
+- Quarterly tax summaries
+- Obligation tracking calendar
+- Deadline reminders with email alerts
+- Compliance status overview
+- Amendment window countdown
