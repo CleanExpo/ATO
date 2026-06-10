@@ -1,0 +1,45 @@
+```json
+{
+  "zteLevel": 2,
+  "zteScore": 29,
+  "leveragePoints": [
+    { "id": 1, "name": "Spec Quality", "score": 3 },
+    { "id": 2, "name": "Context Precision", "score": 3 },
+    { "id": 3, "name": "Model Selection", "score": 2 },
+    { "id": 4, "name": "Tool Availability", "score": 3 },
+    { "id": 5, "name": "Feedback Loops", "score": 2 },
+    { "id": 6, "name": "Error Recovery", "score": 3 },
+    { "id": 7, "name": "Session Continuity", "score": 2 },
+    { "id": 8, "name": "Quality Gating", "score": 3 },
+    { "id": 9, "name": "Cost Efficiency", "score": 2 },
+    { "id": 10, "name": "Trigger Automation", "score": 3 },
+    { "id": 11, "name": "Knowledge Retention", "score": 2 },
+    { "id": 12, "name": "Workflow Standardization", "score": 1 }
+  ],
+  "productionGaps": [
+    "SPEC QUALITY: .agent/AGENTS.md defines 32 agents but zero have machine-readable acceptance criteria — only narrative descriptions. spec.md referenced in README.md but not present in repo context, so no verifiable testable acceptance criteria exist.",
+    "CONTEXT PRECISION: docs-backup-20260213-150302/ directory is a full duplicate of the live codebase injected into every context window — no compression or noise filtering. CLAUDE.md itself has binary corruption (garbled UTF-8 bytes visible in the file) rendering it partially unreadable.",
+    "MODEL SELECTION: .agent/GEMINI.md and CLAUDE.md both reference single-model defaults (gemini-3-flash-preview, Claude). No routing logic, no cost-tier differentiation between simple classification tasks and complex tax law research. lib/config/env.ts GOOGLE_AI_MODEL is a single global override with no per-task routing.",
+    "TOOL AVAILABILITY: agents/cli.ts provides 5 monitoring agents but tax domain agents (.agent/agents/*) have no MCP server connections, no ABR API client wired, no ATO rate scraping automation confirmed running. lib/integrations/ has XeroAdapter and MYOBAdapter but QuickBooks adapter returns NotImplemented.",
+    "FEEDBACK LOOPS: lib/agents/quality-gates.ts referenced in README.md and MULTI_AGENT_ARCHITECTURE.md but no lessons.jsonl, no evaluator-to-generator loop, no stored critique. Agent reports written to agent_reports table (optional, migration pending per AGENTS_README.md) with no evidence of injection into future prompts.",
+    "SESSION CONTINUITY: AGENTS_README.md explicitly states 'Safe to restart - agents are stateless, no data loss' — confirming zero phase-level checkpointing. The context-manager/index.ts in docs-backup is a stub with simulated token reduction (hardcoded 50% estimate) and no actual persistence to disk.",
+    "QUALITY GATING: README.md quality gate table references lib/agents/quality-gates.ts but gate enforcement is advisory — README says 'PM + Developer sign-off' as final gate, and CLAUDE.md swarm-enforcement.md mandates human terminal output verification. No automated score threshold blocking deployment found.",
+    "COST EFFICIENCY: ai_analysis_costs table exists for tracking but no per-session budget enforcement at runtime. optionalConfig.aiCostLimitUsd defaults to '10' string but no code shown enforcing this limit during batch processing. No zero-marginal-cost architecture; every analysis run invokes Gemini API.",
+    "TRIGGER AUTOMATION: vercel.json defines 6 cron jobs (/api/alerts/cron, /api/slack/daily-summary, /api/compliance/cron, /api/email/weekly-digest, /api/analysis/auto-run, /api/admin/refresh-views) — functional triggers exist. However agents:start is manual CLI only; no webhook trigger for Linear events despite @linear/sdk dependency.",
+    "KNOWLEDGE RETENTION: No lessons.jsonl file found anywhere in repo. Agent reports stored to agent_reports table (optional migration) but AGENTS_README.md confirms agents run without database storage. No weekly analysis pipeline, no lesson injection mechanism into future runs.",
+    "WORKFLOW STANDARDIZATION: CLAUDE.md (the live version) is corrupted with binary garbage bytes, making the primary workflow document unreliable. Two competing workflow specs exist: MULTI_AGENT_ARCHITECTURE.md (framework agents) vs .agent/AGENTS.md (tax domain agents) with no classifier enforcing which path applies to which request type. docs-backup-20260213-150302/ contains an identical CLAUDE.md that differs from live — no single canonical version."
+  ],
+  "loadRisks": [
+    "Rate limiting is in-memory only (lib/middleware/rate-limit.ts, CLAUDE.md VULN-1) — Vercel serverless instances each maintain separate counters. Under load, an attacker or runaway process distributes requests across instances and bypasses all rate limits entirely.",
+    "AI batch processor has no confirmed circuit breaker — at 15 req/min Gemini free tier with 12,236 transactions, a resumed run after crash has no checkpoint and restarts from transaction 0, burning API quota and potentially doubling costs.",
+    "docs-backup-20260213-150302/ is committed to the repo and included in tsconfig.json exclude list but still present on disk — any glob-based tool or agent context loader will ingest ~2x the codebase, doubling token consumption and introducing stale contradictory information under load.",
+    "Division 7A engine has hardcoded currentFY = 'FY2024-25' (CLAUDE.md Finding 7A-1, div7a-engine.ts line 962) — when FY2025-26 starts, all concurrent analysis runs silently use wrong benchmark rate, producing systematically incorrect compliance assessments at scale.",
+    "context-manager/index.ts estimates token reduction at hardcoded 50% with no actual measurement — under real load approaching 200K token limit, the manager reports 'compacted' but context window fills and crashes with no recovery path, losing all in-progress agent state."
+  ],
+  "topThreeROI": [
+    "Workflow Standardization (score 1) — The corrupted CLAUDE.md is the single highest-leverage fix: restore it as a valid, machine-parseable document with a classifier that routes requests to either the framework agent path or the tax domain agent path. Every other dimension depends on agents reading coherent instructions. One commit fixing CLAUDE.md + adding a request classifier unlocks reliable operation across all 32 agents.",
+    "Feedback Loops (score 2) — Adding a lessons.jsonl writer to the existing agent_reports pipeline (the table already exists) and injecting the last N lessons into each agent prompt requires ~50 lines of code but compounds quality improvement across every future run. This is the highest-leverage architectural addition because the system already runs analyses at scale — capturing what worked transforms each run into training signal.",
+    "Session Continuity (score 2) — The analysis job processes 12,236 transactions over 3-4 hours with zero checkpointing. Adding phase-level checkpoints to the batch processor (write processed_count + last_transaction_id to Supabase after each batch) converts a fragile all-or-nothing job into a resumable pipeline. Given the existing ai_analysis_costs and forensic_analysis_results tables, the storage infrastructure is already in place — only the checkpoint write and resume-from logic is missing."
+  ]
+}
+```
