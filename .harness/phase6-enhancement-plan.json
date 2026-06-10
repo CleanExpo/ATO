@@ -1,0 +1,278 @@
+```json
+{
+  "sprints": [
+    {
+      "id": 1,
+      "name": "Critical Infrastructure & Security Hardening",
+      "duration": "6d",
+      "goal": "Resolve production security vulnerabilities and establish rate-limiting resilience before scaling traffic.",
+      "items": [
+        {
+          "title": "Implement distributed rate limiting (Redis/Vercel KV)",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "In-memory rate limiting bypassed in serverless/edge — per-instance memory isolation means requests distributed across function instances circumvent limits (VULN-1: MEDIUM).",
+            "impact": "Attacker can brute-force OAuth, exhaust API quotas, trigger runaway Gemini costs. API abuse undetected until quota hit.",
+            "result": "Distributed rate limit enforced via Vercel KV (shared state). Requests blocked once per-IP/per-endpoint limit exceeded, regardless of instance."
+          }
+        },
+        {
+          "title": "Eliminate dev auth bypass via build-time elimination",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "devBypassAuth() runtime check in lib/auth/require-auth.ts (lines 145–168) — function exported and available even though NODE_ENV check intended to gate it (VULN-2: LOW).",
+            "impact": "If env detection bypassed or misconfigured, auth layer disabled in production.",
+            "result": "Remove function entirely. Use conditional import: import-only-in-dev file excluded at build time."
+          }
+        },
+        {
+          "title": "Fix modulo bias in share token generation",
+          "size": "S",
+          "priority": "P2",
+          "piter": {
+            "problem": "Share token modulo bias (256 % 56 chars = non-uniform distribution) — chars 0–31 ~1.6% more likely (VULN-3: LOW).",
+            "impact": "Token space slightly reduced; negligible for 32-char tokens but violates cryptographic best practice.",
+            "result": "Implement rejection sampling in lib/share/token-generator.ts. Uniform char distribution across 56 safe chars."
+          }
+        },
+        {
+          "title": "Fix s 170 amendment period not enforced in all engines",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "Deduction engine (and others) do NOT check amendment period before recommending retrospective claims (COMPLIANCE AUDIT FINDING: D-5).",
+            "impact": "User claims benefit after amendment window expired. ATO denies amendment. Opportunity permanently lost.",
+            "result": "All 16 engines call checkAmendmentPeriod() before recommending. Flag expired opportunities in UI as 'not claimable'."
+          }
+        },
+        {
+          "title": "Implement automated breach detection & NDB compliance workflow",
+          "size": "L",
+          "priority": "P1",
+          "piter": {
+            "problem": "No breach response plan or NDB (Notifiable Data Breaches) compliance documented (COMPLIANCE AUDIT FINDING: PRIVACY-1.3).",
+            "impact": "Breach occurs but undetected. 30-day assessment deadline missed. OAIC penalty risk.",
+            "result": "Deploy security-event-logger.ts + breach-detector.ts. 30-day assessment workflow. data_breaches table maintains register per Privacy Act."
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Tax Law Accuracy: Engine Fixes & Validation",
+      "duration": "7d",
+      "goal": "Correct 10+ identified tax calculation errors across all engines. Restore user trust in analysis accuracy.",
+      "items": [
+        {
+          "title": "Fix deduction engine: Entertainment FBT treatment (D-1)",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "Entertainment deductibility flat-50% — ignores ordinary family dealing (s 100A), meal vs recreational split, seminar exceptions. Over-claims exposure.",
+            "impact": "User claims $50K entertainment deduction → ATO scrutiny → penalties + interest.",
+            "result": "Categorise: meal entertainment (s 37AA employer election), recreational (mostly non-deductible), seminar (100% with meals)."
+          }
+        },
+        {
+          "title": "Fix deduction engine: Asset write-off threshold history (D-2)",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "$20K fallback ignores COVID threshold ($150K FY2020–22), FY2023–24 changes. Historical assets assessed against wrong threshold.",
+            "impact": "FY2020–21 $25K equipment should be written off; instead $5K excess claimed as depreciation. Understates benefit.",
+            "result": "Store threshold by FY. Map: FY2020–22 = $150K, FY2023+ = $20K. Engine uses correct threshold per transaction date."
+          }
+        },
+        {
+          "title": "Fix deduction engine: Base rate entity passive income test (D-3)",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "Uses turnover < $50M only. Ignores s 23AA '80% passive income' test. Company with $40M revenue, 90% passive income pays 30%, not 25%.",
+            "impact": "Claims 25% rate; ATO applies 30%. Refund + interest clawed back.",
+            "result": "Check both: turnover < $50M AND passive income ≤ 80%. Fail if either test fails."
+          }
+        },
+        {
+          "title": "Fix loss engine: Similar Business Test (SBT) incomplete (L-1)",
+          "size": "L",
+          "priority": "P1",
+          "piter": {
+            "problem": "Lines 449–518 return 'unknown' without assessment. FY2022–23 SBT broadened (similar ≠ identical). Engine still assumes eligibility.",
+            "impact": "User assumes losses available; ATO denies SBT. Opportunity lost, plus penalties if self-assessed incorrectly.",
+            "result": "Implement SBT per LCR 2019/1. Check: IP ownership transfer, key personnel, asset similarity, cash flow patterns. Flag if ≥3 factors differ."
+          }
+        },
+        {
+          "title": "Fix loss engine: Trust loss Division 266/267 not implemented (L-3)",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "Engine uses Division 165 (companies) for all entity types. Trust losses governed by Division 266/267, Schedule 2F ITAA 1936 — different tests.",
+            "impact": "Trust client denied loss carry-forward due to failure in non-applicable test. Real eligibility unknown.",
+            "result": "Route trusts to analyzeTrustLossRecoupment(). Implement: family trust election check, pattern of distributions (s 269–60), income injection test (Division 270)."
+          }
+        },
+        {
+          "title": "Fix R&D engine: Offset rate aggregated turnover + $4M cap (R-1, R-2)",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "Flat 43.5% ignores: (1) FY2021+ rate depends on aggregated turnover < $20M, (2) $4M annual cap on refundable offset from s 355–100(3).",
+            "impact": "Large R&D claimant told $20M offset available; capped at $4M. Misleading advice.",
+            "result": "Check aggregated turnover. Apply 48.5% (30% tax + 18.5%) if < $20M and turnover < $10M small biz. Cap refundable offset at $4M."
+          }
+        },
+        {
+          "title": "Fix Division 7A engine: Benchmark rate hardcoded for current FY (7A-1)",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "Line 962 hardcodes 'FY2024–25'. After July 1, 2025, silently uses wrong rate for new loans.",
+            "impact": "FY2025–26 loan assessed at FY2024–25 rate. Compliance error undetected.",
+            "result": "Fetch rate dynamically from tax-data cache. Fallback: hardcode current year at build time, with expiry warning."
+          }
+        },
+        {
+          "title": "Fix Division 7A engine: Minimum repayment for part-year loans (7A-2)",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "s 109E(5) provides pro-rata for mid-year loans. Engine assumes full-year amortisation. Overstates minimum repayment shortfall.",
+            "impact": "Loan made March 2025 assessed as if made July 2024. Compliance shows false breach.",
+            "result": "Calculate FY days from loan date. Reduce minimum repayment = full amount × (days / 365)."
+          }
+        },
+        {
+          "title": "Deploy validators to all 16 engines + record evidence trail",
+          "size": "L",
+          "priority": "P1",
+          "piter": {
+            "problem": "Tax calculations NOT validated before output. Errors propagate unchecked to user recommendations.",
+            "impact": "Incorrect analysis presented as fact. User implements bad advice.",
+            "result": "Post-calculate validators (python) + ts wrapper. Each engine calls validate() before return. Log validation result + timestamp."
+          }
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Data Quality & Forensic Accuracy",
+      "duration": "5d",
+      "goal": "Ensure data quality flags prevent bad recommendations. Fix Xero GL misclassification detection.",
+      "items": [
+        {
+          "title": "Improve GL misclassification detection in data-quality-agent",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "Detects common misclassifications (entertainment, capital) but misses ~40% of errors (contractor vs wages, personal expenses, R&D disguised as general).",
+            "impact": "User's incorrect GL categories passed through → analysis uses wrong categories → recommendations wrong.",
+            "result": "Expand keyword patterns. Add: ABN-based contractor detection, personal account flags (personal bank flagged in expense accounts), R&D keyword set."
+          }
+        },
+        {
+          "title": "Implement forensic reconciliation gap analysis (3+ month unreconciled)",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "System flags unreconciled items but doesn't halt analysis. Data quality degraded if > 3 months unreconciled.",
+            "impact": "User runs analysis on partially synced data. Transactions missing. Recommendations incomplete.",
+            "result": "Pre-analysis check: if unreconciled > 90 days, block analysis start. Recommend user reconcile first. Dashboard warning if quality < 50."
+          }
+        },
+        {
+          "title": "Add duplicate transaction recovery + merge workflow",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "Duplicates detected but not merged. Same transaction counted twice → R&D expenditure overstated, deductions doubled.",
+            "impact": "Analysis runs on duplicate data. Recommendations inflated.",
+            "result": "Detect duplicates (exact + near match). Read-only: suggest merge to user. If merged in Xero, trigger re-analysis."
+          }
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Compliance & Amendment Period Tracking",
+      "duration": "5d",
+      "goal": "Prevent expired amendment opportunities. Track s 170 deadlines. Auto-alert user.",
+      "items": [
+        {
+          "title": "Implement amendment period tracker per entity + FY",
+          "size": "M",
+          "priority": "P1",
+          "piter": {
+            "problem": "No tracking of amendment windows. User doesn't know FY2021–22 window expires June 2025.",
+            "impact": "$50K deduction opportunity — user misses deadline. Forever lost.",
+            "result": "amendment_period_tracker agent + table. Stores: assessment date, entity type, expiry date. Pre-analysis: check if FY amendable. Flag if < 90 days."
+          }
+        },
+        {
+          "title": "Wire amendment period alerts into compliance calendar",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "Amendment dates calculated but not surfaced in UI. User never sees 90-day warning.",
+            "impact": "Deadline passes silently.",
+            "result": "Compliance calendar shows amendment expiry dates. 90/30/7-day alerts. Dashboard tile: 'X opportunities expire in Y days'."
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Privacy & Data Protection Compliance",
+      "duration": "4d",
+      "goal": "Implement Privacy Act 1988 compliance for TFN, cross-border data, RLS enforcement.",
+      "items": [
+        {
+          "title": "Verify TFN NOT collected or stored anywhere",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "TFN collection requires Tax Agent registration (TASA 2009). System must NOT collect/store TFN.",
+            "impact": "If TFN found in DB: TASA 2009 breach. $52.5K penalty + forced agent registration or shutdown.",
+            "result": "Audit all tables for TFN fields. Verify Xero scope excludes TFN. Block any form input attempting TFN. Document in privacy policy."
+          }
+        },
+        {
+          "title": "Verify Supabase region is ap-southeast-2 (Sydney) for APP 8 compliance",
+          "size": "S",
+          "priority": "P1",
+          "piter": {
+            "problem": "If Supabase region is non-AU (US, EU), cross-border data transfer occurs. APP 8 ITPP requires assessment. Privacy policy must disclose.",
+            "impact": "If not disclosed: Privacy Act breach. Data Commissioner can issue compliance notice.",
+            "result": "Confirm: Supabase project region = ap-southeast-2. Document in privacy policy: 'Data stored in Australia'."
+          }
+        },
+        {
+          "title": "Implement database-level encryption at rest + RLS audit logging",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "APP 11 (Security): 'reasonable steps'. Database encryption at rest + RLS logging are baseline. Verify both enabled.",
+            "impact": "Data breach: if encryption disabled, Privacy Commissioner finds 'unreasonable security'. Penalty + remediation costs.",
+            "result": "Verify: Supabase encryption at rest enabled. Enable RLS audit logging. Log: who accessed what, when."
+          }
+        },
+        {
+          "title": "Add APP 1 data collection notice to Xero auth flow",
+          "size": "M",
+          "priority": "P2",
+          "piter": {
+            "problem": "APP 1: Users must be told what data collected + why BEFORE connection. Currently: OAuth → connect → analyze (no upfront notice).",
+            "impact": "Privacy Commissioner finds 'no collection notice'. Breach of APPs.",
+            "result": "Add modal before OAuth: 'We collect transactions, contacts, GL codes from your Xero. Used for tax analysis. Your data is read-only, encrypted.'"
+          }
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Documentation & Professional Review Disclaimers",
+      "duration": "3d",
+      "goal": "Add disclaimers everywhere. Verify TASA 2009 compliance
