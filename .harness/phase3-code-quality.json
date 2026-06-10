@@ -1,0 +1,193 @@
+```json
+{
+  "scores": {
+    "completeness": 6,
+    "correctness": 5,
+    "codeQuality": 6,
+    "documentation": 7
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "CLAUDE.md",
+      "line": null,
+      "description": "File is corrupted/binary-garbled in the live version — contains mojibake sequences (im\\ꦊ[ꦨܘ\\[ꦋꦊ...). The backup version docs-backup-20260213-150302/CLAUDE.md is clean. Production tooling reading CLAUDE.md will receive garbage instructions."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": 962,
+      "description": "FINDING 7A-1 (self-documented in CLAUDE.md): `const currentFY = 'FY2024-25'` is hardcoded. After 1 July 2025 all Division 7A benchmark interest calculations silently use the wrong rate. No dynamic FY detection."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/rnd-engine.ts",
+      "line": 19,
+      "description": "FINDING R-2 (self-documented): $4M annual R&D tax offset cap (s 355-100(3) ITAA 1997, effective FY2021-22) is not enforced. Engine calculates uncapped offsets, overstating benefit for large claimants."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/middleware/rate-limit.ts",
+      "line": null,
+      "description": "VULN-1 (self-documented): Rate limiting is in-memory only. On Vercel serverless, each function instance has separate memory — an attacker distributes requests across instances to bypass all rate limits entirely."
+    },
+    {
+      "severity": "critical",
+      "file": "apply-migration.js",
+      "line": 17,
+      "description": "Hardcoded Supabase project ref `xwqymjisxmtcmaebcehw` and DB credentials pattern in a committed Node script. DB_HOST is derived from PROJECT_REF directly in code. If repo is public, this leaks the project identifier and connection pattern."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/loss-engine.ts",
+      "line": null,
+      "description": "FINDING L-1 (self-documented): Capital losses not distinguished from revenue losses. Engine suggests capital losses can reduce ordinary income — fundamental Australian tax law error (s 102-5 ITAA 1997)."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": 20,
+      "description": "FINDING D-2 (self-documented): Instant asset write-off threshold uses $20,000 fallback for all historical years. COVID-era threshold was $150,000 (FY2020-21 to FY2022-23). Historical transactions assessed against wrong threshold, understating eligible write-offs."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": 244,
+      "description": "FINDING D-3 (self-documented): Base rate entity test uses turnover < $50M as sole test. Passive income test (s 23AA ITAA 1997 — no more than 80% passive income) is missing. Companies with >80% passive income pay 30% not 25%."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/rnd-engine.ts",
+      "line": 19,
+      "description": "FINDING R-1 (self-documented): R&D offset rate uses flat 43.5% for all entities. Since FY2021-22 the rate is corporate tax rate + 18.5% (refundable, <$20M) or +8.5% (non-refundable, ≥$20M). A 30% rate entity gets 48.5% — engine understates benefit."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/trust-distribution-analyzer.ts",
+      "line": 313,
+      "description": "FINDING T-2 (self-documented): Trustee penalty rate referenced as 45%. Correct rate under s 99A ITAA 1936 is 45% + 2% Medicare Levy = 47%. Understates worst-case tax exposure shown to users."
+    },
+    {
+      "severity": "high",
+      "file": "lib/auth/require-auth.ts",
+      "line": 145,
+      "description": "VULN-2 (self-documented): `devBypassAuth()` function exists with runtime NODE_ENV check. Build-time elimination not used — function is in production bundle. Runtime guard is only protection."
+    },
+    {
+      "severity": "high",
+      "file": "[BRANCH: chore/deepsec-weekly-cron] app/api/auth/myob/callback/route.ts",
+      "line": 55,
+      "description": "Multiple `console.error` and `console.error` calls instead of structured logger. Callback errors (token exchange failure, DB storage failure) will emit raw error objects to Vercel logs without request context."
+    },
+    {
+      "severity": "high",
+      "file": "[BRANCH: fix/pdf-waituntil-prod-build] lib/reports/pdf-generator.ts",
+      "line": null,
+      "description": "Puppeteer is imported dynamically and launched with `--no-sandbox` + `--disable-setuid-sandbox`. In production Vercel (sandboxed), Puppeteer cannot run. File creates a build-time import of `puppeteer` which is a heavyweight dependency (~300MB) not suitable for serverless. No graceful fallback."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/fuel-tax-credits-analyzer.ts",
+      "line": 120,
+      "description": "FINDING F-1 (self-documented): Fuel tax credit rates are updated quarterly by ATO (Feb, Apr, Aug, Nov). Engine uses single annual rates — Q1 vs Q3 transactions within same FY may use wrong rates."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/superannuation-cap-analyzer.ts",
+      "line": null,
+      "description": "FINDING S-1 (self-documented): Carry-forward concessional contributions (available since FY2018-19 when total super balance < $500,000) not handled. Engine generates false breach alerts for taxpayers legitimately using carry-forward."
+    },
+    {
+      "severity": "medium",
+      "file": "docs-backup-20260213-150302/",
+      "line": null,
+      "description": "Entire backup directory committed to repository root containing full copies of all documentation, tsconfig, package.json, agents, and component indexes. Doubles repository size, pollutes git history, and creates confusion about canonical source files. Should be gitignored or stored externally."
+    },
+    {
+      "severity": "medium",
+      "file": "AGENTS_README.md",
+      "line": null,
+      "description": "Documentation hardcodes operational state: 'AI Analysis: 0.8% complete (100/12,236 transactions)', 'Estimated Time: ~3-4 hours remaining'. These stale values mislead any new operator reading the docs."
+    },
+    {
+      "severity": "medium",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": 712,
+      "description": "FINDING 7A-2 (self-documented): Minimum repayment formula uses full-year amortisation. s 109E(5) ITAA 1936 requires proportional reduction for part-year loans. Overstates minimum repayment shortfall for mid-year loans."
+    },
+    {
+      "severity": "medium",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": null,
+      "description": "FINDING 7A-5 (self-documented): Distributable surplus cap (s 109Y ITAA 1936) not calculated. Deemed dividend cannot exceed company's distributable surplus — engine may overstate exposure."
+    },
+    {
+      "severity": "medium",
+      "file": "[BRANCH: chore/deepsec-weekly-cron] app/api/auth/myob/callback/route.ts",
+      "line": 84,
+      "description": "When multiple MYOB company files exist, agent auto-selects first file and logs a warning but continues silently. Users with multiple company files will have wrong company connected without explicit UI confirmation. Comment says 'FUTURE: Build a company file selection page' but no ticket/tracking."
+    },
+    {
+      "severity": "medium",
+      "file": "[BRANCH: fix/vercel-pnpm-and-e2e-webserver] lib/config/env.ts",
+      "line": null,
+      "description": "Vercel preview build returns placeholder Supabase credentials (`https://placeholder.supabase.co`, `'placeholder'`). Any preview deployment that attempts a real Supabase operation will silently use placeholder values, producing confusing errors rather than failing fast."
+    },
+    {
+      "severity": "medium",
+      "file": "lib/share/token-generator.ts",
+      "line": 29,
+      "description": "VULN-3 (self-documented): Modulo bias in share token generation — `bytes[i] % 56` with 256-byte range introduces ~1.6% bias toward chars 0-31. Low severity for 32-char token but not cryptographically sound."
+    },
+    {
+      "severity": "low",
+      "file": "package.json",
+      "line": null,
+      "description": "README badge claims 'Next.js 16.1' — package.json confirms `next: 16.1.3`. Next.js 16 does not exist as a stable release as of early 2026; this appears to be a version numbering artifact or internal fork. Dependency version accuracy cannot be verified against public registries."
+    },
+    {
+      "severity": "low",
+      "file": ".env.example",
+      "line": null,
+      "description": "GOOGLE_AI_MODEL default in .env.example is `gemini-3-flash-preview` but the lib/config/env.ts optionalConfig default is also `gemini-3-flash-preview`. This model does not exist in Google's public API as of knowledge cutoff — likely a placeholder or internal model name."
+    }
+  ],
+  "missingTests": [
+    "Division 7A minimum repayment calculation for part-year loans (s 109E(5) ITAA 1936)",
+    "R&D offset cap enforcement at $4M annual limit (s 355-100(3))",
+    "Capital loss vs revenue loss quarantining (s 102-5 ITAA 1997)",
+    "Base rate entity passive income test — companies with >80% passive income",
+    "Financial year boundary detection for hardcoded FY2024-25 in div7a-engine.ts",
+    "Superannuation carry-forward concessional contributions (5-year window, TSB < $500K)",
+    "Fuel tax credit quarterly rate changes mid-financial-year",
+    "Rate limit bypass across multiple serverless function instances",
+    "MYOB OAuth state cookie validation and CSRF protection",
+    "Multi-organisation Xero token encryption/decryption round-trip",
+    "PDF generation failure path (Puppeteer unavailable in serverless)",
+    "Amendment period expiry calculation for 2-year vs 4-year entity types",
+    "Trust distribution s 100A ordinary family dealing exclusion",
+    "R&D offset rate calculation for entities paying 30% corporate rate (48.5% offset)"
+  ],
+  "securityConcerns": [
+    "apply-migration.js: Hardcoded Supabase project reference `xwqymjisxmtcmaebcehw` committed to repo — leaks infrastructure identifier if repository is public",
+    "lib/middleware/rate-limit.ts: In-memory rate limiting ineffective on Vercel serverless — each cold-start instance has independent counter, enabling distributed bypass attacks",
+    "lib/auth/require-auth.ts lines 145-168: Dev auth bypass function compiled into production bundle; only runtime NODE_ENV check prevents activation — build-time elimination not used",
+    "app/api/auth/myob/callback/route.ts: `console.error` logging of OAuth token exchange errors may expose partial token data or error payloads to Vercel log aggregation systems accessible to team members without need-to-know",
+    "lib/reports/pdf-generator.ts: Puppeteer launched with --no-sandbox and --disable-setuid-sandbox flags — required for containerized environments but reduces Chrome process isolation; combined with user-controlled tenantId in report generation, SSRF risk if any content renders external URLs",
+    "[BRANCH: fix/vercel-pnpm-and-e2e-webserver] lib/config/env.ts: Preview builds return placeholder Supabase credentials silently — if preview environment connects to a staging DB, placeholder values may allow unauthenticated access to fall through to default RLS policies",
+    "AGENTS_README.md: SQL DDL for agent_reports table uses `CREATE POLICY IF NOT EXISTS` with service role ALL access — no user-scoped RLS policy defined, meaning any service-role compromise exposes all agent reports across all tenants"
+  ],
+  "positives": [
+    "Self-documented compliance audit (CLAUDE.md lines 400+) with 30+ specific findings, legislation citations, and risk assessments — rare to see a codebase that actively tracks its own known deficiencies with this level of specificity",
+    "AES-256-GCM token encryption with salt-derived keys for OAuth token storage (lib/crypto/) — correct approach, not just base64 encoding",
+    "Decimal.js used throughout tax calculation engines instead of floating-point arithmetic — correct for financial calculations",
+    "Supabase Row Level Security enforced at the database layer with per-tenant isolation via user_tenant_access table",
+    "UK income tax engine (lib/analysis/uk/income-tax-engine.ts) is a genuinely well-structured implementation: BaseTaxEngine inheritance, Personal Allowance taper (60% effective rate zone), Scottish rate bands, dividend tax band stacking, Marriage Allowance, Child Benefit Charge — all implemented with correct legislation references",
+    "GitHub Actions CI pipeline includes CodeQL, Trivy filesystem scan, npm audit, and dependency review — comprehensive automated security scanning on PRs",
+    "Structured logging via createLogger throughout API routes rather than bare console.log (where the logger is used correctly)",
+    "MYOB OAuth callback correctly implements CSRF state validation via httpOnly cookie (storedState.state !== returnedState check) — the pattern is right even if some console.error usage remains",
+    "vercel.json correctly configures Sydney region (syd1) deployment for Australian data residency compliance with APP 8",
+    "Zod schema validation present on API inputs with explicit validation error responses — reduces injection surface"
+  ]
+}
+```
