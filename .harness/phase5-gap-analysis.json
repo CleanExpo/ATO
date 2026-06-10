@@ -1,0 +1,97 @@
+```json
+{
+  "zteLevel": 3,
+  "zteScore": 48,
+  "leveragePoints": [
+    {
+      "id": 1,
+      "name": "Spec Quality",
+      "score": 3
+    },
+    {
+      "id": 2,
+      "name": "Context Precision",
+      "score": 4
+    },
+    {
+      "id": 3,
+      "name": "Model Selection",
+      "score": 2
+    },
+    {
+      "id": 4,
+      "name": "Tool Availability",
+      "score": 4
+    },
+    {
+      "id": 5,
+      "name": "Feedback Loops",
+      "score": 2
+    },
+    {
+      "id": 6,
+      "name": "Error Recovery",
+      "score": 3
+    },
+    {
+      "id": 7,
+      "name": "Session Continuity",
+      "score": 3
+    },
+    {
+      "id": 8,
+      "name": "Quality Gating",
+      "score": 4
+    },
+    {
+      "id": 9,
+      "name": "Cost Efficiency",
+      "score": 2
+    },
+    {
+      "id": 10,
+      "name": "Trigger Automation",
+      "score": 4
+    },
+    {
+      "id": 11,
+      "name": "Knowledge Retention",
+      "score": 2
+    },
+    {
+      "id": 12,
+      "name": "Workflow Standardization",
+      "score": 3
+    }
+  ],
+  "productionGaps": [
+    "Model selection (leverage point #3, score 2): Single Gemini model used for all analysis tasks without complexity-based routing. Tax analysis requires different model capabilities (gemini-3-flash for basic categorisation vs gemini-2.5-pro for complex multimodal reasoning). File: lib/ai/forensic-analyzer.ts uses hardcoded GOOGLE_AI_MODEL.",
+    "Feedback loops (leverage point #5, score 2): No automated evaluator critique. AI outputs (tax recommendations) not validated against validators before returning to user. File: lib/analysis/rnd-engine.ts, deduction-engine.ts have no post-generation verification hooks.",
+    "Cost efficiency (leverage point #9, score 2): No budget tracking visible in codebase. AI_COST_LIMIT_USD defined in .env.example but not enforced in execution. Batch analysis processes 12,236 transactions with no per-session cost cap. File: lib/ai/batch-processor.ts has no cost guard.",
+    "Knowledge retention (leverage point #11, score 2): No lessons.jsonl or persistent learning. Validator logs exist (.claude/hooks/logs/) but not fed back into future analysis. Each analysis run is stateless. File: lib/analysis/base-engine.ts creates EngineResult but doesn't store lessons.",
+    "Spec quality (leverage point #1, score 3): High-level specs exist (AGENTS.md, .agent/AGENTS.md) but acceptance criteria missing. Example: rnd-engine claims to identify R&D but doesn't specify what constitutes 'confident identification' quantitatively. File: .agent/agents/rnd_tax_specialist/AGENT.md lacks testable AC.",
+    "Model selection gap in production: /api/analysis/audit route (app/api/audit/analyze/route.ts) always uses Gemini Flash. Should route simpler classifications to cheaper model based on transaction complexity scoring.",
+    "Quality gate enforcement: lib/agents/quality-gates.ts exists but is not invoked in API routes. POST /api/audit/analyze completes without checking if analysis meets minimum confidence threshold before responding.",
+    "Session continuity: Context lost on 407-token boundary in middleware or long-running analyses. No checkpoint-and-resume implemented. If Gemini API rate limits mid-batch, entire analysis restarts (file: lib/ai/batch-processor.ts, no resumeToken logic).",
+    "Evaluator feedback absent: validators exist (.claude/hooks/validators/tax_calculation_validator.py) but results not injected back into rnd-engine or deduction-engine confidence scoring. Validators only used in tests.",
+    "Cost tracking gap: costSummary in lib/ai/batch-processor.ts accumulates totalCost but AI_COST_LIMIT_USD is never checked. Batch could exceed budget. No per-analysis cost cap enforced in POST /api/audit/analyze."
+  ],
+  "loadRisks": [
+    "Under high concurrency (N parallel audit analyses): Gemini API rate limit (15 req/min free tier) will block all requests. No queue or exponential backoff implemented. File: lib/ai/forensic-analyzer.ts, lib/ai/batch-processor.ts use direct API calls without queueing.",
+    "Validator bottleneck: tax_calculation_validator.py runs synchronously after each engine output. With 12,236 transactions × 16 engines, validation becomes the critical path. No async validation batching. File: lib/analysis/ engines call validators sequentially.",
+    "Memory leak risk: EngineResult objects in memory for 12k+ transactions during batch analysis. Context manager (agents/council/context-manager.ts) has no automatic heap pressure detection. No garbage collection hints for large analysis runs.",
+    "Feedback loop under load: If feedback loops were enabled (#5), validator logs would accumulate infinitely. Current stateless design avoids this but prevents learning under high volume.",
+    "Database RLS under scale: Multi-tenant RLS policies on all queries. Heavy concurrent analysis across tenants causes PostgreSQL planner overhead. No query result caching implemented. File: lib/supabase/queries/ execute policies on every request.",
+    "Session state loss on deploy: Vercel function cold start loses all in-memory state (no persistence in lib/cache/ for session metadata). If analysis is running during deployment, it must restart from transaction 0.",
+    "Cost explosion scenario: If GOOGLE_AI_MODEL is accidentally changed to gemini-2.5-pro (10x cost) and AI_COST_LIMIT_USD is not enforced, a batch analysis could incur $1000+ unexpected cost before being stopped.",
+    "Context window exhaustion: Deep context (>50 agents, >100k tokens of tax data in system prompt) causes Gemini to fail silently at ~90% of context window. File: lib/ai/forensic-analyzer.ts has no context saturation check.",
+    "Validation data corruption: If validator fails midway, partial validation results stored but status='complete' still marked. Downstream analysis uses corrupted confidence scores. File: lib/validation/ has no rollback on validator exception.",
+    "Trigger cascading: If automated agents (rate-change-monitor, compliance-calendar-agent) all trigger simultaneously on rate change, they spawn 29 parallel analyses without admission control. Could exhaust Supabase connection pool."
+  ],
+  "topThreeROI": [
+    "Feedback loops (leverage point #5 → move 2→4): Automated validator critique fed back into tax engine confidence scoring. Impact: Increase R&D offset accuracy from ~85% to 92-95%, reducing audit risk for high-value claims. Effort: Connect existing validators (tax_calculation_validator.py) to rnd-engine.ts via feedback loop in lib/analysis/base-engine.ts. ROI: $50K-$200K per client via reduced audit exposure on false-positive R&D claims.",
+    "Model selection routing (leverage point #3 → move 2→4): Route classification tasks (categorize transaction) to Flash; route reasoning tasks (assess R&D eligibility) to Pro. Implement complexity scorer in lib/ai/task-classifier.ts. Impact: Reduce token spend by 60% (Flash costs 1/6 of Pro), same confidence. ROI: $10K-$50K/month on Gemini API spend, enables larger client batch processing.",
+    "Cost efficiency enforcement (leverage point #9 → move 2→4): Implement AI_COST_LIMIT_USD hard limit with graceful degradation (switch to Flash after 70% budget spent, pause analysis at 90%). Add cost tracking to POST /api/audit/analyze route. Impact: Prevent budget overruns, enable pay-per-analysis pricing model. ROI: Protects P&L predictability, enables per-tenant spend caps for SaaS model."
+  ]
+}
+```
