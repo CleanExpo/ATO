@@ -1,0 +1,46 @@
+{
+  "zteLevel": 2,
+  "zteScore": 29,
+  "leveragePoints": [
+    { "id": 1, "name": "Spec Quality", "score": 3 },
+    { "id": 2, "name": "Context Precision", "score": 3 },
+    { "id": 3, "name": "Model Selection", "score": 2 },
+    { "id": 4, "name": "Tool Availability", "score": 3 },
+    { "id": 5, "name": "Feedback Loops", "score": 2 },
+    { "id": 6, "name": "Error Recovery", "score": 3 },
+    { "id": 7, "name": "Session Continuity", "score": 2 },
+    { "id": 8, "name": "Quality Gating", "score": 3 },
+    { "id": 9, "name": "Cost Efficiency", "score": 2 },
+    { "id": 10, "name": "Trigger Automation", "score": 3 },
+    { "id": 11, "name": "Knowledge Retention", "score": 1 },
+    { "id": 12, "name": "Workflow Standardization", "score": 2 }
+  ],
+  "productionGaps": [
+    "SPEC QUALITY: .agent/AGENTS.md defines agent capabilities and workflows at high level but zero features have machine-readable acceptance criteria or edge-case definitions; spec.md referenced in README.md but not present in repo context",
+    "CONTEXT PRECISION: CLAUDE.md is corrupted with binary garbage bytes (lines starting with \\im\\›˜[ÙX...) making ~30% of the primary context document unreadable at injection time; docs-backup-20260213-150302/ duplicates entire codebase adding noise to any context window",
+    "MODEL SELECTION: .env.example shows GOOGLE_AI_MODEL defaults to gemini-3-flash-preview with comments for fallbacks but no routing logic exists — lib/config/env.ts line optionalConfig.googleAiModel is a single static string with no task-complexity routing or cost-optimised tier selection",
+    "TOOL AVAILABILITY: agents/cli.ts exists for 5 monitoring agents but the 29 tax-domain agents in .agent/agents/ have no execution harness — they are markdown spec files only with no wired tool calls, MCP connections, or runtime; Jina AI scraping tool referenced in CLAUDE.md but corrupted",
+    "FEEDBACK LOOPS: lib/agents/quality-gates.ts referenced in README.md and MULTI_AGENT_ARCHITECTURE.md but no evidence of evaluator critique being fed back to generators; lessons.jsonl file does not exist anywhere in the repo; agents/cli.ts stores reports to console/DB but no injection pipeline back to future prompts",
+    "ERROR RECOVERY: agents/types/index.ts Agent base class has no retry, backoff, or fallback logic — execute() returns Promise<AgentReport> with no error recovery contract; lib/middleware/rate-limit.ts confirmed in-memory only (VULN-1 in CLAUDE.md compliance audit) meaning distributed deployments have no shared error state",
+    "SESSION CONTINUITY: AGENTS_README.md explicitly states 'agents are stateless, no data loss' and 'Safe to restart' — this means zero phase-level checkpoints; database migration for agent_reports table is listed as 'pending' meaning even basic persistence is not deployed; no checkpoint/resume mechanism exists",
+    "QUALITY GATING: lib/agents/quality-gates.ts referenced but quality gate criteria in README.md table ('Code compiles, linting passes') are advisory-level; CI pipeline in .github/workflows/test.yml runs tests but does not block on agent output quality scores — only 23 tests passing against a 16-engine tax platform is critically under-gated",
+    "COST EFFICIENCY: ai_analysis_costs table exists in schema but no dashboard or per-session budget enforcement found; optionalConfig.aiCostLimitUsd exists in lib/config/env.ts but no evidence it is enforced in lib/ai/ batch processor; Gemini free tier rate limiting is hardcoded as 4-second delay comment in CLAUDE.md not as enforceable middleware",
+    "TRIGGER AUTOMATION: vercel.json has 6 cron jobs (/api/alerts/cron, /api/slack/daily-summary, /api/compliance/cron, /api/email/weekly-digest, /api/analysis/auto-run, /api/admin/refresh-views) — this is the strongest automation evidence; agents:start in package.json is manual terminal command not a wired trigger; no webhook or Linear-poller trigger for agent execution found",
+    "KNOWLEDGE RETENTION: No lessons.jsonl file exists anywhere in repo; agents/cli.ts outputs to console and optionally DB but zero analysis pipeline exists to extract patterns; CLAUDE.md references 'lesson injection' conceptually but no implementation found; the compliance audit in CLAUDE.md (2026-02-07) was written manually not generated from run history",
+    "WORKFLOW STANDARDIZATION: MULTI_AGENT_ARCHITECTURE.md defines PITER-style phases but docs-backup-20260213-150302/ shows an entire parallel copy of the codebase suggesting ad-hoc branching; .agent/AGENTS.md workflow table has 21 named workflows but no classifier enforces which workflow runs for which input; agent modes (PLANNING/EXECUTION/VERIFICATION) are defined in markdown but not enforced at runtime"
+  ],
+  "loadRisks": [
+    "Rate limiting is in-memory only (lib/middleware/rate-limit.ts, confirmed VULN-1) — concurrent Vercel function instances each maintain separate counters; under load an attacker or runaway batch job can bypass all rate limits by distributing requests across instances",
+    "Gemini AI batch processor uses a hardcoded 4-second delay between requests with no circuit breaker — at 12,236 transactions the analysis takes ~14 hours minimum; if the process crashes mid-run there is no checkpoint resume and the entire run must restart from transaction 1",
+    "agents/council/ CouncilOfLogicOrchestrator and 4 advisor agents are exported but have no bounded execution contract — under concurrent load multiple council sessions could exhaust Gemini quota with no cross-session budget tracking",
+    "docs-backup-20260213-150302/ directory is a full codebase duplicate committed to the repo — this will be included in any context window built from directory traversal, doubling token consumption and potentially injecting stale/conflicting configuration",
+    "CLAUDE.md is binary-corrupted — any automated system that reads this file as primary context will inject garbage bytes into the LLM prompt, causing unpredictable model behaviour at scale; severity increases proportionally with invocation frequency",
+    "Supabase RLS is the only multi-tenant isolation mechanism; if service role key (SUPABASE_SERVICE_ROLE_KEY) is used in any path that accepts user-controlled tenantId without secondary validation, a single compromised request bypasses all tenant boundaries",
+    "lib/analysis/ engines (deduction-engine.ts, div7a-engine.ts, rnd-engine.ts) have 15+ documented compliance bugs in CLAUDE.md audit findings — under production load these silently return incorrect tax calculations with no runtime detection"
+  ],
+  "topThreeROI": [
+    "Knowledge Retention (score 1→4): Zero lessons infrastructure means every agent run starts from scratch. Implementing lessons.jsonl capture from the existing agent_reports DB table, plus a weekly extraction job and injection into CLAUDE.md context, would compound quality improvements across all 29 agents on every subsequent run — highest leverage because it multiplies the value of all other improvements over time",
+    "Session Continuity (score 2→4): The 12,236-transaction forensic analysis already crashes and restarts from zero (confirmed by README showing 0.8% progress as a notable status). Adding phase-level checkpoints to lib/ai/batch-processor.ts using the existing ai_analysis_costs table as a cursor would immediately recover hours of lost Gemini API spend per failed run and unblock the primary revenue-generating feature",
+    "Context Precision (score 3→5): CLAUDE.md corruption and the docs-backup-20260213-150302/ duplicate directory are actively injecting noise and binary garbage into every agent prompt. Fixing the CLAUDE.md encoding, deleting the backup directory from git, and implementing per-intent context compression (loading only the relevant agent's AGENT.md + directly applicable engine files) would immediately improve output quality for all 29 agents at zero infrastructure cost"
+  ]
+}
