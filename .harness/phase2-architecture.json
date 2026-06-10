@@ -1,0 +1,173 @@
+```json
+{
+  "techStack": [
+    "Next.js 16.1.3",
+    "React 19.2.3",
+    "TypeScript 5.x",
+    "Tailwind CSS 4",
+    "Supabase PostgreSQL",
+    "Google Generative AI (Gemini)",
+    "Xero API (OAuth 2.0)",
+    "MYOB API",
+    "QuickBooks Online API",
+    "Vercel (deployment)",
+    "Vitest 2.0.0 (testing)",
+    "Playwright 1.58.0 (E2E)",
+    "pnpm 9.15.9 (package manager)"
+  ],
+  "pattern": "Hybrid (Next.js App Router + multi-agent orchestration)",
+  "components": [
+    {
+      "name": "Authentication Layer",
+      "responsibility": "Supabase Auth with OAuth 2.0 (Xero, Google, MYOB, QuickBooks) + JWT token refresh in middleware",
+      "file": "middleware.ts, lib/auth/require-auth.ts, lib/supabase/client.ts"
+    },
+    {
+      "name": "Forensic Analysis Engines",
+      "responsibility": "16 specialized tax analysis engines (R&D, deductions, losses, Division 7A, etc.) generating confidence-scored recommendations",
+      "file": "lib/analysis/{rnd-engine, deduction-engine, div7a-engine, loss-engine, cgt-engine, fbt-engine, etc}.ts"
+    },
+    {
+      "name": "AI Orchestrator (Gemini)",
+      "responsibility": "Batch processing of transactions through Google Generative AI with cost tracking and token management",
+      "file": "lib/ai/forensic-analyzer.ts, lib/ai/batch-processor.ts"
+    },
+    {
+      "name": "Xero Connector",
+      "responsibility": "Read-only OAuth client for Xero API integration, token encryption, and transaction caching",
+      "file": "lib/xero/client.ts, lib/xero/token-store.ts, app/api/auth/xero/callback/route.ts"
+    },
+    {
+      "name": "Multi-Platform Adapter Layer",
+      "responsibility": "Abstract data integration for Xero, MYOB, QuickBooks into canonical schema",
+      "file": "lib/integrations/adapters/{xero-adapter, myob-adapter}.ts"
+    },
+    {
+      "name": "Autonomous Agent Fleet",
+      "responsibility": "29 specialized agents (tax domain + operations) for continuous monitoring, discovery, and analysis",
+      "file": ".agent/agents/{tax-law-analyst, rnd-specialist, agent-scout, etc}/AGENT.md"
+    },
+    {
+      "name": "Multi-Agent Orchestrator",
+      "responsibility": "Decomposes tasks into specialist work, coordinates async execution, enforces quality gates",
+      "file": ".agent/orchestrator/ORCHESTRATOR.md, lib/agents/quality-gates.ts"
+    },
+    {
+      "name": "PDF Report Generator",
+      "responsibility": "Generates professional forensic audit reports with executive summary, analysis, and recommendations",
+      "file": "lib/reports/pdf-generator.ts"
+    },
+    {
+      "name": "Dashboard UI",
+      "responsibility": "Real-time forensic audit dashboard with analysis progress, opportunities, and recommendations",
+      "file": "app/dashboard/page.tsx, app/dashboard/forensic-audit/page.tsx"
+    },
+    {
+      "name": "Data Validation System",
+      "responsibility": "10 specialized Python validators for tax calculations, R&D eligibility, financial year compliance",
+      "file": ".claude/hooks/validators/{tax_calculation_validator, rnd_eligibility_validator, div7a_validator}.py"
+    },
+    {
+      "name": "Rate Cache Manager",
+      "responsibility": "Supabase-backed cache for ATO tax rates with fallback values and stale-data detection via rate version stamps",
+      "file": "lib/tax-data/cache-manager.ts"
+    },
+    {
+      "name": "Compliance Calendar Agent",
+      "responsibility": "Entity-type-aware tax deadline tracking (BAS, PAYG, SG, R&D registration, amendment windows)",
+      "file": ".agent/agents/compliance_calendar_agent/AGENT.md"
+    },
+    {
+      "name": "Linear Integration",
+      "responsibility": "Automated Linear issue creation, status updates, and progress tracking for multi-agent work",
+      "file": "lib/linear/api-client.ts, scripts/linear/sync-agent-tasks.ts"
+    },
+    {
+      "name": "Idea Intake Workflow",
+      "responsibility": "Two-Claude pattern: capture phase collects ideas; validate phase routes to domain agents; work phase executes autonomously",
+      "file": ".agent/workflows/idea-intake.md, .agent/skills/idea-queue-capture, .agent/skills/work-queue-processor"
+    },
+    {
+      "name": "Security Event Logger",
+      "responsibility": "Detects anomalies, suspicious patterns, and triggers 30-day data breach assessment workflow (NDB compliance)",
+      "file": "lib/security/security-event-logger.ts, lib/security/breach-detector.ts"
+    },
+    {
+      "name": "API Endpoints (40+)",
+      "responsibility": "RESTful endpoints for auth, audit analysis, Xero sync, MYOB sync, report generation, compliance calendar",
+      "file": "app/api/{auth/*, xero/*, myob/*, quickbooks/*, audit/*, analysis/*, reports/*}/route.ts"
+    }
+  ],
+  "entryPoints": [
+    "/",
+    "/auth/login",
+    "/auth/signup",
+    "/dashboard",
+    "/dashboard/forensic-audit",
+    "/dashboard/calendar",
+    "/api/auth/xero/callback",
+    "/api/analysis/rnd",
+    "/api/audit/analyze"
+  ],
+  "keyDependencies": [
+    "@supabase/supabase-js (database & auth)",
+    "@google/generative-ai (Gemini AI)",
+    "xero-node (Xero integration)",
+    "@linear/sdk (project management)",
+    "next (framework)",
+    "framer-motion (animations)",
+    "recharts (data visualization)",
+    "zod (validation)",
+    "decimal.js (money calculations)",
+    "archiver (file compression for reports)",
+    "exceljs (Excel export)"
+  ],
+  "dataFlow": "User logs in via OAuth → Xero OAuth callback stores encrypted tokens in Supabase → Dashboard loads via getUser() middleware → User triggers forensic audit → Xero transactions fetched (12K+ cached) → Batch processor sends to Gemini AI → 16 engines analyze transactions (R&D, deductions, losses, Division 7A, CGT, FBT, etc.) → Recommendations generated with confidence scores → PDF report created → Multi-agent orchestrator coordinates supplementary analysis (compliance calendar, amendment tracking, rate change monitoring) → Results displayed in real-time dashboard. All token encryption at rest (AES-256-GCM), all external API calls with fallback values, all calculations audited via Python validators.",
+  "externalIntegrations": [
+    "Xero (READ-ONLY OAuth 2.0, transactions and reports)",
+    "Google Generative AI (Gemini 1.5 Flash, batch transaction analysis)",
+    "MYOB (OAuth 2.0, multi-platform support)",
+    "QuickBooks Online (OAuth 2.0, multi-platform support)",
+    "Supabase (PostgreSQL backend, auth, row-level security)",
+    "Linear (task management via Linear SDK)",
+    "Vercel (serverless deployment, cron jobs)",
+    "SendGrid (email delivery for reports via /send-to-accountant)",
+    "Google Workspace (Gmail, Docs, Sheets for accountant reports)"
+  ],
+  "securitySurface": [
+    "OAuth 2.0 callback endpoints (/api/auth/{xero,myob,quickbooks}/callback) — CSRF protection via state token, token encryption before DB storage",
+    "Xero API token refresh — automatic on every request via middleware getUser(), tokens encrypted with salt-derived keys",
+    "API endpoints (/api/audit/*, /api/analysis/*) — authenticated via Supabase JWT, rate limited (15 req/min free tier), input validated with Zod",
+    "Dashboard pages (/dashboard/*) — protected by middleware, redirects to /auth/login if unauthenticated",
+    "Multi-tenant data access — Row-level security (RLS) on all tables, user_tenant_access junction ensures IDOR protection",
+    "AI token input — all user data (transactions, descriptions) sent to Gemini, encrypted in transit (TLS 1.3), not logged",
+    "PDF report generation — Puppeteer runs headless, PDF contains summary only (no sensitive bank details)",
+    "Email delivery (/send-to-accountant) — SendGrid integration, uses verified sender addresses, encrypted tokens",
+    "Linear integration — Linear API key stored in env vars, never exposed in logs or responses",
+    "CSV/Excel exports — exported data validated, column headers filtered, no PII in file names"
+  ],
+  "designPatterns": [
+    "Orchestrator Pattern — Senior PM + Orchestrator + 4 Specialist agents (architect, developer, tester, reviewer) for structured, quality-gated development",
+    "Multi-Agent Architecture — 29 autonomous tax domain agents + 8 operational agents, coordinated via shared task queue in Supabase",
+    "Adapter Pattern — Canonical schema with Xero/MYOB/QuickBooks adapters normalizing data from multiple accounting platforms",
+    "Fallback Pattern — Tax rate cache with ATO-published values; on fetch failure, uses hardcoded fallback rates for FY2024-25",
+    "Confidence Scoring — All recommendations tagged with 0-100 confidence score, enabling risk-aware filtering",
+    "Tax Calculation Pipeline — Transaction → AI categorization → 16 engines → recommendation scoring → validation → reporting",
+    "Two-Claude Pattern (Idea Intake) — Capture Claude + Validate Claude + Work Claude running autonomously, no human bottleneck",
+    "Rate Version Stamping — Forensic reports include tax rate version hash + fetch timestamp to detect stale analyses",
+    "Batch Processing — Transaction analysis batched (configurable size) to manage Gemini API cost and token limits",
+    "Linear Issue Automation — Multi-agent work tracked in Linear via auto-created issues, status updates, blocker escalation"
+  ],
+  "couplingConcerns": [
+    "Tight coupling between API endpoints and Supabase RLS policies — changing table structure requires coordinated updates across row-level security rules",
+    "Tax rate cache hardcoded fallback values in 16 engines — when rates change (e.g., Division 7A benchmark at fiscal year boundary), fallback values become stale unless manually updated",
+    "Gemini batch processor → 16 analysis engines — single point of failure if Gemini API becomes unavailable; no fallback to deterministic analysis rules",
+    "Forensic analyzer cost tracking depends on batch processor state — if batch processor dies mid-execution, cost calculations may be incomplete (potential under-billing)",
+    "Agent orchestrator ↔ Linear SDK — if Linear API is down, agent task creation fails silently; no queue-based retry mechanism",
+    "Dashboard real-time updates assume WebSocket/polling — currently page reload required; no live notification of analysis completion",
+    "Multi-platform adapters require duplicate integration logic — Xero, MYOB, QuickBooks implementations are parallel, not DRY",
+    "Email delivery via SendGrid — if SendGrid bounces, no automatic retry or fallback (e.g., Google Workspace direct email)"
+  ],
+  "architectureNotes": "The ATO platform demonstrates strong separation of concerns: AI orchestration (Gemini), multi-agent coordination (29 autonomous agents), and specialized tax analysis (16 engines) are loosely coupled via Supabase task queues. The multi-agent framework (orchestrator + 4 specialists) enforces quality gates at each development phase, reducing regression risk. However, the heavy reliance on Gemini for transaction categorization (no fallback to rule-based analysis) and hardcoded tax rate fallbacks create brittleness when external services degrade. The system will scale horizontally on Vercel but requires careful cost management: Gemini batch processing must be monitored to prevent runaway analysis costs. Row-level security provides solid multi-tenant isolation, but the complexity of 40+ API endpoints and 16 analysis engines makes this a candidate for gradual refactoring toward domain-driven microservices (one service per tax domain). Data validation via Python validators is a smart move but requires infrastructure to run those validators in CI/CD; currently they are likely developer-facing only."
+}
+```
