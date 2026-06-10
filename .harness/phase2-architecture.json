@@ -1,0 +1,178 @@
+```json
+{
+  "techStack": [
+    "Next.js 16.1.3",
+    "React 19.2.3",
+    "TypeScript 5.x",
+    "Supabase (PostgreSQL + Auth)",
+    "Xero OAuth 2.0",
+    "Google Gemini AI (1.5 Flash)",
+    "Tailwind CSS 4",
+    "Stripe 20.3.0",
+    "SendGrid",
+    "Vercel (deployment)"
+  ],
+  "pattern": "Monolith with AI-powered microservice pipeline",
+  "components": [
+    {
+      "name": "Next.js Frontend",
+      "responsibility": "Client-side React UI with authentication, dashboards, report generation, and multi-step wizards.",
+      "file": "app/dashboard/*, app/auth/*, app/api/*"
+    },
+    {
+      "name": "Supabase Backend",
+      "responsibility": "PostgreSQL database with JWT authentication, Row Level Security policies, and real-time subscriptions.",
+      "file": "lib/supabase/server.ts, lib/supabase/client.ts"
+    },
+    {
+      "name": "Xero Integration",
+      "responsibility": "OAuth 2.0 connector for read-only access to accounting transactions, reports, and entity data.",
+      "file": "lib/xero/*, app/api/auth/xero/*"
+    },
+    {
+      "name": "Google Gemini AI Analyzer",
+      "responsibility": "Forensic AI analysis of 12,236 transactions to identify R&D, deductions, losses, Division 7A risks.",
+      "file": "lib/ai/forensic-analyzer.ts, lib/ai/batch-processor.ts"
+    },
+    {
+      "name": "Tax Analysis Engines (16 engines)",
+      "responsibility": "Domain-specific tax calculations: R&D offset (Division 355), deductions (s8-1), losses, Division 7A, FBT, PAYG, SG, CGT, PSI, superannuation caps, payroll tax.",
+      "file": "lib/analysis/rnd-engine.ts, lib/analysis/deduction-engine.ts, lib/analysis/loss-engine.ts, lib/analysis/div7a-engine.ts, lib/analysis/fbt-optimizer.ts, lib/analysis/uk/income-tax-engine.ts, lib/analysis/payroll-tax-engine.ts, lib/analysis/psi-engine.ts, lib/analysis/superannuation-cap-analyzer.ts, lib/analysis/cgt-engine.ts"
+    },
+    {
+      "name": "Agent Fleet (32 agents)",
+      "responsibility": "Specialized AI agents for R&D analysis, deduction scanning, bad debt recovery, business transitions, compliance monitoring, client onboarding, multi-entity consolidation.",
+      "file": ".agent/agents/*, .agent/skills/*"
+    },
+    {
+      "name": "Recommendation Engine",
+      "responsibility": "Synthesizes findings from all 16 analysis engines into risk-adjusted, priority-ranked recommendations with deadlines and legislation references.",
+      "file": "lib/recommendations/recommendation-engine.ts"
+    },
+    {
+      "name": "PDF Report Generator",
+      "responsibility": "Generates professional audit reports with executive summary, methodology, analysis breakdown, and actionable recommendations using Puppeteer.",
+      "file": "lib/reports/pdf-generator.ts"
+    },
+    {
+      "name": "Multi-Organization Sync",
+      "responsibility": "Fetches from multiple Xero organisations (currently 2 connected), normalises data via canonical schema, caches in historical_transactions_cache table.",
+      "file": "lib/integrations/*, lib/integrations/adapters/xero-adapter.ts"
+    },
+    {
+      "name": "Middleware (Auth + Audit)",
+      "responsibility": "Refreshes Supabase JWT tokens on every request, protects /dashboard routes, logs API audit trail with requestId, userId, tenantId.",
+      "file": "middleware.ts"
+    },
+    {
+      "name": "Rate Limiting & Security",
+      "responsibility": "Distributed rate limiting on OAuth endpoints using Upstash Redis, AES-256-GCM token encryption, CORS headers, helmet security middleware.",
+      "file": "lib/middleware/apply-rate-limit.ts, lib/xero/token-store.ts"
+    },
+    {
+      "name": "Validation System (10 validators)",
+      "responsibility": "Python-based tax calculation verification, R&D eligibility testing, Division 7A compliance checks, financial year validation, Xero schema validation.",
+      "file": ".claude/hooks/validators/*, lib/validation/"
+    },
+    {
+      "name": "CI/CD Pipeline",
+      "responsibility": "TypeScript linting, unit/integration tests (Vitest), E2E tests (Playwright), security scanning (CodeQL, Trivy, npm audit), automatic deployment to Vercel.",
+      "file": ".github/workflows/test.yml, .github/workflows/security.yml, playwright.config.ts"
+    }
+  ],
+  "entryPoints": [
+    "GET /dashboard — Dashboard home (auth required)",
+    "GET/POST /api/auth/xero/* — Xero OAuth flow",
+    "GET/POST /api/audit/analyze — Trigger forensic AI analysis",
+    "GET /api/analysis/rnd — R&D Tax Incentive assessment",
+    "POST /api/reports/pdf — Generate PDF audit report",
+    "GET/POST /api/recommendations — Retrieve actionable recommendations",
+    "GET /api/compliance/calendar — Tax deadline tracking",
+    "POST /api/slack/daily-summary — Slack integration (cron job)",
+    "GET/POST /api/myob/* — MYOB OAuth and sync (multi-platform support)",
+    "GET/POST /api/quickbooks/* — QuickBooks OAuth and sync (planned)"
+  ],
+  "keyDependencies": [
+    "@supabase/supabase-js 2.90.1 — Database and Auth",
+    "@google/generative-ai 0.24.1 — Gemini AI text analysis",
+    "xero-node 13.3.1 — Xero API client (OAuth 2.0, read-only)",
+    "@stripe/stripe-js 9.0.0 — Stripe payment processing",
+    "zod 3.24.0 — Input validation and API schemas",
+    "decimal.js 10.4.3 — Precise tax calculations (GBP/AUD)",
+    "framer-motion 12.29.0 — Animation library (React motion)",
+    "recharts 3.6.0 — Financial data visualizations",
+    "exceljs 4.4.0 — Excel report export",
+    "@linear/sdk 72.0.0 — Linear project management integration",
+    "@sentry/nextjs 10.38.0 — Error tracking and monitoring",
+    "puppeteer 24.35.0 — PDF report generation (headless Chrome)",
+    "archiver 7.0.1 — ZIP archive creation for multi-file reports",
+    "date-fns 4.1.0 — Australian financial year date handling"
+  ],
+  "dataFlow": "User logs in (Supabase Auth JWT) → Connects Xero organisation via OAuth 2.0 → Transactions cached in PostgreSQL (12,236 records) → User triggers forensic audit → Gemini AI analyzes all transactions in batches (4-second rate limit) → 16 domain-specific engines classify findings (R&D, deductions, losses, Division 7A, FBT, PAYG SG, CGT, PSI, payroll tax, superannuation) → Recommendation engine prioritises by value and deadline → PDF report generated with Puppeteer → Results cached in Supabase → User views dashboard with real-time progress, downloads PDF, shares with accountant via secure link. Cron jobs run nightly: compliance calendar updated, deadline alerts sent, tax rates refreshed from ATO, Slack summary posted.",
+  "externalIntegrations": [
+    "Xero API (OAuth 2.0) — Read-only access to transactions, reports, contacts, accounts",
+    "Google Gemini 1.5 Flash — AI-powered forensic transaction analysis (15 req/min rate limit, $0.075/M tokens)",
+    "Stripe — Payment processing for subscription billing",
+    "SendGrid — Email delivery for reports and notifications",
+    "Linear — Project management and issue tracking for agent tasks",
+    "Supabase (PostgreSQL, Auth, Realtime) — Database, JWT authentication, RLS policies",
+    "Vercel — Deployment platform, cron job scheduling, serverless functions",
+    "Google Workspace (optional) — OAuth for accountant report sharing (Docs, Sheets, Gmail)",
+    "ATO.gov.au (via Jina AI scraper) — Tax rate scraping (quarterly rates, R&D offset, SG, PAYG benchmarks)",
+    "MYOB API (planned) — OAuth 2.0 connector for MYOB users",
+    "QuickBooks API (planned) — OAuth 2.0 connector for QuickBooks Online",
+    "Slack (optional) — Webhook for daily compliance summaries and critical alerts",
+    "Australian Business Register (ABR) — ABN lookup and GST status verification"
+  ],
+  "securitySurface": [
+    "POST /api/auth/xero/authorize — OAuth state validation (CSRF protection via httpOnly cookie + state parameter verification)",
+    "GET /api/auth/xero/callback — OAuth code exchange, PKCE verification, token encryption before DB storage (AES-256-GCM)",
+    "POST /api/auth/myob/authorize — OAuth state validation (B-2 fix: httpOnly cookie + URL parameter verification)",
+    "GET /api/auth/myob/callback — OAuth code exchange, distributed rate limiting (Upstash Redis), token encryption",
+    "GET /api/auth/quickbooks/* — OAuth state validation, realm_id validation (company isolation)",
+    "POST /api/audit/analyze — User authentication required (JWT), tenant isolation via RLS, AI cost limit enforced",
+    "POST /api/reports/pdf — User authentication required, tenant isolation, rate limited (5 req/min per user)",
+    "GET /api/analysis/* — User authentication required, tenant-scoped queries via Supabase RLS",
+    "POST /api/recommendations — User authentication required, analysis results filtered by tenant_id",
+    "POST /api/slack/daily-summary — CRON_SECRET header validation (Vercel cron signature)",
+    "GET /api/xero/transactions — Xero token rotation on 1-hour expiry, encryption key in SUPABASE_SERVICE_ROLE_KEY (never client-side)",
+    "GET /api/contacts/abr-lookup — ABR GUID validated, query string sanitization (Zod schema)",
+    "POST /api/compliance/calendar — Tenant-scoped queries, read-only calendar data",
+    "All API routes — Rate limiting: 100 req/min per IP (general), 15 req/min per IP (Gemini), 5 req/min per user (PDFs), 50 req/min per user (analysis)",
+    "Session cookies — HttpOnly, Secure, SameSite=Lax, 30-day expiry (Supabase default)",
+    "OAuth tokens — AES-256-GCM encrypted before Supabase storage, decrypted server-side only, never logged",
+    "SQL Injection — Supabase parameterized queries, Zod input validation on all API routes",
+    "XSS — React 19 automatic escaping, Tailwind CSS (no inline styles), Framer Motion (trusted library)",
+    "CORS — Origin validated against NEXT_PUBLIC_BASE_URL, credentials required for cross-origin requests",
+    "IDOR — All data queries filtered by tenant_id from JWT claim, Supabase RLS enforces row-level access",
+    "Brute Force — Distributed rate limiting on OAuth, 5-minute lockout after 5 failed login attempts",
+    "Information Disclosure — Sanitized error messages in production, sensitive data never in logs or error responses"
+  ],
+  "designPatterns": [
+    "Multi-tenant isolation — Tenant ID embedded in JWT, all queries filtered by tenant_id, Supabase RLS policies enforce isolation",
+    "Tiered Agent Orchestrator (TAO) — 32 specialized agents coordinated by senior PM and orchestrator, quality gates between phases",
+    "Context Compression — Large analysis contexts compressed before storing in DB, token budget monitoring in agent execution",
+    "Tax Engine Chain — 16 domain-specific analysis engines (R&D, deductions, losses, Division 7A, etc.) orchestrated by recommendation engine, each engine produces confidence-scored findings",
+    "OAuth 2.0 + PKCE — Xero, MYOB, QuickBooks connections use authorization code flow with PKCE, token refresh on 1-hour expiry",
+    "Token Encryption — All OAuth tokens stored encrypted in DB (AES-256-GCM), decrypted server-side on use, never exposed to client",
+    "Batch AI Processing — Transactions processed in 50-transaction batches through Gemini AI (rate limit: 15 req/min, 4-sec delay between requests)",
+    "Real-time Progress — Supabase subscriptions update UI as analysis progresses (current: 100/12,236 transactions, 0.8% complete)",
+    "Recommendation Prioritization — Findings ranked by expected tax saving × confidence × urgency (deadline proximity), conservative risk adjustment (±20%)",
+    "Caching Strategy — Transaction data cached in PostgreSQL (historical_transactions_cache), AI analysis results cached (ai_analysis_costs per FY/platform), tax rates cached 24-hour TTL",
+    "RLS (Row Level Security) — Supabase enforces tenant isolation: `user_tenant_access.tenant_id = current_user_id`, users cannot query other organisations' data",
+    "Financial Year Segmentation — All analyses scoped to FY (1 July - 30 June), rate changes apply per-FY, amendment deadlines tracked per FY",
+    "Canonical Schema — Multi-platform support via adapter pattern (Xero, MYOB, QB) normalizing to CanonicalTransaction, CanonicalAccount, CanonicalLineItem",
+    "Two-Claude Idea Intake — Capture Claude (fast idea capture, <2s) → Senior PM Claude (validate) → Work Claude (execute), prevents context pollution",
+    "Quality Gates — Development workflow: Design → Implementation → Testing → Documentation → Integration → Approval, each phase has automated gates (lint, test coverage ≥80%, type check, build pass)",
+    "Amendment Period Tracking — s 170 TAA 1953 windows tracked per entity/FY, auto-alerts 90/30/7 days before expiry, identifies $50K+ opportunities for amendment",
+    "Audit Risk Scoring — Benchmarks vs ATO small business industry standards (descriptive, not normative), transaction pattern analysis (round numbers, cash clustering), assigns 0-100 risk score"
+  ],
+  "couplingConcerns": [
+    "Gemini AI + Tax Engines tight coupling — If AI categorization changes, all 16 engines may produce different results. Mitigation: confidence scores, conservative adjustments, professional review requirement.",
+    "Supabase Auth + Middleware token refresh — Every request refreshes JWT from Supabase (network call). If Supabase is slow, entire app slows. Mitigation: RLS policies cached, token cache in Redis (future).",
+    "Xero OAuth + Transaction sync — Transaction cache depends on successful Xero connection. If Xero API down, sync fails, analysis stale. Mitigation: 7-day cache TTL, graceful fallback to cached data.",
+    "Multi-platform adapter + canonical schema — Adding new platform (QB) requires: new adapter, canonical normalization, migration script for existing data, API route updates. High refactoring cost.",
+    "Rate changes + all 16 engines — ATO rate update (e.g. Division 7A benchmark) requires reanalysis of all cached results. No auto-invalidation. Mitigation: rate-change-monitor agent alerts on changes, admin manual refresh.",
+    "Recommendation engine + AI analysis results — Recommendations depend on AI quality. Garbage in = garbage out. Mitigation: validators flag low-confidence findings, professional review required.",
+    "PDF generation + Puppeteer — Report generation launches headless Chrome per request (memory-intensive, 100MB+ footprint). If reports spike, server memory exhausted. Mitigation: queue reports, 5 concurrent max.",
+    "Tenant isolation + RLS policies — RLS policies must be perfect. Single misconfigured policy = IDOR vulnerability. Mitigation: automated RLS validation in CI/CD, penet
