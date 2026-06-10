@@ -1,0 +1,215 @@
+```json
+{
+  "scores": {
+    "completeness": 6,
+    "correctness": 5,
+    "codeQuality": 6,
+    "documentation": 7
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "CLAUDE.md",
+      "line": null,
+      "description": "CLAUDE.md is corrupted — binary garbage bytes embedded in the file starting mid-section ('im\\��[�X��ܘ\\[...'). This file is referenced as the primary development guide and is unreadable past the corruption point."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": 962,
+      "description": "FINDING 7A-1 (self-documented): `const currentFY = 'FY2024-25'` is hardcoded. After 1 July 2025 this silently calculates Division 7A interest at the wrong rate. Incorrect benchmark rate = incorrect deemed dividend calculations for all tenants."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/rnd-engine.ts",
+      "line": 19,
+      "description": "FINDING R-1 (self-documented): R&D offset rate hardcoded at 43.5% regardless of entity's corporate tax rate. Entities paying 30% rate should receive 38.5% (non-refundable); small business entities receive 43.5% only when corporate rate is 25%. Engine overstates or understates benefit depending on entity."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/rnd-engine.ts",
+      "line": null,
+      "description": "FINDING R-2 (self-documented): $4M annual R&D tax offset cap (s 355-100(3) ITAA 1997, from FY2021-22) not implemented. Engine produces uncapped offset figures, overstating benefit for large claimants — potential negligence exposure."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/loss-engine.ts",
+      "line": null,
+      "description": "FINDING L-1 (self-documented): Capital losses not distinguished from revenue losses. Engine suggests capital losses can reduce ordinary income, which is legally incorrect (s 102-5 ITAA 1997). This is a fundamental tax law error that could cause clients to mis-lodge returns."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/middleware/rate-limit.ts",
+      "line": null,
+      "description": "VULN-1 (self-documented): Rate limiting is in-memory only. On Vercel serverless, each function instance has independent memory. Rate limits are trivially bypassed by distributing requests. No distributed rate limit store (Redis/Vercel KV) in place."
+    },
+    {
+      "severity": "critical",
+      "file": "apply-migration.js",
+      "line": 17,
+      "description": "Supabase project reference hardcoded: `const PROJECT_REF = 'xwqymjisxmtcmaebcehw'`. Database host derived from this constant. This is a production credential/identifier committed to the repository. Should be an environment variable."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": 244,
+      "description": "FINDING D-3 (self-documented): Base rate entity test uses turnover < $50M as sole criterion, missing the 80% passive income test (s 23AA ITAA 1997). A company with >80% passive income at $40M turnover pays 30%, not 25%. Tax saving estimates are wrong for these entities."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": 323,
+      "description": "FINDING D-1 (self-documented): Flat 50% entertainment deductibility applied to all entertainment. FBTAA election (s 37AA) determines actual treatment. Seminars with incidental meals are 100% deductible. Oversimplification leads to over/under claiming."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": 20,
+      "description": "FINDING D-2 (self-documented): Instant asset write-off threshold uses $20,000 fallback for all years. COVID temporary full expensing ($150,000 threshold for FY2020-21 through FY2022-23) not applied. Historical transaction analysis understates eligible write-offs by up to $130,000 per asset."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": 712,
+      "description": "FINDING 7A-2 (self-documented): Minimum repayment formula uses full-year amortisation. s 109E(5) ITAA 1936 requires proportional reduction for part-year loans. Overstating minimum repayment shortfall for mid-year loans."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": null,
+      "description": "FINDING 7A-5 (self-documented): Distributable surplus cap (s 109Y ITAA 1936) not calculated. Deemed dividend cannot exceed distributable surplus. Engine overstates deemed dividend exposure — potentially alarming clients unnecessarily."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/trust-distribution-analyzer.ts",
+      "line": 313,
+      "description": "FINDING T-2 (self-documented): Trustee penalty rate cited as 45%. Correct rate is 47% (45% top marginal + 2% Medicare levy under s 99A ITAA 1936). Understates worst-case exposure by 2 percentage points."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/superannuation-cap-analyzer.ts",
+      "line": null,
+      "description": "FINDING S-1 (self-documented): Carry-forward concessional contributions (5-year window, TSB < $500K) not handled. Engine generates false breach alerts for employees legitimately using carry-forward under s 291-20 ITAA 1997."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/fuel-tax-credits-analyzer.ts",
+      "line": 120,
+      "description": "FINDING F-1 (self-documented): Fuel tax credit rates are static annual values. ATO updates rates quarterly. Transactions from Q1 FY vs Q3 FY may have different applicable rates. Road user charge deduction (FINDING F-2) also missing for heavy on-road vehicles."
+    },
+    {
+      "severity": "high",
+      "file": "lib/reports/pdf-generator.ts",
+      "line": null,
+      "description": "Executive summary confidence calculation: `(rndSummary.averageConfidence + deductionSummary.averageConfidence + 80 + 90) / 4` — magic numbers 80 and 90 hardcoded as 'confidence' values for loss analysis and Div7A. Confidence displayed to users is fabricated for two of four components."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/loss-engine.ts",
+      "line": 449,
+      "description": "FINDING L-2 (self-documented): COT/SBT analysis returns 'unknown' but engine still assumes loss eligibility. Users may proceed on assumption losses are available when they have actually been forfeited. No blocking of analysis pending professional review."
+    },
+    {
+      "severity": "high",
+      "file": "app/api/auth/myob/callback/route.ts",
+      "line": 65,
+      "description": "Multiple company files: agent auto-selects `companyFiles[0]` with only a `log.info`. Users with multiple MYOB company files silently get the wrong company connected. FUTURE comment exists but no UI path to select the correct file."
+    },
+    {
+      "severity": "medium",
+      "file": "lib/auth/require-auth.ts",
+      "line": 145,
+      "description": "VULN-2 (self-documented): `devBypassAuth()` function exported with runtime NODE_ENV check. Build-time elimination preferred. Function remains reachable in production bundle even if never called."
+    },
+    {
+      "severity": "medium",
+      "file": "lib/share/token-generator.ts",
+      "line": 29,
+      "description": "VULN-3 (self-documented): Modulo bias in share token generation. `bytes[i] % 56` gives characters at positions 0-31 ~1.6% higher probability. Use rejection sampling for cryptographically uniform distribution."
+    },
+    {
+      "severity": "medium",
+      "file": "docs-backup-20260213-150302/",
+      "line": null,
+      "description": "Entire docs-backup directory committed to repository including AGENTS_README.md, MIGRATIONS_README.md, README.md, tsconfig.json, package.json, and all agent/component index files. Duplicates ~50+ files. Inflates repo size, creates confusion about canonical source, and risks divergence."
+    },
+    {
+      "severity": "medium",
+      "file": ".agent/agents/context-manager/index.ts",
+      "line": 89,
+      "description": "`compact()` method estimates token reduction as a hardcoded 50% (`const estimatedReduction = 0.5`). Actual compaction is simulated with console.log calls and no real context manipulation. The method claims to compact but does nothing substantive — misleading operational tooling."
+    },
+    {
+      "severity": "medium",
+      "file": "lib/reports/pdf-generator.ts",
+      "line": null,
+      "description": "`generatePDF` and `generateClientPDF` use `await page.setContent(htmlContent, { waitUntil: 'load' })`. Puppeteer's `waitUntil: 'load'` does not wait for CSS or web fonts to render, causing inconsistent PDF output. Should use `waitUntil: 'networkidle0'` or `domcontentloaded` with explicit font loading."
+    },
+    {
+      "severity": "medium",
+      "file": "vercel.json",
+      "line": null,
+      "description": "Missing `Content-Security-Policy` header in vercel.json security headers. X-XSS-Protection is deprecated (browser support removed) and provides false security. No HSTS header. CSP is the primary XSS mitigation for modern browsers."
+    },
+    {
+      "severity": "medium",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": null,
+      "description": "FINDING D-4 (self-documented): Prepaid expenses not checked for 12-month rule (s 82KZM ITAA 1936). Expenses for services >12 months must be apportioned. Engine overstates deductions in year of payment for multi-year prepayments."
+    },
+    {
+      "severity": "medium",
+      "file": "package.json",
+      "line": null,
+      "description": "`@testing-library/jest-dom` present in docs-backup/package.json but absent from root package.json. Root package.json also missing `@testing-library/jest-dom`. Tests using `jest-dom` matchers (e.g., `.toBeInTheDocument()`) will fail at runtime without it."
+    },
+    {
+      "severity": "low",
+      "file": "README.md",
+      "line": null,
+      "description": "README badge shows `Next.js 16.1` which is not a real Next.js version (current stable is 15.x). Misleading to contributors. package.json confirms `next: 16.1.3` — either a custom fork version or an incorrect badge."
+    },
+    {
+      "severity": "low",
+      "file": ".env.example",
+      "line": null,
+      "description": "`TOKEN_ENCRYPTION_KEY` is listed as optional (commented out) but the CLAUDE.md and security documentation describe it as REQUIRED in production. Inconsistency between .env.example and actual security requirements."
+    },
+    {
+      "severity": "low",
+      "file": "ATO_PROJECT_STATUS.md",
+      "line": null,
+      "description": "Status document contains specific commit hashes (70360fe, f2336f4, 02ffda8), hardcoded transaction counts (12,236), and time-sensitive progress percentages (0.8%). This will be permanently stale and misleading to new contributors."
+    }
+  ],
+  "missingTests": [
+    "Division 7A engine: benchmark interest rate year-boundary behaviour (30 June → 1 July rate change)",
+    "Division 7A engine: part-year loan minimum repayment calculation (s 109E(5))",
+    "Division 7A engine: distributable surplus cap enforcement (s 109Y)",
+    "R&D engine: $4M annual offset cap enforcement",
+    "R&D engine: correct rate selection based on entity corporate tax rate (25% vs 30%)",
+    "Loss engine: capital loss vs revenue loss distinction (s 102-5)",
+    "Loss engine: COT/SBT failure path — losses should be quarantined, not assumed available",
+    "Deduction engine: instant asset write-off threshold by financial year (FY2020-22 = $150K, FY2023+ = $20K)",
+    "Deduction engine: entertainment deductibility under different FBTAA elections",
+    "Deduction engine: base rate entity passive income test (80% threshold)",
+    "Trust distribution analyzer: s 100A ordinary family dealing exclusion",
+    "Superannuation cap analyzer: carry-forward concessional contributions (5-year window)",
+    "Fuel tax credits analyzer: quarterly rate lookup and road user charge deduction",
+    "Rate limiting: distributed enforcement across multiple serverless instances",
+    "MYOB OAuth callback: multi-company file selection behaviour",
+    "PDF generator: Puppeteer rendering completeness (CSS/font load timing)",
+    "Share token generator: statistical uniformity / modulo bias absence",
+    "Amendment period tracker: 2-year vs 4-year period by entity type",
+    "Financial year utility: FY boundary edge cases (1 July, 30 June)",
+    "All 16 analysis engines: integration test with real Supabase schema (smoke tests)"
+  ],
+  "securityConcerns": [
+    "apply-migration.js line 17: Supabase production project reference `xwqymjisxmtcmaebcehw` hardcoded as constant and committed to repo. Exposes infrastructure topology.",
+    "lib/middleware/rate-limit.ts: In-memory rate limiting ineffective on Vercel serverless — each cold start is a fresh instance with no shared state. Brute-force and credential stuffing attacks bypass rate limits trivially.",
+    "lib/auth/require-auth.ts lines 145-168: devBypassAuth() compiled into production bundle. Runtime check on NODE_ENV is correct but build-time elimination (conditional import) is safer and prevents bundle analysis from revealing bypass path.",
+    "CLAUDE.md: File corruption may indicate tampering or improper binary injection. Binary bytes in a markdown guidance file is anomalous and should be investigated before treating CLAUDE.md as trustworthy.",
+    "vercel.json: Missing Content-Security-Policy header. X-XSS-Protection header is deprecated and removed from Chrome/Firefox. No HSTS. API routes have no CORS policy defined.",
+    "ENVIRONMENT_VARIABLES_SETUP.md: Contains placeholder patterns like `$JINA_API_KEY` that suggest copy-paste from shell scripts. If a developer sets this literally, the variable value would be the string '$JINA_API_KEY' rather than the actual key.",
+    "app/api/auth/myob/callback/route.ts: `state` variable (line ~65) is used as `userId` from verified cookie, but the variable name `state` is then reused in the upsert call which could cause confusion in code review. The actual userId extraction is correct but naming obfuscates the security boundary.",
+    "lib/share/token-generator.ts line 29: Modulo bias in cryptographic token generation
