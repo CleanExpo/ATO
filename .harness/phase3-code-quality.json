@@ -1,0 +1,218 @@
+```json
+{
+  "scores": {
+    "completeness": 6,
+    "correctness": 5,
+    "codeQuality": 6,
+    "documentation": 8
+  },
+  "issues": [
+    {
+      "severity": "critical",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": 323,
+      "description": "Entertainment deductibility is oversimplified: flat 50% treatment ignores employer election under s 37AA FBTAA and meal entertainment exemptions. Risk: ATO scrutiny and over-claiming."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": 962,
+      "description": "Hardcoded FY2024-25 benchmark rate will silently use wrong rate after 30 June 2025. MUST be dynamic to prevent incorrect compliance calculations."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/loss-engine.ts",
+      "line": 449,
+      "description": "Similar Business Test returns 'unknown' for all cases but engine assumes eligibility. Dramatic business pivots (cleaning services → digital marketing) may fail SBT; risks incorrect loss carry-forward claims."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/rnd-engine.ts",
+      "line": 19,
+      "description": "R&D offset rate hardcoded at 43.5% ignores turnover-based variation: entities with turnover ≥$20M get 8.5% premium (not 18.5%), and entities paying 30% corporate tax get 48.5% (not 43.5%). Systematic under/over-estimation."
+    },
+    {
+      "severity": "critical",
+      "file": "lib/analysis/rnd-engine.ts",
+      "line": null,
+      "description": "$4M annual R&D tax offset cap (s 355-100(3)) is not enforced. Large claimants will receive inflated benefit estimates."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": 20,
+      "description": "Instant asset write-off threshold history not tracked. FY2020-21 to FY2022-23 had different thresholds ($150K COVID relief); using flat $20K fallback understates eligible write-offs for historical transactions."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": 244,
+      "description": "Base rate entity test incomplete: uses turnover <$50M but omits passive income test (s 23AA requires <80% passive income). Entities with high passive income pay 30%, not 25%; tax liability understated."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/deduction-engine.ts",
+      "line": null,
+      "description": "No handling of prepaid expenses: s 82KZM ITAA 1936 requires apportionment of expenses >12 months across years. Face-value deduction overstates Year 1 benefit."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": 712,
+      "description": "Minimum repayment formula uses full-year amortisation; s 109E(5) requires proportional reduction for mid-year loans. Overstates minimum repayment shortfall."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": null,
+      "description": "Section 109RB safe harbour exclusions missing: genuine commercial payments (e.g. arm's length salary) are excluded from Division 7A but engine flags them. False positive compliance failures."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/div7a-engine.ts",
+      "line": null,
+      "description": "Distributable surplus (s 109Y) not calculated: deemed dividend cannot exceed available surplus. Engine may overstate Division 7A exposure."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/loss-engine.ts",
+      "line": null,
+      "description": "Capital losses not distinguished from revenue losses: engine treats all losses as revenue (offsetting ordinary income). Capital losses only offset capital gains (s 102-5). Incorrect tax outcome."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/trust-distribution-analyzer.ts",
+      "line": 313,
+      "description": "Trustee penalty tax rate incorrect: references 45% but correct rate is 45% + Medicare Levy (2%) = 47%. Understates worst-case exposure."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/superannuation-cap-analyzer.ts",
+      "line": null,
+      "description": "Carry-forward concessional contributions not handled: unused cap from prior 5 years (if balance <$500K) is ignored. Flat single-year cap produces false breach alerts."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/fuel-tax-credits-analyzer.ts",
+      "line": 120,
+      "description": "Fuel tax credit rates are quarterly (updated Feb, Apr, Aug, Nov typically), not annual. Uses single annual rate; transactions in different quarters calculated incorrectly."
+    },
+    {
+      "severity": "high",
+      "file": "lib/analysis/fuel-tax-credits-analyzer.ts",
+      "line": null,
+      "description": "Road user charge deduction not applied: heavy vehicles on public roads have reduced fuel tax credit. Engine applies full credit regardless of vehicle use pattern."
+    },
+    {
+      "severity": "high",
+      "file": "lib/middleware/rate-limit.ts",
+      "line": null,
+      "description": "Rate limiting is in-memory only; in serverless/edge environments, limits are per-function-instance, not global. Distributed attackers can bypass by spreading requests across instances."
+    },
+    {
+      "severity": "high",
+      "file": "lib/auth/require-auth.ts",
+      "line": 145,
+      "description": "Dev auth bypass uses runtime NODE_ENV check; function is exported and accessible. Should use build-time conditional imports to eliminate function entirely in production."
+    },
+    {
+      "severity": "medium",
+      "file": "lib/share/token-generator.ts",
+      "line": 29,
+      "description": "Share token modulo bias: `bytes[i] % 56` (URL_SAFE_CHARS length) introduces bias since 256 % 56 ≠ 0. Characters at positions 0-31 are ~1.6% more likely. Use rejection sampling."
+    },
+    {
+      "severity": "medium",
+      "file": ".agent/agents/amendment_period_tracker/AGENT.md",
+      "line": null,
+      "description": "Amendment period tracker suggests checking FYs 'within amendment window' but does not clearly flag opportunities that have already EXPIRED (e.g. FY2020-21 may be out of amendment period). Missing clarity on permanent loss-of-opportunity cost."
+    },
+    {
+      "severity": "medium",
+      "file": "README.md",
+      "line": null,
+      "description": "README claims '23 tests passing' but package.json lists test suites for unit, integration, e2e, security, performance. Actual test count is unclear; confidence in coverage is low."
+    },
+    {
+      "severity": "low",
+      "file": ".env.example",
+      "line": null,
+      "description": "Example file includes STRIPE and SENDGRID env vars but the main README does not mention payment processing or email delivery features. Feature scope unclear for new developers."
+    },
+    {
+      "severity": "low",
+      "file": "CLAUDE.md",
+      "line": null,
+      "description": "CLAUDE.md file is partially corrupted (text fragments visible around line 25-30). May confuse developers following patterns."
+    }
+  ],
+  "missingTests": [
+    "Entertainment deductibility multi-path test (FBT employer election, meal exemptions, recreational entertainment)",
+    "Instant asset write-off historical thresholds (FY2020-21, FY2021-22, FY2022-23 variance)",
+    "Base rate entity passive income test (80% threshold)",
+    "Division 7A safe harbour exclusions (genuine commercial payments)",
+    "Distributable surplus cap on deemed dividends",
+    "Capital loss vs revenue loss segregation",
+    "Trustee tax rate including Medicare Levy",
+    "Superannuation carry-forward concessional cap (5-year window, <$500K balance)",
+    "Quarterly fuel tax credit rate variations",
+    "Amendment period expiry scenarios and lost-opportunity detection",
+    "Distributed rate limit enforcement across serverless instances",
+    "R&D offset cap enforcement ($4M annual maximum)"
+  ],
+  "securityConcerns": [
+    {
+      "severity": "high",
+      "description": "In-memory rate limiting in serverless environment: `lib/middleware/rate-limit.ts` uses per-instance memory. Distributed attackers can bypass by spreading requests across function instances. Recommend: Redis (Upstash) or Vercel KV.",
+      "file": "lib/middleware/rate-limit.ts"
+    },
+    {
+      "severity": "medium",
+      "description": "Dev auth bypass accessible via exported function: `lib/auth/require-auth.ts` lines 145-168 use runtime NODE_ENV check. Recommend: Build-time conditional import to eliminate function entirely in production.",
+      "file": "lib/auth/require-auth.ts"
+    },
+    {
+      "severity": "medium",
+      "description": "Share token modulo bias: `lib/share/token-generator.ts` line 29. 32 out of 256 possible byte values are ~1.6% more likely due to 256 % 56 ≠ 0. Recommend: Rejection sampling for uniform distribution.",
+      "file": "lib/share/token-generator.ts"
+    },
+    {
+      "severity": "low",
+      "description": "Placeholder credentials in Vercel preview builds: `lib/config/env.ts` allows 'placeholder' Supabase URL for preview env. Verify placeholder is never used for real API calls.",
+      "file": "lib/config/env.ts"
+    }
+  ],
+  "positives": [
+    "Excellent documentation suite: README, CLAUDE.md, AGENTS.md, MULTI_AGENT_ARCHITECTURE.md provide clear guidance for developers and users.",
+    "Comprehensive agent fleet: 29+ specialized tax agents covering R&D, deductions, losses, Division 7A, superannuation, payroll tax, PSI, and compliance.",
+    "Strong authentication & encryption: Supabase Auth with JWT, AES-256-GCM token encryption, multi-tenant Row Level Security isolation.",
+    "Production-grade infrastructure: Vercel deployment, database migrations with rollback, environment variable validation, Slack/email integration.",
+    "Solid API design: 40+ endpoints with standardized error responses, rate limiting, input validation via Zod.",
+    "Tax legislation coverage: All major Australian tax acts referenced (ITAA 1997, ITAA 1936, TAA 1953, FBTAA 1986, SGAA 1992).",
+    "Accessibility & UX: Glassmorphism design system, ARIA compliance testing via axe-core, responsive Tailwind CSS.",
+    "Read-only Xero access: No write operations; safe for users. OAuth 2.0 with minimal scopes.",
+    "Compliance audit report generated: Comprehensive compliance audit (20260207) documenting Privacy Act, NDB scheme, TPB registration analysis with specific findings and remediation steps."
+  ]
+}
+```
+
+## Summary
+
+**Project Health: 6/10** — Production-ready architecture with significant tax calculation accuracy gaps that require urgent remediation.
+
+### Critical Issues (Block Production)
+
+1. **Hardcoded FY rates** (Division 7A benchmark, R&D offset): Will fail silently after June 2025. All rate-dependent calculations must be fetched dynamically.
+2. **Incomplete tax tests**: Entertainment (FBT), base rate entity (passive income), Division 7A (safe harbours), capital losses, and superannuation carry-forward are under-tested.
+3. **Similar Business Test assumption**: Loss carry-forward engine assumes eligibility for business pivots (cleaning → digital marketing) that may fail SBT. Needs explicit verification + private ruling recommendation.
+
+### Strengths
+
+- Excellent documentation and architecture
+- 29+ domain-specific agents for tax analysis
+- Enterprise security (encryption, RLS, SSO)
+- Compliance audit report shows self-awareness
+
+### Recommendation
+
+**Deploy with caution.** Add a red-banner disclaimer on all tax benefit estimates: *"ESTIMATE ONLY — All calculations must be reviewed by a qualified tax agent before lodgement."* Prioritize fixing rate dynamics, division 7A safe harbours, and similar business test verification before 30 June 2025.
