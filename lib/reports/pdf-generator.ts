@@ -749,7 +749,7 @@ export async function generatePDF(
 
     // Load HTML content
     await page.setContent(htmlContent, {
-      waitUntil: 'networkidle0',
+      waitUntil: 'load',
       timeout: 30000
     })
 
@@ -921,7 +921,7 @@ export async function generateClientPDF(
 
   try {
     const page = await browser.newPage()
-    await page.setContent(clientHTML, { waitUntil: 'networkidle0', timeout: 30000 })
+    await page.setContent(clientHTML, { waitUntil: 'load', timeout: 30000 })
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
