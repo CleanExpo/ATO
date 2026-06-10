@@ -1,0 +1,160 @@
+```json
+{
+  "techStack": [
+    "Next.js 16.1 (React 19, TypeScript 5.x)",
+    "Supabase PostgreSQL + Auth",
+    "Gemini 3 Flash (AI analysis)",
+    "Xero API (OAuth 2.0, read-only)",
+    "Tailwind CSS 4 + Framer Motion",
+    "Zod (validation)",
+    "Decimal.js (financial calculations)",
+    "ExcelJS (report generation)",
+    "Playwright (E2E testing)",
+    "Vercel (deployment)",
+    "Linear (project management)",
+    "Stripe (payments)"
+  ],
+  "pattern": "Hybrid: Next.js full-stack monolith with agentic microservices",
+  "components": [
+    {
+      "name": "Forensic Analysis Engine",
+      "responsibility": "16 specialized tax analysis engines (R&D, deductions, losses, Division 7A, etc.) running Gemini AI forensic scans on Xero transactions.",
+      "file": "lib/analysis/"
+    },
+    {
+      "name": "Multi-Agent Orchestrator",
+      "responsibility": "Coordinates 29 specialized agents (tax domain, operations, development process) via Linear issue tracking and agentic workflows.",
+      "file": ".agent/agents/ + lib/agents/orchestrator.ts"
+    },
+    {
+      "name": "Xero OAuth Connector",
+      "responsibility": "Manages OAuth 2.0 token lifecycle (refresh, encryption, secure storage) for read-only access to multiple Xero organizations.",
+      "file": "lib/xero/client.ts + app/api/auth/xero/"
+    },
+    {
+      "name": "Tax Data Cache",
+      "responsibility": "Caches ATO rates (R&D offsets, Division 7A benchmarks, tax brackets) with 24-hour TTL and fallback values.",
+      "file": "lib/tax-data/cache-manager.ts"
+    },
+    {
+      "name": "Report Generator",
+      "responsibility": "Converts analysis results into PDF/Excel reports with legislation citations and professional formatting.",
+      "file": "lib/reports/generator.ts"
+    },
+    {
+      "name": "Validation Layer",
+      "responsibility": "10 specialized Python validators verify tax calculations, R&D eligibility, and compliance rules.",
+      "file": ".claude/hooks/validators/"
+    },
+    {
+      "name": "Dashboard UI",
+      "responsibility": "Scientific luxury design system with Glassmorphism, real-time data visualization, and forensic audit results.",
+      "file": "app/dashboard/ + components/"
+    },
+    {
+      "name": "Monitoring Agent Fleet",
+      "responsibility": "5 autonomous agents continuously monitor AI analysis progress, data quality, API health, schema validity, and tax rate freshness.",
+      "file": ".agent/agents/ (analysis-monitor, data-quality, api-health, schema-validation, tax-data-freshness)"
+    },
+    {
+      "name": "Autonomous Agent System",
+      "responsibility": "5 monitoring agents + CLI + Dashboard running every 5 minutes to detect issues and recommend improvements during AI analysis.",
+      "file": "agents/ + app/dashboard/agent-monitor/"
+    }
+  ],
+  "entryPoints": [
+    "POST /api/audit/analyze — Start forensic AI analysis",
+    "GET /api/auth/xero/authorize — Initiate Xero OAuth",
+    "GET /api/xero/transactions — Fetch cached Xero data",
+    "POST /api/reports/generate — Create PDF/Excel report",
+    "GET /dashboard — Main dashboard (protected, requires Supabase auth)",
+    "POST /api/agents/run — Trigger specific monitoring agent",
+    "GET /dashboard/agent-monitor — Real-time agent monitoring dashboard"
+  ],
+  "keyDependencies": [
+    "@google/generative-ai — Gemini AI forensic analysis",
+    "@supabase/supabase-js — Database + Auth + RLS",
+    "xero-node — Xero API client (v13.3.1)",
+    "@stripe/stripe-js — Payment processing",
+    "decimal.js — Financial calculations (prevent floating-point errors)",
+    "exceljs — Excel report generation",
+    "zod — Runtime TypeScript validation",
+    "@linear/sdk — Linear project management integration",
+    "framer-motion — Animation + glassmorphism UI",
+    "recharts — Data visualization",
+    "playwright — E2E testing (critical paths)"
+  ],
+  "dataFlow": "User connects Xero (OAuth) → Transactions cached in Supabase → Gemini AI analyzes transactions (forensic scan) → 16 engines classify + calculate tax benefits → Recommendations stored → Dashboard displays real-time results → User exports PDF/Excel report → Monitoring agents continuously check progress, data quality, API health, schema, rate freshness",
+  "externalIntegrations": [
+    "Xero OAuth 2.0 — Read-only access to accounting data",
+    "Google Gemini 3 Flash — AI forensic analysis",
+    "Supabase Auth — JWT-based authentication",
+    "Stripe — Payment processing for premium features",
+    "Linear API — Issue tracking + agent task management",
+    "ATO (Australian Taxation Office) — Rate data (via Jina AI scraping)",
+    "ABR (Australian Business Register) — Entity validation",
+    "Slack webhooks — Daily summaries + alerts",
+    "SendGrid — Email delivery (reports, invitations)",
+    "Google Workspace — Shared document generation",
+    "Vercel — Deployment + edge functions + cron jobs"
+  ],
+  "securitySurface": [
+    "GET /api/auth/xero/authorize — Redirects to Xero OAuth (requires user_id in session)",
+    "GET /api/auth/xero/callback — Receives OAuth code + state from Xero (CSRF protection: state validation)",
+    "POST /api/xero/sync — Fetches transactions from Xero API (uses encrypted refresh tokens)",
+    "POST /api/audit/analyze — Accepts tenantId + analyzes Xero data (RLS: tenantId must match user's organizations)",
+    "GET /dashboard/* — Protected route (requires Supabase session, redirects to /auth/login if missing)",
+    "POST /api/reports/generate — Accepts tenantId + analysis parameters (validates ownership before generating)",
+    "Token storage — Xero + OAuth tokens encrypted at rest (AES-256-GCM with tenant-specific keys)",
+    "Database RLS — All Supabase tables have row-level security policies (user_tenant_access check)",
+    "Rate limiting — Distributed rate limits on OAuth endpoints (in-memory Upstash Redis)",
+    "CORS — API routes validate Origin header, limit to deployed domain",
+    "Input validation — All API inputs validated with Zod before processing"
+  ],
+  "designPatterns": [
+    "Layered architecture — UI → API → Business Logic → Data (clean separation of concerns)",
+    "Factory pattern — EngineFactory creates specialized tax engines (R&D, Deductions, etc.)",
+    "Strategy pattern — Multiple tax calculation strategies per legislation (Division 355, Division 7A, etc.)",
+    "Observer pattern — Monitoring agents observe analysis progress + emit alerts",
+    "Proxy pattern — Database client proxies Supabase with RLS enforcement",
+    "Builder pattern — ReportGenerator builds reports section-by-section",
+    "Template Method — BaseTaxEngine defines tax calculation template; subclasses override steps",
+    "Decorator pattern — Validation layer decorates analysis results with confidence scores",
+    "Agent architecture — Multi-agent orchestrator coordinates 29 specialized agents via Linear",
+    "Event-driven — Monitoring agents emit events on progress updates, quality issues, deadlines"
+  ],
+  "couplingConcerns": [
+    "TIGHT: All tax engines depend on TaxDataCache for rate lookups — cache failure breaks all analyses",
+    "TIGHT: Dashboard components tightly coupled to Supabase schema (breaking schema changes = UI breaks)",
+    "TIGHT: Xero OAuth tied to specific tenant schema — multi-tenancy refactoring is high-friction",
+    "TIGHT: AI analysis results stored in single forensic_analysis_results table — scaling to 1M+ records will require partitioning",
+    "LOOSE: Agent orchestrator decoupled from individual agents via Linear + standardized message format (good)",
+    "LOOSE: Monitoring agents are stateless and can run independently (good reusability)",
+    "MODERATE: Report generator depends on analysis engine output structure — schema changes require sync"
+  ],
+  "architectureNotes": "ATO is a well-structured SaaS platform combining financial data aggregation (Xero OAuth), AI forensic analysis (Gemini), multi-agent orchestration (29 agents), and tax compliance expertise (16 domain-specific engines + 10 validators). Strengths: Read-only Xero access eliminates mutation risks; RLS provides tenant isolation; Decimal.js prevents financial calculation errors; comprehensive validation layer (Python validators) ensures 90-95% confidence. Liabilities: All 16 tax engines depend on single TaxDataCache (single point of failure); Gemini API rate limits (15 req/min free tier) will throttle large batch analyses; forensic_analysis_results table will require partitioning at 1M+ rows; monitoring agents rely on in-memory rate limiting (non-distributed). Will break under load: (1) Cache expiry during peak analysis (no queue); (2) Concurrent Xero syncs for same tenant (no locking); (3) 12K+ transactions analyzed sequentially (batch size limited to 50). Recommend: Add Upstash Redis for distributed rate limiting, implement work queue (Bull/RabbitMQ) for analysis jobs, partition forensic_analysis_results by tenant_id + created_at, add circuit breaker on Gemini API calls."
+}
+```
+
+---
+
+## Summary
+
+**ATO** is a **mission-critical tax optimization SaaS** that integrates Xero accounting data, applies forensic AI analysis (Gemini), and runs 16 specialized tax engines to identify $200K–$500K in missed tax benefits per client. 
+
+**Architecture Strengths:**
+- ✅ Read-only Xero access eliminates risk
+- ✅ RLS-enforced multi-tenant isolation
+- ✅ 29 specialized agents coordinated via Linear
+- ✅ 10 Python validators (90-95% confidence)
+- ✅ Decimal.js prevents financial errors
+- ✅ Monitoring agents (5) continuously check health
+
+**Critical Liabilities:**
+- ⚠️ **Single point of failure:** TaxDataCache (all engines depend on it)
+- ⚠️ **Rate limit bottleneck:** Gemini API 15 req/min (free tier)
+- ⚠️ **No distributed rate limiting:** In-memory only (not Vercel-safe)
+- ⚠️ **No work queue:** Batch analyses run sequentially, no retries
+- ⚠️ **Schema scaling:** `forensic_analysis_results` unpartitioned (1M+ rows will slow)
+
+**Will break under load:** Concurrent syncs, large batches, cache expiry, Gemini rate limits.
