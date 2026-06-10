@@ -1,0 +1,74 @@
+```json
+{
+  "projectPurpose": "AI-powered Australian tax optimization platform that performs forensic analysis of Xero accounting data to identify R&D tax incentives, unclaimed deductions, carry-forward losses, and compliance opportunities. Generates actionable recommendations with 90-95% confidence scoring.",
+  "targetUsers": [
+    "Australian business owners (sole traders, SMEs) seeking tax recovery ($200K-$500K potential per client)",
+    "Tax agents and accountants using the platform as a forensic audit tool to enhance client service offerings",
+    "Financial advisors requiring deep tax analysis capabilities across multiple entities and platforms"
+  ],
+  "businessLogic": "Multi-engine tax analysis system processing Xero data through 16+ specialized engines (R&D, deductions, Division 7A, losses, CGT, FBT, superannuation, etc.) orchestrated by Gemini AI. Validates against ATO legislation, rates, and deadlines. Read-only access to accounting data. Agents continuously monitor for new opportunities, rate changes, and compliance deadlines. Recommendations flagged for professional review before implementation (not binding financial advice).",
+  "currentState": "beta",
+  "bigThree": {
+    "model": "Gemini AI (gemini-3-flash-preview, 1M token context) is well-suited for multimodal, agentic analysis of structured financial data. 16 specialized tax engines (Division 355 R&D, Division 7A loans, etc.) handle domain-specific calculations with explicit legislation references. Choice is appropriate; alternative: Claude for reasoning-heavy loss carry-forward tests, but Gemini's cost-efficiency and context window preferred for forensic audit at scale. CONCERN: Agent fleet (29 agents) is complex; each requires careful prompt engineering to avoid hallucinations on tax law. Mitigation: validators in `.claude/hooks/validators/` catch common errors pre-deployment.",
+    "prompt": "Structured prompts in `lib/ai/forensic-analyzer.ts` instruct Gemini to: (1) classify transactions by tax category, (2) identify R&D eligibility using four-element test, (3) flag Division 7A compliance issues, (4) detect misclassifications. Prompts are incomplete — no explicit instruction for handling conflicting legislation (e.g., when an expense meets both s 8-1 general deduction AND R&D criteria; priority unclear). Recommendation: Add decision tree in prompts for overlapping eligibility categories. ISSUE: Confidence scoring (90-95%) appears arbitrary; no methodology documented for how confidence is derived from input data quality. Recommendation: Implement explicit confidence calculation based on: (a) data completeness score, (b) legislation clarity (some rules have more edge cases), (c) prior validation pass/fail.",
+    "context": "Context provided to AI is well-structured: (a) extracted Xero transactions with GL codes, (b) FY context (crucial for rate application), (c) entity type (sole trader vs company = different loss rules). CRITICAL GAPS: (1) No user tax filing history provided — AI cannot assess whether deductions were previously claimed (risks double-claiming). (2) No prior audit/amendment period context — AI may recommend amendments to years outside the amendment window (expired opportunities). (3) No entity relationship mapping — multi-entity structures not treated as groups for consolidation purposes. FIXES IMPLEMENTED: Amendment period tracker (UNI-180) and data quality agent pre-scan reduce risks. REMAINING: Add user filing history (if available) to forensic analyzer context."
+  },
+  "keyInsights": [
+    "PRODUCTION-READY CORE: Xero OAuth, multi-org support, Supabase schema, and 23 passing tests indicate mature infrastructure. Vercel deployment live at ato-ai.app.",
+    "AGENTS ARE EXTENSIVE BUT UNDER-VALIDATED: 29 specialized agents (R&D specialist, Division 7A analyst, etc.) exist in `.agent/agents/` but the tax law reasoning in each is not formally verified against ATO rulings. Compliance audit (2026-02-07) flagged 7 critical tax logic gaps (deduction engine oversimplifies entertainment, Division 7A missing loss-of-benefit provisions, R&D offset capped at $4M not enforced). These gaps are DOCUMENTED but NOT YET FIXED in code.",
+    "VALIDATION SYSTEM IS WELL-DESIGNED BUT OPTIONAL: 10 Python validators in `.claude/hooks/validators/` exist (tax-calculation-validator, rnd-eligibility-validator, etc.) but their invocation is not mandatory — outputs can be generated and displayed without validation. Recommendation: Make validator pass a quality gate before recommendation display.",
+    "AMENDMENT PERIOD TRACKING IS NEW (2026-02-08): Amendment Period Tracker agent correctly calculates expiry dates and identifies expired opportunities, mitigating risk of recommending non-amendable years. Good defensive design.",
+    "MULTI-PLATFORM ROADMAP IN FLIGHT: Migrations added platform column to all analysis tables (20260128000008 onwards); Xero-only system expanding to MYOB and QuickBooks. Database design supports multi-platform; API endpoints not yet implemented for MYOB/QB sync.",
+    "DASHBOARD DATA QUALITY FIX (2026-02-28): Mock data issue (showing 100/1,000 instead of 100/12,236) was identified and fixed with real-time transaction count. Indicates responsive ops team.",
+    "IDEATION PIPELINE IS NOVEL: Two-Claude pattern (capture + validation) with queue-based work routing is sophisticated but adds operational complexity. Idea intake at `.agent/workflows/idea-intake.md` requires separate Claude instances and careful handoff protocols.",
+    "SECURITY POSTURE IS STRONG FOR DATA: AES-256-GCM token encryption, RLS on all tables, read-only Xero scopes. CONCERN: In-memory rate limiting (lib/middleware/rate-limit.ts) is not distributed — vulnerable in serverless/edge environment. Recommend Upstash Redis.",
+    "COMPLIANCE AUDIT FINDINGS ARE CRITICAL BUT FIXABLE: 7 tax logic gaps (deduction engine entertainment calc, Division 7A missing amortization, superannuation carry-forward cap, etc.) documented in CLAUDE.md compliance section. Fixes require updates to 5-6 engine files. No timeline given for remediation. Recommend: prioritize R&D offset capping ($4M cap) and Division 7A minimum repayment part-year formula — these affect high-value claims.",
+    "AGENT FLEET GOVERNANCE IS LOOSE: 29 agents with individual prompts and contexts; no centralized taxonomy of which agent handles which legislation. Risk: duplicate effort (two agents analyzing Division 7A) or gaps (no agent for Division 293 superannuation clawback). Recommend: create agent-to-legislation registry and deprecate unused agents."
+  ],
+  "deploymentTopology": "Next.js 16 + React 19 frontend on Vercel (Sydney region). Supabase PostgreSQL backend with Row Level Security. Gemini AI API for forensic analysis (batched calls). Xero OAuth integration (read-only). Multi-org support with per-user access control. Cron jobs run async analysis on schedule. Email via Sendgrid or Resend. Slack webhooks for alerts. Linear integration for issue tracking. Stateless API layer allows horizontal scaling. Session state stored in httpOnly cookies (Supabase JWT). No server-side sessions. SCALING: Current: 2 connected Xero orgs, 12,236 cached transactions. Handles concurrent analysis via Gemini batching (rate limit: 15 req/min free tier). At scale (1000+ orgs): Gemini API throttling becomes bottleneck — recommend premium tier or fallback to Claude/open-source LLM.",
+  "dataModels": [
+    "Forensic Analysis Result: { analysisId, entityId, fy, engine, finding, confidence, recommendation, legislation, amountInvolved, status, createdAt } — stores individual engine outputs (one row per engine per analysis)",
+    "Transaction Cache: { transactionId, organisationId, date, amount, glCode, contact, description, category, platform, syncedAt } — denormalized Xero transactions for fast querying",
+    "Amendment Period Record: { entityId, fy, assessmentDate, amendmentWindowEnd, status, identifiedOpportunities, value } — tracks opportunity windows expiring",
+    "Tax Rate Snapshot: { rateType (e.g., 'rnd_offset'), fy, value, source, effectiveDate, cachedAt } — versioned rates for consistent historical analysis",
+    "User Tenant Access: { userId, tenantId (org), role (owner/editor/viewer), createdAt } — multi-tenancy isolation with RLS",
+    "Xero Token Store: { userId, organisationId, accessToken (encrypted), refreshToken (encrypted), expiresAt, scopes } — OAuth credential storage",
+    "Agent Report: { agentId, tenantId, status (healthy/warning/error), findings (JSON array), recommendations (JSON array), executedAt, metadata } — monitoring/alert output",
+    "Idea Queue: { queueId, userId, idea (text), status (pending/validating/validated/processing/complete), linearIssueId, createdAt, processedAt } — two-Claude pattern work management"
+  ]
+}
+```
+
+---
+
+## **CRITICAL ASSESSMENT**
+
+### **Production Readiness: BETA (not production-ready yet)**
+
+**Blockers:**
+1. **7 documented tax logic gaps** in compliance audit (2026-02-07) — deduction engine, Division 7A minimum repayment, R&D offset capping, superannuation carry-forward. These are real bugs that produce incorrect recommendations.
+2. **Validation optional, not mandatory** — 10 validators exist but are not enforced before output. Tax calculations can be displayed without verification.
+3. **In-memory rate limiting** — vulnerable in serverless; should use distributed cache (Upstash).
+4. **No user filing history context** — AI cannot detect if deductions were already claimed in prior years (risk of double-claiming).
+
+**Strengths:**
+- Xero OAuth + multi-org support mature
+- Supabase schema solid with RLS
+- 23 passing tests
+- Amendment period tracking live
+- Vercel deployment stable
+- Read-only access eliminates write-risk
+
+### **Recommendation to Operator**
+
+**Before launch:**
+1. **Prioritize tax logic fixes** (2-3 days): R&D offset $4M cap, Division 7A part-year formula, entertainment deduction calc.
+2. **Make validators mandatory** (1 day): Add quality gate that blocks recommendations unless ≥1 validator passes.
+3. **Add distributed rate limiting** (0.5 day): Use Upstash Redis or Vercel KV.
+4. **Document agent-to-legislation mapping** (0.5 day): Prevent duplicate/dead agents.
+
+**After fixes, safe to launch as public beta** with prominent disclaimer: *"This tool provides intelligence estimates. All recommendations require review by a registered tax agent before implementation."*
+
+---
+
+**Phase 4 Context Analysis: COMPLETE** ✅
